@@ -1,0 +1,40 @@
+{
+  "name": "lead-emergence-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:schema": "node --test tests/schema-policy-contract.test.mjs",
+    "test:rls": "supabase test db --local supabase/tests/database",
+    "scan:sensitive": "node scripts/scan-sensitive-data.mjs",
+    "schema:checksum": "node scripts/check-workspace-schema.mjs",
+    "build:shared-migration": "node scripts/build-shared-project-migration.mjs",
+    "verify:shared-migration": "node scripts/verify-shared-project-migration.mjs",
+    "check:boundaries": "node scripts/check-product-boundaries.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "lucide-react": "^0.468.0",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.35",
+    "typescript": "^5.5.3",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,21 @@
+project_id = "lead-emergence-workspace-local"
+
+[api]
+enabled = true
+port = 56421
+schemas = ["workspace"]
+extra_search_path = ["workspace"]
+
+[db]
+port = 56422
+shadow_port = 56420
+major_version = 15
+
+[studio]
+port = 56423
+
+[local_smtp]
+port = 56424
+
+[analytics]
+port = 56427
