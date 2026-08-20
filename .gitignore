@@ -9,4 +9,5 @@ test-results/
 !.env.example
 artifacts/shared-project/
 supabase/.temp/
+supabase/.branches/
 *.tsbuildinfo

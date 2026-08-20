@@ -19,7 +19,7 @@ runtime imports and never uses a Supabase service-role key.
 2. Start a local Supabase stack, apply `supabase/migrations/`, then run
    `npm run dev`.
 3. Run `npm run check:boundaries`, `npm run test:schema`, `npm run typecheck`,
-   `npm run lint`, `npm run test:unit`, and `npm run build`.
+   `npm run lint`, `npm run test:unit`, `npm run test:rls`, and `npm run build`.
 
 See `docs/runbooks/local-development.md`. Hosted database changes, live-data
 migration, deployment, route cutover, and cleanup are approval-gated.
