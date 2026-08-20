@@ -1,0 +1,9 @@
+project_id = "lead-emergence-workspace-local"
+
+[api]
+enabled = true
+schemas = ["workspace"]
+extra_search_path = ["workspace", "workspace_private"]
+
+[db]
+major_version = 15
