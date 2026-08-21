@@ -8,5 +8,7 @@
 | `/command-center/job-search` | `/workspace/career` | Ported. |
 | `/command-center/memory` | `/workspace/memory` | Ported. |
 | `/command-center/integrations` | `/workspace/integrations` | Metadata/reconnect state only. |
-| `/command-center/chat`, feed, MCP | None yet | Deferred pending secret and authenticated tool boundary. |
+| `/command-center/chat`, feed, MCP, and any unmapped legacy UI child | `/workspace` | Safe fallback; no legacy query, source, session, or fragment data is forwarded. |
 | Ministry meetings routes | None | Remain ministry-owned. |
+
+Gate D uses temporary 307 responses so a rollback can restore the legacy UI without creating permanent browser redirect caches. Every `/api/command-center/**` route returns an intentional no-store 410 before a legacy handler can execute.

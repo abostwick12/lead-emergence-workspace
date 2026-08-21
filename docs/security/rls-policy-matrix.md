@@ -2,7 +2,7 @@
 
 | Object | Read | Create/update/delete |
 | --- | --- | --- |
-| `user_profiles` | Self | Self; user ID immutable. |
+| `user_profiles` | Self | Self; user ID immutable. Primary `timezone` is independent of the exactly-three `clock_timezones` display preference. |
 | `workspaces` | Active member/owner | Owner creates one personal Workspace and edits name only. |
 | `workspace_memberships` | Self | Self may create only their owner membership for their new personal Workspace; no direct update/delete grant. |
 | `workspace_entitlements` | Active member | No direct user write. |

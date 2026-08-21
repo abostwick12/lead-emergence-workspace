@@ -68,6 +68,12 @@ export type IntegrationConnection = {
   last_error_code: string | null;
 };
 
+export type UserProfileRecord = {
+  user_id: string;
+  timezone: string;
+  clock_timezones: string[];
+};
+
 export type DailyBriefingRecord = {
   id: string;
   workspace_id: string;

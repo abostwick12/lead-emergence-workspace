@@ -12,8 +12,10 @@ import type {
   TaskRecord,
   TaskStatus,
   WorkspaceAuditEvent,
-  WorkspaceDomain
+  WorkspaceDomain,
+  UserProfileRecord
 } from "@/lib/workspace/types";
+import { normalizeClockTimeZones, type ClockTimeZones } from "@/lib/workspace/timezones";
 
 function required<T>(data: T | null, error: { message: string } | null): T {
   if (error) throw new Error(error.message);
@@ -196,6 +198,34 @@ export async function listIntegrationConnections(workspaceId: string): Promise<I
     .order("provider");
   if (error) throw new Error(error.message);
   return (data ?? []) as IntegrationConnection[];
+}
+
+export async function getClockTimeZones(userId: string): Promise<ClockTimeZones> {
+  const { data, error } = await getWorkspaceClient()
+    .from("user_profiles")
+    .select("user_id, timezone, clock_timezones")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return normalizeClockTimeZones((data as UserProfileRecord | null)?.clock_timezones);
+}
+
+export async function saveClockTimeZones(userId: string, clockTimeZones: ClockTimeZones): Promise<ClockTimeZones> {
+  const { data: updated, error: updateError } = await getWorkspaceClient()
+    .from("user_profiles")
+    .update({ clock_timezones: clockTimeZones })
+    .eq("user_id", userId)
+    .select("user_id, timezone, clock_timezones")
+    .maybeSingle();
+  if (updateError) throw new Error(updateError.message);
+  if (updated) return normalizeClockTimeZones((updated as UserProfileRecord).clock_timezones);
+
+  const { data: inserted, error: insertError } = await getWorkspaceClient()
+    .from("user_profiles")
+    .insert({ user_id: userId, clock_timezones: clockTimeZones })
+    .select("user_id, timezone, clock_timezones")
+    .single();
+  return normalizeClockTimeZones(required(inserted as UserProfileRecord | null, insertError).clock_timezones);
 }
 
 export async function listDailyBriefings(workspaceId: string): Promise<DailyBriefingRecord[]> {

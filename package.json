@@ -24,6 +24,8 @@
     "build:gate-c-package": "node scripts/build-gate-c-package.mjs",
     "verify:gate-c-package": "node scripts/verify-gate-c-package.mjs",
     "verify:gate-c-source-build": "node scripts/verify-gate-c-source-build.mjs",
+    "build:gate-d-package": "node scripts/build-gate-d-package.mjs",
+    "verify:gate-d-package": "node scripts/verify-gate-d-package.mjs",
     "check:boundaries": "node scripts/check-product-boundaries.mjs"
   },
   "dependencies": {

@@ -10,6 +10,7 @@ test-results/
 artifacts/shared-project/
 artifacts/gate-b/
 artifacts/gate-c/
+artifacts/gate-d/
 supabase/.temp/
 supabase/.branches/
 *.tsbuildinfo

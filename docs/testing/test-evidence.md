@@ -86,3 +86,21 @@ This test is therefore recorded as a **pre-deployment integration test**, not as
 - Local Supabase client session check — **PASS**: current-session sign-out returned no error, cleared the client auth storage, and returned no session afterward.
 - `npm run scan:sensitive`, `npm run check:boundaries`, `npm run test:schema` (7/7), `npm run typecheck`, `npm run lint`, `npm run test:unit` (1/1), and `npm run build` — **PASS**.
 - Canonical local RLS/cross-tenant/cross-product suite — **25/25 PASS**. `npm audit --omit=dev --json` remains clean with zero production findings.
+
+## Gate D clock candidate and production preflight — 2026-08-21
+
+- Three-clock implementation — defaults are `America/New_York`, `America/Chicago`, and `America/Los_Angeles`; all three are independently configurable and persisted in the separate `clock_timezones` profile preference. Primary `timezone` and stored timestamps are not updated.
+- DST/local derivation — unit coverage verifies EST/EDT, CST/CDT, and PST/PDT across fixed winter/summer instants. No external time API or network call exists in the clock component.
+- Responsive treatment — the header uses a three-column `minmax(0, 1fr)` clock grid, wraps it below header controls at narrower widths, and removes nonessential mobile header controls before they can cause horizontal overflow.
+- `npm run check:boundaries` — **PASS**; 23 runtime files, with no Ministry/Consulting import or service-role client.
+- `npm run test:schema` — **10/10 PASS**.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **29/29 PASS**, including four clock-preference/DST tests and the canonical 24 hostile return-path cases.
+- `npm run build` — **PASS** on Next.js 16.3.2; all 11 product routes plus `_not-found` remained static.
+- Local `npm run test:rls` aggregate — **expected non-green** because it discovers preserved hosted-only Gate A preflight/postflight files that require the Ministry `guest_public_page_permissions` relation absent from the isolated Workspace stack. The aggregate still ran the unchanged canonical hostile file successfully at 25/25.
+- Direct canonical `hostile_workspace_access.sql` — **25/25 PASS** after the clock schema was present. Focused `workspace_clock_preferences.sql` — **7/7 PASS** for defaults, self update, primary-timezone preservation, cross-user read/update denial, and hostile-update integrity.
+- Local schema execution — the current CLI rejected the multi-statement migration file as one prepared statement, so the additive column and constraint were executed individually against the isolated local stack and both verified present/validated. No hosted project was linked or changed by this local validation.
+- Shared production project verification — **PASS**. Project `cirqqhuvzekbvysiyedg` resolved to healthy `emergence-ministry-platform` on Postgres 17; no alternate project was used.
+- Clock schema read-only preflight — **5/5 PASS**. `workspace.user_profiles`, primary `timezone`, RLS, and self-update policy are present; `clock_timezones` is absent before the additive migration.
+- Legacy table read-only preflight — exactly seven tables exist and still grant authenticated writes: `personal_tasks` (0), `daily_briefing_cache` (1), `ai_conversations` (18), `personal_integrations` (7), `sage_memory` (0), `capture_inbox` (0), and `job_applications` (0). The five personal knowledge/feed candidates are absent and excluded from the planned freeze.

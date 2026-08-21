@@ -9,4 +9,6 @@
 | `public.ai_conversations` | `workspace.ai_conversations` | Copy only if Andrew confirms retention. |
 | `public.daily_briefing_cache` | `workspace.daily_briefings` | Copy cache metadata/content after classification. |
 | `public.personal_integrations.config` | `workspace.integration_connections` | Metadata only; never copy token fields. |
-| `personal_knowledge_*` / weekly feed | Workspace feed tables | Confirm actual hosted migration status first. |
+| `personal_knowledge_sources`, `personal_knowledge_items`, `personal_weekly_feeds`, `personal_weekly_feed_items`, `personal_feed_run_logs` | Workspace feed tables | Fresh Gate D production preflight on 2026-08-21 confirmed these source tables do not exist; exclude them from the freeze. |
+
+Gate D retains every confirmed source record and preserves read access. The hosted freeze removes legacy application-role write privileges only from the seven confirmed tables; it does not drop tables, alter migrated Workspace data, or delete source evidence.
