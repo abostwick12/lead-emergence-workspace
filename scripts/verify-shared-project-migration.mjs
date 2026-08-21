@@ -1,11 +1,56 @@
-import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import {
+  executionPackage,
+  gateAMigrations,
+  normalizeSql,
+  packageMigration,
+  sha256,
+  validateSourceProvenance,
+} from "./gate-a-package.mjs";
 
-const sourcePath = resolve("supabase/migrations/20260820000000_workspace_foundation.sql");
-const packagePath = resolve(process.argv[2] || "artifacts/shared-project/20260820000000_workspace_foundation.sql");
-const source = (await readFile(sourcePath, "utf8")).replaceAll("\r\n", "\n");
-const packaged = (await readFile(packagePath, "utf8")).replaceAll("\r\n", "\n");
-const checksum = createHash("sha256").update(source).digest("hex");
-if (!packaged.includes(`SOURCE CHECKSUM: ${checksum}`) || !packaged.endsWith(source)) throw new Error("Shared-project package does not exactly contain the Workspace migration source.");
-console.log(`Verified shared-project migration checksum ${checksum}.`);
+const execFileAsync = promisify(execFile);
+const sourceCommit = process.argv[2]?.trim();
+if (!/^[0-9a-f]{40}$/i.test(sourceCommit || "")) {
+  throw new Error("Pass the full committed Workspace SHA: npm run verify:shared-migration -- <sha>.");
+}
+
+const { stdout: head } = await execFileAsync("git", ["rev-parse", "HEAD"]);
+if (sourceCommit !== head.trim()) {
+  throw new Error("Verify only the package generated from the current committed Workspace HEAD.");
+}
+
+const packagedMigrations = [];
+for (const fileName of gateAMigrations) {
+  const sourcePath = `supabase/migrations/${fileName}`;
+  const { stdout } = await execFileAsync("git", ["show", `${sourceCommit}:${sourcePath}`], { maxBuffer: 1024 * 1024 });
+  const sourceSql = normalizeSql(stdout);
+  validateSourceProvenance(fileName, sourceSql);
+  const expected = packageMigration({ sourceCommit, sourceSql });
+  const packagePath = resolve("artifacts/shared-project", fileName);
+  const actual = normalizeSql(await readFile(packagePath, "utf8"));
+  if (actual !== expected.packagedSql) {
+    throw new Error(`${fileName} is not byte-for-byte equivalent to the deterministic package output.`);
+  }
+  packagedMigrations.push({ fileName, ...expected });
+}
+
+const expectedExecution = executionPackage({ sourceCommit, packagedMigrations });
+const executionPath = resolve("artifacts/shared-project/gate-a-execution.sql");
+const actualExecution = normalizeSql(await readFile(executionPath, "utf8"));
+if (actualExecution !== expectedExecution) {
+  throw new Error("gate-a-execution.sql is not byte-for-byte equivalent to the deterministic package output.");
+}
+
+console.log(JSON.stringify({
+  sourceCommit,
+  migrations: packagedMigrations.map(({ fileName, sourceChecksum, packagedSql }) => ({
+    fileName,
+    sourceChecksum,
+    packageChecksum: sha256(packagedSql),
+  })),
+  executionChecksum: sha256(actualExecution),
+  verified: true,
+}, null, 2));

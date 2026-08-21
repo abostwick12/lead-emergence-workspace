@@ -1,35 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowRight, BriefcaseBusiness, CalendarDays, CheckCircle2, CircleDashed, Inbox, MessageSquare, Radio, Sparkles } from "lucide-react";
 import { useWorkspace } from "@/components/workspace-provider";
-import { listCaptures, listJobApplications, listTasks } from "@/lib/workspace/repository";
-import type { CaptureRecord, JobApplicationRecord, TaskRecord } from "@/lib/workspace/types";
+import { countAiConversations, listCaptures, listDailyBriefings, listIntegrationConnections, listJobApplications, listTasks, listWorkspaceActivity } from "@/lib/workspace/repository";
+import type { CaptureRecord, DailyBriefingRecord, IntegrationConnection, JobApplicationRecord, TaskRecord, WorkspaceAuditEvent } from "@/lib/workspace/types";
+
+type DashboardState = { tasks: TaskRecord[]; captures: CaptureRecord[]; jobs: JobApplicationRecord[]; integrations: IntegrationConnection[]; briefings: DailyBriefingRecord[]; activity: WorkspaceAuditEvent[]; conversationCount: number };
+const emptyState: DashboardState = { tasks: [], captures: [], jobs: [], integrations: [], briefings: [], activity: [], conversationCount: 0 };
 
 export default function WorkspaceOverviewPage() {
   const { workspace } = useWorkspace();
-  const [tasks, setTasks] = useState<TaskRecord[]>([]);
-  const [captures, setCaptures] = useState<CaptureRecord[]>([]);
-  const [jobs, setJobs] = useState<JobApplicationRecord[]>([]);
+  const [state, setState] = useState<DashboardState>(emptyState);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
+  const [loading, setLoading] = useState(true);
+  const reload = useCallback(async () => {
     if (!workspace) return;
-    void Promise.all([listTasks(workspace.id), listCaptures(workspace.id), listJobApplications(workspace.id)])
-      .then(([nextTasks, nextCaptures, nextJobs]) => { setTasks(nextTasks); setCaptures(nextCaptures); setJobs(nextJobs); })
-      .catch((caught) => setError(caught instanceof Error ? caught.message : "Could not load overview."));
+    setLoading(true);
+    try {
+      const [tasks, captures, jobs, integrations, briefings, activity, conversationCount] = await Promise.all([listTasks(workspace.id), listCaptures(workspace.id), listJobApplications(workspace.id), listIntegrationConnections(workspace.id), listDailyBriefings(workspace.id), listWorkspaceActivity(workspace.id), countAiConversations(workspace.id)]);
+      setState({ tasks, captures, jobs, integrations, briefings, activity, conversationCount });
+      setError(null);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load the command center."); }
+    finally { setLoading(false); }
   }, [workspace]);
-  const openTasks = tasks.filter((task) => task.status !== "done");
-  const todayPriority = [...openTasks].sort((a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"))[0];
-  return <>
-    <h1 className="page-title">Your command center</h1><p className="page-lede">Private planning, captured commitments, and personal priorities — isolated from ministry data.</p>
+  useEffect(() => { void reload(); }, [reload]);
+
+  const openTasks = state.tasks.filter((task) => task.status !== "done");
+  const priority = useMemo(() => [...openTasks].sort((left, right) => priorityRank(left) - priorityRank(right) || (left.due_date || "9999-12-31").localeCompare(right.due_date || "9999-12-31"))[0], [openTasks]);
+  const planned = useMemo(() => openTasks.filter((task) => task.due_date).sort((left, right) => (left.due_date || "").localeCompare(right.due_date || "")).slice(0, 4), [openTasks]);
+  const activeJobs = state.jobs.filter((job) => !["rejected", "withdrawn"].includes(job.status));
+  const currentJob = [...activeJobs].sort((left, right) => (left.next_follow_up_date || "9999-12-31").localeCompare(right.next_follow_up_date || "9999-12-31"))[0];
+  const gmail = state.integrations.find((integration) => integration.provider === "gmail");
+  const slack = state.integrations.find((integration) => integration.provider === "slack");
+
+  return <section className="command-dashboard" aria-label="Lead Emergence Workspace command center">
     {error ? <p className="error">{error}</p> : null}
-    <section className="grid three">
-      <article className="card"><p className="muted">Open tasks</p><p className="metric">{openTasks.length}</p></article>
-      <article className="card"><p className="muted">Needs review</p><p className="metric">{captures.filter((entry) => entry.status === "unprocessed").length}</p></article>
-      <article className="card"><p className="muted">Career follow-ups</p><p className="metric">{jobs.filter((job) => job.next_follow_up_date && job.next_follow_up_date <= new Date().toISOString().slice(0, 10)).length}</p></article>
-    </section>
-    <section className="grid two" style={{ marginTop: 18 }}>
-      <article className="card"><h2>Today&apos;s priority</h2>{todayPriority ? <><h3>{todayPriority.title}</h3><p className="muted">{todayPriority.due_date ? `Due ${todayPriority.due_date}` : "No due date"} · {todayPriority.domain.replaceAll("_", " ")}</p></> : <p className="empty">No open tasks. Add one when a priority emerges.</p>}</article>
-      <article className="card"><h2>Workspace boundary</h2><p className="notice">This application queries only the `workspace` schema using your authenticated session. Ministry records, roles, and storage are not part of this product.</p></article>
-    </section>
-  </>;
+    <div className="command-content"><section className="command-bento">
+      <article className="synthesis-hero"><div className="hero-topline"><span><Sparkles size={16} />LEWIS · Morning Synthesis</span><small>{loading ? "Loading Workspace signals…" : `${state.conversationCount} retained conversation ${state.conversationCount === 1 ? "entry" : "entries"}`}</small></div><div className="hero-main"><p className="eyebrow hero-eyebrow">Priority for the day</p>{priority ? <><h1>{priority.title}</h1><p>{priority.description || `A ${priority.priority} priority in ${priority.domain.replaceAll("_", " ")}—kept in view from your real Workspace task list.`}</p></> : <><h1>Choose the work that matters most.</h1><p>Your Workspace has no open tasks yet. Capture a commitment or create a task to establish today’s focus.</p></>}</div><div className="hero-actions">{priority ? <Link className="button hero-primary" href="/workspace/tasks"><CheckCircle2 size={16} />Open task <ArrowRight size={15} /></Link> : <Link className="button hero-primary" href="/workspace/capture"><Inbox size={16} />Capture priority <ArrowRight size={15} /></Link>}<Link className="button secondary hero-secondary" href="/workspace/tasks">View daily focus</Link><button className="hero-lewis-deferred" disabled title="LEWIS generation is not connected yet">Ask LEWIS <span>Coming later</span></button></div></article>
+      <article className="planner-card command-card"><CardHeading icon={<CalendarDays size={16} />} label="Daily Planner" detail={planned.length ? `${planned.length} due task${planned.length === 1 ? "" : "s"}` : "No scheduled items"} /><div className="planner-list">{planned.length ? planned.map((task, index) => <div className="planner-item" key={task.id}><time>{task.due_date}</time><span className={index === 0 ? "planner-dot active" : "planner-dot"} /><div><strong>{task.title}</strong><p>{task.domain.replaceAll("_", " ")} · {task.status.replaceAll("_", " ")}</p></div></div>) : <EmptyCopy>Tasks with a due date will appear here. Calendar activity is unavailable until its Workspace integration is reconnected.</EmptyCopy>}</div></article>
+      <article className="integration-context-card command-card"><CardHeading icon={<Inbox size={17} />} label="Inbox" detail={gmail?.status === "connected" ? "Connected" : "Reconnect required"} /><p className="integration-state-copy">Gmail messages are unavailable. Existing integration metadata has no copied account, token, or mailbox content.</p><Link href="/workspace/integrations" className="card-link">View integration state <ArrowRight size={15} /></Link></article>
+      <article className="integration-context-card command-card"><CardHeading icon={<MessageSquare size={17} />} label="Slack" detail={slack?.status === "connected" ? "Connected" : "Reconnect required"} /><p className="integration-state-copy">Slack messages, channels, and people remain unavailable until a Workspace-specific connection is approved.</p><Link href="/workspace/integrations" className="card-link">View integration state <ArrowRight size={15} /></Link></article>
+      <article className="network-card command-card"><CardHeading icon={<Radio size={16} />} label="Network Signals" detail="Deferred" /><div className="deferred-panel"><p>Network and LinkedIn signals are not connected.</p><span>Workspace will not invent profile views, mutuals, job matches, or contact activity.</span></div></article>
+      <article className="pipeline-card command-card"><CardHeading icon={<BriefcaseBusiness size={16} />} label="Career Pipeline" detail={`${activeJobs.length} active`} />{currentJob ? <><p className="pipeline-kicker">Next opportunity</p><h2>{currentJob.company} <em>· {currentJob.role}</em></h2><p className="pipeline-meta">{currentJob.next_follow_up_date ? `Follow up ${currentJob.next_follow_up_date}` : "No follow-up date set"}</p><PipelineProgress jobs={state.jobs} /></> : <EmptyCopy>Add an opportunity to start a real, private career pipeline.</EmptyCopy>}<Link href="/workspace/career" className="card-link">Open pipeline <ArrowRight size={15} /></Link></article>
+      <article className="briefing-card command-card"><CardHeading icon={<Sparkles size={16} />} label="Daily Briefing" detail={state.briefings[0] ? state.briefings[0].briefing_date : "No briefing today"} />{state.briefings[0] ? <p className="briefing-copy">A migrated Workspace briefing is retained for this date. LEWIS has not generated a new synthesis.</p> : <EmptyCopy>When a real Workspace briefing exists, this panel will identify it by date. No generated briefing is being simulated.</EmptyCopy>}</article>
+    </section></div>
+    <aside className="activity-rail" aria-label="Workspace live feed"><div className="activity-rail-header"><div><Radio size={16} /><h2>Live Feed</h2></div><span>{state.activity.length} recorded</span></div><div className="activity-filters" aria-label="Activity categories"><button data-active>All</button><button disabled>Comms</button><button disabled>Network</button><button disabled>Calendar</button></div><div className="activity-list">{state.activity.length ? state.activity.slice(0, 10).map((event) => <ActivityItem event={event} key={event.id} />) : <EmptyCopy>No Workspace activity has been recorded yet. Real task, capture, and pipeline changes will appear here.</EmptyCopy>}</div></aside>
+  </section>;
 }
+
+function CardHeading({ icon, label, detail }: { icon: React.ReactNode; label: string; detail: string }) { return <div className="command-card-heading"><div>{icon}<h2>{label}</h2></div><span>{detail}</span></div>; }
+function EmptyCopy({ children }: { children: React.ReactNode }) { return <p className="command-empty">{children}</p>; }
+function PipelineProgress({ jobs }: { jobs: JobApplicationRecord[] }) { const stages = ["researching", "applied", "phone_screen", "interview", "offer"] as const; const furthest = Math.max(0, ...jobs.map((job) => Math.max(0, stages.indexOf(job.status as typeof stages[number])))); return <div className="pipeline-progress" aria-label={`Pipeline has ${jobs.length} opportunities`}><div>{stages.map((stage, index) => <span key={stage} className={index <= furthest ? "filled" : ""} />)}</div><p>{stages.map((stage) => stage.replaceAll("_", " ")).join(" · ")}</p></div>; }
+function ActivityItem({ event }: { event: WorkspaceAuditEvent }) { const time = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(event.created_at)); return <article className="activity-item"><span className="activity-icon"><CircleDashed size={15} /></span><div><p>{event.entity_type.replaceAll("_", " ")} · {event.event_type.replaceAll("_", " ")}</p><strong>Workspace activity recorded</strong></div><time>{time}</time></article>; }
+function priorityRank(task: TaskRecord) { return ["critical", "high", "medium", "low"].indexOf(task.priority); }

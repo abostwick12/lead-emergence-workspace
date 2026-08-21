@@ -1,29 +1,43 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, X } from "lucide-react";
 import { useWorkspace } from "@/components/workspace-provider";
 import { createTask, deleteTask, listTasks, updateTask } from "@/lib/workspace/repository";
-import { DOMAIN_LABELS, type TaskRecord, type WorkspaceDomain } from "@/lib/workspace/types";
+import { DOMAIN_LABELS, type TaskPriority, type TaskRecord, type TaskStatus, type WorkspaceDomain } from "@/lib/workspace/types";
 
 const domains = Object.keys(DOMAIN_LABELS) as WorkspaceDomain[];
+const lanes: Array<{ value: TaskStatus; label: string }> = [{ value: "todo", label: "Ready" }, { value: "in_progress", label: "In progress" }, { value: "blocked", label: "Blocked" }, { value: "done", label: "Complete" }];
 
 export default function TasksPage() {
   const { workspace, user } = useWorkspace();
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
-  const [title, setTitle] = useState(""); const [domain, setDomain] = useState<WorkspaceDomain>("general");
-  const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState("");
+  const [domain, setDomain] = useState<WorkspaceDomain>("general");
+  const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [dueDate, setDueDate] = useState("");
+  const [filter, setFilter] = useState<WorkspaceDomain | "all">("all");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const reload = useCallback(async () => { if (workspace) setTasks(await listTasks(workspace.id)); }, [workspace]);
   useEffect(() => { void reload().catch((caught) => setError(caught instanceof Error ? caught.message : "Could not load tasks.")); }, [reload]);
+  const visible = useMemo(() => filter === "all" ? tasks : tasks.filter((task) => task.domain === filter), [filter, tasks]);
+
   async function add(event: FormEvent) {
-    event.preventDefault(); if (!workspace || !user || !title.trim()) return;
+    event.preventDefault();
+    if (!workspace || !user || !title.trim()) return;
     setSaving(true); setError(null);
-    try { await createTask({ workspaceId: workspace.id, userId: user.id, title, domain }); setTitle(""); await reload(); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : "Could not add task."); } finally { setSaving(false); }
+    try { await createTask({ workspaceId: workspace.id, userId: user.id, title, domain, priority, dueDate: dueDate || null }); setTitle(""); setDueDate(""); await reload(); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Could not add task."); }
+    finally { setSaving(false); }
   }
-  async function changeStatus(id: string, status: TaskRecord["status"]) { try { await updateTask(id, { status }); await reload(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update task."); } }
-  return <><h1 className="page-title">Tasks</h1><p className="page-lede">Track your personal next actions across the parts of life that matter.</p>
-    <section className="grid two"><article className="card"><h2>Add task</h2><form className="form-grid" onSubmit={add}><label>Task title<input required value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Domain<select value={domain} onChange={(event) => setDomain(event.target.value as WorkspaceDomain)}>{domains.map((value) => <option key={value} value={value}>{DOMAIN_LABELS[value]}</option>)}</select></label><button className="button" disabled={saving}>{saving ? "Adding…" : "Add task"}</button></form></article>
-      <article className="card"><h2>Priority guide</h2><p className="muted">Use status to keep today&apos;s work visible. Due dates, projects, and richer planning data are supported by the Workspace schema and can be added without reopening the tenant model.</p></article></section>
-    <section className="card" style={{ marginTop: 18 }}><div className="row"><h2>All tasks</h2><span className="pill">{tasks.length}</span></div>{error ? <p className="error">{error}</p> : null}{tasks.length ? <div>{tasks.map((task) => <article className="item" key={task.id}><div className="row"><div><strong>{task.title}</strong><p className="muted">{DOMAIN_LABELS[task.domain]} · {task.due_date || "No due date"}</p></div><div className="row"><span className={`pill ${task.status}`}>{task.status.replaceAll("_", " ")}</span><select aria-label={`Status for ${task.title}`} value={task.status} onChange={(event) => void changeStatus(task.id, event.target.value as TaskRecord["status"])}><option value="todo">To do</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="done">Done</option></select><button className="button danger" onClick={() => void deleteTask(task.id).then(reload).catch((caught) => setError(caught instanceof Error ? caught.message : "Could not delete task."))}>Delete</button></div></div></article>)}</div> : <p className="empty">No tasks yet.</p>}</section>
-  </>;
+  async function move(task: TaskRecord, status: TaskStatus) { try { await updateTask(task.id, { status }); await reload(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update task."); } }
+  async function remove(id: string) { try { await deleteTask(id); await reload(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not remove task."); } }
+
+  return <section className="workflow-page"><header className="workflow-heading"><p className="eyebrow">Daily Focus</p><h1 className="page-title">Move the work that matters.</h1><p className="page-lede">A private Workspace board for current commitments. Each change stays within your authenticated Workspace and produces its existing audit event.</p></header>
+    <section className="workflow-composer"><form className="task-composer" onSubmit={add}><label>Task title<input required value={title} placeholder="What needs to move forward?" onChange={(event) => setTitle(event.target.value)} /></label><label>Domain<select value={domain} onChange={(event) => setDomain(event.target.value as WorkspaceDomain)}>{domains.map((value) => <option key={value} value={value}>{DOMAIN_LABELS[value]}</option>)}</select></label><label>Priority<select value={priority} onChange={(event) => setPriority(event.target.value as TaskPriority)}><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label><label>Due date<input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></label><button className="button" disabled={saving}>{saving ? "Adding…" : <><Plus size={16} />Add task</>}</button></form></section>
+    <div className="domain-filters" aria-label="Filter tasks by domain"><button data-active={filter === "all"} onClick={() => setFilter("all")}>All tasks</button>{domains.map((value) => <button key={value} data-active={filter === value} onClick={() => setFilter(value)}>{DOMAIN_LABELS[value]}</button>)}</div>
+    {error ? <p className="error">{error}</p> : null}
+    <section className="kanban-board" aria-label="Task board">{lanes.map((lane) => { const laneTasks = visible.filter((task) => task.status === lane.value); return <article className="kanban-lane" key={lane.value}><header><div><span className={`lane-dot ${lane.value}`} /><h2>{lane.label}</h2></div><span>{laneTasks.length}</span></header><div className="kanban-stack">{laneTasks.length ? laneTasks.map((task) => <article className="task-card" key={task.id}><div className="task-card-top"><span className={`priority-mark ${task.priority}`}>{task.priority}</span><button aria-label={`Delete ${task.title}`} onClick={() => void remove(task.id)}><X size={15} /></button></div><strong>{task.title}</strong><p>{DOMAIN_LABELS[task.domain]}{task.due_date ? ` · due ${task.due_date}` : ""}</p><select aria-label={`Status for ${task.title}`} value={task.status} onChange={(event) => void move(task, event.target.value as TaskStatus)}>{lanes.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></article>) : <p className="lane-empty">No tasks here.</p>}</div></article>; })}</section>
+  </section>;
 }

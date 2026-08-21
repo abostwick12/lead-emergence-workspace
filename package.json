@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.9.0"
   },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run",
@@ -19,12 +19,19 @@
     "schema:checksum": "node scripts/check-workspace-schema.mjs",
     "build:shared-migration": "node scripts/build-shared-project-migration.mjs",
     "verify:shared-migration": "node scripts/verify-shared-project-migration.mjs",
+    "build:gate-b-package": "node scripts/build-gate-b-package.mjs",
+    "verify:gate-b-package": "node scripts/verify-gate-b-package.mjs",
+    "build:gate-c-package": "node scripts/build-gate-c-package.mjs",
+    "verify:gate-c-package": "node scripts/verify-gate-c-package.mjs",
+    "verify:gate-c-source-build": "node scripts/verify-gate-c-source-build.mjs",
+    "build:gate-d-package": "node scripts/build-gate-d-package.mjs",
+    "verify:gate-d-package": "node scripts/verify-gate-d-package.mjs",
     "check:boundaries": "node scripts/check-product-boundaries.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "lucide-react": "^0.468.0",
-    "next": "^14.2.35",
+    "next": "16.3.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -32,8 +39,8 @@
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.35",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.2",
     "typescript": "^5.5.3",
     "vitest": "^2.1.8"
   }

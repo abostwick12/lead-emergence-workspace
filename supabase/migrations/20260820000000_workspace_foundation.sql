@@ -1,12 +1,10 @@
 -- DOMAIN OWNER: LEAD EMERGENCE WORKSPACE
--- SOURCE REPOSITORY: abostwick12/lead-emergence-workspace
--- SOURCE COMMIT: UNCOMMITTED (replace only in generated shared-project package)
 -- PURPOSE: Standalone Workspace schema, tenant security, and private storage boundary.
 --
--- This migration is local Workspace source. It must be copied verbatim into a
--- timestamped ministry-repository migration only through the controlled shared
--- migration package and only after Gate A approval. It must never be pushed
--- directly from this repository to the shared hosted project.
+-- Canonical source for deterministic shared-project packaging. The packaging
+-- script reads this committed file and injects the source repository, commit,
+-- and checksum into the generated package; no provisional provenance belongs
+-- in this authoritative SQL.
 
 create extension if not exists pgcrypto;
 

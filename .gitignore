@@ -8,6 +8,9 @@ test-results/
 .env.*.local
 !.env.example
 artifacts/shared-project/
+artifacts/gate-b/
+artifacts/gate-c/
+artifacts/gate-d/
 supabase/.temp/
 supabase/.branches/
 *.tsbuildinfo
