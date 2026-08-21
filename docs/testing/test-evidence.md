@@ -15,7 +15,7 @@
 ## Not executed, with reason
 
 - E2E authenticated flows: requires local Supabase fixtures and local stack.
-- Production migration/deployment/cutover: intentionally blocked by Gates A–D.
+- At the original foundation-validation checkpoint, production migration/deployment/cutover was intentionally blocked. This historical disposition is superseded by the Gate D production evidence below.
 
 No unavailable test is treated as passing or as approval to onboard external users.
 
@@ -104,3 +104,20 @@ This test is therefore recorded as a **pre-deployment integration test**, not as
 - Shared production project verification — **PASS**. Project `cirqqhuvzekbvysiyedg` resolved to healthy `emergence-ministry-platform` on Postgres 17; no alternate project was used.
 - Clock schema read-only preflight — **5/5 PASS**. `workspace.user_profiles`, primary `timezone`, RLS, and self-update policy are present; `clock_timezones` is absent before the additive migration.
 - Legacy table read-only preflight — exactly seven tables exist and still grant authenticated writes: `personal_tasks` (0), `daily_briefing_cache` (1), `ai_conversations` (18), `personal_integrations` (7), `sage_memory` (0), `capture_inbox` (0), and `job_applications` (0). The five personal knowledge/feed candidates are absent and excluded from the planned freeze.
+
+## Gate D production cutover — 2026-08-21
+
+- Ministry D1 — **DEPLOYED**. Source `e41b10aa75f974e2a1acd10a8cf70c7e514ca5c5` merged as `ba61a28f297d72ee359d097fda805032d155f801`; the exact production deployment succeeded. Hosted migration `20260821181638_ministry_gmail_boundary` passed preflight/postflight. The private Ministry token table is service-role-only and empty, and the deployed meeting Gmail adapter never reads or writes `personal_integrations`.
+- Ministry Gate D — **DEPLOYED**. Source `10f3edd5170709f292719520a2565c07896e3edc` merged through PR #390 as `713ef4342601f38ddca867e70a0708266da616a0`; CI and Vercel review passed and the exact production deployment succeeded.
+- Ministry regression — **PASS**. `design-check`, typecheck, lint, 1,487 unit assertions in 227 files, production build (196 routes), and the full Playwright suite passed with 150 scenarios, one intentional skip, and zero failures. Focused Gate D unit coverage passed 27/27 and focused browser coverage passed 16/16.
+- Production legacy route smoke — **PASS**. The root, mapped task/capture/career/memory/integrations children, deep links, and unmapped fallback all returned 307 to their fixed Workspace targets. Supplied query values were absent from every Location header.
+- Production legacy API smoke — **PASS**. Exact API root plus GET, POST, PUT, PATCH, DELETE, OPTIONS, and HEAD returned 410 with `Cache-Control: no-store`, `Pragma: no-cache`, and `X-Robots-Tag: noindex`.
+- Clock hosted package — **APPLIED/PASS**. The committed migration bytes match SHA-256 `05e100e3f5f2c7b041ba9bc1373912d9f26f4d8fbe125831f45ab7304dde85d2`; hosted migration `20260821191020_workspace_clock_preferences` created the non-null array, three defaults, and exactly-three constraint without changing the primary timezone column.
+- Clock hosted persistence — **PASS**. A production authenticated-role transaction inserted and updated three independent selections, retained primary timezone `America/Chicago`, rejected an invalid two-clock array, and rolled back. Postflight confirmed the profile table returned to its original zero-row state.
+- Legacy freeze — **APPLIED/PASS**. Hosted migration `20260821191057_legacy_command_center_write_freeze` created exactly seven statement-level INSERT/UPDATE/DELETE triggers. A no-row write-statement probe received SQLSTATE `55000` from every table. RLS and authenticated SELECT remained enabled, and all seven row counts remained unchanged.
+- Workspace D2/clocks — **DEPLOYED**. Source `176557902e5f2096fb81135d636ec1b4c7f28b45` merged through PR #2 as `6b6f8867e3a3bca05207339b249857aa7dea5715`; the exact production deployment succeeded. All six stable Workspace routes returned 200 with the approved CSP and `nosniff` header.
+- Workspace validation — **PASS**. Boundaries, 10/10 schema checks, typecheck, lint, 29/29 unit tests, build, sensitive scan, canonical RLS 25/25, and focused clock RLS 7/7 passed. The authenticated local visual/persistence coverage plus the hosted authenticated-role persistence transaction verify the deployed feature contract without modifying production preferences.
+- Supabase advisors — **PASS for Gate D scope**. No new security advisory targets the clock preference, freeze function, Ministry Gmail token table, or frozen tables. Existing unrelated shared-project performance notices remain outside this cutover.
+- Runtime error API — **UNAVAILABLE**. The Vercel runtime-error connector returned 403 for both team projects. Exact deployment status, public HTTP smoke, and database/log-independent invariants passed; the access limitation is carried into stabilization monitoring rather than treated as passing.
+- Data/rollback — **PASS**. No legacy row, Workspace migrated row, upload, integration token, or production clock preference was changed by validation. The Ministry Gmail token count remains zero. The application rollback sources and seven-trigger database rollback are documented and viable.
+- Stabilization — **ACTIVE**. Heartbeat `lead-emergence-stabilization-monitor` runs daily for 14 checks through the approved window and may perform only read-only deployment, HTTP-contract, database-invariant, Gmail-boundary, and available runtime-error checks. Cleanup remains separately approval-gated.

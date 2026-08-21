@@ -11,4 +11,4 @@
 | `public.personal_integrations.config` | `workspace.integration_connections` | Metadata only; never copy token fields. |
 | `personal_knowledge_sources`, `personal_knowledge_items`, `personal_weekly_feeds`, `personal_weekly_feed_items`, `personal_feed_run_logs` | Workspace feed tables | Fresh Gate D production preflight on 2026-08-21 confirmed these source tables do not exist; exclude them from the freeze. |
 
-Gate D retains every confirmed source record and preserves read access. The hosted freeze removes legacy application-role write privileges only from the seven confirmed tables; it does not drop tables, alter migrated Workspace data, or delete source evidence.
+Gate D retains every confirmed source record and preserves read access. The hosted freeze adds statement-level write-rejection triggers only to the seven confirmed tables; it does not revoke privileges, change RLS, drop tables, alter migrated Workspace data, or delete source evidence.
