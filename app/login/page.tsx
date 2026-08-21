@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getWorkspaceClient } from "@/lib/supabase/client";
+import { normalizeWorkspaceReturnPath } from "@/lib/workspace/return-path";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +19,8 @@ export default function LoginPage() {
     const result = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setPending(false);
     if (result.error) { setError(result.error.message); return; }
-    router.replace("/workspace");
+    const next = new URLSearchParams(window.location.search).get("next");
+    router.replace(normalizeWorkspaceReturnPath(next));
   }
 
   return <main className="auth-page"><section className="auth-card">

@@ -7,6 +7,7 @@ import { Bell, BrainCircuit, BriefcaseBusiness, Compass, Crosshair, Menu, Moon, 
 import { QuickCaptureDialog } from "@/components/quick-capture-dialog";
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider";
 import { getWorkspaceClient } from "@/lib/supabase/client";
+import { workspaceLoginHref } from "@/lib/workspace/return-path";
 
 const links = [
   ["/workspace", "Command Center", Compass], ["/workspace/tasks", "Daily Focus", Target], ["/workspace/career", "Pipeline", BriefcaseBusiness],
@@ -23,7 +24,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const displayName = useMemo(() => user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "there", [user]);
-  useEffect(() => { if (ready && !user) router.replace("/login"); }, [ready, user, router]);
+  useEffect(() => { if (ready && !user) router.replace(workspaceLoginHref(pathname)); }, [ready, user, router, pathname]);
   useEffect(() => {
     if (!workspace) return;
     void getWorkspaceClient().from("workspace_entitlements").select("enabled").eq("workspace_id", workspace.id).eq("feature_key", "leader_mode").maybeSingle()
