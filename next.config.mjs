@@ -1,3 +1,7 @@
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = dirname(fileURLToPath(import.meta.url));
 const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
 const localSupabaseOrigin = configuredSupabaseUrl.match(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/)?.[0] ?? "";
 const localSupabaseConnectSources = localSupabaseOrigin
@@ -7,6 +11,9 @@ const localSupabaseConnectSources = localSupabaseOrigin
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  turbopack: {
+    root: projectRoot
+  },
   async headers() {
     return [
       {

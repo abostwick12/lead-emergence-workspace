@@ -15,7 +15,7 @@ export const productionUrl = `https://${productionHostname}`;
 const sourceRoots = ["app", "components", "lib", "tests"];
 const sourceFiles = [
   ".env.example",
-  ".eslintrc.json",
+  "eslint.config.mjs",
   "next-env.d.ts",
   "next.config.mjs",
   "package-lock.json",
@@ -81,7 +81,7 @@ export async function sourceBundle(sourceCommit) {
   const entries = await Promise.all(files.map(async (file) => [file, sha256(await readFile(file))]));
   const checksums = Object.fromEntries(entries);
   return {
-    manifestVersion: 3,
+    manifestVersion: 4,
     sourceCommit,
     fileCount: entries.length,
     sourceRoots,

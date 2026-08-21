@@ -53,3 +53,26 @@ This test is therefore recorded as a **pre-deployment integration test**, not as
 - Supplemental harness rollback verification — passed; zero harness synthetic users persisted.
 - Official local Storage API lifecycle — **5/5 PASS** using two synthetic local Auth users: owner upload; non-owner delete denied with the object retained; anonymous delete denied with the object retained; owner delete; and zero synthetic objects after cleanup.
 - Authenticated visual QA used the local Auth-issued synthetic user and a local Personal Workspace/membership fixture only. It created a task, a career opportunity, and inbox captures through the authenticated UI, exercised header Quick Capture, and never used a production session, credential, or bypass. See `design-qa.md` for screenshot evidence and the remaining reference-capture limitation.
+
+## Gate C remediation deployment — automated acceptance
+
+- Deployment `dpl_FqY1oLR1DXwyMpH9sseiheMAUwba` — **READY** at the protected production Workspace URL. It was built from the 31-file source lock for commit `dd8e64479a33e7668dc87e734de53a6da32f9514` with bundle SHA-256 `358141d01bdb27132420dfbdb3a658cd8869a7539b2195976c895223e5db3b5d`.
+- Deployment protection, authenticated owner Workspace resolution, session reload, migrated dashboard data, seven reconnect-required integrations, empty domain states, upload UI absence, and browser-console inspection — **PASS**.
+- `NEXT_PUBLIC_WORKSPACE_UPLOADS_ENABLED` — **provenance/runtime verified disabled**. The approved configuration set it to `false`; no subsequent Vercel environment update occurred; the locked source has no Workspace Storage runtime call; and the authenticated production UI exposes no upload control. Vercel masks the local readback as `[SENSITIVE]`; plaintext readback is not a release requirement.
+- Exact transactional CRUD/audit artifact SHA-256 `c955085109ede4d5874037a3a351e355f9dce7e7f6d2b07ce779aea1fd18bb40` — **PASS**. Create, update, delete, and all three audit assertions passed under the authenticated role, then rolled back.
+- Hosted cross-product hostile artifact SHA-256 `240731b7eba03ee161ae74de3b878dbc59c5a4c33ed84082afcefa5522684ab4` — **30 PASS, 1 not applicable through direct SQL**. The only non-passing case is the accepted Supabase restriction on direct `storage.objects` deletion (`42501`); it is covered by the official Storage API lifecycle disposition.
+- Sign-out — **PASS**. The authenticated automated session returned to the private login route without changing Workspace data.
+- Runtime logs — **PASS**. No error-level logs exist for the remediation deployment.
+- Post-test persistence check — **PASS**. No CRUD or hostile-suite synthetic task, audit row, user, Workspace, bucket, Storage object, or Ministry fixture persisted.
+- Final authenticated visual/product acceptance — **PASS**. The owner accepted the protected production Workspace experience against the real Personal Workspace data.
+- Gate C — **COMPLETE**. The current deployment is preserved; no routing, integration, uploads, legacy command-center, Ministry, Consulting OS, or Gate D change is authorized by this acceptance.
+
+## Next.js 16 security remediation — local candidate validation
+
+- Approved framework/tooling target installed: `next@16.3.2`, `eslint-config-next@16.3.2`, `eslint@9.39.5`; React and React DOM remain `18.3.1`. The Node engine is declared as `>=20.9.0`.
+- `npm run scan:sensitive`, `npm run check:boundaries`, `npm run test:schema` (6/6), `npm run typecheck`, `npm run lint`, `npm run test:unit` (1/1), and `npm run build` — **PASS**.
+- Canonical local Supabase hostile suite `supabase test db --local supabase/tests/database/hostile_workspace_access.sql` — **25/25 PASS**. The broad directory invocation also discovers preserved hosted-only Gate A preflight/postflight artifacts, which intentionally require Ministry relations absent from the isolated local Workspace project; it is not used as evidence for the local suite.
+- `npm audit --omit=dev --json` — **PASS, 0 production findings**. No `next` or `postcss` finding remains.
+- Full audit — **5 development-only findings**: Vitest `2.1.9` (critical) and its Vite/Vite-node/esbuild/@vitest/mocker chain (one high, three moderate). The audited fix is the separate major `vitest@4.1.11` upgrade; it is deliberately outside this framework-remediation scope.
+- Manifest comparison: the exact deployed-source commit `dd8e64479a33e7668dc87e734de53a6da32f9514` was built in an isolated temporary directory with Next `14.2.35`, then compared with the Next `16.3.2` build. All 11 product routes remain static; dynamic route count remains zero; the CSP and all five additional headers are identical; no rewrite is introduced. Next 16 adds only internal `/_global-error` manifest metadata and changes generated chunks from Webpack to Turbopack.
+- No preview or production deployment has been created from this candidate.
