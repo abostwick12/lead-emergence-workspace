@@ -59,7 +59,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     workspace,
     error,
     signOut: async () => {
-      await getWorkspaceClient().auth.signOut();
+      const { error: signOutError } = await getWorkspaceClient().auth.signOut({ scope: "local" });
+      if (signOutError) throw signOutError;
       setUser(null);
       setWorkspace(null);
     }

@@ -76,3 +76,13 @@ This test is therefore recorded as a **pre-deployment integration test**, not as
 - Full audit — **5 development-only findings**: Vitest `2.1.9` (critical) and its Vite/Vite-node/esbuild/@vitest/mocker chain (one high, three moderate). The audited fix is the separate major `vitest@4.1.11` upgrade; it is deliberately outside this framework-remediation scope.
 - Manifest comparison: the exact deployed-source commit `dd8e64479a33e7668dc87e734de53a6da32f9514` was built in an isolated temporary directory with Next `14.2.35`, then compared with the Next `16.3.2` build. All 11 product routes remain static; dynamic route count remains zero; the CSP and all five additional headers are identical; no rewrite is introduced. Next 16 adds only internal `/_global-error` manifest metadata and changes generated chunks from Webpack to Turbopack.
 - No preview or production deployment has been created from this candidate.
+
+## Preview logout remediation — local validation
+
+- Scope: a focused client logout correction only. The app remains a browser-client Supabase application; it does not add SSR auth, cookies, middleware, route changes, or hosted configuration changes.
+- Root cause: the desktop sidebar expanded with the dashboard document, leaving Sign out outside the viewport. The prior browser automation did not invoke the control. The logout action also used Supabase's cross-device default scope and had no explicit completion navigation or visible failure state.
+- Remediation: keep the sidebar within the viewport, call `auth.signOut({ scope: "local" })`, report a failure in-place, and use a same-origin navigation to `/login` only after successful client-session invalidation.
+- Isolated local production-mode browser test — **PASS** using a newly created local synthetic owner and Personal Workspace fixture: sign-in succeeded; Sign out reached `/login`; direct `/workspace` navigation remained unauthenticated; and a subsequent sign-in succeeded. No production session, credentials, database rows, or hosted configuration were used.
+- Local Supabase client session check — **PASS**: current-session sign-out returned no error, cleared the client auth storage, and returned no session afterward.
+- `npm run scan:sensitive`, `npm run check:boundaries`, `npm run test:schema` (7/7), `npm run typecheck`, `npm run lint`, `npm run test:unit` (1/1), and `npm run build` — **PASS**.
+- Canonical local RLS/cross-tenant/cross-product suite — **25/25 PASS**. `npm audit --omit=dev --json` remains clean with zero production findings.

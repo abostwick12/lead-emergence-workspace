@@ -5,10 +5,13 @@ import { readFile } from "node:fs/promises";
 const sql = await readFile("supabase/migrations/20260820000000_workspace_foundation.sql", "utf8");
 const configToml = await readFile("supabase/config.toml", "utf8");
 const workspaceResolver = await readFile("lib/workspace/provision.ts", "utf8");
+const workspaceProvider = await readFile("components/workspace-provider.tsx", "utf8");
+const workspaceShell = await readFile("components/workspace-shell.tsx", "utf8");
 const loginPage = await readFile("app/login/page.tsx", "utf8");
 const envExample = await readFile(".env.example", "utf8");
 const nextConfig = await readFile("next.config.mjs", "utf8");
 const robots = await readFile("app/robots.ts", "utf8");
+const globalCss = await readFile("app/globals.css", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -50,4 +53,12 @@ test("keeps the Gate C application private, non-indexed, and upload-disabled", (
   assert.match(envExample, /NEXT_PUBLIC_WORKSPACE_UPLOADS_ENABLED=false/);
   assert.match(nextConfig, /X-Robots-Tag/);
   assert.match(robots, /disallow:\s*"\//);
+});
+
+test("signs out the current browser session before returning to login", () => {
+  assert.match(workspaceProvider, /auth\.signOut\(\{ scope: "local" \}\)/);
+  assert.match(workspaceProvider, /if \(signOutError\) throw signOutError;/);
+  assert.match(workspaceShell, /await signOut\(\);\s*window\.location\.replace\("\/login"\);/);
+  assert.match(workspaceShell, /disabled=\{signingOut\}/);
+  assert.match(globalCss, /\.sidebar \{[^}]*position: sticky;[^}]*height: 100vh;[^}]*overflow-y: auto;/);
 });
