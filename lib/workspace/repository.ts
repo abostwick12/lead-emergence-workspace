@@ -3,6 +3,7 @@
 import { getWorkspaceClient } from "@/lib/supabase/client";
 import type {
   CaptureRecord,
+  DailyBriefingRecord,
   IntegrationConnection,
   JobApplicationRecord,
   JobApplicationStatus,
@@ -10,6 +11,7 @@ import type {
   TaskPriority,
   TaskRecord,
   TaskStatus,
+  WorkspaceAuditEvent,
   WorkspaceDomain
 } from "@/lib/workspace/types";
 
@@ -194,4 +196,35 @@ export async function listIntegrationConnections(workspaceId: string): Promise<I
     .order("provider");
   if (error) throw new Error(error.message);
   return (data ?? []) as IntegrationConnection[];
+}
+
+export async function listDailyBriefings(workspaceId: string): Promise<DailyBriefingRecord[]> {
+  const { data, error } = await getWorkspaceClient()
+    .from("daily_briefings")
+    .select("id, workspace_id, briefing_date, items, generated_at, created_at")
+    .eq("workspace_id", workspaceId)
+    .order("briefing_date", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as DailyBriefingRecord[];
+}
+
+export async function listWorkspaceActivity(workspaceId: string): Promise<WorkspaceAuditEvent[]> {
+  const { data, error } = await getWorkspaceClient()
+    .from("audit_events")
+    .select("id, workspace_id, event_type, entity_type, entity_id, metadata, created_at")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false })
+    .limit(24);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as WorkspaceAuditEvent[];
+}
+
+export async function countAiConversations(workspaceId: string): Promise<number> {
+  const { count, error } = await getWorkspaceClient()
+    .from("ai_conversations")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", workspaceId);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
 }

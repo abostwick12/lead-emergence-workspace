@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { getWorkspaceClient } from "@/lib/supabase/client";
-import { provisionPersonalWorkspace } from "@/lib/workspace/provision";
+import { resolvePersonalWorkspace } from "@/lib/workspace/provision";
 import type { WorkspaceRecord } from "@/lib/workspace/types";
 
 type WorkspaceContextValue = {
@@ -30,7 +30,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         const { data, error: authError } = await supabase.auth.getUser();
         if (authError) throw authError;
         if (!data.user) return;
-        const personalWorkspace = await provisionPersonalWorkspace(data.user);
+        const personalWorkspace = await resolvePersonalWorkspace(data.user);
         if (!live) return;
         setUser(data.user);
         setWorkspace(personalWorkspace);

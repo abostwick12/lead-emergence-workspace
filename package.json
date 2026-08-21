@@ -19,6 +19,11 @@
     "schema:checksum": "node scripts/check-workspace-schema.mjs",
     "build:shared-migration": "node scripts/build-shared-project-migration.mjs",
     "verify:shared-migration": "node scripts/verify-shared-project-migration.mjs",
+    "build:gate-b-package": "node scripts/build-gate-b-package.mjs",
+    "verify:gate-b-package": "node scripts/verify-gate-b-package.mjs",
+    "build:gate-c-package": "node scripts/build-gate-c-package.mjs",
+    "verify:gate-c-package": "node scripts/verify-gate-c-package.mjs",
+    "verify:gate-c-source-build": "node scripts/verify-gate-c-source-build.mjs",
     "check:boundaries": "node scripts/check-product-boundaries.mjs"
   },
   "dependencies": {

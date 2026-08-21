@@ -4,6 +4,11 @@ import { readFile } from "node:fs/promises";
 
 const sql = await readFile("supabase/migrations/20260820000000_workspace_foundation.sql", "utf8");
 const configToml = await readFile("supabase/config.toml", "utf8");
+const workspaceResolver = await readFile("lib/workspace/provision.ts", "utf8");
+const loginPage = await readFile("app/login/page.tsx", "utf8");
+const envExample = await readFile(".env.example", "utf8");
+const nextConfig = await readFile("next.config.mjs", "utf8");
+const robots = await readFile("app/robots.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -29,4 +34,20 @@ test("creates a private workspace bucket with owner-only mutations", () => {
   assert.match(sql, /values \('workspace-private', 'workspace-private', false\)/);
   assert.match(sql, /workspace_private_objects_insert/);
   assert.match(sql, /owner_id = auth\.uid\(\)::text/);
+});
+
+test("resolves an existing active owner membership without provisioning Workspace data", () => {
+  assert.match(workspaceResolver, /from\("workspace_memberships"\)/);
+  assert.match(workspaceResolver, /\.eq\("role", "owner"\)/);
+  assert.match(workspaceResolver, /\.eq\("status", "active"\)/);
+  assert.doesNotMatch(workspaceResolver, /\.insert\(/);
+  assert.doesNotMatch(workspaceResolver, /\.upsert\(/);
+});
+
+test("keeps the Gate C application private, non-indexed, and upload-disabled", () => {
+  assert.doesNotMatch(loginPage, /signUp\s*\(/);
+  assert.match(loginPage, /active Workspace membership/);
+  assert.match(envExample, /NEXT_PUBLIC_WORKSPACE_UPLOADS_ENABLED=false/);
+  assert.match(nextConfig, /X-Robots-Tag/);
+  assert.match(robots, /disallow:\s*"\//);
 });

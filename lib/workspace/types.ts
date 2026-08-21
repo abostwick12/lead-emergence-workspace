@@ -68,6 +68,25 @@ export type IntegrationConnection = {
   last_error_code: string | null;
 };
 
+export type DailyBriefingRecord = {
+  id: string;
+  workspace_id: string;
+  briefing_date: string;
+  items: unknown;
+  generated_at: string;
+  created_at: string;
+};
+
+export type WorkspaceAuditEvent = {
+  id: string;
+  workspace_id: string;
+  event_type: string;
+  entity_type: string;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
 export const DOMAIN_LABELS: Record<WorkspaceDomain, string> = {
   general: "General",
   military_transition: "Military transition",
