@@ -35,10 +35,12 @@ Rollback remains viable: redeploy the recorded pre-Gate-D application sources, t
 
 ## Goal C — Workspace / Personal productization
 
-Status: **local candidate validated; PR/Preview and hosted prerequisites remain; hosted migration and production cutover are not approved**.
+Status: **local candidate validated; Workspace and Entry PRs are open and green; the Workspace Preview build is green; hosted schema/Auth configuration and authenticated Preview acceptance remain; hosted migration and production cutover are not approved**.
 
 The productization source adds one-login Personal SSO consumption, shared native and AI-assisted setup, Workspace MCP authorization, Personal plan/capability resolution, plan-safe Settings, first-value Home behavior, useful empty states, and production operations documentation. The custom Workspace domain was already healthy before this goal; the Vercel rollback URL remains available.
 
 No Goal C migration has been applied to the shared hosted project. The ministry repository remains its sole migration authority. No Goal C PR has been merged, no real user has been migrated or activated, no external connector token has been copied, no billing/trial/pricing has been activated or invented, and no production-cutover gate approval is recorded here.
 
-Local acceptance is recorded in `docs/testing/test-evidence.md`: all required application checks, a fresh database rebuild, 85 pgTAP assertions, 8 desktop/mobile browser cases, database lint, full dependency audit, boundary scan, and sensitive-data scan pass. This evidence is not a hosted-migration or cutover approval.
+Workspace PR [#4](https://github.com/abostwick12/lead-emergence-workspace/pull/4) and Entry PR [#2](https://github.com/abostwick12/lead-emergence-entry/pull/2) are open and mergeable. Workspace Vercel Preview checks and the Entry quality workflow are green. The protected Workspace Preview renders the productized public sign-in and safe rollback state without console errors, but Entry OIDC correctly fails closed until the environment-specific provider/client and hosted schema are provisioned. Therefore authenticated Preview and productized custom-domain acceptance are not yet claimable.
+
+Local and external acceptance evidence is recorded in `docs/testing/test-evidence.md`: all required application checks, a fresh database rebuild, 85 pgTAP assertions, 8 desktop/mobile browser cases, database lint, full dependency audit, boundary scan, sensitive-data scan, green PR checks, and custom-domain/TLS baseline checks pass. This evidence is not a hosted-migration or cutover approval.
