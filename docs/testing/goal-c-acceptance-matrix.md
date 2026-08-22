@@ -70,7 +70,7 @@ This is the requirement-by-requirement candidate audit. It does not authorize a 
 | Entry branch Preview | PASS public/runtime | Green build/CI, login, JWKS, exact Preview app/product origins, corrected Personal Supabase Auth callback, zero error/5xx events. |
 | Entry to Workspace SSO source | IMPLEMENTED | Entry PR and Workspace PR reuse the proven OAuth/OIDC contract and fail closed. |
 | Entry to Workspace hosted SSO | BLOCKED | Personal OAuth client/custom provider and active hosted Workspace schema are absent. |
-| Live Entry production authority | PARTIAL | Dedicated Vercel project, verified `entry.leademergence.com` DNS, Git connection, Next.js/Node 24 configuration, public origins, and unique signing credentials are ready. A distinct production Entry Supabase backend, OAuth clients, deployment, and traffic are still absent; `www.leademergence.com` remains Ministry. |
+| Live Entry production authority | PARTIAL/PAUSED | Dedicated Vercel project, verified `entry.leademergence.com` DNS/TLS, Git connection, Next.js/Node 24 configuration, public origins, and unique signing credentials are ready. Vercel automatically classified the first Git build as Production; the credential-incomplete project was immediately paused and the domain returns `503 DEPLOYMENT_PAUSED`. A distinct production Entry Supabase backend and OAuth clients are absent; `www.leademergence.com` remains Ministry. |
 | Second credential prompt | FALSE locally; NOT PROVEN hosted | Source/session contract avoids a second login; hosted interactive acceptance cannot run yet. |
 
 ## UI, mobile, and accessibility
