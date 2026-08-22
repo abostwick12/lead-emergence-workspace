@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:schema": "node --test tests/schema-policy-contract.test.mjs",
-    "test:rls": "supabase test db --local supabase/tests/database/hostile_workspace_access.sql supabase/tests/database/workspace_clock_preferences.sql supabase/tests/database/workspace_productization.sql",
+    "test:rls": "supabase test db --local supabase/tests/database/hostile_workspace_access.sql supabase/tests/database/workspace_clock_preferences.sql supabase/tests/database/workspace_productization.sql supabase/tests/database/workspace_product_events.sql",
     "test:e2e": "playwright test",
     "scan:sensitive": "node scripts/scan-sensitive-data.mjs",
     "schema:checksum": "node scripts/check-workspace-schema.mjs",

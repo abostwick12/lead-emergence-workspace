@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const sql = await readFile("supabase/migrations/20260820000000_workspace_foundation.sql", "utf8");
 const productizationSql = await readFile("supabase/migrations/20260822044610_workspace_productization.sql", "utf8");
 const clockPreferencesSql = await readFile("supabase/migrations/20260821172607_workspace_clock_preferences.sql", "utf8");
+const firstCaptureEventSql = await readFile("supabase/migrations/20260822124500_workspace_first_capture_event.sql", "utf8");
 const configToml = await readFile("supabase/config.toml", "utf8");
 const workspaceResolver = await readFile("lib/workspace/provision.ts", "utf8");
 const workspaceProvider = await readFile("components/workspace-provider.tsx", "utf8");
@@ -134,4 +135,13 @@ test("renders DST-aware local clocks with a responsive configuration surface", (
   assert.doesNotMatch(workspaceClocks, /fetch\(|axios|timeapi|worldtime/i);
   assert.match(globalCss, /\.workspace-clocks \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(globalCss, /@media \(max-width: 640px\)[^}]*\.workspace-header/s);
+});
+
+test("records first capture activation without copying Personal content", () => {
+  assert.match(firstCaptureEventSql, /product_events_first_capture_unique/);
+  assert.match(firstCaptureEventSql, /where event_name = 'first_capture_created'/);
+  assert.match(firstCaptureEventSql, /security definer/);
+  assert.match(firstCaptureEventSql, /set search_path = ''/);
+  assert.match(firstCaptureEventSql, /on conflict do nothing/);
+  assert.doesNotMatch(firstCaptureEventSql, /new\.raw_text|raw_text/);
 });

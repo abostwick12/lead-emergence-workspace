@@ -41,6 +41,12 @@ insert into workspace.mcp_authorizations (workspace_id, client_id, assistant_pro
   ('6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'alice-mcp-client', 'chatgpt', 'connected', now(), '61111111-1111-4111-8111-111111111111'),
   ('6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'bob-mcp-client', 'claude', 'connected', now(), '62222222-2222-4222-8222-222222222222');
 
+select set_config(
+  'request.test_mcp_resource_uri',
+  (select setting_value from workspace_private.product_settings where setting_key = 'mcp_resource_uri'),
+  true
+);
+
 select is((select relrowsecurity from pg_class where oid = 'workspace.personal_plans'::regclass), true, 'Personal plans use RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace.personal_onboarding'::regclass), true, 'onboarding uses RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace.personal_configuration_items'::regclass), true, 'shared configuration uses RLS');
@@ -72,13 +78,16 @@ update workspace.workspace_memberships set status = 'active', revoked_at = null
 where workspace_id = '6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' and user_id = '62222222-2222-4222-8222-222222222222';
 
 insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-values (
+select
   '63333333-3333-4333-8333-333333333333',
   '61111111-1111-4111-8111-111111111111',
   '{"sub":"63333333-3333-4333-8333-333333333333","email":"product.alice@example.invalid"}'::jsonb,
-  'custom:lead-emergence-entry-workspace-prod',
+  provider_identifier,
   now(), now(), now()
-);
+from workspace_private.trusted_identity_providers
+where enabled
+order by provider_identifier
+limit 1;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
 select lives_ok($sql$select workspace.ensure_personal_workspace()$sql$, 'existing active owner can reconcile a verified Entry identity');
@@ -152,7 +161,7 @@ select throws_ok(
 );
 select is((select count(*) from workspace.tasks), 1::bigint, 'capability removal preserves existing task data');
 
-select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://workspace.leademergence.com/api/mcp","client_id":"alice-mcp-client","workspace_mcp":"true","iat":1900000000}', true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
 select is(
   pg_catalog.jsonb_array_length(workspace.mcp_get_leadership_state() -> 'open_tasks'),
   0,
@@ -162,7 +171,7 @@ select is(
 reset role;
 update workspace.plan_capabilities set enabled = false where plan_key = 'personal' and capability_key = 'workspace_mcp';
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://workspace.leademergence.com/api/mcp","client_id":"alice-mcp-client","workspace_mcp":"true","iat":1900000000}', true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
 select throws_ok(
   $sql$select workspace.mcp_get_onboarding_state()$sql$,
   '42501', 'The AI assistant connection is not included for this Workspace.',
@@ -181,7 +190,7 @@ select is((select count(*) from workspace.tasks), 2::bigint, 'enabled capability
 
 reset role;
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://workspace.leademergence.com/api/mcp","client_id":"alice-mcp-client","workspace_mcp":"true","iat":1900000000}', true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
 
 select is((select count(*) from workspace.tasks), 0::bigint, 'MCP OAuth token cannot traverse ordinary task RLS');
 select is((select count(*) from workspace.personal_configuration_items), 0::bigint, 'MCP OAuth token cannot traverse configuration RLS');
@@ -191,7 +200,7 @@ select is(workspace.mcp_save_user_reported_setup('commitments', 'Alice reported 
 select is(workspace.mcp_suggest_workspace_configuration('value_focus', 'Suggested value focus') ->> 'requires_user_confirmation', 'true', 'MCP suggestions require confirmation');
 select is((workspace.mcp_confirm_workspace_configuration(array['6b000000-0000-4000-8000-000000000001']::uuid[]) ->> 'confirmed_count')::integer, 0, 'Alice cannot confirm Bob configuration');
 
-select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://workspace.leademergence.com/api/mcp","client_id":"bob-mcp-client","workspace_mcp":"true","iat":1900000000}', true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'bob-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
 select throws_ok(
   $sql$select workspace.mcp_get_workspace_setup()$sql$,
   '42501', 'This AI assistant connection is disconnected or requires authorization.',
@@ -208,16 +217,16 @@ select throws_ok(
 reset role;
 update workspace.mcp_authorizations set status = 'disconnected', disconnected_at = now() where workspace_id = '6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://workspace.leademergence.com/api/mcp","client_id":"alice-mcp-client","workspace_mcp":"true","iat":1700000000}', true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1700000000)::text, true);
 select throws_ok(
   $sql$select workspace.mcp_get_onboarding_state()$sql$,
   '42501', 'This AI assistant connection is disconnected or requires authorization.',
   'disconnected MCP cannot make privileged calls'
 );
 
-select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://workspace.leademergence.com/api/mcp","client_id":"alice-mcp-client","workspace_mcp":"true","iat":1900000100}', true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000100)::text, true);
 select is(workspace.mcp_register_connection() ->> 'status', 'connected', 'a newly issued authorization can reconnect the same MCP client');
-select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://workspace.leademergence.com/api/mcp","client_id":"alice-mcp-client","workspace_mcp":"true","iat":1700000000}', true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1700000000)::text, true);
 select throws_ok(
   $sql$select workspace.mcp_get_onboarding_state()$sql$,
   '42501', 'This AI assistant connection is disconnected or requires authorization.',
@@ -232,7 +241,7 @@ select is(
 );
 select is(
   workspace_private.custom_access_token_hook('{"claims":{"sub":"61111111-1111-4111-8111-111111111111","client_id":"alice-mcp-client"}}'::jsonb) #>> '{claims,aud}',
-  'https://workspace.leademergence.com/api/mcp',
+  current_setting('request.test_mcp_resource_uri'),
   'OAuth hook binds MCP token to the canonical resource'
 );
 select is(
