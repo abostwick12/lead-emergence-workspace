@@ -6,6 +6,22 @@ const mobileUser = process.env.E2E_MOBILE_USER_EMAIL;
 const returningUser = process.env.E2E_RETURNING_USER_EMAIL;
 const suspendedUser = process.env.E2E_SUSPENDED_USER_EMAIL;
 
+function relativeLuminance(rgb: string) {
+  const channels = rgb.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [];
+  if (channels.length !== 3) throw new Error(`Expected an RGB color, received ${rgb}`);
+  const linear = channels.map((channel) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function contrastRatio(foreground: string, background: string) {
+  const light = Math.max(relativeLuminance(foreground), relativeLuminance(background));
+  const dark = Math.min(relativeLuminance(foreground), relativeLuminance(background));
+  return (light + 0.05) / (dark + 0.05);
+}
+
 function monitorRuntime(page: Page) {
   const pageErrors: string[] = [];
   const criticalResponses: string[] = [];
@@ -36,6 +52,37 @@ test("public login keeps Lead Emergence primary and rollback available", async (
   await expect(page.getByRole("link", { name: "Privacy and access details" })).toBeVisible();
   await page.getByLabel("Email").focus();
   await expect(page.getByLabel("Email")).toBeFocused();
+  assertRuntime();
+});
+
+test("public login meets the keyboard, touch, alert, and contrast baseline", async ({ page }) => {
+  const assertRuntime = monitorRuntime(page);
+  await page.goto("/login?error=entry_unavailable");
+  const primary = page.getByRole("link", { name: /Continue with Lead Emergence/ });
+  const rollback = page.getByRole("button", { name: /Use rollback sign-in/ });
+
+  await page.keyboard.press("Tab");
+  await expect(primary).toBeFocused();
+  await expect(page.locator(".auth-card .error[role='alert']")).toContainText("temporarily unavailable");
+
+  for (const control of [primary, rollback]) {
+    const box = await control.boundingBox();
+    expect(box, "visible interactive control has a box").not.toBeNull();
+    expect(box!.height, "touch target height").toBeGreaterThanOrEqual(44);
+    expect(box!.width, "touch target width").toBeGreaterThanOrEqual(44);
+  }
+
+  const primaryColors = await primary.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { foreground: style.color, background: style.backgroundColor };
+  });
+  expect(contrastRatio(primaryColors.foreground, primaryColors.background)).toBeGreaterThanOrEqual(4.5);
+
+  const supportColors = await page.locator(".auth-support-copy").evaluate((element) => ({
+    foreground: getComputedStyle(element).color,
+    background: getComputedStyle(element.closest(".auth-card")!).backgroundColor,
+  }));
+  expect(contrastRatio(supportColors.foreground, supportColors.background)).toBeGreaterThanOrEqual(4.5);
   assertRuntime();
 });
 

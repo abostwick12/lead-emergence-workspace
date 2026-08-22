@@ -248,6 +248,25 @@ label { display: grid; gap: 6px; color: var(--muted-strong); font-size: 12px; fo
 .connection-steps li { padding-left: 5px; color: var(--muted-strong); font-size: 13px; line-height: 1.55; }
 .connection-steps li strong { display: block; color: var(--ink); }
 
+/* Targeted accessibility refinements for productized workflows. */
+.nav-section-title,
+.eyebrow,
+.command-card-heading h2,
+.hero-topline small,
+.hero-lewis-deferred span,
+.pipeline-progress p,
+.lane-empty { color: var(--muted); }
+.button,
+.text-button,
+.settings-link,
+.sign-out,
+.settings-index a,
+.setup-advanced summary { min-height: 44px; }
+input,
+select { min-height: 44px; }
+.task-card-top button { width: 44px; height: 44px; }
+.setup-advanced summary { display: flex; align-items: center; }
+
 @media (max-width: 760px) {
   .consent-actions, .settings-connection-list article { align-items: stretch; flex-direction: column; }
   .consent-actions .button, .settings-connection-list .button { width: 100%; }
