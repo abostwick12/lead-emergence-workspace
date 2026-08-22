@@ -125,7 +125,10 @@ test.describe("authenticated product lifecycle", () => {
     await page.getByLabel("Assistant posture").fill("Assistive: surface patterns and ask before treating an interpretation as true.");
     await page.getByRole("button", { name: /Save and continue/ }).click();
     await expect(page.getByRole("heading", { name: "Your starting system" })).toBeVisible();
-    await page.getByRole("button", { name: /Begin using Workspace/ }).click();
+    await page.getByLabel("Existing systems").fill("Google Calendar and Gmail; connect only with explicit consent.");
+    await page.getByLabel("Starting capabilities").fill("Quick Capture, priorities, and a weekly reflection.");
+    await page.getByLabel("Daily Brief").fill("A concise weekday morning brief that can be changed later.");
+    await page.getByRole("button", { name: "Save and begin using Workspace" }).click();
 
     await expect(page).toHaveURL(/\/workspace(?:\?welcome=1)?$/);
     await expect(page.getByText("Leadership focus")).toBeVisible();
