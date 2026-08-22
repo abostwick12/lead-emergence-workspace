@@ -1,7 +1,6 @@
 import "server-only";
 
 export function trustedWorkspaceOrigin(requestOrigin: string) {
-  if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   if (process.env.NODE_ENV !== "production") {
     const parsed = new URL(requestOrigin);
     if (["localhost", "127.0.0.1"].includes(parsed.hostname)) return parsed.origin;
