@@ -32,3 +32,13 @@ The Ministry Gmail boundary is deployed and does not use `personal_integrations`
 Workspace uploads remain disabled and personal integrations remain reconnect-required. Consulting OS was not changed. The daily stabilization heartbeat `lead-emergence-stabilization-monitor` is active for 14 runs. Legacy cleanup is not authorized and requires a separate approval after stabilization.
 
 Rollback remains viable: redeploy the recorded pre-Gate-D application sources, then apply a reviewed rollback migration that removes only the seven freeze triggers and their private trigger function. Retain the additive clock preference column and all legacy/Workspace evidence.
+
+## Goal C — Workspace / Personal productization
+
+Status: **local candidate validated; PR/Preview and hosted prerequisites remain; hosted migration and production cutover are not approved**.
+
+The productization source adds one-login Personal SSO consumption, shared native and AI-assisted setup, Workspace MCP authorization, Personal plan/capability resolution, plan-safe Settings, first-value Home behavior, useful empty states, and production operations documentation. The custom Workspace domain was already healthy before this goal; the Vercel rollback URL remains available.
+
+No Goal C migration has been applied to the shared hosted project. The ministry repository remains its sole migration authority. No Goal C PR has been merged, no real user has been migrated or activated, no external connector token has been copied, no billing/trial/pricing has been activated or invented, and no production-cutover gate approval is recorded here.
+
+Local acceptance is recorded in `docs/testing/test-evidence.md`: all required application checks, a fresh database rebuild, 85 pgTAP assertions, 8 desktop/mobile browser cases, database lint, full dependency audit, boundary scan, and sensitive-data scan pass. This evidence is not a hosted-migration or cutover approval.

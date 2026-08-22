@@ -1,6 +1,7 @@
 "use client";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 let browserClient: SupabaseClient<any, any, any, any, any> | undefined;
 
@@ -16,12 +17,12 @@ function configuration() {
 export function getWorkspaceClient(): SupabaseClient<any, any, any, any, any> {
   if (browserClient) return browserClient;
   const { url, anonKey } = configuration();
-  browserClient = createClient(url, anonKey, {
+  browserClient = createBrowserClient(url, anonKey, {
     db: { schema: process.env.NEXT_PUBLIC_WORKSPACE_SCHEMA?.trim() || "workspace" },
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: false
     }
   });
   return browserClient;

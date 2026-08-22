@@ -29,17 +29,17 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     id: "chatgpt",
     name: "ChatGPT",
     category: "AI",
-    detail: "Reasoning and drafting model access",
-    boundary: "A separate AI capability gate is required before model access is enabled.",
-    supportsWorkspaceMetadata: false
+    detail: "Conversational Workspace interface for reasoning and drafting",
+    boundary: "Explicit Workspace OAuth consent and the AI assistant capability are required.",
+    supportsWorkspaceMetadata: true
   },
   {
     id: "claude",
     name: "Claude",
     category: "AI",
-    detail: "Long-context synthesis and review",
-    boundary: "A separate AI capability gate is required before model access is enabled.",
-    supportsWorkspaceMetadata: false
+    detail: "Conversational interface to your Personal Workspace",
+    boundary: "Explicit Workspace OAuth consent and the AI assistant capability are required.",
+    supportsWorkspaceMetadata: true
   },
   {
     id: "gmail",

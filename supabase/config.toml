@@ -19,3 +19,25 @@ port = 56424
 
 [analytics]
 port = 56427
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback/sign-in",
+  "http://127.0.0.1:3000/auth/callback/sign-in",
+]
+enable_signup = true
+enable_refresh_token_rotation = true
+minimum_password_length = 12
+
+# Remote MCP clients use OAuth 2.1 with PKCE and explicit user consent. Hosted
+# Production is configured separately with the canonical custom domain.
+[auth.oauth_server]
+enabled = true
+authorization_url_path = "/oauth/consent"
+allow_dynamic_registration = true
+
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/workspace_private/custom_access_token_hook"

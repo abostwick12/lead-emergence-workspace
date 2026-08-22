@@ -121,3 +121,40 @@ This test is therefore recorded as a **pre-deployment integration test**, not as
 - Runtime error API — **UNAVAILABLE**. The Vercel runtime-error connector returned 403 for both team projects. Exact deployment status, public HTTP smoke, and database/log-independent invariants passed; the access limitation is carried into stabilization monitoring rather than treated as passing.
 - Data/rollback — **PASS**. No legacy row, Workspace migrated row, upload, integration token, or production clock preference was changed by validation. The Ministry Gmail token count remains zero. The application rollback sources and seven-trigger database rollback are documented and viable.
 - Stabilization — **ACTIVE**. Heartbeat `lead-emergence-stabilization-monitor` runs daily for 14 checks through the approved window and may perform only read-only deployment, HTTP-contract, database-invariant, Gmail-boundary, and available runtime-error checks. Cleanup remains separately approval-gated.
+
+## Goal C Personal productization candidate — 2026-08-22
+
+This evidence is local and preparation-only. It does not authorize the Goal C
+hosted migration, provider configuration, PR merge, Production deployment,
+real-user activation, billing, or cutover.
+
+- Fresh isolated Workspace database rebuild with `supabase db reset --local --no-seed` — **PASS** after final acceptance cleanup. All four migrations applied from scratch, including productization migration SHA-256 `dcef4a654cc210b265d96777f1e68bd1937b8fe8c1fd1fe80b349dababec31c7`. No hosted project was linked or changed.
+- `npm run check:boundaries` — **PASS**; 43 runtime files contain no Ministry/Consulting import or service-role client.
+- `npm run test:schema` — **13/13 PASS** for schemas, RLS/policies, Entry provisioning, shared setup, MCP audience/isolation, plan separation/enforcement, sign-out/return paths, Storage, and clocks.
+- `npm run test:unit` — **38/38 PASS** in six files on `vitest@4.1.11`, including capability state, MCP resource URI, catalog, return-path, domain, and time-zone contracts.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run build` — **PASS** on Next.js `16.3.2`. Static product routes, dynamic Entry/OAuth/MCP routes, protected-resource metadata, and Proxy compiled successfully.
+- `npm run test:rls` — **85/85 PASS** across three pgTAP files: the canonical cross-tenant/cross-product/Storage suite (25), clock preferences (7), and productization (53). Coverage includes active/suspended/excluded/enabled capabilities, retained data, direct API denial, MCP bypass denial, wrong audience, disconnect/reconnect epoch, cross-user plan/config/MCP isolation, controlled onboarding, canonical Entry reconciliation for an existing owner, client-authored connector-state denial, and revoked-membership non-reactivation.
+- Local `supabase db lint --schema workspace --schema workspace_private --level warning --fail-on error` — **PASS**, no schema errors.
+- Final Playwright acceptance — **8/8 PASS in 34.6 seconds** with fresh disposable local users: desktop and Pixel-class mobile public login; AI failure fallback; native save/resume/completion; AI-to-native and native-to-AI switching with confirmed data retained; first value; returning-user bypass; useful no-connection and empty states; and suspended-plan locked states with retained data. Page-error and HTTP 5xx monitors observed none.
+- `npm audit --json` — **PASS, 0 findings** across the full production/development tree after upgrading Vitest. The prior five development-only Vitest/Vite findings (three moderate, one high, one critical) were removed.
+- `npm run scan:sensitive` — **PASS** across 14 preserved commits and the authored working tree, excluding dependency/build output. No credential, token, private key, connection string, email, or Personal-data pattern was found.
+- `npm run schema:checksum` — **PASS** for the preserved foundation/Gate A source checksums.
+- `git diff --check` — **PASS**; line-ending conversion warnings only.
+
+Entry-side local evidence for the separate Personal SSO change:
+
+- typecheck, lint, and production build on Next.js `16.3.1` — **PASS**;
+- unit tests — **15/15 PASS**, including unique client and callback product mapping that fails closed on configuration collision;
+- local Entry database lint — **PASS**, no schema errors;
+- Entry pgTAP — **44/44 PASS** across entitlement administration, self-only identity read API, and canonical identity RLS;
+- `npm audit --json` — **PASS, 0 findings**.
+- sensitive-data scan — **PASS** across six preserved Entry commits and the authored Entry working tree; no secret was found.
+
+Not executed or not claimable at this checkpoint:
+
+- hosted Goal C migration and Supabase security advisors — gate approval and the ministry migration authority are required;
+- hosted Entry-to-Workspace OIDC and ChatGPT/Claude OAuth — environment-specific client/provider secret entry and interactive consent are required;
+- Preview and productized custom-domain acceptance — the hosted schema/Auth prerequisites are not yet applied;
+- external connector connect/use/refresh/disconnect/reconnect — catalog entries have no approved runtime adapter in this release.
