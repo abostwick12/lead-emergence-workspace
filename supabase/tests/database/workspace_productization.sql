@@ -1,6 +1,6 @@
 begin;
 
-select plan(53);
+select plan(56);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -51,6 +51,9 @@ select is((select relrowsecurity from pg_class where oid = 'workspace.personal_p
 select is((select relrowsecurity from pg_class where oid = 'workspace.personal_onboarding'::regclass), true, 'onboarding uses RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace.personal_configuration_items'::regclass), true, 'shared configuration uses RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace.mcp_authorizations'::regclass), true, 'MCP metadata uses RLS');
+select is((select relrowsecurity from pg_class where oid = 'workspace_private.product_settings'::regclass), true, 'private product settings use defense-in-depth RLS');
+select is((select relrowsecurity from pg_class where oid = 'workspace_private.trusted_identity_providers'::regclass), true, 'private Entry provider settings use defense-in-depth RLS');
+select is((select relrowsecurity from pg_class where oid = 'workspace_private.plan_assignment_audit'::regclass), true, 'private plan audit uses defense-in-depth RLS');
 select is(has_table_privilege('anon', 'workspace.personal_plans', 'select'), false, 'anon has no Personal plan access');
 select is(has_function_privilege('anon', 'workspace.mcp_get_onboarding_state()', 'execute'), false, 'anon cannot invoke MCP tools');
 select is(has_function_privilege('authenticated', 'workspace_private.assign_personal_plan(uuid,text,text)', 'execute'), false, 'normal users cannot assign Personal plans');

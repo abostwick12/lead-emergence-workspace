@@ -6,6 +6,8 @@ const sql = await readFile("supabase/migrations/20260820000000_workspace_foundat
 const productizationSql = await readFile("supabase/migrations/20260822044610_workspace_productization.sql", "utf8");
 const clockPreferencesSql = await readFile("supabase/migrations/20260821172607_workspace_clock_preferences.sql", "utf8");
 const firstCaptureEventSql = await readFile("supabase/migrations/20260822124500_workspace_first_capture_event.sql", "utf8");
+const privateRlsSql = await readFile("supabase/migrations/20260822132000_workspace_private_rls.sql", "utf8");
+const advisorPerformanceSql = await readFile("supabase/migrations/20260822133500_workspace_advisor_performance.sql", "utf8");
 const configToml = await readFile("supabase/config.toml", "utf8");
 const workspaceResolver = await readFile("lib/workspace/provision.ts", "utf8");
 const workspaceProvider = await readFile("components/workspace-provider.tsx", "utf8");
@@ -29,6 +31,10 @@ test("uses dedicated exposed and private schemas", () => {
   assert.match(configToml, /schemas = \["workspace"\]/);
   assert.doesNotMatch(configToml, /schemas\s*=\s*\[[^\]]*workspace_private/);
   assert.match(configToml, /pg-functions:\/\/postgres\/workspace_private\/custom_access_token_hook/);
+  for (const table of ["product_settings", "trusted_identity_providers", "plan_assignment_audit"]) {
+    assert.match(privateRlsSql, new RegExp(`alter table workspace_private\\.${table} enable row level security`));
+  }
+  assert.doesNotMatch(privateRlsSql, /create policy/i);
 });
 
 test("does not reuse the insecure source email gate or service role", () => {
@@ -144,4 +150,12 @@ test("records first capture activation without copying Personal content", () => 
   assert.match(firstCaptureEventSql, /set search_path = ''/);
   assert.match(firstCaptureEventSql, /on conflict do nothing/);
   assert.doesNotMatch(firstCaptureEventSql, /new\.raw_text|raw_text/);
+});
+
+test("hardens advisor-reported Workspace query paths without dropping useful indexes", () => {
+  assert.match(advisorPerformanceSql, /position\('auth\.uid\(\)'/);
+  assert.match(advisorPerformanceSql, /'\(select auth\.uid\(\)\)'/);
+  assert.match(advisorPerformanceSql, /namespace\.nspname in \('workspace', 'workspace_private'\)/);
+  assert.match(advisorPerformanceSql, /create index if not exists/);
+  assert.doesNotMatch(advisorPerformanceSql, /drop index/i);
 });
