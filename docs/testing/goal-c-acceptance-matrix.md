@@ -2,7 +2,7 @@
 
 Evidence date: 2026-08-22
 
-This is the requirement-by-requirement candidate audit. It does not authorize a hosted migration, OAuth client/provider creation, paid Supabase change, PR merge, Production deployment, real-user activation, billing, or cutover. `PASS` means the named scope was executed. `BLOCKED` means the required hosted evidence cannot exist until the recorded external gate is resolved.
+This is the requirement-by-requirement candidate audit. The two exact Personal-sandbox advisor migrations recorded in the status log were separately authorized, applied, and verified on 2026-08-22. This document does not authorize any additional hosted migration, OAuth client/provider creation, paid Supabase change, PR merge, Production deployment, real-user activation, billing, or cutover. `PASS` means the named scope was executed. `BLOCKED` means the required hosted evidence cannot exist until the recorded external gate is resolved.
 
 ## Product lifecycle
 
@@ -24,7 +24,7 @@ This is the requirement-by-requirement candidate audit. It does not authorize a 
 
 | Requirement | Candidate result | Authoritative evidence |
 | --- | --- | --- |
-| Entry entitlement separated from Personal authorization | PASS | Schema contract, Entry provisioning RPC, 93 local pgTAP assertions, and 88 hosted assertions. |
+| Entry entitlement separated from Personal authorization | PASS | Schema contract, Entry provisioning RPC, 93 local pgTAP assertions, and 91 post-migration hosted assertions. |
 | Personal plan and typed capabilities | PASS | Central resolver, plan/capability catalog, UI presentation, and unit tests. |
 | Current plan/included/available/limits | PASS local/hosted | Hosted Settings shows current Personal plan, included benefits, unavailable capabilities, and neutral upgrade language. |
 | Graceful locked states | PASS local | Suspended-plan desktop/mobile browser case. |
@@ -50,14 +50,14 @@ This is the requirement-by-requirement candidate audit. It does not authorize a 
 
 | Requirement | Candidate result | Authoritative evidence |
 | --- | --- | --- |
-| Workspace RLS | PASS local/hosted | 93/93 local pgTAP and 88/88 hosted transactional assertions; private-table defense-in-depth remains pending hosted authorization. |
-| `workspace_private` isolation | PASS local/hosted | Unexposed schema, revoked grants, pinned search paths, and hostile assertions pass; optional table RLS remains an explicit advisor decision. |
+| Workspace RLS | PASS local/hosted | 93/93 local pgTAP and 91/91 post-migration hosted transactional assertions; all three server-owned private configuration tables now have defense-in-depth RLS. |
+| `workspace_private` isolation | PASS local/hosted | Unexposed schema, revoked grants, pinned search paths, policy-free table RLS, and hostile assertions pass. |
 | Storage ownership | PASS local/hosted | Owner/non-owner/private-prefix assertions pass; uploads remain disabled. |
 | Service-role exposure | PASS | Boundary scan finds no runtime client/key; ordinary access uses authenticated RLS. |
 | Minimum/private analytics | PASS local/hosted | Exactly-once first-capture event is server-side and excludes capture text; no new vendor. |
 | Secret scan | PASS | Repository/history scanner and full diff scan found no credential or Personal-data pattern. |
 | Shared hosted advisors before Goal C | PASS for current Workspace scope | No current finding targets Workspace schemas/Storage; one project-level Auth warning and unrelated shared-schema warnings remain documented. |
-| Hosted post-migration advisors | PARTIAL/PENDING APPROVAL | Security has no exposed Workspace/Storage finding. Private-table RLS and 91 actionable performance notices have locally proven forward migrations; hosted application requires fresh written gate approval. Eight unused-index notices are retained pending real workload evidence. |
+| Hosted post-migration advisors | PASS for Workspace actionable scope | Authorized migrations are in the Personal sandbox ledger. Workspace Auth init-plan findings are 0, uncovered Workspace/private foreign keys are 0, and private RLS/grants pass. The 48 Workspace/private unused-index INFO notices are retained because a fresh sandbox has no representative workload history. |
 
 ## Domain, identity, and deployment
 
@@ -92,7 +92,7 @@ This is the requirement-by-requirement candidate audit. It does not authorize a 
 | Entry PR #2 | Open, green, mergeable; production merge not authorized. |
 | Workspace required application checks | PASS. |
 | Fresh local database rebuild | PASS. |
-| Workspace pgTAP | 93/93 local PASS; 88/88 hosted transactional PASS. |
+| Workspace pgTAP | 93/93 local PASS; 91/91 post-migration hosted transactional PASS. |
 | Entry pgTAP | 44/44 PASS. |
 | Workspace unit tests | 38/38 PASS. |
 | Entry unit tests | 15/15 PASS. |
@@ -102,9 +102,8 @@ This is the requirement-by-requirement candidate audit. It does not authorize a 
 ## Concrete remaining gates
 
 1. Provide a logged-in Personal Supabase dashboard session so the already-generated Entry Preview secret can be entered directly into the custom provider without disclosure.
-2. Explicitly authorize the two locally proven hosted advisor migrations: defense-in-depth RLS for three unexposed/revoked `workspace_private` tables and policy/index performance hardening. The repository gate rejected hosted application without fresh written approval.
-3. Select an available organization/slot for the distinct Entry production Supabase project. `Lead emergence sandbox` is full with Consulting dev and Entry dev; pausing/repurposing Consulting or paying for capacity is not authorized.
-4. Configure Personal Auth URLs, custom provider, OAuth server/dynamic registration, access-token hook/signing key, then prove real Entry one-login and ChatGPT/Claude connect/use/disconnect/reconnect/revocation.
-5. Remove the two synthetic `.invalid` acceptance users, refresh advisors/logs/secret scan/PR checks, and stop at green Preview readiness without merging Production.
+2. Select an available organization/slot for the distinct Entry production Supabase project. `Lead emergence sandbox` is full with Consulting dev and Entry dev; pausing/repurposing Consulting or paying for capacity is not authorized.
+3. Configure Personal Auth URLs, custom provider, OAuth server/dynamic registration, access-token hook/signing key, then prove real Entry one-login and ChatGPT/Claude connect/use/disconnect/reconnect/revocation.
+4. Remove the two synthetic `.invalid` acceptance users, refresh advisors/logs/secret scan/PR checks, and stop at green Preview readiness without merging Production.
 
 Candidate state: **NOT YET READY FOR WORKSPACE PRODUCTION CUTOVER**.
