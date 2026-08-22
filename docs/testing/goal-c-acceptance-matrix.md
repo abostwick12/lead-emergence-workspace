@@ -70,7 +70,7 @@ This is the requirement-by-requirement candidate audit. It does not authorize a 
 | Entry branch Preview | PASS public/runtime | Green build/CI, login, JWKS, exact Preview app/product origins, corrected Personal Supabase Auth callback, zero error/5xx events. |
 | Entry to Workspace SSO source | IMPLEMENTED | Entry PR and Workspace PR reuse the proven OAuth/OIDC contract and fail closed. |
 | Entry to Workspace hosted SSO | BLOCKED | Personal OAuth client/custom provider and active hosted Workspace schema are absent. |
-| Live Entry production authority | BLOCKED | No designated Entry production project/custom-domain origin exists; `www.leademergence.com` remains Ministry. |
+| Live Entry production authority | PARTIAL | Dedicated Vercel project, verified `entry.leademergence.com` DNS, Git connection, Next.js/Node 24 configuration, public origins, and unique signing credentials are ready. A distinct production Entry Supabase backend, OAuth clients, deployment, and traffic are still absent; `www.leademergence.com` remains Ministry. |
 | Second credential prompt | FALSE locally; NOT PROVEN hosted | Source/session contract avoids a second login; hosted interactive acceptance cannot run yet. |
 
 ## UI, mobile, and accessibility
@@ -101,9 +101,9 @@ This is the requirement-by-requirement candidate audit. It does not authorize a 
 
 ## Concrete remaining gates
 
-1. Authorize an isolated hosted Personal backend path, or record written approval for the ministry authority to apply the exact additive Goal C migration to the shared hosted project.
-2. Authorize creation of the environment-specific Entry Personal OAuth client and Workspace custom provider, then enter their secret through provider/deployment secret stores.
-3. Designate or provision the live Entry production project/origin; do not repurpose the Ministry host implicitly.
-4. Run authenticated hosted new/returning-user, AI/native switching, MCP consent/use/revoke, mobile/desktop, logs, Storage/RLS, and post-migration advisor acceptance.
+1. Confirm whether the active `lead-emergence-meridian-sandbox` project may be paused. The previously authorized path named a Consulting development sandbox, but current inventory proves Consulting uses the shared production project and the available active sandbox is Meridian.
+2. Select the organization for a distinct Entry production Supabase project. The recommended `Lead emergence sandbox` organization has one active Entry development project and reports the additional project at `$0/month`; creation still requires explicit organization/cost confirmation.
+3. Restore the Personal sandbox, record/apply the exact additive Goal C migration through the ministry authority, then create the authorized environment-specific Entry Personal OAuth client and Workspace custom provider in secret stores.
+4. Configure the distinct Entry production backend/clients without reusing development credentials, deploy only the approved production candidate, and run authenticated hosted new/returning-user, AI/native switching, MCP consent/use/revoke, mobile/desktop, logs, Storage/RLS, and post-migration advisor acceptance.
 
 Candidate state: **NOT YET READY FOR WORKSPACE PRODUCTION CUTOVER**.
