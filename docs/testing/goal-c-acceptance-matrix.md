@@ -11,11 +11,11 @@ This is the requirement-by-requirement candidate audit. The two exact Personal-s
 | AI-first setup choice | PASS local/hosted | Productized setup-method screen follows successful one-login SSO; desktop/mobile Playwright lifecycle passes. |
 | ChatGPT path | PASS UI/contract/fallback; real-client acceptance pending | Hosted selection, controlled connection instructions, consent language, connection verification, and native fallback pass. A real ChatGPT client connect/use/revoke cycle remains interactive. |
 | Claude path | PASS UI/contract/fallback; real-client acceptance pending | Hosted selection, controlled connection instructions, consent language, connection verification, and native fallback pass. A real Claude client connect/use/revoke cycle remains interactive. |
-| Native non-AI setup | PASS local/hosted | Save/resume/completion and first value pass on desktop/mobile Preview. |
+| Native non-AI setup | PASS local/hosted | Save/resume/completion and first value pass on desktop/mobile Preview; the final immutable deployment persisted all ten configured areas before completion. |
 | Onboarding resume | PASS local/hosted | Hosted reload resumed step 2 with the previously confirmed areas intact. |
 | AI to native switch | PASS local/hosted | Hosted AI fallback returned to the saved native step without clearing context. |
 | Native to AI switch | PASS local/hosted | Hosted native progress switched to ChatGPT and resumed natively without restart. |
-| Returning ready user | PASS local/hosted | Hosted sign-out/sign-in bypassed setup and returned directly to Home. |
+| Returning ready user | PASS local/hosted | Hosted sign-out/sign-in and an immutable-deployment reload bypassed setup and returned directly to Home. |
 | First value | PASS local/hosted | Confirmed priority produced leadership-focus Home; first Capture persisted and its content-free event was repaired/proven. |
 | No connectors | PASS local/hosted | Home, Tasks, Capture, Memory, Career, Daily Brief preferences, plan, and configuration remain useful with zero connections. |
 | Hosted new/returning lifecycle | PASS | An ACTIVE synthetic Entry entitlement completed one-login SSO, first entry, resumable native setup, first value, returning Home, and plan/no-connector surfaces. |
@@ -66,7 +66,7 @@ This is the requirement-by-requirement candidate audit. The two exact Personal-s
 | `workspace.leademergence.com` DNS/TLS/application | PASS baseline | Healthy Vercel CNAME, TLS 1.3 certificate, correct existing Workspace, security headers, no console error. |
 | Rollback Vercel URL | AVAILABLE/PASS | Existing URL remains healthy and was not removed or repointed. |
 | Canonical Workspace Production origins | PASS configuration | Production app and MCP resource values use the custom domain; no deployment was triggered. |
-| Workspace branch Preview | PASS authenticated/runtime | Protected Preview proves native lifecycle and mobile/desktop flows; exact MCP metadata and zero error/5xx runtime events. |
+| Workspace branch Preview | PASS authenticated/runtime | Protected Preview and final immutable deployment prove native lifecycle, final-step persistence, returning-user behavior, and mobile/desktop flows; exact MCP metadata and zero error/5xx runtime events. |
 | Entry branch Preview | PASS public/runtime | Green build/CI, login, JWKS, exact Preview app/product origins, corrected Personal Supabase Auth callback, zero error/5xx events. |
 | Entry to Workspace SSO source | IMPLEMENTED | Entry PR and Workspace PR reuse the proven OAuth/OIDC contract and fail closed. |
 | Entry to Workspace hosted SSO | PASS | Personal custom provider/Auth hook and Entry OAuth client are active; the synthetic entitled Entry user reached Workspace first run without a second login. |
@@ -104,7 +104,6 @@ This is the requirement-by-requirement candidate audit. The two exact Personal-s
 
 1. Complete real ChatGPT and Claude client connect/use/refresh/disconnect/reconnect/revocation acceptance through their interactive OAuth UI, or explicitly approve a documented deferral for a client that cannot be automated safely.
 2. Select an available organization/slot for the distinct Entry production Supabase project. `Lead emergence sandbox` is full with Consulting dev and Entry dev; pausing/repurposing Consulting or paying for capacity is not authorized.
-3. Validate the final optional-field fix on the immutable Workspace Preview deployment after adding its exact temporary redirect to the isolated Personal allowlist; then remove that temporary redirect.
-4. Remove retained synthetic hosted acceptance identities and the synthetic OAuth client/grant, refresh advisors/logs/secret scan/final checks, and stop at green Preview readiness without merging Production.
+3. Remove retained synthetic hosted acceptance identities and the synthetic OAuth client/grant, refresh advisors/logs/secret scan/final checks, and stop at green Preview readiness without merging Production.
 
 Candidate state: **NOT YET READY FOR WORKSPACE PRODUCTION CUTOVER**.
