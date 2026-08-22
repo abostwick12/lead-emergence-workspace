@@ -138,9 +138,20 @@ export function WorkspaceSetup() {
   }
 
   async function finishNative() {
+    if (!workspace || !user || pending) return;
+    const requiredMissing = currentStep.fields.find((field) => !field.optional && !values[field.area]?.trim());
+    if (requiredMissing) {
+      setError(`Add a response for ${requiredMissing.label.toLowerCase()}—or write “I don't know yet.”`);
+      return;
+    }
     setPending(true);
     setError(null);
     try {
+      for (const field of currentStep.fields) {
+        const text = values[field.area]?.trim();
+        if (text) await saveNativeConfiguration({ workspaceId: workspace.id, userId: user.id, area: field.area, content: { text } });
+      }
+      await trackProductEvent(workspace.id, user.id, "workspace_configured", { native_step: nativeStep + 1, completed: true });
       await completePersonalOnboarding();
       await refreshProductState();
       router.replace("/workspace?welcome=1");
@@ -215,7 +226,7 @@ export function WorkspaceSetup() {
       {currentStep.fields.map((field) => <label key={field.area}><span>{field.label}{field.optional ? <small>Optional</small> : null}</span><em>{field.prompt}</em><textarea rows={4} maxLength={5000} value={values[field.area] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.area]: event.target.value }))} placeholder={field.optional ? "Add context, skip this, or return later." : "A short answer is enough. “I don't know yet” is a valid answer."} /></label>)}
     </section>
     {error ? <p className="error" role="alert">{error}</p> : null}
-    <div className="setup-footer-actions"><button className="button secondary" disabled={nativeStep === 0 || pending} onClick={() => setNativeStep((step) => Math.max(0, step - 1))}><ArrowLeft size={15} />Back</button>{nativeStep < nativeSteps.length - 1 ? <button className="button" disabled={pending} onClick={() => void saveStep()}>{pending ? "Saving…" : "Save and continue"}<ArrowRight size={15} /></button> : <><button className="button secondary" disabled={pending} onClick={() => void saveStep()}>Save this step</button><button className="button" disabled={pending || confirmedAreas.size < 3} onClick={() => void finishNative()}>{pending ? "Finishing…" : "Begin using Workspace"}<ArrowRight size={15} /></button></>}</div>
+    <div className="setup-footer-actions"><button className="button secondary" disabled={nativeStep === 0 || pending} onClick={() => setNativeStep((step) => Math.max(0, step - 1))}><ArrowLeft size={15} />Back</button>{nativeStep < nativeSteps.length - 1 ? <button className="button" disabled={pending} onClick={() => void saveStep()}>{pending ? "Saving…" : "Save and continue"}<ArrowRight size={15} /></button> : <><button className="button secondary" disabled={pending} onClick={() => void saveStep()}>Save this step</button><button className="button" disabled={pending || confirmedAreas.size < 3} onClick={() => void finishNative()}>{pending ? "Finishing…" : "Save and begin using Workspace"}<ArrowRight size={15} /></button></>}</div>
     <div className="setup-switch"><p>Prefer a conversation? Your saved answers will carry over.</p><button className="text-button" disabled={pending || !mcpEnabled} onClick={() => void selectMethod("ai", "chatgpt")}>Connect an AI assistant</button></div>
   </SetupFrame>;
 }
