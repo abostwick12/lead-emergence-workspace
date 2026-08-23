@@ -1,67 +1,63 @@
-# Lead Emergence Workspace — design QA
+# Connections design QA
 
-## Comparison target and state
+## Evidence
 
-- **Canonical reference:** Lovable project `9d202662-7e16-4edf-816f-2cfb76a8cc95`, commit `1e59e4344a8f1723fb18c9d5c929b00cdba70cf3`.
-- **Verified source desktop capture:** `C:\Users\awbostwick\.codex\visualizations\2026\08\20\01a01ef5-d8cc-78f3-815c-3009c6302662\workspace-remediation-qa\lovable-command-center-reference-desktop.png` (1920 × 1080, density 1).
-- **Authenticated implementation desktop capture:** `C:\Users\awbostwick\.codex\visualizations\2026\08\20\01a01ef5-d8cc-78f3-815c-3009c6302662\workspace-remediation-qa\workspace-dashboard-1920x1080.png` (1920 × 1080 CSS viewport, density 1).
-- **Authenticated implementation mobile capture:** `C:\Users\awbostwick\.codex\visualizations\2026\08\20\01a01ef5-d8cc-78f3-815c-3009c6302662\workspace-remediation-qa\workspace-dashboard-mobile.png` (390 × 844 CSS viewport, density 1).
-- **State:** a local Auth-issued synthetic owner and its local Personal Workspace. The dashboard contains only synthetic task, capture, career, and audit data. Integrations, Daily Planner data, Network signals, and LEWIS content remain truthful deferred or empty states.
+- Source visual truth: Lovable project `9d202662-7e16-4edf-816f-2cfb76a8cc95`, route `/connections`, commit `873395585f80d09ad9aa2f8de13f9fd1e195f662`.
+- Product-shell source capture: `.codex-lovable-connections-reference.png` (`1920 × 1080`, 1× density).
+- Selected Connections-state reference: `C:\Users\awbostwick\.codex\generated_images\01a02556-5f38-7d12-b3ed-8d5a9db60a7f\exec-7dd271ce-e0dd-4730-9597-05177f2bd9cc.png` (`1672 × 941`, 1× density), derived from the Lovable `/connections` source with the Add MCP popover open.
+- Implementation route: `/workspace/integrations`.
+- Desktop implementation captures:
+  - `design-qa-artifacts/connections-branded-desktop.png` (`1904 × 1528` rendered capture with all 14 provider marks visible).
+  - `design-qa-artifacts/connections-branded-popover.png` (`1905 × 1072` viewport capture with the branded MCP catalog open).
+- Responsive implementation captures:
+  - `design-qa-artifacts/connections-branded-mobile.png` (`375 × 812` rendered viewport after browser chrome/scrollbar normalization).
+  - `design-qa-artifacts/connections-branded-mobile-popover.png` (`375 × 812` rendered viewport after browser chrome/scrollbar normalization).
+- Combined comparison input: `design-qa-artifacts/connections-branded-reference-comparison.png` (`1920 × 596`). The reference and implementation were normalized to equal `960 × 540` panels below a shared evidence header and inspected together.
+- Tested browser viewport overrides: `1920 × 1080` desktop and `390 × 844` responsive; the browser capture surface excludes scrollbar width.
+- Compared state: authenticated Connections page with `Add new MCP` open, `All` selected, empty search, and Logos visible.
 
-## Captured implementation surfaces
+## Full-view comparison evidence
 
-- Desktop: dashboard (empty and populated), Daily Focus, Career Pipeline, Quick Capture, and Integrations.
-- Mobile: dashboard, Daily Focus, Career Pipeline, Integrations, and the opened navigation drawer.
-- Evidence directory: `C:\Users\awbostwick\.codex\visualizations\2026\08\20\01a01ef5-d8cc-78f3-815c-3009c6302662\workspace-remediation-qa`.
+Passed. The implementation retains the Lovable screen's essential hierarchy: product shell, compact route label, Connections title, connection-count summary, primary Add MCP action, repeated provider cards, and an anchored catalog panel. The production Workspace intentionally applies its established midnight, brass, and teal color system instead of the Lovable prototype's light canvas. The dark treatment is consistent with the rest of the Workspace and preserves contrast, typography hierarchy, and action prominence.
 
-## Primary interaction and console evidence
+The implementation displays 14 truthful catalog entries instead of copying the prototype's smaller mock list. Seven entries have local QA metadata and seven remain catalog-only; no provider secrets, tokens, or production account details are rendered.
 
-- Sign-in used the isolated local Supabase Auth account; no production session, credential, or mock-auth bypass was used.
-- Authenticated task creation, career opportunity creation, capture-inbox creation, and header Quick Capture were exercised under local RLS.
-- The responsive drawer opens at 390 px without horizontal overflow (`documentElement.scrollWidth` 392 px for a 390 px viewport).
-- The desktop dashboard has no horizontal overflow (`documentElement.scrollWidth` 1905 px for a 1920 px viewport).
-- The initial local browser run exposed a development-only CSP/React-refresh conflict and an earlier shared `.next` cache collision. The final evidence uses a clean local production build; no production configuration or deployment changed.
+## Focused-region comparison evidence
 
-## Required fidelity surfaces
-
-| Surface | Result | Evidence |
-|---|---|---|
-| Fonts and typography | Material hierarchy preserved | Large serif priority and career titles, mono eyebrow labels, and dense utility labels follow the reference. Product names replace SAGE/Andrew-specific copy as required. |
-| Spacing and layout rhythm | Material hierarchy preserved | Desktop maintains sidebar, command header, hero, planner/integration cards, career panel, and right activity rail at a matched 1920 × 1080 viewport. |
-| Colors and visual tokens | Intentional approved variation | The implementation uses the dark command-center rendering supplied by the user, rather than the source capture's light theme. This is an approved visual direction, not a drift. |
-| Image and asset fidelity | No missing canonical artwork | The source is interface-led; the implementation uses the existing Lucide control set and the product's Lead Emergence mark, not fabricated third-party imagery. |
-| Copy and content | Intentional productization | Mock people, messages, calendar sessions, pipeline data, and SAGE output are replaced with authenticated local data or explicit `Reconnect required`, `Deferred`, and `Coming later` states. |
-
-## Material differences and accepted constraints
-
-- **Intentional:** `SAGE Command Center` is presented as **Lead Emergence Workspace** and the assistant concept as **LEWIS**. No SAGE-branded dashboard copy remains.
-- **Intentional:** The source's populated Gmail, Slack, LinkedIn, Calendar, and AI cards are not simulated. The implementation visibly marks unavailable integrations and intelligence as deferred.
-- **Intentional:** Personal-domain labels are configurable Workspace domains, rather than Andrew-specific mock categories.
-- **Design-reference limitation (accepted):** Lovable exposes the verified desktop screenshot for this private project, but its preview opens an authentication screen and no committed mobile command-center capture is available. The source implementation also has no committed mobile-specific layout rule to capture as a canonical mobile target. No mobile source state was fabricated or requested from Lovable solely for this QA pass.
-
-## Desktop comparison
-
-The matched 1920 × 1080 full-view captures were inspected together. No actionable P0/P1/P2 desktop difference remains after applying the already-accepted remediation. The dark palette, Lead Emergence branding, LEWIS terminology, and truthful deferred/reconnect states are intentional product constraints rather than visual drift. Focused-region comparison was not separately required: the header/hero, planner/cards, navigation, and activity rail are legible in the matched full-view captures.
-
-## Mobile responsive acceptance
-
-The mobile screenshots are an authenticated implementation review at 390 × 844, not a claimed Lovable-parity comparison. They pass the approved responsive criteria:
-
-| Criterion | Result | Evidence |
-|---|---|---|
-| No horizontal overflow, clipping, or inaccessible content | Pass | Dashboard `scrollWidth` 392 px at a 390 px viewport; all captured mobile surfaces remain vertically reachable. |
-| Understandable, operable navigation | Pass | Opened mobile drawer capture shows the grouped navigation and active state. |
-| Clear hierarchy and prominent daily priority | Pass | The priority/focus hero remains first and visually dominant on the dashboard. |
-| Quick Capture, Tasks, and Career remain usable | Pass | Quick Capture was exercised through authenticated UI; populated Tasks and Career surfaces were captured at mobile width. |
-| Activity/feed adapts appropriately | Pass | The activity rail becomes a mobile content section rather than an off-screen desktop rail. |
-| Deferred/reconnect states remain truthful; LEWIS remains deferred | Pass | Integration and intelligence cards retain explicit reconnect/deferred labels; no mock integration or AI output is presented as live. |
-| Touch targets and text remain usable | Pass | Navigation, primary action, task, career, and integration controls remain visible and readable at the captured width. |
-| No misleading or broken desktop-only control | Pass | Desktop rails, dense panels, and utility controls adapt into reachable mobile content or the drawer. |
+Passed. The Add MCP panel follows the selected Lovable structure: title and close control, search field, horizontal category filters, two-column provider options on desktop, compact state actions, and an explicit selection detail area. At the responsive breakpoint it becomes a fixed, internally scrollable panel with single-column provider options. Search and category controls remain reachable without horizontal page overflow.
 
 ## Findings
 
-- No actionable P0/P1/P2 visual findings. The missing authenticated Lovable mobile capture is the accepted design-reference limitation above, not an implementation defect or release blocker.
+- No P0, P1, or P2 visual discrepancies remain.
+- Intentional product adaptation: light Lovable canvas → established Workspace dark command-center theme.
+- Intentional content adaptation: prototype-only provider states → persisted local metadata plus clearly labeled catalog-only states.
 
-## final result
+## Required fidelity surfaces
 
-passed
+- Fonts and typography: passed; serif display headings and compact operational labels align with the Workspace shell and preserve the Lovable hierarchy.
+- Spacing and layout rhythm: passed at desktop and responsive breakpoints; cards, header actions, panel padding, and scroll regions remain aligned and uncropped.
+- Colors and visual tokens: passed; midnight surfaces, teal edges/icons, brass primary action, and semantic state colors are consistent and legible.
+- Image quality and asset fidelity: passed; Logos, Gmail, Slack, Google Calendar, Monday.com, LinkedIn, Google Drive, Firecrawl, Canva, and YouVersion use verified local brand assets, while ChatGPT, Claude, GitHub, and PowerPoint use crisp vector brand marks. All raster assets returned HTTP 200 locally with nonzero intrinsic dimensions, and the page makes no runtime calls to third-party icon hosts.
+- Copy and content: passed; all 14 catalog entries are visible, Logos is prominent, and connection-state and Ministry-boundary language are explicit.
+
+## Primary interactions and console
+
+- Passed: Add MCP opens and automatically focuses `Search MCPs`.
+- Passed: search for Logos, Faith category filtering, and Logos selection detail.
+- Passed: Escape closes the panel and returns focus to `Add new MCP`.
+- Passed: clicking outside closes the panel.
+- Passed: all 14 cards are present on desktop and responsive layouts; offscreen responsive cards render as they enter the viewport.
+- Passed: mobile panel search and all seven category controls are present; the category row is horizontally scrollable.
+- Console: one Next.js development-only CSP warning reports that `eval()` is unavailable for React development debugging. The warning states that React does not use `eval()` in production, and the production build completed successfully. No application/runtime error was observed.
+
+## Comparison history
+
+- Initial pass: blocked because Chrome was not connected.
+- Final branded pass: Chrome connected; authenticated desktop, open-popover, interaction, and responsive states captured after all provider marks loaded, then compared with the selected reference in one normalized side-by-side image.
+- Visual fix completed after the first branded capture: the generic ChatGPT glyph was replaced by the recognizable OpenAI knot mark. The follow-up capture passed.
+
+## Follow-up polish
+
+None required for the requested Connections and Add MCP scope.
+
+final result: passed

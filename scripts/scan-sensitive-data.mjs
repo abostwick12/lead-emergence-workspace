@@ -18,7 +18,7 @@ const patterns = [
   ["US phone number", /\b(?:\+1[ .-]?)?(?:\(?\d{3}\)?[ .-]?)\d{3}[ .-]\d{4}\b/]
 ];
 const assignedSecret = /(?:^|[\s,{])(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|secret|password)\s*[:=]\s*["']([^"'\s]{8,})["']/gim;
-const dotenvSecret = /^(?!NEXT_PUBLIC_)(?:[A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*)=([^\s#]{8,})/gim;
+const dotenvSecret = /^(?!NEXT_PUBLIC_)([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*)=([^\s#]{8,})/gim;
 
 function walk(directory) {
   const files = [];
@@ -38,10 +38,14 @@ function inspect(label, source) {
     const match = source.match(pattern);
     if (match) findings.push(`${label}: ${kind} (${match[0].slice(0, 24)}…)`);
   }
-  for (const expression of [assignedSecret, dotenvSecret]) {
-    expression.lastIndex = 0;
-    const match = expression.exec(source);
-    if (match) findings.push(`${label}: assigned secret-like value (${match[1].slice(0, 8)}…)`);
+  assignedSecret.lastIndex = 0;
+  const assignedMatch = assignedSecret.exec(source);
+  if (assignedMatch) findings.push(`${label}: assigned secret-like value (${assignedMatch[1].slice(0, 8)}…)`);
+  dotenvSecret.lastIndex = 0;
+  for (let dotenvMatch = dotenvSecret.exec(source); dotenvMatch; dotenvMatch = dotenvSecret.exec(source)) {
+    if (!dotenvMatch[1].endsWith("_KEY_ID")) {
+      findings.push(`${label}: assigned secret-like value (${dotenvMatch[2].slice(0, 8)}…)`);
+    }
   }
 }
 

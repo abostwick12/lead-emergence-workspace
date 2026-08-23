@@ -7,6 +7,7 @@ const localSupabaseOrigin = configuredSupabaseUrl.match(/^http:\/\/(?:127\.0\.0\
 const localSupabaseConnectSources = localSupabaseOrigin
   ? ` ${localSupabaseOrigin} ${localSupabaseOrigin.replace(/^http:/, "ws:")}`
   : "";
+const developmentEvalSource = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -22,7 +23,7 @@ const nextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              `default-src 'self'; base-uri 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co${localSupabaseConnectSources}; font-src 'self' data:; frame-ancestors 'none'; img-src 'self' data: blob: https:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'`
+              `default-src 'self'; base-uri 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co${localSupabaseConnectSources}; font-src 'self' data:; frame-ancestors 'none'; img-src 'self' data: blob: https:; object-src 'none'; script-src 'self' 'unsafe-inline'${developmentEvalSource}; style-src 'self' 'unsafe-inline'`
           },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Content-Type-Options", value: "nosniff" },
