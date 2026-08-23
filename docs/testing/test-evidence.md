@@ -247,3 +247,21 @@ Not executed or not claimable at this checkpoint:
   organization and redirects away from the `EMERGEnce`-owned Personal project.
   Connector access is read-only. No deletion or configuration mutation was
   attempted through an inappropriate migration path.
+
+## Public landing route refresh — 2026-08-22 local / 2026-08-23 UTC
+
+- Current `https://www.leademergence.com` serves the seven-stage Emergence
+  Roadmap redesign. The missing-production issue is no longer the visual design
+  itself; the live page still routes Personal to the legacy Ministry
+  `/login?space=personal` and `/personal/register` paths and uses the older
+  Consulting role query links.
+- Ministry PR [#391](https://github.com/abostwick12/emergence-ministry-platform/pull/391)
+  is open, clean, and green at head
+  `af7be4a64264591a4b7ed38b5351b8818218b8f7`. Its READY Preview preserves the
+  redesign and routes Personal to `workspace.leademergence.com/login`, account
+  creation to `entry.leademergence.com/signup`, and Consulting to its reviewed
+  consultant/client return paths.
+- The landing repair remains intentionally unmerged. Entry, then Workspace,
+  must be production-ready before the public landing becomes the final routing
+  switch; otherwise the repaired calls to action would send users to a paused
+  Entry destination or a pre-productization Workspace.

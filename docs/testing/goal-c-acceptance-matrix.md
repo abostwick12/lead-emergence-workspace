@@ -71,6 +71,7 @@ This is the requirement-by-requirement candidate audit. The two exact Personal-s
 | Entry to Workspace SSO source | IMPLEMENTED | Entry PR and Workspace PR reuse the proven OAuth/OIDC contract and fail closed. |
 | Entry to Workspace hosted SSO | PASS | Personal custom provider/Auth hook and Entry OAuth client are active; the synthetic entitled Entry user reached Workspace first run without a second login. |
 | Live Entry production authority | PARTIAL/PAUSED | Dedicated Vercel project, verified `entry.leademergence.com` DNS/TLS, Git connection, Next.js/Node 24 configuration, public origins, and unique signing credentials are ready. Vercel automatically classified the first Git build as Production; the credential-incomplete project was immediately paused and the domain returns `503 DEPLOYMENT_PAUSED`. A distinct production Entry Supabase backend and OAuth clients are absent; `www.leademergence.com` remains Ministry. |
+| Public landing routing | PARTIAL/STAGED LAST | Current `www.leademergence.com` serves the seven-stage redesign, but Personal still uses legacy Ministry login/register routes and Consulting uses the older role query. Green, mergeable Ministry PR #391 preserves the redesign while its Preview routes Personal to Workspace/unified Entry and Consulting to role-safe return paths. It remains intentionally unmerged until Entry and Workspace destinations are cutover-ready. |
 | Second credential prompt | FALSE | Hosted Entry → Workspace acceptance completed with the Entry credential only. |
 
 ## UI, mobile, and accessibility

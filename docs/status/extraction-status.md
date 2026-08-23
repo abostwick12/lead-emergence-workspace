@@ -86,3 +86,12 @@ zero remaining dependent rows. Live Preview metadata, unauthenticated challenge,
 and exact ChatGPT/Claude CORS preflights still pass. The complete operator-assisted
 connect/use/natural-refresh/disconnect/old-bearer/reconnect/client-revoke matrix
 and cleanup procedure is fixed in `docs/runbooks/real-client-mcp-acceptance.md`.
+
+Current public landing inspection confirms the seven-stage redesign is live;
+the remaining production defect is destination routing. Live Personal actions
+still point to the legacy Ministry login/register paths, and Consulting uses the
+older role query. Open, clean, green Ministry PR #391 preserves the redesign and
+its READY Preview supplies the Workspace sign-in, unified Entry signup, and
+role-safe Consulting return paths. It remains unmerged and last in the release
+sequence so no public action routes into paused Entry or pre-productization
+Workspace infrastructure.
