@@ -99,11 +99,11 @@ This is the requirement-by-requirement candidate audit. The two exact Personal-s
 | Full dependency audits | 0 findings in both repositories. |
 | Full Workspace browser lifecycle | 10/10 PASS (desktop and Pixel-class mobile). |
 | Hosted public accessibility browser cases | 4/4 PASS. |
+| Final synthetic acceptance cleanup | PASS. The two Goal C Entry development identities and all of their sessions, refresh tokens, profiles, entitlements, links, nonces, and subject audit references are absent. Personal retains zero Auth users, Workspace tenants, MCP client authorizations, OAuth clients, and OAuth consents. |
 
 ## Concrete remaining gates
 
 1. Complete real ChatGPT and Claude client connect/use/refresh/disconnect/reconnect/revocation acceptance through their interactive OAuth UI, or explicitly approve a documented deferral for a client that cannot be automated safely.
-2. Select an available organization/slot for the distinct Entry production Supabase project. `Lead emergence sandbox` is full with Consulting dev and Entry dev; pausing/repurposing Consulting or paying for capacity is not authorized.
-3. Remove retained synthetic hosted acceptance identities and the synthetic OAuth client/grant, refresh advisors/logs/secret scan/final checks, and stop at green Preview readiness without merging Production.
+2. Approve the production Supabase allocation in ADR-0011 and confirm partner-backed capacity for a distinct Entry project. If Meridian is the fallback, inventory/export its preserved data and explicitly approve repurposing before any restore or reset.
 
 Candidate state: **NOT YET READY FOR WORKSPACE PRODUCTION CUTOVER**.

@@ -60,3 +60,13 @@ Entry SSO source and its isolated Preview remain green. The authorized dedicated
 Current Personal-sandbox security advisors report no finding against exposed `workspace` data or Workspace Storage. Three `workspace_private` RLS-with-no-policy INFO findings are intentional deny-all posture on unexposed, grant-revoked server tables. The remaining two INFO findings and one SECURITY DEFINER warning target inherited `public` objects outside Workspace authority; leaked-password protection remains disabled and is documented without a paid-plan change. Performance advisors report only fresh-sandbox unused-index INFO for Workspace/private; covering foreign-key and Auth init-plan findings remain resolved.
 
 Local and external acceptance evidence is recorded in `docs/testing/test-evidence.md`: all required application checks, a fresh database rebuild, 93 pgTAP assertions, 10 desktop/mobile browser cases, database lint, full dependency audit, boundary scan, sensitive-data scan, green PR checks, and custom-domain/TLS baseline checks pass. This evidence is not a hosted-migration or cutover approval.
+
+Final Goal C cleanup removed the two reserved Goal C identities from Entry
+development and verified zero associated sessions, refresh tokens, profiles,
+entitlements, links, nonces, or audit subjects. Personal remains clean of Auth
+users, Workspace tenants, MCP authorizations, OAuth clients, and OAuth consents.
+ADR-0011 records the proposed production allocation: preserve Ministry,
+promote the already-accepted Personal project as the Workspace candidate, and
+use a new partner-backed project—or Meridian only after preservation review and
+explicit repurpose approval—for Entry. No infrastructure change is authorized
+by that proposal.
