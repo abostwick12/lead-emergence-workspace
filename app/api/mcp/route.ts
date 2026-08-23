@@ -19,7 +19,13 @@ export async function POST(request: Request) {
   if (registration.error) return withCors(request, mcpUnauthorized("This connection is disconnected, unavailable, or not included."));
 
   try {
-    const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
+    // Vercel functions do not retain an in-memory transport between requests.
+    // Keep the endpoint explicitly stateless so clients can complete
+    // initialize -> tools/list across separate function invocations.
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
     const server = createWorkspaceMcpServer(authenticated.supabase);
     await server.connect(transport);
     return withCors(request, await transport.handleRequest(request));
