@@ -35,7 +35,7 @@ Rollback remains viable: redeploy the recorded pre-Gate-D application sources, t
 
 ## Goal C — Workspace / Personal productization
 
-Status: **local and isolated hosted candidate validated; the two reviewed advisor migrations are applied and postflight-validated on the Personal sandbox only; Preview Entry-to-Workspace one-login SSO passes with no second credential prompt; the final immutable Workspace Preview and both open PR checks are green; real ChatGPT/Claude MCP client acceptance and distinct production Entry backend capacity remain; production cutover is not approved**.
+Status: **local and isolated hosted candidate validated; the two reviewed advisor migrations are applied and postflight-validated on the Personal sandbox only; Preview Entry-to-Workspace one-login SSO passes with no second credential prompt; the final immutable Workspace Preview and both open PR checks are green; real ChatGPT/Claude MCP client acceptance, two legacy Personal sandbox fixture identities, and distinct production Entry backend capacity remain; production cutover is not approved**.
 
 The productization source adds one-login Personal SSO consumption, shared native and AI-assisted setup, Workspace MCP authorization, Personal plan/capability resolution, plan-safe Settings, first-value Home behavior, useful empty states, and production operations documentation. The custom Workspace domain was already healthy before this goal; the Vercel rollback URL remains available.
 
@@ -63,10 +63,26 @@ Local and external acceptance evidence is recorded in `docs/testing/test-evidenc
 
 Final Goal C cleanup removed the two reserved Goal C identities from Entry
 development and verified zero associated sessions, refresh tokens, profiles,
-entitlements, links, nonces, or audit subjects. Personal remains clean of Auth
-users, Workspace tenants, MCP authorizations, OAuth clients, and OAuth consents.
+entitlements, links, nonces, or audit subjects. Personal remains clean of
+Workspace tenants, MCP authorizations, active OAuth clients, and active OAuth
+consents. A later authoritative recheck surfaced two older fixed-ID Personal
+sandbox Auth fixtures created on 2026-08-12, with six stale sessions/refresh
+tokens and two inherited `platform_user_profiles` rows but no Workspace, MCP,
+or OAuth user data. The current Dashboard session cannot access the `EMERGEnce`
+organization that owns Personal, so those exact fixtures remain pending owner
+sign-in and deletion.
 ADR-0011 records the proposed production allocation: preserve Ministry,
 promote the already-accepted Personal project as the Workspace candidate, and
 use a new partner-backed project—or Meridian only after preservation review and
 explicit repurpose approval—for Entry. No infrastructure change is authorized
 by that proposal.
+
+A fresh real-client attempt confirmed the remaining gate precisely: the
+available ChatGPT and Claude browser sessions resolve to their sign-in pages,
+and no connected Chrome or Edge session is available. A temporary `.test` Entry
+identity and audited Personal entitlement were created only to stage the flow,
+then removed when client sign-in proved unavailable; independent SQL reports
+zero remaining dependent rows. Live Preview metadata, unauthenticated challenge,
+and exact ChatGPT/Claude CORS preflights still pass. The complete operator-assisted
+connect/use/natural-refresh/disconnect/old-bearer/reconnect/client-revoke matrix
+and cleanup procedure is fixed in `docs/runbooks/real-client-mcp-acceptance.md`.

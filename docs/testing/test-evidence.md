@@ -195,7 +195,7 @@ Not executed or not claimable at this checkpoint:
   development identities. Post-delete SQL verification reports zero matching
   Auth users, sessions, refresh tokens, identity profiles, product entitlements,
   product links, handoff nonces, or audit-event subject references.
-- Personal sandbox inspection reports zero Auth users and zero rows in every
+- Personal sandbox inspection at this checkpoint reported zero rows in every
   user/tenant Workspace table, including Workspaces, memberships, Personal
   onboarding, configuration, plans, MCP authorizations, and product events.
 - Personal Supabase Auth retains zero OAuth clients and zero OAuth consents. The
@@ -207,3 +207,43 @@ Not executed or not claimable at this checkpoint:
   Workspace data or Workspace Storage. The three private-schema no-policy INFO
   findings remain intentional deny-all defense in depth; unrelated inherited
   `public` findings and leaked-password protection remain documented.
+
+## Real-client gate refresh — 2026-08-22 local / 2026-08-23 UTC
+
+- The available ChatGPT session reached the signed-out ChatGPT page. The
+  available Claude session initially rendered its application shell but then
+  resolved to Claude's login page. No connected Chrome or Edge session was
+  available. No assistant account was created, no assistant setting changed,
+  and no client grant was created.
+- To prove the isolated fixture path was ready, one reserved `.test` Entry user
+  was created, auto-confirmed, assigned one audited ACTIVE Personal entitlement,
+  and independently verified. Because neither real client was signed in, the
+  user was deleted immediately. Final SQL verification reports zero matching
+  Auth users, sessions, refresh tokens, profiles, entitlements, product links,
+  handoff nonces, or audit-subject rows.
+- Live Preview protocol checks returned exact protected-resource metadata with
+  the branch MCP resource and Personal Auth server; unauthenticated MCP `POST`
+  returned `401`, `no-store`, and the matching `WWW-Authenticate` metadata URL;
+  ChatGPT and Claude preflights each returned `204` with only their exact
+  origin. Personal authorization-server metadata advertises dynamic
+  registration, authorization-code and refresh-token grants, PKCE, user-info,
+  and JWKS.
+- `docs/runbooks/real-client-mcp-acceptance.md` now fixes the operator-assisted
+  lifecycle and content-free evidence procedure. Real connect, use, natural
+  token refresh, Workspace disconnect, old-bearer denial, reconnect, and
+  client-side revocation remain `NOT RUN` until the operator signs in to the
+  exact assistant test accounts or explicitly approves a deferral.
+- A final broad Personal inventory contradicted the earlier zero-Auth summary
+  by surfacing two older deterministic-ID fixtures:
+  `personal-sandbox-one@lead-emergence.test` and
+  `personal-sandbox-two@lead-emergence.test`. Both were created on 2026-08-12,
+  last signed in that day, and have explicit Personal Sandbox profile names.
+  Together they retain six stale sessions, six refresh-token rows, and two
+  inherited `public.platform_user_profiles` rows whose foreign key is
+  `ON DELETE CASCADE`. They have zero Workspace, membership, Personal plan,
+  onboarding, MCP authorization, OAuth authorization/consent, journey, or
+  private-plan-audit rows. They are synthetic but not yet removed: the signed-in
+  Dashboard account exposes only the separate `Lead emergence sandbox`
+  organization and redirects away from the `EMERGEnce`-owned Personal project.
+  Connector access is read-only. No deletion or configuration mutation was
+  attempted through an inappropriate migration path.

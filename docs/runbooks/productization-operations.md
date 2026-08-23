@@ -23,6 +23,11 @@ Before a hosted change, record written gate approval in `docs/status/extraction-
 
 ChatGPT and Claude require the user to paste the Workspace MCP address into their product's connector settings and explicitly approve Lead Emergence authorization. If consent is denied or connection fails, use Try again or Continue setup without AI. Never mark the connection `connected` until an authorized MCP request successfully registers the client.
 
+Run `real-client-mcp-acceptance.md` for the complete connect, use, natural token
+refresh, disconnect, old-bearer denial, reconnect, client-side revoke, and
+fixture-cleanup matrix. A client UI refresh is not evidence of a refresh-token
+exchange.
+
 External connectors in the catalog do not yet have approved runtime adapters. Do not solicit OAuth consent for them or reuse legacy tokens. Implement each later with connect, callback, encrypted server-side persistence, use, refresh, disconnect, revoke, reconnect, error handling, least-privilege scopes, capability enforcement, and cross-user tests.
 
 ## Plan administration

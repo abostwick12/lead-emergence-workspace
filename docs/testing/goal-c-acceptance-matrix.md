@@ -9,8 +9,8 @@ This is the requirement-by-requirement candidate audit. The two exact Personal-s
 | Requirement | Candidate result | Authoritative evidence |
 | --- | --- | --- |
 | AI-first setup choice | PASS local/hosted | Productized setup-method screen follows successful one-login SSO; desktop/mobile Playwright lifecycle passes. |
-| ChatGPT path | PASS UI/contract/fallback; real-client acceptance pending | Hosted selection, controlled connection instructions, consent language, connection verification, and native fallback pass. A real ChatGPT client connect/use/revoke cycle remains interactive. |
-| Claude path | PASS UI/contract/fallback; real-client acceptance pending | Hosted selection, controlled connection instructions, consent language, connection verification, and native fallback pass. A real Claude client connect/use/revoke cycle remains interactive. |
+| ChatGPT path | PASS UI/contract/fallback; real-client blocked on client sign-in | Hosted selection, controlled connection instructions, consent language, connection verification, and native fallback pass. The available ChatGPT browser session resolves to its signed-out page; no assistant-account setting or grant was changed. |
+| Claude path | PASS UI/contract/fallback; real-client blocked on client sign-in | Hosted selection, controlled connection instructions, consent language, connection verification, and native fallback pass. Claude's initially rendered shell resolved to its login page; no assistant-account setting or grant was changed. |
 | Native non-AI setup | PASS local/hosted | Save/resume/completion and first value pass on desktop/mobile Preview; the final immutable deployment persisted all ten configured areas before completion. |
 | Onboarding resume | PASS local/hosted | Hosted reload resumed step 2 with the previously confirmed areas intact. |
 | AI to native switch | PASS local/hosted | Hosted AI fallback returned to the saved native step without clearing context. |
@@ -42,7 +42,7 @@ This is the requirement-by-requirement candidate audit. The two exact Personal-s
 | Exact MCP resource audience | PASS local/hosted metadata | Preview DB setting, protected-resource metadata, hook claim, and wrong-audience denial use the same stable branch resource. |
 | Connected/disconnected/revoked behavior | PASS local/hosted SQL | Authorization epoch, disconnect, reconnect, and older-bearer denial assertions pass. |
 | MCP cross-user isolation | DENIED local/hosted SQL | User A/User B setup, capability, client, and tool isolation assertions pass. |
-| ChatGPT/Claude interactive use | PARTIAL hosted | Personal OAuth server/provider and explicit Workspace consent are configured; a synthetic public client reached and approved the controlled consent screen. Real ChatGPT/Claude connect/use/refresh/disconnect/reconnect/revocation is still user-interactive and not claimed. |
+| ChatGPT/Claude interactive use | PARTIAL hosted | Personal OAuth server/provider and explicit Workspace consent are configured; a synthetic public client reached and approved the controlled consent screen. Fresh live checks prove exact Preview metadata, unauthenticated challenge, and both client CORS preflights. Both real clients require an operator-signed-in assistant account, so connect/use/natural refresh/disconnect/reconnect/client revoke remain unclaimed. |
 | External connectors | DEFERRED TRUTHFULLY | Catalog/metadata only, connection limit zero, no approved runtime adapter or token reuse. |
 | Connector cross-user credential access | NOT APPLICABLE TO THIS RELEASE | No credential adapter/store exists; base integration metadata remains owner-RLS protected. |
 
@@ -99,11 +99,12 @@ This is the requirement-by-requirement candidate audit. The two exact Personal-s
 | Full dependency audits | 0 findings in both repositories. |
 | Full Workspace browser lifecycle | 10/10 PASS (desktop and Pixel-class mobile). |
 | Hosted public accessibility browser cases | 4/4 PASS. |
-| Final synthetic acceptance cleanup | PASS. The two Goal C Entry development identities and all of their sessions, refresh tokens, profiles, entitlements, links, nonces, and subject audit references are absent. Personal retains zero Auth users, Workspace tenants, MCP client authorizations, OAuth clients, and OAuth consents. |
+| Final synthetic acceptance cleanup | PARTIAL. The two Goal C Entry identities and the aborted real-client Entry fixture have zero dependent rows. Personal has zero Workspace tenants, MCP authorizations, active OAuth clients, or active consents, but a later authoritative recheck found two fixed-ID August 12 `personal-sandbox` Auth fixtures, six stale sessions/refresh tokens, and two cascade-only inherited profiles. The connected Dashboard account cannot access the owning `EMERGEnce` organization, so exact deletion remains. |
 
 ## Concrete remaining gates
 
-1. Complete real ChatGPT and Claude client connect/use/refresh/disconnect/reconnect/revocation acceptance through their interactive OAuth UI, or explicitly approve a documented deferral for a client that cannot be automated safely.
-2. Approve the production Supabase allocation in ADR-0011 and confirm partner-backed capacity for a distinct Entry project. If Meridian is the fallback, inventory/export its preserved data and explicitly approve repurposing before any restore or reset.
+1. Sign in to the exact ChatGPT and Claude test accounts and execute `docs/runbooks/real-client-mcp-acceptance.md`, or explicitly approve a documented deferral for a client. The available browser sessions are signed out; creating an assistant account or changing an unrelated account is not authorized.
+2. Sign in to the Supabase Dashboard account that can access the `EMERGEnce` organization and remove exactly the two inventoried legacy Personal sandbox fixtures; then verify zero Auth users, sessions, refresh tokens, and inherited profiles. Do not remove provider or product configuration.
+3. Approve the production Supabase allocation in ADR-0011 and confirm partner-backed capacity for a distinct Entry project. If Meridian is the fallback, inventory/export its preserved data and explicitly approve repurposing before any restore or reset.
 
 Candidate state: **NOT YET READY FOR WORKSPACE PRODUCTION CUTOVER**.
