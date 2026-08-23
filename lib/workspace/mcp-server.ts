@@ -16,12 +16,14 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
   server.registerTool("get_onboarding_state", {
     title: "Get onboarding state",
     description: "Determine whether this Personal Workspace is new, incomplete, or ready, and identify the next useful setup area. Continue existing progress instead of restarting.",
+    inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, () => rpcResult(supabase, "mcp_get_onboarding_state"));
 
   server.registerTool("get_workspace_setup", {
     title: "Get confirmed Workspace setup",
     description: "Read the user's current reported, suggested, and confirmed Personal configuration. Preserve epistemic status and never present AI-suggested material as confirmed truth.",
+    inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, () => rpcResult(supabase, "mcp_get_workspace_setup"));
 
@@ -56,6 +58,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
   server.registerTool("get_leadership_state", {
     title: "Get leadership state",
     description: "Read confirmed configuration, open tasks, and open commitments after onboarding so the assistant can help the user notice, choose, act, and learn.",
+    inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   }, () => rpcResult(supabase, "mcp_get_leadership_state"));
 
