@@ -1,5 +1,16 @@
 # Test evidence
 
+## Connection platform candidate — 2026-08-25
+
+- `npm run check:boundaries` — **PASS**. No Ministry/Consulting import or service-role runtime client.
+- `npm run test:schema` — **PASS** (11/11), including the private integration credential vault and owner-scoped bridge contract.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **PASS** (35 assertions), including all 14 catalog entries and AES-GCM credential binding.
+- `npm run build` — **PASS**. The connection start, callback, and compact API-key routes compile as dynamic handlers.
+- `npm run scan:sensitive` — **PASS**. No credentials or personal fixtures were added.
+- Live provider OAuth, GitHub App installation, Logos OAuth 1.0a, YouVersion registration, and hosted migration/RLS verification are **not run**: provider registrations and server-only credentials have not been supplied, and applying the hosted migration remains gate-controlled.
+
 ## Executed locally
 
 - `npm run scan:sensitive` — passed before the first push; full authored working tree scanned (including ignored local files, excluding dependency/build output) and the one preserved private `main` initializer commit scanned. No credential, token, private key, connection string, email address, or application personal-data pattern was found in file content.

@@ -58,9 +58,11 @@ export type MemoryRecord = {
   created_at: string;
 };
 
+import type { IntegrationProviderId } from "@/lib/integrations/providers";
+
 export type IntegrationConnection = {
   id: string;
-  provider: "google_calendar" | "gmail" | "google_drive" | "slack" | "firecrawl" | "monday" | "linkedin";
+  provider: IntegrationProviderId;
   status: "reconnect_required" | "connected" | "disconnected" | "error";
   connected_account_label: string | null;
   scopes: string[];

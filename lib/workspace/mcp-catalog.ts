@@ -1,4 +1,5 @@
 import type { IntegrationConnection } from "@/lib/workspace/types";
+import { getIntegrationProvider, type IntegrationProviderId } from "@/lib/integrations/providers";
 
 export const MCP_CATEGORIES = ["All", "AI", "Comms", "Work", "Files", "Creative", "Faith"] as const;
 
@@ -6,7 +7,7 @@ export type McpCategory = Exclude<(typeof MCP_CATEGORIES)[number], "All">;
 export type McpCategoryFilter = (typeof MCP_CATEGORIES)[number];
 
 export type McpCatalogEntry = {
-  id: string;
+  id: IntegrationProviderId;
   name: string;
   category: McpCategory;
   detail: string;
@@ -23,7 +24,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     category: "Faith",
     detail: "Study library and commentary lookup",
     boundary: "Read-only study access through a separately approved Logos adapter.",
-    supportsWorkspaceMetadata: false
+    supportsWorkspaceMetadata: true
   },
   {
     id: "chatgpt",
@@ -31,7 +32,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     category: "AI",
     detail: "Reasoning and drafting model access",
     boundary: "A separate AI capability gate is required before model access is enabled.",
-    supportsWorkspaceMetadata: false
+    supportsWorkspaceMetadata: true
   },
   {
     id: "claude",
@@ -39,7 +40,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     category: "AI",
     detail: "Long-context synthesis and review",
     boundary: "A separate AI capability gate is required before model access is enabled.",
-    supportsWorkspaceMetadata: false
+    supportsWorkspaceMetadata: true
   },
   {
     id: "gmail",
@@ -79,7 +80,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     category: "Work",
     detail: "Repository context and workflow visibility",
     boundary: "Repository access requires a separately approved read scope.",
-    supportsWorkspaceMetadata: false
+    supportsWorkspaceMetadata: true
   },
   {
     id: "linkedin",
@@ -111,7 +112,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     category: "Creative",
     detail: "Design discovery and approved exports",
     boundary: "Design access requires a separately approved Canva adapter.",
-    supportsWorkspaceMetadata: false
+    supportsWorkspaceMetadata: true
   },
   {
     id: "powerpoint",
@@ -119,7 +120,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     category: "Creative",
     detail: "Deck generation and outline export",
     boundary: "File creation requires an approved Microsoft 365 adapter.",
-    supportsWorkspaceMetadata: false
+    supportsWorkspaceMetadata: true
   },
   {
     id: "youversion",
@@ -127,7 +128,7 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     category: "Faith",
     detail: "Reading plans and Scripture references",
     boundary: "Read-only access requires a separately approved YouVersion adapter.",
-    supportsWorkspaceMetadata: false
+    supportsWorkspaceMetadata: true
   }
 ] as const;
 
@@ -158,4 +159,8 @@ export function getMcpDisplayStatus(
   connections: readonly IntegrationConnection[]
 ): McpDisplayStatus {
   return findConnectionForEntry(entry, connections)?.status ?? "available";
+}
+
+export function getMcpSetupLabel(entry: McpCatalogEntry): string {
+  return getIntegrationProvider(entry.id)?.setupLabel ?? "Connect";
 }

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   MCP_CATALOG,
   filterMcpCatalog,
+  getMcpSetupLabel,
   getMcpDisplayStatus
 } from "../lib/workspace/mcp-catalog";
+import { INTEGRATION_PROVIDER_IDS, INTEGRATION_PROVIDERS } from "../lib/integrations/providers";
 import type { IntegrationConnection } from "../lib/workspace/types";
 
 describe("MCP catalog", () => {
@@ -44,5 +46,16 @@ describe("MCP catalog", () => {
 
     expect(gmail && getMcpDisplayStatus(gmail, connections)).toBe("reconnect_required");
     expect(logos && getMcpDisplayStatus(logos, connections)).toBe("available");
+  });
+
+  it("gives every catalog connection a concrete, non-secret setup contract", () => {
+    expect(MCP_CATALOG.map((entry) => entry.id)).toEqual(INTEGRATION_PROVIDER_IDS);
+    for (const entry of MCP_CATALOG) {
+      const provider = INTEGRATION_PROVIDERS[entry.id];
+      expect(entry.supportsWorkspaceMetadata).toBe(true);
+      expect(provider.credentialFamily).not.toHaveLength(0);
+      expect(["oauth", "oauth1", "api_key", "github_app"]).toContain(provider.connectionMethod);
+      expect(getMcpSetupLabel(entry)).toBe(provider.setupLabel);
+    }
   });
 });

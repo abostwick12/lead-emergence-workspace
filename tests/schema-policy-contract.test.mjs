@@ -16,6 +16,7 @@ const globalCss = await readFile("app/globals.css", "utf8");
 const workspaceRepository = await readFile("lib/workspace/repository.ts", "utf8");
 const workspaceClocks = await readFile("components/workspace-clocks.tsx", "utf8");
 const clockSettings = await readFile("components/clock-settings.tsx", "utf8");
+const integrationVaultSql = await readFile("supabase/migrations/20260825000000_workspace_integration_vault.sql", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -89,4 +90,13 @@ test("renders DST-aware local clocks with a responsive configuration surface", (
   assert.doesNotMatch(workspaceClocks, /fetch\(|axios|timeapi|worldtime/i);
   assert.match(globalCss, /\.workspace-clocks \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(globalCss, /@media \(max-width: 640px\)[^}]*\.workspace-header/s);
+});
+
+test("keeps durable integration credentials in the private schema with an owner-scoped bridge", () => {
+  assert.match(integrationVaultSql, /create table if not exists workspace_private\.integration_credentials/i);
+  assert.match(integrationVaultSql, /revoke all on table workspace_private\.integration_credentials from public, anon, authenticated/i);
+  assert.match(integrationVaultSql, /create or replace function workspace\.save_integration_connection/i);
+  assert.match(integrationVaultSql, /workspace_private\.is_workspace_owner\(p_workspace_id\)/);
+  assert.match(integrationVaultSql, /ciphertext text not null/i);
+  assert.doesNotMatch(integrationVaultSql, /(?:access_token|refresh_token|client_secret)\s+(?:text|jsonb)/i);
 });
