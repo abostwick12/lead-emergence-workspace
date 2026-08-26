@@ -95,3 +95,21 @@ its READY Preview supplies the Workspace sign-in, unified Entry signup, and
 role-safe Consulting return paths. It remains unmerged and last in the release
 sequence so no public action routes into paused Entry or pre-productization
 Workspace infrastructure.
+
+## Workspace integration-vault migration gate
+
+Status: **Approved for Ministry-authority application**.
+
+On 2026-08-26, the user gave written approval: “migration approved.” This
+authorizes exactly the additive Workspace migration
+`20260825000000_workspace_integration_vault.sql` from Workspace merge
+`36fa146e931980d7084448e9b9e51ea6388ec5f5` (PR #5). Its scope is the
+provider constraint expansion, private ciphertext-only credential and OAuth
+attempt storage, and owner-scoped connection RPCs. It does not authorize the
+copying or activation of any existing provider token, Ministry or Consulting
+mutation, real-user activation, billing change, or wider production cutover.
+
+The Ministry repository remains the sole authority for the hosted migration.
+Before it is applied, its operator must confirm the exact shared-hosted target,
+review the packaged migration against current Ministry `main`, take the
+repository's normal backup/preflight evidence, and record postflight results.
