@@ -22,6 +22,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BsOpenai } from "react-icons/bs";
 import { FaFilePowerpoint, FaGithub } from "react-icons/fa6";
@@ -39,10 +40,10 @@ import {
   type McpCategoryFilter,
   type McpDisplayStatus
 } from "@/lib/workspace/mcp-catalog";
-import { listIntegrationConnections } from "@/lib/workspace/repository";
+import { listIntegrationConnections, listMcpAuthorizations } from "@/lib/workspace/repository";
 import { getWorkspaceClient } from "@/lib/supabase/client";
 import { getIntegrationProvider } from "@/lib/integrations/providers";
-import type { IntegrationConnection } from "@/lib/workspace/types";
+import type { IntegrationConnection, McpAuthorizationRecord } from "@/lib/workspace/types";
 import styles from "./integrations.module.css";
 
 const PROVIDER_ICONS: Record<string, LucideIcon> = {
@@ -113,19 +114,27 @@ function formatLastSuccess(value: string | null): string {
   return `Last sync ${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(parsed)}`;
 }
 
-function selectedMessage(entry: McpCatalogEntry, connection: IntegrationConnection | undefined): string {
+function selectedMessage(entry: McpCatalogEntry, connection: IntegrationConnection | undefined, assistantConnection?: McpAuthorizationRecord): string {
+  if (entry.id === "chatgpt" || entry.id === "claude") {
+    if (assistantConnection?.status === "connected") return `${entry.name} is connected through Workspace OAuth and controlled tool authorization. You can disconnect it from Settings.`;
+    return `${entry.name} can connect to the Workspace-native assistant interface with explicit OAuth consent. Workspace remains the system of record.`;
+  }
   if (connection?.status === "connected") {
     return `${entry.name} is connected. Connection metadata is visible here; provider credentials remain outside the Workspace.`;
   }
   if (connection) {
     return `${entry.name} already has Workspace metadata, but provider authorization still needs attention. ${entry.boundary}`;
   }
-  return `${entry.name} is ready to connect with the provider's authorization method. ${entry.boundary}`;
+  if (entry.supportsWorkspaceMetadata) {
+    return `${entry.name} is supported by the current metadata model. An approved provider authorization endpoint is still required before it can connect.`;
+  }
+  return `${entry.name} is catalogued for this Workspace, but its provider adapter has not been approved or provisioned yet. ${entry.boundary}`;
 }
 
 export default function IntegrationsPage() {
   const { user, workspace } = useWorkspace();
   const [connections, setConnections] = useState<IntegrationConnection[]>([]);
+  const [assistantConnections, setAssistantConnections] = useState<McpAuthorizationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -144,9 +153,9 @@ export default function IntegrationsPage() {
     let active = true;
     setLoading(true);
     setError(null);
-    void listIntegrationConnections(workspace.id)
-      .then((records) => {
-        if (active) setConnections(records);
+    void Promise.all([listIntegrationConnections(workspace.id), listMcpAuthorizations(workspace.id)])
+      .then(([records, assistants]) => {
+        if (active) { setConnections(records); setAssistantConnections(assistants); }
       })
       .catch((caught) => {
         if (active) setError(caught instanceof Error ? caught.message : "Could not load connections.");
@@ -186,7 +195,7 @@ export default function IntegrationsPage() {
     [selectedId]
   );
   const selectedConnection = selectedEntry ? findConnectionForEntry(selectedEntry, connections) : undefined;
-  const activeCount = connections.filter((connection) => connection.status === "connected").length;
+  const activeCount = connections.filter((connection) => connection.status === "connected").length + assistantConnections.filter((connection) => connection.status === "connected").length;
   const attentionCount = connections.filter(
     (connection) => connection.status === "reconnect_required" || connection.status === "error"
   ).length;
@@ -208,20 +217,13 @@ export default function IntegrationsPage() {
     return data.session.access_token;
   };
 
-  const connectOAuth = async (entry: McpCatalogEntry) => {
-    if (!workspace || !user) {
-      setConnectionError("Sign in before connecting an integration.");
-      return;
-    }
+  const startExternalConnection = async (entry: McpCatalogEntry) => {
+    if (!workspace || !user) return setConnectionError("Sign in before connecting an integration.");
     setConnectingId(entry.id);
     setConnectionError(null);
     try {
       const token = await accessToken();
-      const response = await fetch(`/api/integrations/${entry.id}/start`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId: workspace.id })
-      });
+      const response = await fetch(`/api/integrations/${entry.id}/start`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ workspaceId: workspace.id }) });
       const payload = await response.json() as { authorizationUrl?: string; message?: string };
       if (!response.ok || !payload.authorizationUrl) throw new Error(payload.message || "Could not start this connection.");
       window.location.assign(payload.authorizationUrl);
@@ -233,23 +235,15 @@ export default function IntegrationsPage() {
 
   const connectApiKey = async (event: React.FormEvent<HTMLFormElement>, entry: McpCatalogEntry) => {
     event.preventDefault();
-    if (!workspace || !user) {
-      setConnectionError("Sign in before connecting an integration.");
-      return;
-    }
+    if (!workspace || !user) return setConnectionError("Sign in before connecting an integration.");
     setConnectingId(entry.id);
     setConnectionError(null);
     try {
       const token = await accessToken();
-      const response = await fetch(`/api/integrations/${entry.id}/credential`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, workspaceId: workspace.id })
-      });
+      const response = await fetch(`/api/integrations/${entry.id}/credential`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ apiKey, workspaceId: workspace.id }) });
       const payload = await response.json() as { message?: string };
       if (!response.ok) throw new Error(payload.message || "Could not connect this provider.");
-      const records = await listIntegrationConnections(workspace.id);
-      setConnections(records);
+      setConnections(await listIntegrationConnections(workspace.id));
       setApiKey("");
     } catch (caught) {
       setConnectionError(caught instanceof Error ? caught.message : "Could not connect this provider.");
@@ -265,7 +259,7 @@ export default function IntegrationsPage() {
           <p className="eyebrow workflow-kicker">Operational / Integrations</p>
           <h1 className="page-title">Connections</h1>
           <p className="page-lede">
-            Every MCP the Workspace can use or prepare. Personal Workspace access stays isolated from ministry and external systems.
+            Choose the assistant interfaces and external systems that serve your leadership work. Nothing is connected automatically.
           </p>
         </div>
 
@@ -287,7 +281,7 @@ export default function IntegrationsPage() {
             onClick={() => setOpen((current) => !current)}
           >
             <Plus size={16} aria-hidden="true" />
-            Add new MCP
+            Browse connections
           </button>
 
           {open ? (
@@ -300,8 +294,8 @@ export default function IntegrationsPage() {
             >
               <div className={styles.popoverHeader}>
                 <div>
-                  <h2 id="mcp-catalog-title">Add an MCP</h2>
-                  <p>Choose a connection for this Workspace.</p>
+                  <h2 id="mcp-catalog-title">Add a connection</h2>
+                  <p>Choose an explicit, Workspace-scoped connection.</p>
                 </div>
                 <button type="button" className={styles.closeButton} aria-label="Close MCP catalog" onClick={closePopover}>
                   <X size={17} aria-hidden="true" />
@@ -309,7 +303,7 @@ export default function IntegrationsPage() {
               </div>
 
               <label className="sr-only" htmlFor="mcp-catalog-search">
-                Search MCPs
+                Search connections
               </label>
               <div className={styles.searchWrap}>
                 <Search size={16} aria-hidden="true" />
@@ -318,7 +312,7 @@ export default function IntegrationsPage() {
                   id="mcp-catalog-search"
                   type="search"
                   value={query}
-                  placeholder="Search MCPs"
+                  placeholder="Search connections"
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </div>
@@ -341,7 +335,7 @@ export default function IntegrationsPage() {
               <div className={styles.catalogGrid} aria-live="polite">
                 {filteredCatalog.length ? (
                   filteredCatalog.map((entry) => {
-                    const status = getMcpDisplayStatus(entry, connections);
+                    const status = displayStatus(entry, connections, assistantConnections);
                     const meta = STATUS_META[status];
                     return (
                       <button
@@ -366,7 +360,7 @@ export default function IntegrationsPage() {
                     );
                   })
                 ) : (
-                  <p className={styles.emptyCatalog}>No MCPs match this search.</p>
+                  <p className={styles.emptyCatalog}>No connections match this search.</p>
                 )}
               </div>
 
@@ -377,37 +371,20 @@ export default function IntegrationsPage() {
                   </span>
                   <div>
                     <strong>{selectedEntry.name} setup</strong>
-                    <p>{selectedMessage(selectedEntry, selectedConnection)}</p>
-                    {getIntegrationProvider(selectedEntry.id)?.connectionMethod === "oauth" || getIntegrationProvider(selectedEntry.id)?.connectionMethod === "github_app" ? (
-                      <button
-                        type="button"
-                        className={styles.connectButton}
-                        disabled={connectingId === selectedEntry.id}
-                        onClick={() => void connectOAuth(selectedEntry)}
-                      >
+                    <p>{selectedMessage(selectedEntry, selectedConnection, assistantConnections.find((item) => item.assistant_provider === selectedEntry.id))}</p>
+                    {selectedEntry.id === "chatgpt" || selectedEntry.id === "claude" ? (
+                      <Link className={styles.connectButton} href={`/workspace/integrations/assistant?provider=${selectedEntry.id}`}>Connect assistant</Link>
+                    ) : getIntegrationProvider(selectedEntry.id)?.connectionMethod === "oauth" || getIntegrationProvider(selectedEntry.id)?.connectionMethod === "github_app" ? (
+                      <button type="button" className={styles.connectButton} disabled={connectingId === selectedEntry.id} onClick={() => void startExternalConnection(selectedEntry)}>
                         {connectingId === selectedEntry.id ? "Opening secure connection…" : getMcpSetupLabel(selectedEntry)}
                       </button>
                     ) : getIntegrationProvider(selectedEntry.id)?.connectionMethod === "api_key" ? (
                       <form className={styles.apiKeyForm} onSubmit={(event) => void connectApiKey(event, selectedEntry)}>
                         <label className="sr-only" htmlFor={`api-key-${selectedEntry.id}`}>API key for {selectedEntry.name}</label>
-                        <input
-                          id={`api-key-${selectedEntry.id}`}
-                          type="password"
-                          autoComplete="off"
-                          required
-                          value={apiKey}
-                          placeholder="Paste API key once"
-                          onChange={(event) => setApiKey(event.target.value)}
-                        />
-                        <button type="submit" className={styles.connectButton} disabled={connectingId === selectedEntry.id}>
-                          {connectingId === selectedEntry.id ? "Saving securely…" : getMcpSetupLabel(selectedEntry)}
-                        </button>
+                        <input id={`api-key-${selectedEntry.id}`} type="password" autoComplete="off" required value={apiKey} placeholder="Paste API key once" onChange={(event) => setApiKey(event.target.value)} />
+                        <button type="submit" className={styles.connectButton} disabled={connectingId === selectedEntry.id}>{connectingId === selectedEntry.id ? "Saving securely…" : getMcpSetupLabel(selectedEntry)}</button>
                       </form>
-                    ) : (
-                      <p className={styles.providerSetupNote}>
-                        {selectedEntry.name} uses a registered provider adapter. Its secure connection flow will open as soon as the provider registration is added.
-                      </p>
-                    )}
+                    ) : <p className={styles.providerSetupNote}>{selectedEntry.name} uses a registered provider adapter. Its secure connection flow will open as soon as the provider registration is added.</p>}
                   </div>
                 </div>
               ) : null}
@@ -415,7 +392,7 @@ export default function IntegrationsPage() {
               {connectionError ? <p className={styles.connectionError} role="alert">{connectionError}</p> : null}
 
               <p className={styles.boundaryNote}>
-                Connections use an encrypted Workspace vault. OAuth tokens, API keys, MCP secrets, and ministry credentials are never stored in the Workspace data API.
+                Connections use an encrypted Workspace vault. OAuth tokens, API keys, connector secrets, and ministry credentials are never stored in the Workspace data API.
               </p>
             </div>
           ) : null}
@@ -424,10 +401,15 @@ export default function IntegrationsPage() {
 
       {error ? <p className="error" role="alert">{error}</p> : null}
 
+      <section id="assistants" className="assistant-connection-feature" aria-label="AI assistant connections">
+        <div><p className="eyebrow">Recommended interface</p><h2>Connect your AI assistant</h2><p>ChatGPT and Claude use the same controlled Workspace tools. Connect either one, both, or neither.</p></div>
+        <div>{(["chatgpt", "claude"] as const).map((provider) => { const record = assistantConnections.find((item) => item.assistant_provider === provider && item.status === "connected"); return <article key={provider}><ProviderBrandMark providerId={provider} /><div><strong>{provider === "chatgpt" ? "ChatGPT" : "Claude"}</strong><span>{record ? "Connected" : "Not connected"}</span></div><Link className="button secondary" href={`/workspace/integrations/assistant?provider=${provider}`}>{record ? "Review" : "Connect"}</Link></article>; })}</div>
+      </section>
+
       <section className={styles.connectionsGrid} aria-label="Workspace connections">
         {MCP_CATALOG.map((entry) => {
           const connection = findConnectionForEntry(entry, connections);
-          const status = getMcpDisplayStatus(entry, connections);
+          const status = displayStatus(entry, connections, assistantConnections);
           const meta = STATUS_META[status];
           return (
             <article className={styles.connectionCard} key={entry.id}>
@@ -447,7 +429,7 @@ export default function IntegrationsPage() {
               </div>
               <p className={styles.cardDetail}>{entry.detail}</p>
               <footer className={styles.cardFooter}>
-                <span>{connection ? "Workspace metadata" : "Catalog only"}</span>
+                <span>{entry.id === "chatgpt" || entry.id === "claude" ? "Workspace OAuth" : connection ? "Workspace metadata" : "Catalog only"}</span>
                 <span>
                   <RefreshCw size={11} aria-hidden="true" />
                   {formatLastSuccess(connection?.last_success_at ?? null)}
@@ -462,4 +444,16 @@ export default function IntegrationsPage() {
       </section>
     </div>
   );
+}
+
+function displayStatus(entry: McpCatalogEntry, connections: IntegrationConnection[], assistants: McpAuthorizationRecord[]): McpDisplayStatus {
+  if (entry.id === "chatgpt" || entry.id === "claude") {
+    const record = assistants.find((item) => item.assistant_provider === entry.id);
+    if (!record) return "available";
+    if (record.status === "connected") return "connected";
+    if (record.status === "error") return "error";
+    if (record.status === "reconnect_required" || record.status === "connecting") return "reconnect_required";
+    return "disconnected";
+  }
+  return getMcpDisplayStatus(entry, connections);
 }

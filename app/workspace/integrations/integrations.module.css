@@ -132,8 +132,8 @@
 
 .closeButton {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   place-items: center;
   padding: 0;
@@ -177,7 +177,7 @@
 }
 
 .categoryButton {
-  min-height: 32px;
+  min-height: 44px;
   padding: 0 11px;
   color: var(--muted-strong);
   border: 1px solid var(--line);

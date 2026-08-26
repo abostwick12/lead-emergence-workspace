@@ -18,7 +18,7 @@ function completeRedirect(provider: string, status: "connected" | "error") {
   return response;
 }
 
-export async function GET(request: NextRequest, context: RouteContext<"/api/integrations/[provider]/callback">) {
+export async function GET(request: NextRequest, context: { params: Promise<{ provider: string }> }) {
   const { provider: providerId } = await context.params;
   if (!isIntegrationProviderId(providerId)) return NextResponse.redirect(new URL("/workspace/integrations", request.url));
   const provider = getIntegrationProvider(providerId);

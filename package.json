@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20.9.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "next dev",
@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:schema": "node --test tests/schema-policy-contract.test.mjs",
-    "test:rls": "supabase test db --local supabase/tests/database",
+    "test:rls": "supabase test db --local supabase/tests/database/hostile_workspace_access.sql supabase/tests/database/workspace_clock_preferences.sql supabase/tests/database/workspace_productization.sql supabase/tests/database/workspace_product_events.sql",
+    "test:e2e": "playwright test",
     "scan:sensitive": "node scripts/scan-sensitive-data.mjs",
     "schema:checksum": "node scripts/check-workspace-schema.mjs",
     "build:shared-migration": "node scripts/build-shared-project-migration.mjs",
@@ -29,20 +30,24 @@
     "check:boundaries": "node scripts/check-product-boundaries.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@supabase/ssr": "0.12.4",
     "@supabase/supabase-js": "^2.45.4",
     "lucide-react": "^0.468.0",
     "next": "16.3.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-icons": "^5.7.0"
+    "react-icons": "^5.7.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.2",
     "typescript": "^5.5.3",
-    "vitest": "^2.1.8"
+    "vitest": "4.1.11"
   }
 }

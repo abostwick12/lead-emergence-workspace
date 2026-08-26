@@ -8,6 +8,13 @@ import type {
   JobApplicationRecord,
   JobApplicationStatus,
   MemoryRecord,
+  McpAuthorizationRecord,
+  OnboardingRecord,
+  PersonalPlanRecord,
+  PlanCapabilityRecord,
+  ConfigurationArea,
+  ConfigurationItem,
+  AssistantProvider,
   TaskPriority,
   TaskRecord,
   TaskStatus,
@@ -257,4 +264,146 @@ export async function countAiConversations(workspaceId: string): Promise<number>
     .eq("workspace_id", workspaceId);
   if (error) throw new Error(error.message);
   return count ?? 0;
+}
+
+export async function getPersonalPlan(workspaceId: string): Promise<PersonalPlanRecord> {
+  const { data, error } = await getWorkspaceClient()
+    .from("personal_plans")
+    .select("workspace_id, user_id, plan_key, status, trial_started_at, trial_ends_at, conversion_state")
+    .eq("workspace_id", workspaceId)
+    .single();
+  return required(data as PersonalPlanRecord | null, error);
+}
+
+export async function listPlanCapabilities(planKey: string): Promise<PlanCapabilityRecord[]> {
+  const { data, error } = await getWorkspaceClient()
+    .from("plan_capabilities")
+    .select("capability_key, enabled, limit_value")
+    .eq("plan_key", planKey)
+    .order("capability_key");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PlanCapabilityRecord[];
+}
+
+export async function getLeaderModeEntitlement(workspaceId: string): Promise<boolean> {
+  const { data, error } = await getWorkspaceClient()
+    .from("workspace_entitlements")
+    .select("enabled, expires_at")
+    .eq("workspace_id", workspaceId)
+    .eq("feature_key", "leader_mode")
+    .maybeSingle<{ enabled: boolean; expires_at: string | null }>();
+  if (error) throw new Error(error.message);
+  return Boolean(data?.enabled && (!data.expires_at || new Date(data.expires_at).getTime() > Date.now()));
+}
+
+export async function getOnboarding(workspaceId: string): Promise<OnboardingRecord> {
+  const { data, error } = await getWorkspaceClient()
+    .from("personal_onboarding")
+    .select("workspace_id, user_id, state, setup_method, selected_assistant, completed_areas, started_at, completed_at, last_resumed_at")
+    .eq("workspace_id", workspaceId)
+    .single();
+  return required(data as OnboardingRecord | null, error);
+}
+
+export async function chooseSetupMethod(input: {
+  workspaceId: string;
+  userId: string;
+  method: "ai" | "native";
+  assistant?: AssistantProvider;
+}): Promise<OnboardingRecord> {
+  const { error } = await getWorkspaceClient().rpc("select_personal_setup_method", {
+    target_method: input.method,
+    target_assistant: input.method === "ai" ? input.assistant : null
+  });
+  if (error) throw new Error(error.message);
+  return getOnboarding(input.workspaceId);
+}
+
+export async function prepareAssistantConnection(input: { workspaceId: string; userId: string; assistant: AssistantProvider }): Promise<OnboardingRecord> {
+  const { error } = await getWorkspaceClient().rpc("prepare_personal_assistant_connection", {
+    target_assistant: input.assistant
+  });
+  if (error) throw new Error(error.message);
+  return getOnboarding(input.workspaceId);
+}
+
+export async function listConfiguration(workspaceId: string): Promise<ConfigurationItem[]> {
+  const { data, error } = await getWorkspaceClient()
+    .from("personal_configuration_items")
+    .select("id, workspace_id, area, content, epistemic_status, source_interface, active, confirmed_at, updated_at")
+    .eq("workspace_id", workspaceId)
+    .eq("active", true)
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ConfigurationItem[];
+}
+
+export async function saveNativeConfiguration(input: {
+  workspaceId: string;
+  userId: string;
+  area: ConfigurationArea;
+  content: ConfigurationItem["content"];
+}): Promise<ConfigurationItem> {
+  const supabase = getWorkspaceClient();
+  const { error: deactivateError } = await supabase
+    .from("personal_configuration_items")
+    .update({ active: false })
+    .eq("workspace_id", input.workspaceId)
+    .eq("area", input.area)
+    .eq("active", true);
+  if (deactivateError) throw new Error(deactivateError.message);
+  const { data, error } = await supabase
+    .from("personal_configuration_items")
+    .insert({
+      workspace_id: input.workspaceId,
+      area: input.area,
+      content: input.content,
+      epistemic_status: "user_confirmed",
+      source_interface: "native",
+      active: true,
+      confirmed_at: new Date().toISOString(),
+      created_by: input.userId
+    })
+    .select("id, workspace_id, area, content, epistemic_status, source_interface, active, confirmed_at, updated_at")
+    .single();
+  return required(data as ConfigurationItem | null, error);
+}
+
+export async function completePersonalOnboarding(): Promise<{ workspace_id: string; state: "workspace_ready"; confirmed_areas: number }> {
+  const { data, error } = await getWorkspaceClient().rpc("complete_personal_onboarding");
+  if (error) throw new Error(error.message);
+  return data as { workspace_id: string; state: "workspace_ready"; confirmed_areas: number };
+}
+
+export async function listMcpAuthorizations(workspaceId: string): Promise<McpAuthorizationRecord[]> {
+  const { data, error } = await getWorkspaceClient()
+    .from("mcp_authorizations")
+    .select("id, workspace_id, client_id, assistant_provider, status, granted_scopes, connected_at, disconnected_at, last_verified_at, last_error_code")
+    .eq("workspace_id", workspaceId)
+    .order("updated_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as McpAuthorizationRecord[];
+}
+
+export async function disconnectMcpAuthorization(clientId: string): Promise<void> {
+  const supabase = getWorkspaceClient();
+  const { error } = await supabase.rpc("disconnect_personal_mcp", { target_client_id: clientId });
+  if (error) throw new Error(error.message);
+  const revoke = await supabase.auth.oauth.revokeGrant({ clientId });
+  if (revoke.error) throw new Error("Workspace access is disabled, but the provider grant could not be revoked. Try again from Privacy & Data.");
+}
+
+export async function trackProductEvent(
+  workspaceId: string,
+  userId: string,
+  eventName: "onboarding_started" | "ai_setup_selected" | "native_setup_selected" | "mcp_connected" | "mcp_disconnected" | "onboarding_completed" | "workspace_configured" | "integration_connected" | "feature_locked_seen" | "plan_viewed" | "first_capture_created",
+  eventContext: Record<string, string | boolean | number> = {}
+): Promise<void> {
+  const { error } = await getWorkspaceClient().from("product_events").insert({
+    workspace_id: workspaceId,
+    event_name: eventName,
+    event_context: eventContext,
+    created_by: userId
+  });
+  if (error) throw new Error(error.message);
 }

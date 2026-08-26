@@ -10,7 +10,7 @@ function accessToken(request: Request): string | null {
   return value?.startsWith("Bearer ") ? value.slice("Bearer ".length).trim() || null : null;
 }
 
-export async function POST(request: Request, context: RouteContext<"/api/integrations/[provider]/start">) {
+export async function POST(request: Request, context: { params: Promise<{ provider: string }> }) {
   const { provider } = await context.params;
   if (!isIntegrationProviderId(provider)) return NextResponse.json({ message: "Unknown connection." }, { status: 404 });
   const token = accessToken(request);
