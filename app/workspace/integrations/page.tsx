@@ -42,7 +42,7 @@ import {
 } from "@/lib/workspace/mcp-catalog";
 import { listIntegrationConnections, listMcpAuthorizations } from "@/lib/workspace/repository";
 import { getWorkspaceClient } from "@/lib/supabase/client";
-import { getIntegrationProvider } from "@/lib/integrations/providers";
+import { getIntegrationProvider, isGoogleWorkspaceConnection } from "@/lib/integrations/providers";
 import type { IntegrationConnection, McpAuthorizationRecord } from "@/lib/workspace/types";
 import styles from "./integrations.module.css";
 
@@ -118,6 +118,10 @@ function selectedMessage(entry: McpCatalogEntry, connection: IntegrationConnecti
   if (entry.id === "chatgpt" || entry.id === "claude") {
     if (assistantConnection?.status === "connected") return `${entry.name} is connected through Workspace OAuth and controlled tool authorization. You can disconnect it from Settings.`;
     return `${entry.name} can connect to the Workspace-native assistant interface with explicit OAuth consent. Workspace remains the system of record.`;
+  }
+  if (isGoogleWorkspaceConnection(entry.id)) {
+    if (connection?.status === "connected") return "Gmail and Google Calendar share one secure Google authorization. Both connection cards are ready to use; provider credentials remain outside the Workspace.";
+    return "One secure Google authorization connects Gmail and Google Calendar together. It requests only message read/draft and calendar event read access.";
   }
   if (connection?.status === "connected") {
     return `${entry.name} is connected. Connection metadata is visible here; provider credentials remain outside the Workspace.`;
@@ -376,7 +380,7 @@ export default function IntegrationsPage() {
                       <Link className={styles.connectButton} href={`/workspace/integrations/assistant?provider=${selectedEntry.id}`}>Connect assistant</Link>
                     ) : getIntegrationProvider(selectedEntry.id)?.connectionMethod === "oauth" || getIntegrationProvider(selectedEntry.id)?.connectionMethod === "github_app" ? (
                       <button type="button" className={styles.connectButton} disabled={connectingId === selectedEntry.id} onClick={() => void startExternalConnection(selectedEntry)}>
-                        {connectingId === selectedEntry.id ? "Opening secure connection…" : getMcpSetupLabel(selectedEntry)}
+                        {connectingId === selectedEntry.id ? "Opening secure connection…" : isGoogleWorkspaceConnection(selectedEntry.id) ? "Connect Google services" : getMcpSetupLabel(selectedEntry)}
                       </button>
                     ) : getIntegrationProvider(selectedEntry.id)?.connectionMethod === "api_key" ? (
                       <form className={styles.apiKeyForm} onSubmit={(event) => void connectApiKey(event, selectedEntry)}>

@@ -18,3 +18,22 @@ client credentials plus the Workspace encryption/state secrets, and complete
 the approved hosted migration gate. Revoke the old token only after the new
 connection succeeds. Keep Slack channel selection explicit and do not use
 ministry defaults.
+
+## Gmail and Google Calendar
+
+Gmail and Google Calendar intentionally share one Google OAuth client and one
+Google credential family. Starting either card opens one Google consent screen,
+requests Gmail message read/draft and Calendar event read access, and marks both
+cards connected after a successful approval. Register both exact production
+redirect URIs on the Google OAuth web client:
+
+- `https://workspace.leademergence.com/api/integrations/gmail/callback`
+- `https://workspace.leademergence.com/api/integrations/google_calendar/callback`
+
+Enable the Gmail API and Google Calendar API for that Cloud project. Store only
+the client ID and client secret as `WORKSPACE_GOOGLE_OAUTH_CLIENT_ID` and
+`WORKSPACE_GOOGLE_OAUTH_CLIENT_SECRET` in the Workspace server environment.
+`WORKSPACE_INTEGRATION_ENCRYPTION_KEY` and
+`WORKSPACE_INTEGRATION_STATE_SECRET` must also be unique high-entropy
+server-only values. Do not place any of these values in source control, the
+browser, or a `NEXT_PUBLIC_` variable.

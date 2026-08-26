@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeOAuthCode, oauthStateHash, OAUTH_FLOW_COOKIE, readOAuthFlow, workspaceApplicationOrigin } from "@/lib/integrations/oauth";
-import { getIntegrationProvider, isIntegrationProviderId } from "@/lib/integrations/providers";
+import { connectedProviders, getIntegrationProvider, isIntegrationProviderId } from "@/lib/integrations/providers";
 import { consumeOAuthAttempt, saveIntegrationCredential } from "@/lib/integrations/server";
 
 export const runtime = "nodejs";
@@ -31,7 +31,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
     const flow = readOAuthFlow(sealedFlow, providerId, state);
     await consumeOAuthAttempt({ accessToken: flow.accessToken, provider: providerId, stateHash: oauthStateHash(state), workspaceId: flow.workspaceId });
     const token = await exchangeOAuthCode({ code, codeVerifier: flow.codeVerifier, provider: providerId });
-    await saveIntegrationCredential({ accessToken: flow.accessToken, credential: token, provider: providerId, workspaceId: flow.workspaceId });
+    for (const providerIdToSave of connectedProviders(providerId)) {
+      await saveIntegrationCredential({ accessToken: flow.accessToken, credential: token, provider: providerIdToSave, workspaceId: flow.workspaceId });
+    }
     return completeRedirect(provider.id, "connected");
   } catch {
     try {

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { encryptIntegrationValue } from "@/lib/integrations/crypto";
-import { getIntegrationProvider, type IntegrationProviderId } from "@/lib/integrations/providers";
+import { connectionScopes, getIntegrationProvider, type IntegrationProviderId } from "@/lib/integrations/providers";
 
 function configuration() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -95,7 +95,7 @@ export async function saveIntegrationCredential(input: {
     p_provider_family: provider.credentialFamily,
     p_status: input.status ?? "connected",
     p_account_label: input.accountLabel ?? null,
-    p_scopes: [...provider.scopes],
+    p_scopes: [...connectionScopes(provider.id)],
     p_ciphertext: ciphertext,
     p_key_version: 1,
     p_account_subject_hash: null,
