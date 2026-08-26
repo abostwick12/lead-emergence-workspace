@@ -113,3 +113,29 @@ The Ministry repository remains the sole authority for the hosted migration.
 Before it is applied, its operator must confirm the exact shared-hosted target,
 review the packaged migration against current Ministry `main`, take the
 repository's normal backup/preflight evidence, and record postflight results.
+
+## Workspace integration-vault migration postflight
+
+Status: **Applied and verified**.
+
+On 2026-08-26, following the user's selection of
+`cirqqhuvzekbvysiyedg` (`emergence-ministry-platform`), the Ministry authority
+applied package version `20260826190000`. The package contains the exact SQL
+body from Workspace migration `20260825000000_workspace_integration_vault.sql`
+at Workspace merge `36fa146e931980d7084448e9b9e51ea6388ec5f5` (SHA-256
+`f30ce33605b8e1b71d9e9053dd1294070440e4ec7df462b93c2006233d8a268e`).
+
+Preflight confirmed the Workspace/private schemas, integration table, owner
+guard, timestamp helper, and all required connection columns; no existing
+connection would violate the expanded provider constraint. Postflight confirms
+the credential and OAuth-attempt tables are private-only and not exposed,
+neither has `anon` or `authenticated` table grants, all three owner-scoped RPCs
+exist, only `authenticated` can execute them, and `anon` cannot. The API schema
+cache was refreshed. A rolled-back authorization check confirmed that anonymous
+calls, authenticated non-owner writes, and direct authenticated credential reads
+are denied. No token, credential, provider connection, user record, Ministry or
+Consulting data, billing setting, route, or application deployment changed.
+
+The Supabase security advisor continues to report existing Ministry/public and
+Auth warnings outside this Workspace migration; no remediation outside the
+approved scope was performed.
