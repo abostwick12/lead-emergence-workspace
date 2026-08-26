@@ -314,6 +314,67 @@
   line-height: 1.5;
 }
 
+.connectButton,
+.cardConnectButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 11px;
+  color: #111926;
+  border: 1px solid rgb(239 187 86 / .7);
+  border-radius: 6px;
+  background: var(--brass);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.connectButton {
+  margin-top: 11px;
+}
+
+.connectButton:disabled {
+  cursor: wait;
+  opacity: .68;
+}
+
+.apiKeyForm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.apiKeyForm input {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.apiKeyForm .connectButton {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.providerSetupNote,
+.connectionError {
+  margin-top: 10px !important;
+  font-size: 11px !important;
+}
+
+.providerSetupNote {
+  color: var(--muted) !important;
+}
+
+.connectionError {
+  padding: 10px 12px;
+  color: #ffc4c4;
+  border: 1px solid rgb(255 117 117 / .35);
+  border-radius: 7px;
+  background: rgb(255 117 117 / .08);
+}
+
 .boundaryNote {
   margin: 16px 0 0;
   padding-top: 13px;
@@ -467,6 +528,19 @@
   font-size: 9px;
 }
 
+.cardConnectButton {
+  width: 100%;
+  margin-top: 12px;
+  color: var(--teal);
+  border-color: rgb(100 200 209 / .35);
+  background: rgb(100 200 209 / .08);
+}
+
+.cardConnectButton:hover,
+.connectButton:hover {
+  filter: brightness(1.08);
+}
+
 .cardFooter span:last-child {
   display: inline-flex;
   align-items: center;
@@ -514,6 +588,11 @@
   .catalogGrid,
   .connectionsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .apiKeyForm {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 
