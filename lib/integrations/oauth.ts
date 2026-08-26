@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createOpaqueValue, decryptIntegrationValue, encryptIntegrationValue } from "@/lib/integrations/crypto";
-import { getIntegrationProvider, type IntegrationProviderId } from "@/lib/integrations/providers";
+import { connectionScopes, getIntegrationProvider, type IntegrationProviderId } from "@/lib/integrations/providers";
 
 export const OAUTH_FLOW_COOKIE = "workspace_integration_oauth";
 export const OAUTH_FLOW_TTL_MS = 10 * 60 * 1000;
@@ -116,7 +116,7 @@ export function createOAuthFlow(input: { accessToken: string; provider: Integrat
   authorizationUrl.searchParams.set("response_type", "code");
   authorizationUrl.searchParams.set("client_id", configuration.clientId);
   authorizationUrl.searchParams.set("redirect_uri", integrationRedirectUri(input.provider));
-  authorizationUrl.searchParams.set("scope", provider.scopes.join(" "));
+  authorizationUrl.searchParams.set("scope", connectionScopes(provider.id).join(" "));
   authorizationUrl.searchParams.set("state", state);
   authorizationUrl.searchParams.set("code_challenge_method", "S256");
   authorizationUrl.searchParams.set("code_challenge", createHash("sha256").update(codeVerifier).digest("base64url"));

@@ -27,6 +27,9 @@ export type IntegrationProvider = {
   supportsDisconnect: boolean;
 };
 
+export const GOOGLE_WORKSPACE_CONNECTION_IDS = ["gmail", "google_calendar"] as const;
+type GoogleWorkspaceConnectionId = (typeof GOOGLE_WORKSPACE_CONNECTION_IDS)[number];
+
 export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationProvider> = {
   logos: {
     id: "logos",
@@ -142,10 +145,26 @@ export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationPro
   }
 };
 
+const GOOGLE_WORKSPACE_SCOPES = Object.freeze(
+  [...new Set(GOOGLE_WORKSPACE_CONNECTION_IDS.flatMap((providerId) => INTEGRATION_PROVIDERS[providerId].scopes))]
+);
+
 export function isIntegrationProviderId(value: string): value is IntegrationProviderId {
   return INTEGRATION_PROVIDER_IDS.includes(value as IntegrationProviderId);
 }
 
 export function getIntegrationProvider(id: string): IntegrationProvider | undefined {
   return isIntegrationProviderId(id) ? INTEGRATION_PROVIDERS[id] : undefined;
+}
+
+export function isGoogleWorkspaceConnection(id: IntegrationProviderId): id is GoogleWorkspaceConnectionId {
+  return (GOOGLE_WORKSPACE_CONNECTION_IDS as readonly string[]).includes(id);
+}
+
+export function connectionScopes(providerId: IntegrationProviderId): readonly string[] {
+  return isGoogleWorkspaceConnection(providerId) ? GOOGLE_WORKSPACE_SCOPES : INTEGRATION_PROVIDERS[providerId].scopes;
+}
+
+export function connectedProviders(providerId: IntegrationProviderId): readonly IntegrationProviderId[] {
+  return isGoogleWorkspaceConnection(providerId) ? GOOGLE_WORKSPACE_CONNECTION_IDS : [providerId];
 }
