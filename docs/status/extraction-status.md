@@ -238,3 +238,70 @@ access-control checks can run without changing live data. Supabase reports a
 cost of `$0.01344` per hour for that branch. Creation requires a separate cost
 confirmation. No branch, hosted migration, OAuth client, user-data transfer,
 or Workspace application promotion has occurred.
+
+## Lewis Entry-dev bootstrap rehearsal gate
+
+Status: **User-authorized isolated Workspace bootstrap rehearsal on the
+partner-backed Entry development project; no production promotion.**
+
+On 2026-08-27, after confirming that either project in the separate partner
+Sandbox organization could be used, the user authorized an isolated rehearsal.
+The selected target is `vnjdubrnmxvmsccxmhst`
+(`lead-emergence-entry-dev`), not the Consulting development project. This
+choice keeps Consulting data and integration tokens out of scope while retaining
+the target's existing Entry identity schema untouched.
+
+The authorized package is
+`workspace-entry-dev-bootstrap-rehearsal`, containing the eleven reviewed
+Workspace source migrations from commit
+`3f420ce8d7bafca9de4d039b8e53bbeb1d885159`: foundation, coexistence
+hardening, clock preferences, productization, first-capture event, private RLS,
+advisor performance, MCP OAuth session handling, MCP resource alignment,
+integration vault, and Lewis Phase 0 task actions. Its preflight must first
+confirm that the Entry identity schema exists and all Workspace artifacts are
+absent. After successful preflight, applying that exact additive package,
+postflight, access-control test, and database advisors is authorized on this
+target only.
+
+This gate does not authorize Vercel configuration, public DNS or route changes,
+an Auth custom token hook, a custom OAuth provider, ChatGPT/Claude connection,
+external connector enablement, user/task/identity migration, credential reuse,
+or any shared-production DDL. The rehearsal does not read or modify
+`entry_identity` records and does not access Consulting data.
+
+Execution evidence: target preflight returned
+`eligible_for_entry_dev_bootstrap: true`. The following exact target
+migrations then applied successfully on Entry development:
+`20260827170000_workspace_foundation`,
+`20260827170100_workspace_gate_a_cross_product_hardening`,
+`20260827170200_workspace_clock_preferences`,
+`20260827170300_workspace_productization`,
+`20260827170400_workspace_first_capture_event`,
+`20260827170500_workspace_private_rls`,
+`20260827170600_workspace_advisor_performance`,
+`20260827170700_workspace_mcp_oauth_session_client`, and
+`20260827171000_workspace_lewis_phase0_task_actions`.
+
+The managed hosted-migration safety control declined
+`20260827170800_workspace_mcp_production_resource` because it persistently
+aligns an Entry-development OAuth audience to the live MCP resource, and it
+declined `20260827170900_workspace_integration_vault` because it creates
+connector credential/OAuth-attempt storage. Neither migration was applied and
+no workaround was attempted. The productization source already retains the
+canonical resource setting as source behavior, but the target Auth hook remains
+unconfigured, no provider/client is enabled for this target, and no runtime is
+pointed at it.
+
+Partial postflight verifies Workspace schemas, all core task RPCs, authenticated
+task-RPC grants, deny-all private task receipts, private Storage, external
+connector capability disabled, integration limit zero, Entry identity tables
+preserved, and the custom-hook grant restricted to
+`supabase_auth_admin`. The only expected incomplete postflight fields are the
+two integration-vault tables. The package's direct `SET ROLE anon` test cannot
+run through the hosted SQL executor because that executor lacks role-switch
+permission; privilege inspection confirms anonymous task execution is denied.
+Security advisor output contains only the intentional private-table
+RLS-with-no-policy deny-all INFO notices, one existing Entry audit-table INFO,
+and the target's pre-existing leaked-password-protection WARN. Performance
+advisor output is fresh-schema unused-index INFO only. No external connector,
+OAuth consent, user data, or shared-production object changed.

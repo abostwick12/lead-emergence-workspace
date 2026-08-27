@@ -319,3 +319,30 @@ Not executed or not claimable at this checkpoint:
   must be production-ready before the public landing becomes the final routing
   switch; otherwise the repaired calls to action would send users to a paused
   Entry destination or a pre-productization Workspace.
+
+## Entry-dev Workspace/Lewis bootstrap rehearsal — 2026-08-27
+
+- Read-only target preflight on partner-backed Entry development project
+  vnjdubrnmxvmsccxmhst returned
+  eligible_for_entry_dev_bootstrap: true. The target identity schema existed;
+  Workspace schemas, Workspace bucket, provisioning function, and task RPCs
+  were absent before the rehearsal.
+- Nine reviewed migrations applied through the Ministry-owned package path:
+  Workspace foundation, coexistence hardening, clock preferences,
+  productization, first-capture event, private RLS, advisor performance, MCP
+  session-client handling, and Lewis Phase 0 task actions. The hosted migration
+  history confirms all nine exact target names.
+- Postflight confirmed Workspace schemas, private Storage, RLS, private task
+  receipts, anonymous task-RPC denial by privilege inspection, authenticated
+  task-RPC grants, disabled external-connector capability, zero integration
+  limit, restricted Auth-hook grant, and preserved Entry identity tables.
+- Not run: the direct SET ROLE anon access-control script. The hosted SQL
+  executor does not have permission to switch to anon; this is an executor
+  limitation, not a failed authorization assertion. The equivalent privilege
+  checks passed.
+- Not run: workspace_mcp_production_resource and
+  workspace_integration_vault. The hosted migration safety control rejected
+  the former's development-to-live OAuth-audience alignment and the latter's
+  connector credential/OAuth-attempt storage. No workaround was attempted.
+  Real ChatGPT/Claude acceptance, Auth hook/provider configuration, Vercel
+  routing, connector OAuth, and user/task migration remain out of scope.
