@@ -21,10 +21,25 @@
 - `npm run scan:sensitive` — **PASS**. No credential, token, private key, or
   personal-data pattern was introduced by the release.
 - `git diff --check` — **PASS**.
-- Hosted migration, Vercel deployment, and real ChatGPT/Claude acceptance are
-  **NOT RUN**. This machine has no valid GitHub session or configured Vercel
-  project, and the shared-hosted database can only be changed through the
-  Ministry authority after its required preflight.
+- Hosted migration, production Vercel promotion, and real ChatGPT/Claude
+  acceptance are **NOT RUN**. The shared-hosted database can only be changed
+  through the Ministry authority after its required preflight, and the app
+  release must follow that postflight rather than expose task tools early.
+
+### Preview deployment verification
+
+- Vercel Preview `dpl_CxFhaf5fzG7JNi4kpxGY35sHteto` is **READY** at
+  `https://lead-emergence-workspace-dej2dhpfy-emergence-projects.vercel.app`
+  from the `fix/lewis-phase0-foundation` branch.
+- Protected Preview CORS smoke checks — **PASS**: `https://chatgpt.com`
+  receives `204` and its exact origin; `https://untrusted.example` receives
+  `403 {"error":"origin_not_allowed"}`. No credentials or Workspace data were
+  sent.
+- Preview error-level Vercel logs — **PASS**: no logs found after the smoke
+  checks.
+- Authenticated task-tool acceptance is intentionally **NOT RUN** until the
+  approved shared-hosted migration has been applied; a Preview app alone must
+  not be used to exercise unavailable task RPCs.
 
 ## Connection platform candidate — 2026-08-25
 
