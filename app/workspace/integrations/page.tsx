@@ -29,11 +29,14 @@ import { FaFilePowerpoint, FaGithub } from "react-icons/fa6";
 import type { IconType } from "react-icons";
 import { SiClaude } from "react-icons/si";
 import { useWorkspace } from "@/components/workspace-provider";
+import { getWorkspaceClient } from "@/lib/supabase/client";
+import { getIntegrationProvider } from "@/lib/integrations/providers";
 import {
   MCP_CATALOG,
   MCP_CATEGORIES,
   filterMcpCatalog,
   findConnectionForEntry,
+  getMcpSetupLabel,
   getMcpDisplayStatus,
   type McpCatalogEntry,
   type McpCategoryFilter,
@@ -129,7 +132,7 @@ function selectedMessage(entry: McpCatalogEntry, connection: IntegrationConnecti
 }
 
 export default function IntegrationsPage() {
-  const { workspace } = useWorkspace();
+  const { user, workspace } = useWorkspace();
   const [connections, setConnections] = useState<IntegrationConnection[]>([]);
   const [assistantConnections, setAssistantConnections] = useState<McpAuthorizationRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,6 +141,9 @@ export default function IntegrationsPage() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<McpCategoryFilter>("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [connectingId, setConnectingId] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState("");
   const popoverRootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -197,6 +203,74 @@ export default function IntegrationsPage() {
   const closePopover = () => {
     setOpen(false);
     triggerRef.current?.focus();
+  };
+
+  const selectEntry = (entry: McpCatalogEntry) => {
+    setSelectedId(entry.id);
+    setConnectionError(null);
+    setApiKey("");
+  };
+
+  useEffect(() => {
+    const connector = new URLSearchParams(window.location.search).get("connector");
+    if (!connector || !getIntegrationProvider(connector)) return;
+    setOpen(true);
+    setSelectedId(connector);
+  }, []);
+
+  const accessToken = async (): Promise<string> => {
+    const { data, error: sessionError } = await getWorkspaceClient().auth.getSession();
+    if (sessionError || !data.session?.access_token) throw new Error("Sign in before connecting an integration.");
+    return data.session.access_token;
+  };
+
+  const connectOAuth = async (entry: McpCatalogEntry) => {
+    if (!workspace || !user) {
+      setConnectionError("Sign in before connecting an integration.");
+      return;
+    }
+    setConnectingId(entry.id);
+    setConnectionError(null);
+    try {
+      const token = await accessToken();
+      const response = await fetch(`/api/integrations/${entry.id}/start`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: workspace.id })
+      });
+      const payload = await response.json() as { authorizationUrl?: string; message?: string };
+      if (!response.ok || !payload.authorizationUrl) throw new Error(payload.message || "Could not start this connection.");
+      window.location.assign(payload.authorizationUrl);
+    } catch (caught) {
+      setConnectionError(caught instanceof Error ? caught.message : "Could not start this connection.");
+      setConnectingId(null);
+    }
+  };
+
+  const connectApiKey = async (event: React.FormEvent<HTMLFormElement>, entry: McpCatalogEntry) => {
+    event.preventDefault();
+    if (!workspace || !user) {
+      setConnectionError("Sign in before connecting an integration.");
+      return;
+    }
+    setConnectingId(entry.id);
+    setConnectionError(null);
+    try {
+      const token = await accessToken();
+      const response = await fetch(`/api/integrations/${entry.id}/credential`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey, workspaceId: workspace.id })
+      });
+      const payload = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(payload.message || "Could not connect this provider.");
+      setConnections(await listIntegrationConnections(workspace.id));
+      setApiKey("");
+    } catch (caught) {
+      setConnectionError(caught instanceof Error ? caught.message : "Could not connect this provider.");
+    } finally {
+      setConnectingId(null);
+    }
   };
 
   return (
@@ -291,7 +365,7 @@ export default function IntegrationsPage() {
                         className={styles.catalogItem}
                         data-selected={selectedId === entry.id}
                         aria-pressed={selectedId === entry.id}
-                        onClick={() => setSelectedId(entry.id)}
+                        onClick={() => selectEntry(entry)}
                       >
                         <span className={styles.providerIcon}>
                           <ProviderBrandMark providerId={entry.id} />
@@ -319,9 +393,26 @@ export default function IntegrationsPage() {
                   <div>
                     <strong>{selectedEntry.name} setup</strong>
                     <p>{selectedMessage(selectedEntry, selectedConnection, assistantConnections.find((item) => item.assistant_provider === selectedEntry.id))}</p>
+                    {selectedEntry.id === "chatgpt" || selectedEntry.id === "claude" ? (
+                      <Link className={styles.connectButton} href={`/workspace/integrations/assistant?provider=${selectedEntry.id}`}>Open assistant connection</Link>
+                    ) : getIntegrationProvider(selectedEntry.id)?.connectionMethod === "oauth" || getIntegrationProvider(selectedEntry.id)?.connectionMethod === "github_app" ? (
+                      <button type="button" className={styles.connectButton} disabled={connectingId === selectedEntry.id} onClick={() => void connectOAuth(selectedEntry)}>
+                        {connectingId === selectedEntry.id ? "Opening secure connection…" : getMcpSetupLabel(selectedEntry)}
+                      </button>
+                    ) : getIntegrationProvider(selectedEntry.id)?.connectionMethod === "api_key" ? (
+                      <form className={styles.apiKeyForm} onSubmit={(event) => void connectApiKey(event, selectedEntry)}>
+                        <label className="sr-only" htmlFor={`api-key-${selectedEntry.id}`}>API key for {selectedEntry.name}</label>
+                        <input id={`api-key-${selectedEntry.id}`} type="password" autoComplete="off" required value={apiKey} placeholder="Paste API key once" onChange={(event) => setApiKey(event.target.value)} />
+                        <button type="submit" className={styles.connectButton} disabled={connectingId === selectedEntry.id}>{connectingId === selectedEntry.id ? "Saving securely…" : getMcpSetupLabel(selectedEntry)}</button>
+                      </form>
+                    ) : (
+                      <p className={styles.providerSetupNote}>{selectedEntry.name} uses a registered provider adapter. Its secure connection flow will open as soon as the provider registration is added.</p>
+                    )}
                   </div>
                 </div>
               ) : null}
+
+              {connectionError ? <p className={styles.connectionError} role="alert">{connectionError}</p> : null}
 
               <p className={styles.boundaryNote}>
                 Connection metadata may be shown here. OAuth tokens, connector secrets, and ministry credentials are never stored in the Workspace application.
@@ -367,6 +458,9 @@ export default function IntegrationsPage() {
                   {formatLastSuccess(connection?.last_success_at ?? null)}
                 </span>
               </footer>
+              <button type="button" className={styles.cardConnectButton} onClick={() => { setOpen(true); selectEntry(entry); }}>
+                {status === "connected" ? "Manage connection" : getMcpSetupLabel(entry)}
+              </button>
             </article>
           );
         })}

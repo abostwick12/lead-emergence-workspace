@@ -8,6 +8,8 @@ const clockPreferencesSql = await readFile("supabase/migrations/20260821172607_w
 const firstCaptureEventSql = await readFile("supabase/migrations/20260822124500_workspace_first_capture_event.sql", "utf8");
 const privateRlsSql = await readFile("supabase/migrations/20260822132000_workspace_private_rls.sql", "utf8");
 const advisorPerformanceSql = await readFile("supabase/migrations/20260822133500_workspace_advisor_performance.sql", "utf8");
+const mcpActionParitySql = await readFile("supabase/migrations/20260827090000_workspace_mcp_action_parity.sql", "utf8");
+const integrationVaultSql = await readFile("supabase/migrations/20260827080000_workspace_integration_vault.sql", "utf8");
 const configToml = await readFile("supabase/config.toml", "utf8");
 const workspaceResolver = await readFile("lib/workspace/provision.ts", "utf8");
 const workspaceProvider = await readFile("components/workspace-provider.tsx", "utf8");
@@ -22,6 +24,7 @@ const workspaceClocks = await readFile("components/workspace-clocks.tsx", "utf8"
 const clockSettings = await readFile("components/clock-settings.tsx", "utf8");
 const setupPage = await readFile("components/workspace-setup.tsx", "utf8");
 const mcpRoute = await readFile("app/api/mcp/route.ts", "utf8");
+const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -97,6 +100,39 @@ test("binds MCP OAuth tokens to the canonical resource and denies ordinary RLS t
   assert.match(productizationSql, /workspace_private\.has_personal_capability\(target_workspace_id, 'workspace_mcp'\)/);
   assert.match(mcpRoute, /WWW-Authenticate/);
   assert.match(mcpRoute, /WebStandardStreamableHTTPServerTransport/);
+});
+
+test("gives assistants the same supported private Workspace actions with explicit mutation confirmation", () => {
+  for (const tool of [
+    "list_tasks", "create_task", "update_task", "delete_task",
+    "list_captures", "resolve_capture_to_task", "discard_capture",
+    "list_job_applications", "create_job_application", "update_job_application",
+    "list_memory", "create_memory", "delete_memory",
+    "get_clock_timezones", "update_clock_timezones",
+    "list_external_connectors", "begin_external_connector"
+  ]) assert.match(mcpServer, new RegExp(`registerTool\\(\"${tool}\"`), `${tool} is registered for MCP clients`);
+  assert.match(mcpServer, /user_confirmed: z\.literal\(true\)/);
+  assert.match(mcpActionParitySql, /workspace_private\.require_mcp_workspace\(\)/);
+  assert.match(mcpActionParitySql, /workspace_private\.require_mcp_capability\('tasks'\)/);
+  assert.match(mcpActionParitySql, /workspace_private\.require_mcp_capability\('quick_capture'\)/);
+  assert.match(mcpActionParitySql, /workspace_private\.require_mcp_capability\('career'\)/);
+  assert.match(mcpActionParitySql, /workspace_private\.require_mcp_capability\('memory'\)/);
+  assert.match(mcpActionParitySql, /Explicit user confirmation is required before deleting a task/);
+  assert.match(mcpActionParitySql, /Explicit user confirmation is required before deleting memory/);
+  assert.match(mcpActionParitySql, /created_by = auth\.uid\(\)/);
+  assert.match(mcpActionParitySql, /revoke all on function workspace_private\.require_mcp_capability/);
+  assert.match(mcpActionParitySql, /grant execute on function workspace\.mcp_create_task/);
+  assert.match(mcpServer, /workspace_consent_url/);
+  assert.match(mcpActionParitySql, /Provider credentials and OAuth tokens remain in the Workspace consent flow/);
+});
+
+test("keeps external connector credentials in the private vault and provides a Workspace-owned OAuth handoff", () => {
+  assert.match(integrationVaultSql, /workspace_private\.integration_credentials/);
+  assert.match(integrationVaultSql, /AES-GCM ciphertext only/);
+  assert.match(integrationVaultSql, /workspace_private\.has_personal_capability\(p_workspace_id, 'external_connectors'\)/);
+  assert.match(mcpServer, /workspace_consent_url/);
+  assert.match(mcpServer, /\/workspace\/integrations/);
+  assert.match(mcpServer, /Provider credentials and OAuth tokens are never returned to an assistant/);
 });
 
 test("keeps plans separate from record authorization and prepares trials without billing", () => {

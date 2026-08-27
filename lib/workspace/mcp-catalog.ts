@@ -1,4 +1,5 @@
 import type { IntegrationConnection } from "@/lib/workspace/types";
+import { getIntegrationProvider } from "@/lib/integrations/providers";
 
 export const MCP_CATEGORIES = ["All", "AI", "Comms", "Work", "Files", "Creative", "Faith"] as const;
 
@@ -158,4 +159,8 @@ export function getMcpDisplayStatus(
   connections: readonly IntegrationConnection[]
 ): McpDisplayStatus {
   return findConnectionForEntry(entry, connections)?.status ?? "available";
+}
+
+export function getMcpSetupLabel(entry: McpCatalogEntry): string {
+  return getIntegrationProvider(entry.id)?.setupLabel ?? "Provider setup required";
 }

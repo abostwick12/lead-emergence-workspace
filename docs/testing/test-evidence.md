@@ -2,6 +2,8 @@
 
 ## Executed locally
 
+- 2026-08-27 MCP action parity and external connector work: `npm run check:boundaries` passed (51 runtime files); `npm run test:schema` passed (17/17); `npm run typecheck` passed; `npm run lint` passed; `npm run test:unit` passed (40/40); `npm run test:rls` passed (93 assertions); and `npm run build` passed. The first sandboxed RLS attempt could not write Supabase CLI telemetry outside the Workspace; the approved local-stack rerun passed without hosted access.
+
 - `npm run scan:sensitive` — passed before the first push; full authored working tree scanned (including ignored local files, excluding dependency/build output) and the one preserved private `main` initializer commit scanned. No credential, token, private key, connection string, email address, or application personal-data pattern was found in file content.
 - `node scripts/check-workspace-schema.mjs` — passed; SHA-256 `a3fadfb19e5754c7ac937fd92102cc9ec904c2710b677190a4f892dbc7f544f6` at execution.
 - `npm run test:schema` — 4/4 passed.
