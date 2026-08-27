@@ -61,6 +61,22 @@ Current Personal-sandbox security advisors report no finding against exposed `wo
 
 Local and external acceptance evidence is recorded in `docs/testing/test-evidence.md`: all required application checks, a fresh database rebuild, 93 pgTAP assertions, 10 desktop/mobile browser cases, database lint, full dependency audit, boundary scan, sensitive-data scan, green PR checks, and custom-domain/TLS baseline checks pass. This evidence is not a hosted-migration or cutover approval.
 
+## 2026-08-27 live MCP and connector release gate
+
+Andrew Bostwick explicitly authorized a live production release for the Workspace
+MCP action-parity and external-connector OAuth handoff. The approved database
+target is the current active Workspace authority,
+`emergence-ministry-platform` (`cirqqhuvzekbvysiyedg`), and the approved web
+target is the linked `lead-emergence-workspace` Vercel project. Scope is limited
+to the additive `20260827080000_workspace_integration_vault.sql` and
+`20260827090000_workspace_mcp_action_parity.sql` upgrades plus deployment of
+source commit `6f14ae9` (or its documentation-only successor). No legacy data,
+provider credential, identity, or Ministry/Consulting record may be copied,
+modified, or deleted. If the application release fails, promote the prior
+Vercel production deployment; the schema changes are additive and remain
+private/deny-by-default. Provider connections stay unavailable until their
+respective production OAuth/API credentials are separately configured.
+
 Final Goal C cleanup removed the two reserved Goal C identities from Entry
 development and verified zero associated sessions, refresh tokens, profiles,
 entitlements, links, nonces, or audit subjects. Personal remains clean of
