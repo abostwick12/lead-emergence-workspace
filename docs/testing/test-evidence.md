@@ -22,9 +22,11 @@
   personal-data pattern was introduced by the release.
 - `git diff --check` — **PASS**.
 - Hosted migration, production Vercel promotion, and real ChatGPT/Claude
-  acceptance are **NOT RUN**. The shared-hosted database can only be changed
-  through the Ministry authority after its required preflight, and the app
-  release must follow that postflight rather than expose task tools early.
+  acceptance are **NOT RUN**. Read-only target preflight found a material
+  runtime split: shared production `cirqqhuvzekbvysiyedg` lacks the existing
+  MCP foundation, while the public endpoint declares the isolated Personal
+  sandbox `nhkugzifuapplwpnfpbt` as its OAuth authority. A target-specific
+  cutover decision is required before either database can be changed.
 
 ### Preview deployment verification
 

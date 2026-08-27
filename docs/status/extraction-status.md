@@ -142,7 +142,7 @@ approved scope was performed.
 
 ## Lewis Phase 0 task-action release gate
 
-Status: **Approved for Ministry-authority application and Workspace deployment; not yet applied.**
+Status: **Blocked after target preflight; no migration or app promotion applied.**
 
 On 2026-08-27, the user authorized live production work for the Lewis MCP
 connection. This gate authorizes exactly the additive Workspace migration
@@ -160,10 +160,18 @@ of full Workspace parity. It does permit only a user-explicit task mutation
 after the caller has authorized Lewis.
 
 The Ministry repository remains the sole authority for the shared-hosted
-migration. Its operator must package and compare the exact migration against
-current Ministry `main`, verify the production target and normal backup/
-preflight evidence, apply and postflight the task RPC/grant/RLS contract, and
-only then deploy the matching Workspace application. The app release must not
-precede the migration. Record the deployment, postflight, and real-client
-acceptance separately; until then, no task is represented as saved through
+migration. Target preflight on 2026-08-27 found that the intended shared
+production project `cirqqhuvzekbvysiyedg` has `workspace.tasks` but lacks the
+existing MCP authorization table and guard functions required by this additive
+migration. Separately, the public resource metadata at
+`https://workspace.leademergence.com/api/mcp` declares
+`nhkugzifuapplwpnfpbt` (`lead-emergence-personal-sandbox`) as its OAuth
+authority, and that project has the MCP foundation but not the new task RPCs.
+
+The original scope authorization is not an authorization to apply SQL to the
+wrong target. A fresh, target-specific decision is required: either an
+explicitly temporary repair of the sandbox-backed live endpoint, or the larger
+production cutover that first establishes the Workspace MCP foundation on the
+shared project. Do not apply this migration or promote the app until that
+decision is recorded. Until then, no task is represented as saved through
 ChatGPT or Claude.
