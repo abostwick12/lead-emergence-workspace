@@ -208,3 +208,33 @@ evidence, and explicit data-migration approval are therefore release gates:
 Lewis must not be promoted in a way that silently strands a user's existing
 Workspace data. External connector OAuth remains reconnect-required and is not
 enabled by this decision.
+
+## Lewis shared-production foundation package preflight
+
+Status: **Target database preflight passed; disposable rehearsal remains
+pending cost confirmation.**
+
+On 2026-08-27, Ministry-authority commit `143943c` prepared the
+`workspace-shared-production-foundation` package for shared project
+`cirqqhuvzekbvysiyedg`. It contains seven ordered target migrations:
+productization, first-capture analytics, private RLS hardening, advisor
+performance hardening, OAuth session-client handling, production resource
+alignment, and Phase 0 Lewis task actions. Each target migration has the exact
+reviewed Workspace source body and SHA-256 provenance in its header; the
+package is ordered after shared version `20260826190000` of the integration
+vault.
+
+Read-only preflight on the shared project returned
+`eligible_for_foundation_package: true`. It confirmed the Workspace and private
+schemas, required core tables/functions and storage bucket, and the previously
+applied integration-vault tables, while confirming none of the productization
+or MCP task objects are already partially present. This is database evidence
+only; it neither activates the shared Auth hook/Entry identity provider nor
+applies any DDL.
+
+The next safe validation is a temporary branch cloned from shared production,
+where the complete seven-migration sequence and the package's postflight and
+access-control checks can run without changing live data. Supabase reports a
+cost of `$0.01344` per hour for that branch. Creation requires a separate cost
+confirmation. No branch, hosted migration, OAuth client, user-data transfer,
+or Workspace application promotion has occurred.
