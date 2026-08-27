@@ -211,8 +211,8 @@ enabled by this decision.
 
 ## Lewis shared-production foundation package preflight
 
-Status: **Target database preflight passed; disposable rehearsal remains
-pending cost confirmation.**
+Status: **Applied and database-verified; runtime and identity cutover remain
+blocked.**
 
 On 2026-08-27, Ministry-authority commit `143943c` prepared the
 `workspace-shared-production-foundation` package for shared project
@@ -232,12 +232,58 @@ or MCP task objects are already partially present. This is database evidence
 only; it neither activates the shared Auth hook/Entry identity provider nor
 applies any DDL.
 
-The next safe validation is a temporary branch cloned from shared production,
-where the complete seven-migration sequence and the package's postflight and
-access-control checks can run without changing live data. Supabase reports a
-cost of `$0.01344` per hour for that branch. Creation requires a separate cost
-confirmation. No branch, hosted migration, OAuth client, user-data transfer,
-or Workspace application promotion has occurred.
+The previously considered disposable branch was not created. After the
+Entry-development rehearsal, the user gave explicit live-production approval
+for this exact package. An immediate repeat of the preflight again returned
+`eligible_for_foundation_package: true`, so the Ministry authority applied the
+reviewed package directly to the shared target.
+
+The Entry-development bootstrap rehearsal recorded below validates the
+additive core, task-RPC grants, private receipt boundary, RLS, and source
+provenance without touching shared data. Under the user's recorded
+live-production authorization and selected shared-foundation-first path, the
+exact reviewed seven-migration package
+`workspace-shared-production-foundation` was applied to
+`cirqqhuvzekbvysiyedg` after an immediate repeat of its read-only preflight.
+That authorization was limited to the package's additive schema and
+authorization objects; it did not authorize Vercel promotion, Auth dashboard
+hook/provider changes, external connector activation, or any data/identity
+migration.
+
+### Shared-production execution evidence — 2026-08-27
+
+The following seven ordered migrations applied successfully to
+`cirqqhuvzekbvysiyedg`: `20260827161000_workspace_productization`,
+`20260827161100_workspace_first_capture_event`,
+`20260827161200_workspace_private_rls`,
+`20260827161300_workspace_advisor_performance`,
+`20260827161400_workspace_mcp_oauth_session_client`,
+`20260827161500_workspace_mcp_production_resource`, and
+`20260827161600_workspace_lewis_phase0_task_actions`.
+
+The package postflight passed: the canonical resource is
+`https://workspace.leademergence.com/api/mcp`; all required Workspace tables,
+functions, profile/membership changes, and private RLS controls exist; the
+Entry provider database configuration is enabled; task receipts are private;
+anonymous task-RPC execution is denied while authenticated execution is
+granted; the custom-hook function is restricted to `supabase_auth_admin`; and
+external connectors remain disabled with an integration limit of zero. The
+package access-control assertion returned
+`workspace_shared_production_foundation_access_controls_verified: true`.
+
+Security-advisor output has no new Workspace scope warning or error. The four
+scope-specific RLS-with-no-policy INFO notices are intentional deny-all,
+private-table defense in depth; fresh Workspace/private indexes report only
+unused-index INFO before representative workload exists. No advisor finding
+was remediated outside this package.
+
+This is a database-only foundation cutover. No Vercel runtime/environment was
+changed, no Auth dashboard hook or custom Entry provider was saved, no
+user/identity/task data was copied, and no external connector OAuth credential
+or integration was activated. The public endpoint still advertises the paused
+Personal sandbox `nhkugzifuapplwpnfpbt` as its OAuth authority, so ChatGPT and
+Claude task writes remain unavailable until the separate runtime and
+identity-continuity release gates pass.
 
 ## Lewis Entry-dev bootstrap rehearsal gate
 

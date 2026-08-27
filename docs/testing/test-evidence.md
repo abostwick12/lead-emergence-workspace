@@ -1,5 +1,37 @@
 # Test evidence
 
+## Lewis shared-production foundation package — 2026-08-27
+
+- Immediate shared-target preflight — **PASS**:
+  `eligible_for_foundation_package: true` on
+  `cirqqhuvzekbvysiyedg` (`emergence-ministry-platform`).
+- Exact seven-migration package application — **PASS**:
+  `20260827161000_workspace_productization`,
+  `20260827161100_workspace_first_capture_event`,
+  `20260827161200_workspace_private_rls`,
+  `20260827161300_workspace_advisor_performance`,
+  `20260827161400_workspace_mcp_oauth_session_client`,
+  `20260827161500_workspace_mcp_production_resource`, and
+  `20260827161600_workspace_lewis_phase0_task_actions` all applied through
+  the Ministry-owned authority package.
+- Shared package postflight — **PASS**. Canonical MCP resource, Workspace and
+  private schemas, required tables/functions, profile/membership changes,
+  private task receipts, provider database configuration, hook grant boundary,
+  task-RPC privileges, disabled external-connector capability, and zero
+  integration limit all match the reviewed package contract.
+- Shared access-control package assertion — **PASS**:
+  `workspace_shared_production_foundation_access_controls_verified: true`.
+- Shared advisors — **PASS for new actionable Workspace findings**. Security
+  reports only four intentional private-table RLS-with-no-policy INFO notices;
+  performance reports fresh unused-index INFO notices. No Workspace-scope
+  security warning or error was introduced or remediated outside package scope.
+- Not run / not claimable: Vercel runtime/environment switch, saved shared Auth
+  hook or custom Entry provider, real ChatGPT/Claude OAuth lifecycle, task
+  mutation through a real assistant, identity/data continuity or migration,
+  and connector OAuth. A public metadata check still advertises
+  `nhkugzifuapplwpnfpbt` rather than the shared project, so this database
+  success does not yet make Lewis task writes live.
+
 ## Lewis Phase 0 task actions — 2026-08-27
 
 - `npm run check:boundaries` — **PASS**. Verified 52 runtime files with no
