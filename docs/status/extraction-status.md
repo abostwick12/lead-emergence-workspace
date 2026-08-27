@@ -175,3 +175,36 @@ production cutover that first establishes the Workspace MCP foundation on the
 shared project. Do not apply this migration or promote the app until that
 decision is recorded. Until then, no task is represented as saved through
 ChatGPT or Claude.
+
+## Lewis shared-production foundation cutover decision
+
+Status: **User-selected production path; exact package, identity-continuity
+plan, and target preflight are required before the live application promotion.**
+
+On 2026-08-27, the user selected the consumer-ready path: establish the full
+Workspace/MCP foundation on shared production `cirqqhuvzekbvysiyedg`
+(`emergence-ministry-platform`) first, then deploy Lewis. This rejects a
+temporary sandbox repair. The required additive shared-production foundation is
+the reviewed Workspace productization/MCP authorization stack, its direct
+session/RLS hardening and OAuth-session handling, the production MCP resource
+configuration, and the Phase 0 task-action migration. It must be reconciled
+with the already-applied shared integration-vault package and remain under the
+Ministry repository's migration authority.
+
+The selection authorizes preparation of that exact Ministry-hosted package,
+read-only target preflight, and the associated production cutover evidence. An
+application promotion may occur only after the package has been reviewed,
+recorded here with its source hashes and shared-target postflight results, and
+the shared Auth/OAuth configuration has been verified. The public MCP endpoint
+must then advertise the shared project's authorization server rather than the
+sandbox one.
+
+This decision does **not** authorize copying or overwriting real user records,
+passwords, sessions, tasks, or other personal data from the sandbox, nor the
+copying/reuse of external-provider tokens. The inventory shows that the
+sandbox contains active Workspace data while the shared project has a different
+Auth population. A separate identity-and-data continuity plan, reconciliation
+evidence, and explicit data-migration approval are therefore release gates:
+Lewis must not be promoted in a way that silently strands a user's existing
+Workspace data. External connector OAuth remains reconnect-required and is not
+enabled by this decision.
