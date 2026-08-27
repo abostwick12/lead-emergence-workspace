@@ -31,6 +31,12 @@
   and connector OAuth. A public metadata check still advertises
   `nhkugzifuapplwpnfpbt` rather than the shared project, so this database
   success does not yet make Lewis task writes live.
+- Shared Auth/OAuth dashboard inspection — **BLOCKED AS CONFIGURED**. The OAuth
+  server and dynamic registration are enabled with `/oauth/consent`, but its
+  current Site URL is `https://www.leademergence.com`. That host is the
+  Ministry app and returns Ministry-owned 404 metadata; the canonical Workspace
+  host is the one that serves the consent route. No shared custom Entry
+  provider or Auth hook exists yet. No setting was changed during inspection.
 
 ## Lewis Phase 0 task actions — 2026-08-27
 

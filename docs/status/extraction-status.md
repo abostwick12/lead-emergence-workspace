@@ -285,6 +285,19 @@ Personal sandbox `nhkugzifuapplwpnfpbt` as its OAuth authority, so ChatGPT and
 Claude task writes remain unavailable until the separate runtime and
 identity-continuity release gates pass.
 
+### Runtime configuration gap — read-only inspection
+
+The shared Auth dashboard confirms that the OAuth server and dynamic OAuth app
+registration are enabled with authorization path `/oauth/consent`, but its
+current Site URL is `https://www.leademergence.com`. That produces
+`https://www.leademergence.com/oauth/consent`, while the canonical Workspace
+domain is the host that currently serves the Workspace consent route. The
+`www` host remains the Ministry application and returns its own 404 response
+for Workspace protected-resource metadata. No shared custom Entry provider and
+no Auth hook are configured in the dashboard. These are release blockers, not
+safe defaults to change while the production Entry identity authority and
+runtime environment remain unresolved.
+
 ## Lewis Entry-dev bootstrap rehearsal gate
 
 Status: **User-authorized isolated Workspace bootstrap rehearsal on the
