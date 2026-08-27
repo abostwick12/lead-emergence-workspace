@@ -139,3 +139,31 @@ Consulting data, billing setting, route, or application deployment changed.
 The Supabase security advisor continues to report existing Ministry/public and
 Auth warnings outside this Workspace migration; no remediation outside the
 approved scope was performed.
+
+## Lewis Phase 0 task-action release gate
+
+Status: **Approved for Ministry-authority application and Workspace deployment; not yet applied.**
+
+On 2026-08-27, the user authorized live production work for the Lewis MCP
+connection. This gate authorizes exactly the additive Workspace migration
+`20260827124853_lewis_phase0_task_actions.sql` (SHA-256
+`e36489290be9a519a50b08e9d45a71d1cd2a0e2ec415b9f25b8608c87fb0bce7`) and
+the matching Workspace application release that exposes only `list_tasks`,
+`create_task`, `update_task`, and `delete_task`, fixes MCP origin handling,
+and accurately describes authorization/tool availability. Task creation is
+idempotent; update and permanent deletion require explicit client confirmation.
+
+This gate does not authorize external-provider OAuth credentials or actions,
+the copying or reuse of any token, Ministry or Consulting mutation, billing or
+plan changes, a real-user data migration, legacy cleanup, or a broader claim
+of full Workspace parity. It does permit only a user-explicit task mutation
+after the caller has authorized Lewis.
+
+The Ministry repository remains the sole authority for the shared-hosted
+migration. Its operator must package and compare the exact migration against
+current Ministry `main`, verify the production target and normal backup/
+preflight evidence, apply and postflight the task RPC/grant/RLS contract, and
+only then deploy the matching Workspace application. The app release must not
+precede the migration. Record the deployment, postflight, and real-client
+acceptance separately; until then, no task is represented as saved through
+ChatGPT or Claude.

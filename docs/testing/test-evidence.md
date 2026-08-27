@@ -1,5 +1,31 @@
 # Test evidence
 
+## Lewis Phase 0 task actions — 2026-08-27
+
+- `npm run check:boundaries` — **PASS**. Verified 52 runtime files with no
+  Ministry/Consulting runtime import or service-role client.
+- `npm run test:schema` — **PASS** (17/17). The migration contract covers the
+  private idempotency receipt store, task capability guard, task RPCs, and
+  least-privilege grants.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **PASS** (11 files / 59 assertions), including an
+  in-memory MCP client contract for task reads/writes, confirmation checks,
+  OAuth reauthorization metadata, and exact-origin CORS behavior.
+- `npm run test:rls` — **PASS** (107 local pgTAP assertions across four
+  files). The Phase 0 task cases verify capability denial, tenant isolation,
+  idempotent create/replay protection, owned-task update, permanent deletion,
+  and unauthorized-client denial.
+- `npm run build` — **PASS** on Next.js 16.3.2. The MCP route compiled as a
+  dynamic route.
+- `npm run scan:sensitive` — **PASS**. No credential, token, private key, or
+  personal-data pattern was introduced by the release.
+- `git diff --check` — **PASS**.
+- Hosted migration, Vercel deployment, and real ChatGPT/Claude acceptance are
+  **NOT RUN**. This machine has no valid GitHub session or configured Vercel
+  project, and the shared-hosted database can only be changed through the
+  Ministry authority after its required preflight.
+
 ## Connection platform candidate — 2026-08-25
 
 - `npm run check:boundaries` — **PASS**. No Ministry/Consulting import or service-role runtime client.

@@ -16,7 +16,7 @@ export function workspaceProtectedResourceMetadata() {
     authorization_servers: [`${workspaceSupabaseUrl().replace(/\/$/, "")}/auth/v1`],
     scopes_supported: ["openid", "email", "profile"],
     bearer_methods_supported: ["header"],
-    resource_name: "Lead Emergence Workspace"
+    resource_name: "Lewis for Lead Emergence Workspace"
   };
 }
 
@@ -29,9 +29,13 @@ export function mcpUnauthorized(message = "Authorization is required.") {
     status: 401,
     headers: {
       "Cache-Control": "no-store",
-      "WWW-Authenticate": `Bearer resource_metadata="${mcpResourceMetadataUri()}", scope="openid email profile"`
+      "WWW-Authenticate": mcpWwwAuthenticateChallenge()
     }
   });
+}
+
+export function mcpWwwAuthenticateChallenge() {
+  return `Bearer resource_metadata="${mcpResourceMetadataUri()}", scope="openid email profile"`;
 }
 
 export async function authenticateMcpRequest(request: Request) {

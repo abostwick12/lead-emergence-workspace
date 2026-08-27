@@ -1,6 +1,6 @@
 begin;
 
-select plan(56);
+select plan(70);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -51,6 +51,7 @@ select is((select relrowsecurity from pg_class where oid = 'workspace.personal_p
 select is((select relrowsecurity from pg_class where oid = 'workspace.personal_onboarding'::regclass), true, 'onboarding uses RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace.personal_configuration_items'::regclass), true, 'shared configuration uses RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace.mcp_authorizations'::regclass), true, 'MCP metadata uses RLS');
+select is((select relrowsecurity from pg_class where oid = 'workspace_private.mcp_action_receipts'::regclass), true, 'MCP idempotency receipts use defense-in-depth RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace_private.product_settings'::regclass), true, 'private product settings use defense-in-depth RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace_private.trusted_identity_providers'::regclass), true, 'private Entry provider settings use defense-in-depth RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace_private.plan_assignment_audit'::regclass), true, 'private plan audit uses defense-in-depth RLS');
@@ -61,6 +62,8 @@ select is(has_function_privilege('service_role', 'workspace_private.assign_perso
 select is(has_table_privilege('authenticated', 'workspace.personal_onboarding', 'update'), false, 'onboarding transitions cannot bypass controlled RPCs');
 select is(has_table_privilege('authenticated', 'workspace.mcp_authorizations', 'update'), false, 'MCP state cannot be re-enabled through direct table updates');
 select is(has_table_privilege('authenticated', 'workspace.integration_connections', 'insert'), false, 'browser clients cannot manufacture external connector state');
+select is(has_table_privilege('authenticated', 'workspace_private.mcp_action_receipts', 'select'), false, 'MCP receipts cannot be read through ordinary authenticated table access');
+select is(has_function_privilege('anon', 'workspace.mcp_create_task(text,uuid,text,text,date,text)', 'execute'), false, 'anon cannot create tasks through Lewis');
 
 update workspace.workspace_memberships set status = 'revoked', revoked_at = now()
 where workspace_id = '6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' and user_id = '62222222-2222-4222-8222-222222222222';
@@ -170,6 +173,11 @@ select is(
   0,
   'MCP cannot bypass an excluded task capability'
 );
+select throws_ok(
+  $sql$select workspace.mcp_create_task('Blocked Lewis task', '61111111-1111-4111-8111-111111111199')$sql$,
+  '42501', 'Task actions are not included for this Workspace.',
+  'MCP task writes cannot bypass an excluded task capability'
+);
 
 reset role;
 update workspace.plan_capabilities set enabled = false where plan_key = 'personal' and capability_key = 'workspace_mcp';
@@ -202,12 +210,84 @@ select is(workspace.mcp_get_workspace_setup() ->> 'workspace_id', '6aaaaaaa-aaaa
 select is(workspace.mcp_save_user_reported_setup('commitments', 'Alice reported commitment') ->> 'epistemic_status', 'user_reported', 'MCP stores user statements as user-reported');
 select is(workspace.mcp_suggest_workspace_configuration('value_focus', 'Suggested value focus') ->> 'requires_user_confirmation', 'true', 'MCP suggestions require confirmation');
 select is((workspace.mcp_confirm_workspace_configuration(array['6b000000-0000-4000-8000-000000000001']::uuid[]) ->> 'confirmed_count')::integer, 0, 'Alice cannot confirm Bob configuration');
+select is(pg_catalog.jsonb_array_length(workspace.mcp_list_tasks() -> 'tasks'), 2, 'Lewis task list is bound to Alice workspace');
+select is(
+  workspace.mcp_create_task(
+    'Make an appointment with Sandy at the Care Coalition',
+    '61111111-1111-4111-8111-111111111101',
+    'life', 'high', null,
+    'Get retirement information and discuss fellowship dates.'
+  ) -> 'task' ->> 'title',
+  'Make an appointment with Sandy at the Care Coalition',
+  'Lewis creates a confirmed private task'
+);
+select is(
+  workspace.mcp_create_task(
+    'Make an appointment with Sandy at the Care Coalition',
+    '61111111-1111-4111-8111-111111111101',
+    'life', 'high', null,
+    'Get retirement information and discuss fellowship dates.'
+  ) ->> 'idempotent_replay',
+  'true',
+  'Lewis safely replays a task creation with the same request identifier'
+);
+select is(pg_catalog.jsonb_array_length(workspace.mcp_list_tasks() -> 'tasks'), 3, 'idempotent task creation does not duplicate the task');
+select throws_ok(
+  $sql$select workspace.mcp_create_task('Different task', '61111111-1111-4111-8111-111111111101')$sql$,
+  '22023', 'Reuse a task request identifier only with the same task details.',
+  'Lewis rejects request identifier reuse with different task details'
+);
+select is(
+  workspace.mcp_update_task(
+    (
+      select (listed.task ->> 'id')::uuid
+      from pg_catalog.jsonb_array_elements(workspace.mcp_list_tasks() -> 'tasks') as listed(task)
+      where listed.task ->> 'title' = 'Make an appointment with Sandy at the Care Coalition'
+    ),
+    'in_progress', 'high', '2026-09-30'::date, true
+  ) -> 'task' ->> 'status',
+  'in_progress',
+  'Lewis updates a task that belongs to the authorized Workspace owner'
+);
+select is(
+  workspace.mcp_update_task(
+    (
+      select (listed.task ->> 'id')::uuid
+      from pg_catalog.jsonb_array_elements(workspace.mcp_list_tasks() -> 'tasks') as listed(task)
+      where listed.task ->> 'title' = 'Make an appointment with Sandy at the Care Coalition'
+    ),
+    null, null, null, true
+  ) -> 'task' -> 'due_date',
+  'null'::jsonb,
+  'Lewis can explicitly clear a task due date'
+);
+select is(
+  (workspace.mcp_delete_task(
+    (
+      select (listed.task ->> 'id')::uuid
+      from pg_catalog.jsonb_array_elements(workspace.mcp_list_tasks() -> 'tasks') as listed(task)
+      where listed.task ->> 'title' = 'Make an appointment with Sandy at the Care Coalition'
+    )
+  ) ->> 'deleted')::boolean,
+  true,
+  'Lewis permanently deletes only the requested Workspace task'
+);
+select is(
+  (workspace.mcp_delete_task('61111111-1111-4111-8111-111111111102') ->> 'already_absent')::boolean,
+  true,
+  'Lewis task deletion is safe to retry after a missing task'
+);
 
 select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'bob-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
 select throws_ok(
   $sql$select workspace.mcp_get_workspace_setup()$sql$,
   '42501', 'This AI assistant connection is disconnected or requires authorization.',
   'Alice cannot use Bob MCP client authorization'
+);
+select throws_ok(
+  $sql$select workspace.mcp_create_task('Bob client task attempt', '61111111-1111-4111-8111-111111111103')$sql$,
+  '42501', 'This AI assistant connection is disconnected or requires authorization.',
+  'an unauthorized MCP client cannot create Alice tasks'
 );
 
 select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://wrong.example/api/mcp","client_id":"alice-mcp-client","workspace_mcp":"true","iat":1900000000}', true);

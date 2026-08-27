@@ -1,11 +1,10 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { authenticateMcpRequest, mcpUnauthorized, workspaceMcpResourceUri } from "@/lib/workspace/mcp-auth";
+import { isMcpCorsOrigin, isMcpRequestOriginAllowed } from "@/lib/workspace/mcp-origin";
 import { createWorkspaceMcpServer } from "@/lib/workspace/mcp-server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const allowedOrigins = new Set(["https://chatgpt.com", "https://claude.ai", "https://www.claude.ai", "https://workspace.leademergence.com"]);
 
 export async function POST(request: Request) {
   return handleMcpRequest(request);
@@ -20,6 +19,7 @@ export async function GET(request: Request) {
 }
 
 async function handleMcpRequest(request: Request) {
+  if (!isMcpRequestOriginAllowed(request.headers.get("origin"))) return mcpOriginForbidden(request);
   const resource = new URL(workspaceMcpResourceUri());
   if (process.env.NODE_ENV === "production" && new URL(request.url).host !== resource.host) {
     return Response.json({ error: "misdirected_request" }, { status: 421 });
@@ -48,16 +48,22 @@ async function handleMcpRequest(request: Request) {
 }
 
 export function DELETE(request: Request) {
+  if (!isMcpRequestOriginAllowed(request.headers.get("origin"))) return mcpOriginForbidden(request);
   return withCors(request, Response.json({ jsonrpc: "2.0", error: { code: -32000, message: "Disconnect this assistant from Workspace Settings." }, id: null }, { status: 405, headers: { Allow: "POST" } }));
 }
 
 export function OPTIONS(request: Request) {
+  if (!isMcpRequestOriginAllowed(request.headers.get("origin"))) return mcpOriginForbidden(request);
   return withCors(request, new Response(null, { status: 204 }));
+}
+
+function mcpOriginForbidden(request: Request) {
+  return withCors(request, Response.json({ error: "origin_not_allowed" }, { status: 403 }));
 }
 
 function withCors(request: Request, response: Response) {
   const origin = request.headers.get("origin");
-  if (origin && allowedOrigins.has(origin)) response.headers.set("Access-Control-Allow-Origin", origin);
+  if (isMcpCorsOrigin(origin)) response.headers.set("Access-Control-Allow-Origin", origin);
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   response.headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, MCP-Protocol-Version, MCP-Session-Id, Last-Event-ID");
   response.headers.set("Access-Control-Expose-Headers", "MCP-Protocol-Version, MCP-Session-Id, WWW-Authenticate");

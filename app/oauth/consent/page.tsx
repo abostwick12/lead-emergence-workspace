@@ -65,7 +65,7 @@ export default function OAuthConsentPage() {
     <p className="eyebrow">Connect your AI assistant</p>
     <h1 className="page-title">Allow access to Workspace?</h1>
     <p className="page-lede"><strong>{details?.client.name || "Your AI assistant"}</strong> is asking to use controlled Lead Emergence Workspace tools on your behalf.</p>
-    <div className="consent-list"><p><Check size={16} />Read your onboarding state, confirmed configuration, priorities, commitments, and tasks.</p><p><Check size={16} />Save your exact user-reported setup and propose interpretations for your confirmation.</p><p><Check size={16} />Create a Quick Capture only when you ask after onboarding is complete.</p></div>
+    <div className="consent-list"><p><Check size={16} />Read your onboarding state, confirmed configuration, priorities, commitments, and tasks.</p><p><Check size={16} />Save your exact user-reported setup and propose interpretations for your confirmation.</p><p><Check size={16} />Create, update, or permanently delete a Workspace task only when you explicitly ask.</p><p><Check size={16} />Create a Quick Capture only when you ask after onboarding is complete.</p></div>
     <p className="notice"><ShieldCheck size={16} />Workspace remains the system of record. The assistant cannot bypass your Personal plan, Workspace ownership, row-level security, or disconnection state.</p>
     {details?.scope ? <p className="consent-scopes">Requested identity scopes: {details.scope.split(" ").join(", ")}</p> : null}
     {!allowed && details ? <p className="error" role="alert">AI assistant connections are not included for the current Personal plan.</p> : null}

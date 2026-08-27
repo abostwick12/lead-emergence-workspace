@@ -21,6 +21,7 @@ const workspaceRepository = await readFile("lib/workspace/repository.ts", "utf8"
 const workspaceClocks = await readFile("components/workspace-clocks.tsx", "utf8");
 const clockSettings = await readFile("components/clock-settings.tsx", "utf8");
 const integrationVaultSql = await readFile("supabase/migrations/20260825000000_workspace_integration_vault.sql", "utf8");
+const lewisPhase0Sql = await readFile("supabase/migrations/20260827124853_lewis_phase0_task_actions.sql", "utf8");
 const setupPage = await readFile("components/workspace-setup.tsx", "utf8");
 const mcpRoute = await readFile("app/api/mcp/route.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
@@ -168,4 +169,20 @@ test("keeps durable integration credentials in the private schema with an owner-
   assert.match(integrationVaultSql, /workspace_private\.is_workspace_owner\(p_workspace_id\)/);
   assert.match(integrationVaultSql, /ciphertext text not null/i);
   assert.doesNotMatch(integrationVaultSql, /(?:access_token|refresh_token|client_secret)\s+(?:text|jsonb)/i);
+});
+
+test("adds durable, capability-gated Lewis task actions without exposing private receipts", () => {
+  assert.match(lewisPhase0Sql, /create table if not exists workspace_private\.mcp_action_receipts/i);
+  assert.match(lewisPhase0Sql, /alter table workspace_private\.mcp_action_receipts enable row level security/i);
+  assert.match(lewisPhase0Sql, /revoke all on table workspace_private\.mcp_action_receipts from public, anon, authenticated/i);
+  assert.match(lewisPhase0Sql, /create or replace function workspace_private\.require_mcp_tasks_workspace\(\)/i);
+  assert.match(lewisPhase0Sql, /workspace_private\.require_mcp_workspace\(\)/i);
+  assert.match(lewisPhase0Sql, /workspace_private\.has_personal_capability\(target_workspace_id, 'tasks'\)/i);
+  assert.match(lewisPhase0Sql, /create or replace function workspace\.mcp_list_tasks/i);
+  assert.match(lewisPhase0Sql, /create or replace function workspace\.mcp_create_task/i);
+  assert.match(lewisPhase0Sql, /create or replace function workspace\.mcp_update_task/i);
+  assert.match(lewisPhase0Sql, /create or replace function workspace\.mcp_delete_task/i);
+  assert.match(lewisPhase0Sql, /on conflict do nothing/i);
+  assert.match(lewisPhase0Sql, /idempotent_replay/i);
+  assert.match(lewisPhase0Sql, /grant execute on function workspace\.mcp_create_task/i);
 });
