@@ -11,7 +11,7 @@ const setupArea = z.enum([
 ]);
 
 export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any, any, any>) {
-  const server = new McpServer({ name: "Lead Emergence Workspace", version: "1.0.0" });
+  const server = new McpServer({ name: "lewis", version: "1.0.0" });
 
   server.registerTool("get_onboarding_state", {
     title: "Get onboarding state",
