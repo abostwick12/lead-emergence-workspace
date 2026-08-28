@@ -1,3 +1,5 @@
 # Shared Supabase migrations
 
 Workspace owns source SQL but may not run remote push/link/repair. Commit the authoritative Gate A source first, then run `npm run schema:checksum`, `npm run build:shared-migration -- <commit>`, and `npm run verify:shared-migration -- <commit>`. The generator reads the two authoritative migration files from that exact `HEAD` commit and writes ignored package artifacts with deterministic repository, commit, and checksum headers. Verify byte-for-byte output before copying the exact generated SQL into timestamped ministry-repository migrations. Never edit a generated artifact or an applied migration.
+
+For the active Entry foundation that has the canonical MCP resource and Phase 0 task stack but lacks the integration vault and Lewis parity controls, use `npm run build:lewis-entry-release -- <commit>` and `npm run verify:lewis-entry-release -- <commit>`. The generated read-only preflight must match that precise baseline before its incremental six-migration execution package can be considered. It is source provenance only: it is not a hosted-migration, deployment, OAuth, or external-provider release authorization.

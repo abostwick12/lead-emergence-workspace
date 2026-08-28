@@ -25,6 +25,7 @@ const connectorCapabilityGateSql = await readFile("supabase/migrations/202608280
 const connectorReleaseRegistrySql = await readFile("supabase/migrations/20260828011121_lewis_connector_release_registry.sql", "utf8");
 const preferenceParitySql = await readFile("supabase/migrations/20260828004945_lewis_workspace_preference_parity.sql", "utf8");
 const assistantConnectionParitySql = await readFile("supabase/migrations/20260828100646_lewis_assistant_connection_parity.sql", "utf8");
+const lewisEntryReleasePackage = await readFile("scripts/lewis-entry-release-package.mjs", "utf8");
 const lewisPhase0Sql = await readFile("supabase/migrations/20260827124853_lewis_phase0_task_actions.sql", "utf8");
 const lewisParitySql = await readFile("supabase/migrations/20260828000252_lewis_workspace_parity_actions.sql", "utf8");
 const consentPage = await readFile("app/oauth/consent/page.tsx", "utf8");
@@ -237,6 +238,22 @@ test("allows a confirmed assistant-connection revocation without exposing client
   assert.match(assistantConnectionParitySql, /grant execute on function workspace\.mcp_disconnect_assistant_connection/i);
   assert.doesNotMatch(assistantConnectionParitySql, /'client_id'\s*,\s*assistant_connection\.client_id/i);
   assert.doesNotMatch(assistantConnectionParitySql, /service_role|access_token|refresh_token|client_secret/i);
+});
+
+test("packages the verified Entry delta without reapplying its existing foundation", () => {
+  for (const migration of [
+    "20260825000000_workspace_integration_vault.sql",
+    "20260828000252_lewis_workspace_parity_actions.sql",
+    "20260828002432_lewis_connector_capability_gates.sql",
+    "20260828004945_lewis_workspace_preference_parity.sql",
+    "20260828011121_lewis_connector_release_registry.sql",
+    "20260828100646_lewis_assistant_connection_parity.sql",
+  ]) assert.match(lewisEntryReleasePackage, new RegExp(migration));
+  assert.doesNotMatch(lewisEntryReleasePackage, /20260820000000_workspace_foundation\.sql/);
+  assert.doesNotMatch(lewisEntryReleasePackage, /20260823153500_workspace_mcp_production_resource\.sql/);
+  assert.match(lewisEntryReleasePackage, /mcp_create_task\(text,uuid,text,text,date,text\)/);
+  assert.match(lewisEntryReleasePackage, /integration_credentials_exists/);
+  assert.match(lewisEntryReleasePackage, /notify pgrst, 'reload schema'/);
 });
 
 test("adds durable, capability-gated Lewis task actions without exposing private receipts", () => {

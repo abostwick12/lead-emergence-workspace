@@ -1,5 +1,35 @@
 # Test evidence
 
+## Lewis Entry incremental-package tooling — 2026-08-28
+
+This is source and read-only-target evidence only. It does not authorize or
+represent a hosted migration, runtime deployment, Auth configuration change,
+OAuth-provider activation, or external-provider connection.
+
+- Active Entry read-only inventory — **PASS**. The intended project
+  `lead-emergence-entry-dev` (`vnjdubrnmxvmsccxmhst`) has the identity and
+  Workspace stack through the Phase 0 task RPC, a canonical MCP resource URI,
+  and zero Workspace/private user records. It does not yet have the integration
+  vault, capture-parity, or assistant-parity objects. No paused project or
+  Consulting project was queried or changed.
+- The deterministic incremental package selection — **PASS**. It contains the
+  integration-vault prerequisite followed by the five reviewed Lewis parity and
+  control migrations; it deliberately excludes the already-present foundation,
+  Phase 0 task migration, and MCP-resource URI migration.
+- `npm run test:schema` — **24/24 PASS**. The added contract checks the exact
+  migration list, baseline function/absence checks, and schema-cache reload.
+- `npm run check:boundaries`, `npm run typecheck`, `npm run lint`,
+  `npm run test:unit`, and `npm run build` — **PASS**. Boundaries verified 53
+  runtime files; unit tests are **66/66 PASS**; the production build compiled
+  the Workspace OAuth, MCP, and controlled integration surfaces.
+- `npm run test:rls` — **not rerun for package-only tooling**. The local
+  Supabase database was stopped (`ECONNREFUSED` on local port 56422); no schema
+  migration changed in this tooling-only update. The latest source migration
+  evidence remains **185/185 PASS** above. Restart the local Supabase stack and
+  rerun the suite before any source migration is modified further.
+- `git diff --check` — **PASS**; Git reported only the repository's existing
+  line-ending conversion warnings.
+
 ## Lewis shared-production foundation package — 2026-08-27
 
 - Immediate shared-target preflight — **PASS**:

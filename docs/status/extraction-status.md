@@ -507,12 +507,37 @@ The partner workspace shown by the user contains the intended active sandboxes:
   therefore no existing owned Workspace runtime to repair or cut over; the
   shared foundation must be deliberately established on Entry before Lewis can
   be deployed.
-- Entry schema presence remains unverified: the hosted CLI requires a linked
-  IPv4 connection for database inspection, while this repository is explicitly
-  prohibited from linking to a hosted project. The designated shared-migration
-  repository is also currently dirty, so no attempt was made to stage or apply
-  Workspace migrations there.
+- Read-only project inspection now confirms the Entry baseline: its migration
+  ledger contains the identity foundation, Workspace foundation through Phase 0
+  task actions, and it has the canonical MCP resource URI plus the task-create
+  RPC. Workspace and private tables contain no user records. The integration
+  vault tables and the new capture/assistant-parity RPCs are absent, which is
+  the expected incremental-release baseline.
 - Before any hosted change, the written gate must still record the Entry project
   identity inventory and retention decision, session/secret rotation plan, Auth
   and OAuth configuration, Workspace migration authority, Vercel runtime
   environment, and a reversible acceptance test plan.
+
+## Lewis Entry incremental release package — 2026-08-28
+
+Status: **Source packaging in progress; no hosted migration or runtime change.**
+
+Read-only inspection of `lead-emergence-entry-dev`
+(`vnjdubrnmxvmsccxmhst`) confirms it is the intended incremental target. It
+has a zero-record Workspace foundation through the Phase 0 task actions and
+the canonical MCP resource URI. It lacks only the integration-vault tables and
+the five new Lewis parity/control migrations.
+
+The deterministic package therefore contains, in order:
+`20260825000000_workspace_integration_vault.sql`, followed by
+`20260828000252_lewis_workspace_parity_actions.sql`,
+`20260828002432_lewis_connector_capability_gates.sql`,
+`20260828004945_lewis_workspace_preference_parity.sql`,
+`20260828011121_lewis_connector_release_registry.sql`, and
+`20260828100646_lewis_assistant_connection_parity.sql`. It excludes the older
+Gate-A bootstrap package and the resource-URI migration because the Entry
+baseline already has those objects and URI.
+
+Before any execution, the generated read-only preflight must still match this
+baseline and the remaining identity, OAuth, Vercel, and acceptance gates must
+be recorded. Every external provider remains default-off in the package.
