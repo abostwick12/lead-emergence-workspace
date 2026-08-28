@@ -21,7 +21,17 @@ const workspaceRepository = await readFile("lib/workspace/repository.ts", "utf8"
 const workspaceClocks = await readFile("components/workspace-clocks.tsx", "utf8");
 const clockSettings = await readFile("components/clock-settings.tsx", "utf8");
 const integrationVaultSql = await readFile("supabase/migrations/20260825000000_workspace_integration_vault.sql", "utf8");
+const connectorCapabilityGateSql = await readFile("supabase/migrations/20260828002432_lewis_connector_capability_gates.sql", "utf8");
+const connectorReleaseRegistrySql = await readFile("supabase/migrations/20260828011121_lewis_connector_release_registry.sql", "utf8");
+const preferenceParitySql = await readFile("supabase/migrations/20260828004945_lewis_workspace_preference_parity.sql", "utf8");
+const assistantConnectionParitySql = await readFile("supabase/migrations/20260828100646_lewis_assistant_connection_parity.sql", "utf8");
 const lewisPhase0Sql = await readFile("supabase/migrations/20260827124853_lewis_phase0_task_actions.sql", "utf8");
+const lewisParitySql = await readFile("supabase/migrations/20260828000252_lewis_workspace_parity_actions.sql", "utf8");
+const consentPage = await readFile("app/oauth/consent/page.tsx", "utf8");
+const integrationProviders = await readFile("lib/integrations/providers.ts", "utf8");
+const integrationsPage = await readFile("app/workspace/integrations/page.tsx", "utf8");
+const integrationStartRoute = await readFile("app/api/integrations/[provider]/start/route.ts", "utf8");
+const integrationCredentialRoute = await readFile("app/api/integrations/[provider]/credential/route.ts", "utf8");
 const setupPage = await readFile("components/workspace-setup.tsx", "utf8");
 const mcpRoute = await readFile("app/api/mcp/route.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
@@ -171,6 +181,64 @@ test("keeps durable integration credentials in the private schema with an owner-
   assert.doesNotMatch(integrationVaultSql, /(?:access_token|refresh_token|client_secret)\s+(?:text|jsonb)/i);
 });
 
+test("fails closed for external connector capacity and preserves a native disconnect path", () => {
+  assert.match(connectorCapabilityGateSql, /alter table workspace_private\.integration_credentials enable row level security/i);
+  assert.match(connectorCapabilityGateSql, /alter table workspace_private\.integration_oauth_attempts enable row level security/i);
+  assert.match(connectorCapabilityGateSql, /workspace_private\.require_external_connector_workspace/i);
+  assert.match(connectorCapabilityGateSql, /has_personal_capability\(p_workspace_id, 'external_connectors'\)/i);
+  assert.match(connectorCapabilityGateSql, /capability_key = 'integration_limit'/i);
+  assert.match(connectorCapabilityGateSql, /workspace_private\.require_integration_slot/i);
+  assert.match(connectorCapabilityGateSql, /p_provider_family is distinct from expected_provider_family/i);
+  assert.match(connectorCapabilityGateSql, /delete from workspace_private\.integration_credentials/i);
+  assert.match(connectorCapabilityGateSql, /create or replace function workspace\.complete_integration_oauth_connection/i);
+  assert.match(connectorCapabilityGateSql, /revoke all on function workspace\.complete_integration_oauth_connection/i);
+  assert.doesNotMatch(connectorCapabilityGateSql, /service_role|access_token|client_secret/i);
+  assert.match(integrationProviders, /chatgpt:[\s\S]*?connectionMethod: "mcp_oauth"/);
+  assert.match(integrationProviders, /claude:[\s\S]*?connectionMethod: "mcp_oauth"/);
+  assert.match(integrationsPage, /const externalConnectionsEnabled = capabilities\.external_connectors && capabilities\.integration_limit > 0/);
+  assert.match(integrationsPage, /\/api\/integrations\/\$\{entry\.id\}\/disconnect/);
+});
+
+test("requires a provider-specific consumer release before collecting external credentials", () => {
+  assert.match(connectorReleaseRegistrySql, /create table workspace_private\.integration_provider_releases/i);
+  assert.match(connectorReleaseRegistrySql, /connection_enabled boolean not null default false/i);
+  assert.match(connectorReleaseRegistrySql, /revoke all on table workspace_private\.integration_provider_releases from public, anon, authenticated/i);
+  assert.match(connectorReleaseRegistrySql, /require_integration_provider_connection/i);
+  assert.match(connectorReleaseRegistrySql, /This external provider is not released for consumer use/i);
+  assert.match(connectorReleaseRegistrySql, /perform workspace_private\.require_integration_provider_connection\(p_provider\)/i);
+  assert.match(integrationProviders, /consumerConnectionReady: false/);
+  assert.match(integrationStartRoute, /!providerConfiguration\.consumerConnectionReady/);
+  assert.match(integrationCredentialRoute, /!provider\.consumerConnectionReady/);
+  assert.match(integrationsPage, /cannot collect credentials or access provider data until its provider-specific adapter is reviewed and released/);
+  assert.doesNotMatch(integrationProviders, /gmail\.compose|chat:write|Files\.ReadWrite/);
+});
+
+test("keeps Lewis preference and assistant self-service controls tenant-bound", () => {
+  assert.match(preferenceParitySql, /target_capability not in \('core_workspace', 'tasks', 'quick_capture', 'memory', 'career', 'workspace_mcp'\)/i);
+  assert.match(preferenceParitySql, /create or replace function workspace\.mcp_get_clock_preferences/i);
+  assert.match(preferenceParitySql, /create or replace function workspace\.mcp_save_clock_preferences/i);
+  assert.match(preferenceParitySql, /pg_catalog\.pg_timezone_names/i);
+  assert.match(preferenceParitySql, /create or replace function workspace\.mcp_list_assistant_connections/i);
+  assert.match(preferenceParitySql, /'is_current_connection'/i);
+  assert.match(preferenceParitySql, /create or replace function workspace\.mcp_disconnect_current_assistant/i);
+  assert.match(preferenceParitySql, /client_id = current_client_id/i);
+  assert.match(preferenceParitySql, /authorization_valid_after = now\(\)/i);
+  assert.doesNotMatch(preferenceParitySql, /service_role|access_token|client_secret/i);
+});
+
+test("allows a confirmed assistant-connection revocation without exposing client IDs", () => {
+  assert.match(assistantConnectionParitySql, /create or replace function workspace\.mcp_list_assistant_connections/i);
+  assert.match(assistantConnectionParitySql, /'connection_id', assistant_connection\.id/i);
+  assert.match(assistantConnectionParitySql, /create or replace function workspace\.mcp_disconnect_assistant_connection/i);
+  assert.match(assistantConnectionParitySql, /id = target_connection_id/i);
+  assert.match(assistantConnectionParitySql, /workspace_id = target_workspace_id/i);
+  assert.match(assistantConnectionParitySql, /created_by = auth\.uid\(\)/i);
+  assert.match(assistantConnectionParitySql, /authorization_valid_after = now\(\)/i);
+  assert.match(assistantConnectionParitySql, /grant execute on function workspace\.mcp_disconnect_assistant_connection/i);
+  assert.doesNotMatch(assistantConnectionParitySql, /'client_id'\s*,\s*assistant_connection\.client_id/i);
+  assert.doesNotMatch(assistantConnectionParitySql, /service_role|access_token|refresh_token|client_secret/i);
+});
+
 test("adds durable, capability-gated Lewis task actions without exposing private receipts", () => {
   assert.match(lewisPhase0Sql, /create table if not exists workspace_private\.mcp_action_receipts/i);
   assert.match(lewisPhase0Sql, /alter table workspace_private\.mcp_action_receipts enable row level security/i);
@@ -185,4 +253,33 @@ test("adds durable, capability-gated Lewis task actions without exposing private
   assert.match(lewisPhase0Sql, /on conflict do nothing/i);
   assert.match(lewisPhase0Sql, /idempotent_replay/i);
   assert.match(lewisPhase0Sql, /grant execute on function workspace\.mcp_create_task/i);
+});
+
+test("extends Lewis through narrow, tenant-scoped internal parity actions", () => {
+  assert.match(lewisParitySql, /create or replace function workspace_private\.require_mcp_capability\(target_capability text\)/i);
+  assert.match(lewisParitySql, /target_capability not in \('core_workspace', 'tasks', 'quick_capture', 'memory', 'career'\)/i);
+  assert.match(lewisParitySql, /alter table workspace_private\.mcp_action_receipts/i);
+  for (const functionName of [
+    "mcp_list_captures", "mcp_resolve_capture", "mcp_dismiss_capture",
+    "mcp_list_memory", "mcp_create_memory", "mcp_delete_memory",
+    "mcp_list_career_opportunities", "mcp_create_career_opportunity", "mcp_update_career_opportunity",
+    "mcp_replace_confirmed_workspace_configuration", "mcp_list_integration_connections"
+  ]) {
+    assert.match(lewisParitySql, new RegExp(`create or replace function workspace\\.${functionName}`, "i"));
+    assert.match(lewisParitySql, new RegExp(`grant execute on function workspace\\.${functionName}`, "i"));
+    assert.match(lewisParitySql, new RegExp(`revoke all on function workspace\\.${functionName}`, "i"));
+  }
+  assert.match(lewisParitySql, /security definer/i);
+  assert.match(lewisParitySql, /set search_path = ''/i);
+  assert.match(lewisParitySql, /created_by = auth\.uid\(\)/i);
+  assert.match(lewisParitySql, /idempotent_replay/i);
+  assert.match(lewisParitySql, /mcp_list_integration_connections\(\)/i);
+  assert.doesNotMatch(lewisParitySql, /service_role|access_token|refresh_token|client_secret/i);
+});
+
+test("keeps OAuth consent disclosure aligned with the controlled Lewis action set", () => {
+  assert.match(consentPage, /Quick Captures, personal memory, career opportunities, and integration connection status/);
+  assert.match(consentPage, /task or memory deletion, capture discard, and configuration replacement require explicit confirmation/);
+  assert.match(consentPage, /does not connect external services, reveal connector credentials, send messages, or create calendar events/);
+  assert.match(consentPage, /registered connection, or disconnection state/);
 });

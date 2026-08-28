@@ -6,12 +6,11 @@ import {
 } from "../lib/integrations/providers";
 
 describe("Google Workspace connection", () => {
-  it("requests one minimal combined grant for Gmail and Google Calendar", () => {
+  it("requests one read-only combined grant for Gmail and Google Calendar", () => {
     expect(connectionScopes("gmail")).toEqual([
       "openid",
       "email",
       "https://www.googleapis.com/auth/gmail.readonly",
-      "https://www.googleapis.com/auth/gmail.compose",
       "https://www.googleapis.com/auth/calendar.events.readonly"
     ]);
     expect(connectionScopes("google_calendar")).toEqual(connectionScopes("gmail"));

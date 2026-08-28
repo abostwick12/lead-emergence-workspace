@@ -15,15 +15,15 @@ export type McpCatalogEntry = {
   supportsWorkspaceMetadata: boolean;
 };
 
-export type McpDisplayStatus = IntegrationConnection["status"] | "available";
+export type McpDisplayStatus = IntegrationConnection["status"] | "available" | "catalog_only";
 
 export const MCP_CATALOG: readonly McpCatalogEntry[] = [
   {
     id: "logos",
     name: "Logos",
     category: "Faith",
-    detail: "Study library and commentary lookup",
-    boundary: "Read-only study access through a separately approved Logos adapter.",
+    detail: "Planned study-library connection",
+    boundary: "No Workspace authorization or content access is available until the Logos adapter is reviewed and released.",
     supportsWorkspaceMetadata: true
   },
   {
@@ -46,88 +46,88 @@ export const MCP_CATALOG: readonly McpCatalogEntry[] = [
     id: "gmail",
     name: "Gmail",
     category: "Comms",
-    detail: "Personal inbox triage and draft-only workflows",
-    boundary: "Personal Workspace Gmail only. Ministry Gmail is excluded.",
+    detail: "Planned personal inbox connection",
+    boundary: "No mailbox access, draft, or send action is available until a narrowly scoped Gmail adapter is reviewed and released. Ministry Gmail is excluded.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "slack",
     name: "Slack",
     category: "Comms",
-    detail: "Explicit briefing delivery to approved channels",
-    boundary: "Only explicitly approved workspaces and channels may be used.",
+    detail: "Planned workspace connection",
+    boundary: "No channel access or message action is available until a separately reviewed Slack adapter is released.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "google_calendar",
     name: "Google Calendar",
     category: "Work",
-    detail: "Schedule context and user-triggered event actions",
-    boundary: "Calendar actions remain user-triggered and Workspace-scoped.",
+    detail: "Planned calendar connection",
+    boundary: "No calendar event is read, created, changed, or deleted until a separately reviewed calendar adapter is released.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "monday",
     name: "Monday.com",
     category: "Work",
-    detail: "Approved one-way task import",
-    boundary: "Import only; no automatic writes back to Monday.com.",
+    detail: "Planned task-context connection",
+    boundary: "No Monday.com data is imported or changed until a separately reviewed adapter is released.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "github",
     name: "GitHub",
     category: "Work",
-    detail: "Repository context and workflow visibility",
-    boundary: "Repository access requires a separately approved read scope.",
+    detail: "Planned repository connection",
+    boundary: "No repository access is available until a separately reviewed GitHub adapter is released.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "linkedin",
     name: "LinkedIn",
     category: "Work",
-    detail: "Career drafting support",
-    boundary: "Drafting only. The Workspace never posts automatically.",
+    detail: "Planned career-context connection",
+    boundary: "No LinkedIn access or posting action is available until a separately reviewed adapter is released.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "google_drive",
     name: "Google Drive",
     category: "Files",
-    detail: "Search and organize permitted personal files",
-    boundary: "Only explicitly permitted Workspace files may be accessed.",
+    detail: "Planned personal-file connection",
+    boundary: "No Drive file is read, created, organized, or shared until a separately reviewed adapter is released.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "firecrawl",
     name: "Firecrawl",
     category: "Files",
-    detail: "Manual curated resource refresh",
-    boundary: "Refreshes are user-triggered and produce Workspace-owned sources only.",
+    detail: "Planned curated-resource connection",
+    boundary: "No API key is collected and no fetch is performed until a separately reviewed adapter is released.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "canva",
     name: "Canva",
     category: "Creative",
-    detail: "Design discovery and approved exports",
-    boundary: "Design access requires a separately approved Canva adapter.",
+    detail: "Planned design connection",
+    boundary: "No Canva design is accessed or exported until a separately reviewed adapter is released.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "powerpoint",
     name: "PowerPoint",
     category: "Creative",
-    detail: "Deck generation and outline export",
-    boundary: "File creation requires an approved Microsoft 365 adapter.",
+    detail: "Planned Microsoft 365 connection",
+    boundary: "No file is read, created, or exported until a separately reviewed Microsoft 365 adapter is released.",
     supportsWorkspaceMetadata: true
   },
   {
     id: "youversion",
     name: "YouVersion",
     category: "Faith",
-    detail: "Reading plans and Scripture references",
-    boundary: "Read-only access requires a separately approved YouVersion adapter.",
+    detail: "Planned Scripture connection",
+    boundary: "No YouVersion access is available until a separately reviewed adapter is released.",
     supportsWorkspaceMetadata: true
   }
 ] as const;
@@ -158,7 +158,9 @@ export function getMcpDisplayStatus(
   entry: McpCatalogEntry,
   connections: readonly IntegrationConnection[]
 ): McpDisplayStatus {
-  return findConnectionForEntry(entry, connections)?.status ?? "available";
+  const connection = findConnectionForEntry(entry, connections);
+  if (connection) return connection.status;
+  return getIntegrationProvider(entry.id)?.consumerConnectionReady ? "available" : "catalog_only";
 }
 
 export function getMcpSetupLabel(entry: McpCatalogEntry): string {

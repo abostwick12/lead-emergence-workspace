@@ -9,23 +9,23 @@ import { INTEGRATION_PROVIDER_IDS, INTEGRATION_PROVIDERS } from "../lib/integrat
 import type { IntegrationConnection } from "../lib/workspace/types";
 
 describe("MCP catalog", () => {
-  it("includes Logos with the selected Lovable capability copy", () => {
+  it("labels unreleased provider capabilities honestly", () => {
     expect(MCP_CATALOG).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: "logos",
           name: "Logos",
           category: "Faith",
-          detail: "Study library and commentary lookup"
+          detail: "Planned study-library connection"
         })
       ])
     );
   });
 
   it("filters by category and search text", () => {
-    expect(filterMcpCatalog(MCP_CATALOG, "commentary", "Faith").map((entry) => entry.id)).toEqual(["logos"]);
-    expect(filterMcpCatalog(MCP_CATALOG, "draft", "All").map((entry) => entry.id)).toEqual(
-      expect.arrayContaining(["chatgpt", "gmail", "linkedin"])
+    expect(filterMcpCatalog(MCP_CATALOG, "planned", "Faith").map((entry) => entry.id)).toEqual(["logos", "youversion"]);
+    expect(filterMcpCatalog(MCP_CATALOG, "planned", "All").map((entry) => entry.id)).toEqual(
+      expect.arrayContaining(["logos", "gmail", "linkedin"])
     );
   });
 
@@ -45,7 +45,7 @@ describe("MCP catalog", () => {
     ];
 
     expect(gmail && getMcpDisplayStatus(gmail, connections)).toBe("reconnect_required");
-    expect(logos && getMcpDisplayStatus(logos, connections)).toBe("available");
+    expect(logos && getMcpDisplayStatus(logos, connections)).toBe("catalog_only");
   });
 
   it("gives every catalog connection a concrete, non-secret setup contract", () => {
@@ -54,8 +54,28 @@ describe("MCP catalog", () => {
       const provider = INTEGRATION_PROVIDERS[entry.id];
       expect(entry.supportsWorkspaceMetadata).toBe(true);
       expect(provider.credentialFamily).not.toHaveLength(0);
-      expect(["oauth", "oauth1", "api_key", "github_app"]).toContain(provider.connectionMethod);
+      expect(["oauth", "oauth1", "api_key", "github_app", "mcp_oauth"]).toContain(provider.connectionMethod);
+      expect(typeof provider.consumerConnectionReady).toBe("boolean");
       expect(getMcpSetupLabel(entry)).toBe(provider.setupLabel);
     }
+  });
+
+  it("keeps ChatGPT and Claude on the Workspace OAuth channel instead of accepting provider API keys", () => {
+    expect(INTEGRATION_PROVIDERS.chatgpt.connectionMethod).toBe("mcp_oauth");
+    expect(INTEGRATION_PROVIDERS.claude.connectionMethod).toBe("mcp_oauth");
+    expect(INTEGRATION_PROVIDERS.chatgpt.credentialFamily).toBe("workspace_mcp");
+    expect(INTEGRATION_PROVIDERS.claude.credentialFamily).toBe("workspace_mcp");
+    expect(INTEGRATION_PROVIDERS.chatgpt.consumerConnectionReady).toBe(true);
+    expect(INTEGRATION_PROVIDERS.claude.consumerConnectionReady).toBe(true);
+  });
+
+  it("does not collect consumer external credentials before their individual provider release", () => {
+    for (const providerId of INTEGRATION_PROVIDER_IDS) {
+      if (providerId === "chatgpt" || providerId === "claude") continue;
+      expect(INTEGRATION_PROVIDERS[providerId].consumerConnectionReady).toBe(false);
+    }
+    expect(INTEGRATION_PROVIDERS.gmail.scopes).not.toContain("https://www.googleapis.com/auth/gmail.compose");
+    expect(INTEGRATION_PROVIDERS.slack.scopes).not.toContain("chat:write");
+    expect(INTEGRATION_PROVIDERS.powerpoint.scopes).not.toContain("Files.ReadWrite");
   });
 });

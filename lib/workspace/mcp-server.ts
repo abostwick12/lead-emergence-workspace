@@ -14,6 +14,14 @@ const setupArea = z.enum([
 const taskStatus = z.enum(["todo", "in_progress", "blocked", "done"]);
 const taskDomain = z.enum(["general", "military_transition", "sotf_fellowship", "job_search", "life", "leadership"]);
 const taskPriority = z.enum(["critical", "high", "medium", "low"]);
+const captureStatus = z.enum(["unprocessed", "processed", "discarded"]);
+const memoryType = z.enum(["fact", "preference", "context", "relationship"]);
+const careerStatus = z.enum(["researching", "applied", "phone_screen", "interview", "offer", "rejected", "withdrawn"]);
+const boundedPageSize = z.number().int().min(1).max(50).default(25);
+const clockTimeZones = z.array(z.string().trim().min(1).max(80)).min(3).max(3).refine(
+  (timeZones) => new Set(timeZones).size === 3,
+  { message: "Choose three distinct IANA time zones." }
+);
 const taskCursor = z.object({
   created_at: z.string().datetime({ offset: true }),
   id: z.uuid()
@@ -36,7 +44,7 @@ const workspaceOAuthToolMeta = {
 } as const;
 
 export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any, any, any>) {
-  const server = new McpServer({ name: "lewis", version: "1.1.0" });
+  const server = new McpServer({ name: "lewis", version: "1.4.0" });
 
   server.registerTool("get_onboarding_state", {
     title: "Get onboarding state",
@@ -109,7 +117,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       status: taskStatus.optional(),
       domain: taskDomain.optional(),
       cursor: taskCursor.optional(),
-      page_size: z.number().int().min(1).max(50).default(25)
+      page_size: boundedPageSize
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: workspaceOAuthToolMeta
@@ -165,6 +173,186 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     _meta: workspaceOAuthToolMeta
   }, ({ task_id }) => rpcResult(supabase, "mcp_delete_task", { target_task_id: task_id }));
+
+  server.registerTool("list_captures", {
+    title: "List Quick Captures",
+    description: "Read a bounded page of the user's private Quick Captures. Use this before resolving or discarding a capture; never infer or expose captures from another Workspace.",
+    inputSchema: { status: captureStatus.optional(), page_size: boundedPageSize },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ status, page_size }) => rpcResult(supabase, "mcp_list_captures", {
+    target_status: status ?? null,
+    page_size
+  }));
+
+  server.registerTool("resolve_capture", {
+    title: "Resolve a Quick Capture into a task",
+    description: "Turn one unprocessed private Quick Capture into a private task only when the user explicitly asks. Generate one UUID request_id for this intended resolution and reuse it on retry.",
+    inputSchema: {
+      capture_id: z.uuid(),
+      request_id: z.uuid().describe("A UUID generated once for this intended capture resolution; reuse it on retry."),
+      task_domain: taskDomain.default("general"),
+      user_confirmed: z.literal(true)
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ capture_id, request_id, task_domain }) => rpcResult(supabase, "mcp_resolve_capture", {
+    target_capture_id: capture_id,
+    request_id,
+    task_domain
+  }));
+
+  server.registerTool("dismiss_capture", {
+    title: "Discard a Quick Capture",
+    description: "Discard one unprocessed private Quick Capture only after the user explicitly confirms. The capture will no longer be available for task routing.",
+    inputSchema: { capture_id: z.uuid(), user_confirmed: z.literal(true) },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ capture_id }) => rpcResult(supabase, "mcp_dismiss_capture", { target_capture_id: capture_id }));
+
+  server.registerTool("list_memory", {
+    title: "List Workspace memory",
+    description: "Read a bounded page of the user's private Workspace memory. A memory record is personal context, not a fact about another person unless the user explicitly recorded it.",
+    inputSchema: { domain: taskDomain.optional(), page_size: boundedPageSize },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ domain, page_size }) => rpcResult(supabase, "mcp_list_memory", {
+    target_domain: domain ?? null,
+    page_size
+  }));
+
+  server.registerTool("create_memory", {
+    title: "Create Workspace memory",
+    description: "Save a private memory only when the user explicitly asks. Generate one UUID request_id for this intended memory and reuse it on retry.",
+    inputSchema: {
+      content: z.string().trim().min(1).max(10_000),
+      request_id: z.uuid().describe("A UUID generated once for this intended memory; reuse it on retry."),
+      memory_type: memoryType.default("context"),
+      domain: taskDomain.optional(),
+      user_confirmed: z.literal(true)
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ content, request_id, memory_type, domain }) => rpcResult(supabase, "mcp_create_memory", {
+    memory_content: content,
+    request_id,
+    target_memory_type: memory_type,
+    target_domain: domain ?? null
+  }));
+
+  server.registerTool("delete_memory", {
+    title: "Delete Workspace memory",
+    description: "Permanently delete one private memory record only after the user explicitly confirms. This cannot be undone from Lewis.",
+    inputSchema: { memory_id: z.uuid(), user_confirmed: z.literal(true) },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ memory_id }) => rpcResult(supabase, "mcp_delete_memory", { target_memory_id: memory_id }));
+
+  server.registerTool("list_career_opportunities", {
+    title: "List career opportunities",
+    description: "Read a bounded page of the user's private career opportunities. Use this before changing a status so the assistant acts on the correct opportunity.",
+    inputSchema: { status: careerStatus.optional(), page_size: boundedPageSize },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ status, page_size }) => rpcResult(supabase, "mcp_list_career_opportunities", {
+    target_status: status ?? null,
+    page_size
+  }));
+
+  server.registerTool("create_career_opportunity", {
+    title: "Create a career opportunity",
+    description: "Create one private career opportunity only when the user explicitly asks. Generate one UUID request_id for this intended opportunity and reuse it on retry.",
+    inputSchema: {
+      company: z.string().trim().min(1).max(240),
+      role: z.string().trim().min(1).max(240),
+      request_id: z.uuid().describe("A UUID generated once for this intended opportunity; reuse it on retry."),
+      next_follow_up_date: z.string().date().nullable().optional(),
+      user_confirmed: z.literal(true)
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ company, role, request_id, next_follow_up_date }) => rpcResult(supabase, "mcp_create_career_opportunity", {
+    target_company: company,
+    target_role: role,
+    request_id,
+    target_next_follow_up_date: next_follow_up_date ?? null
+  }));
+
+  server.registerTool("update_career_opportunity", {
+    title: "Update a career opportunity",
+    description: "Change the status of one private career opportunity only when the user explicitly asks.",
+    inputSchema: { opportunity_id: z.uuid(), status: careerStatus, user_confirmed: z.literal(true) },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ opportunity_id, status }) => rpcResult(supabase, "mcp_update_career_opportunity", {
+    target_opportunity_id: opportunity_id,
+    target_status: status
+  }));
+
+  server.registerTool("replace_confirmed_workspace_configuration", {
+    title: "Replace confirmed Workspace configuration",
+    description: "Replace the active confirmed content for one Workspace setup area only after the user explicitly confirms the exact replacement. Prior history is retained, but the former active item becomes inactive.",
+    inputSchema: {
+      area: setupArea,
+      confirmed_text: z.string().trim().min(1).max(5000),
+      request_id: z.uuid().describe("A UUID generated once for this intended replacement; reuse it on retry."),
+      user_confirmed: z.literal(true)
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ area, confirmed_text, request_id }) => rpcResult(supabase, "mcp_replace_confirmed_workspace_configuration", {
+    target_area: area,
+    confirmed_text,
+    request_id
+  }));
+
+  server.registerTool("list_integration_connections", {
+    title: "List integration connection status",
+    description: "Read the status and granted scopes of the user's existing Workspace integrations. This tool never returns credentials and does not create an external connection.",
+    inputSchema: {},
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, () => rpcResult(supabase, "mcp_list_integration_connections"));
+
+  server.registerTool("get_clock_preferences", {
+    title: "Get Workspace display-clock preferences",
+    description: "Read the three IANA time zones used only for the user's Workspace display clocks. This does not change stored timestamps or the primary Workspace timezone.",
+    inputSchema: {},
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, () => rpcResult(supabase, "mcp_get_clock_preferences"));
+
+  server.registerTool("save_clock_preferences", {
+    title: "Save Workspace display-clock preferences",
+    description: "Replace the three IANA time zones used for Workspace display clocks only when the user explicitly confirms the exact set. This does not change stored timestamps or the primary Workspace timezone.",
+    inputSchema: { clock_timezones: clockTimeZones, user_confirmed: z.literal(true) },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ clock_timezones }) => rpcResult(supabase, "mcp_save_clock_preferences", { target_clock_timezones: clock_timezones }));
+
+  server.registerTool("list_assistant_connections", {
+    title: "List Workspace assistant connections",
+    description: "Read Workspace OAuth connection status for ChatGPT, Claude, and other registered assistant clients. The returned opaque connection_id can be used only to revoke a listed connection; client identifiers and credentials are never exposed.",
+    inputSchema: {},
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, () => rpcResult(supabase, "mcp_list_assistant_connections"));
+
+  server.registerTool("disconnect_current_assistant", {
+    title: "Disconnect this assistant from Workspace",
+    description: "Disconnect only the currently connected ChatGPT or Claude client after the user explicitly confirms. Future privileged Lewis calls from this client will require a new OAuth authorization.",
+    inputSchema: { user_confirmed: z.literal(true) },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, () => rpcResult(supabase, "mcp_disconnect_current_assistant"));
+
+  server.registerTool("disconnect_assistant_connection", {
+    title: "Disconnect a Workspace assistant connection",
+    description: "Revoke one listed ChatGPT, Claude, or other Workspace assistant connection only after the user explicitly confirms. Use the opaque connection_id returned by list_assistant_connections; the target must complete a new Workspace OAuth authorization before it can make privileged calls again.",
+    inputSchema: { connection_id: z.uuid(), user_confirmed: z.literal(true) },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ connection_id }) => rpcResult(supabase, "mcp_disconnect_assistant_connection", { target_connection_id: connection_id }));
 
   server.registerPrompt("lead_emergence_onboarding", {
     title: "Lead Emergence Personal onboarding",

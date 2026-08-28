@@ -364,3 +364,155 @@ RLS-with-no-policy deny-all INFO notices, one existing Entry audit-table INFO,
 and the target's pre-existing leaked-password-protection WARN. Performance
 advisor output is fresh-schema unused-index INFO only. No external connector,
 OAuth consent, user data, or shared-production object changed.
+
+## Lewis internal Workspace-parity source candidate
+
+Status: **Source and local verification complete; not applied or deployed.**
+
+The Workspace source branch now includes
+`20260828000252_lewis_workspace_parity_actions`. It extends Lewis from the
+original onboarding, leadership-state, capture, and Phase 0 task contract with
+controlled internal Workspace parity actions: list/resolve/discard Quick
+Captures; list/create/delete memory; list/create/update career opportunities;
+replace explicitly confirmed configuration; and read integration-connection
+metadata. It deliberately does not create a general table/data API, bypass RLS,
+return credentials, activate a connector, or perform an external side effect.
+
+All actions remain scoped by the existing OAuth audience, bearer user,
+registered MCP client, personal Workspace ownership, and plan capability. The
+source requires explicit user confirmation for writes, flags discard/deletion
+and configuration replacement as destructive, and uses private idempotency
+receipts for creates and replacement. Local schema lint, source contracts,
+unit tests, pgTAP/RLS tests, boundary checks, typecheck, lint, and production
+build all pass; detailed evidence is in `docs/testing/test-evidence.md`.
+
+This source candidate is **not** an authorization to apply its migration to a
+hosted project or deploy it. The remaining consumer-production release gates
+are still: a deliberate production Entry identity decision; configured shared
+Auth hook and Entry provider; a Workspace-owned Vercel production project and
+environment alignment; live ChatGPT and Claude OAuth/client acceptance; and a
+separately reviewed connector OAuth/action framework. Until those gates are
+approved and passed, the shared runtime still exposes only the prior live MCP
+contract and no ChatGPT or Claude task is represented as saved.
+
+## Lewis consumer-readiness source hardening — 2026-08-28
+
+Status: **Local source and verification complete; no hosted migration,
+runtime deployment, Auth configuration, connector activation, or production
+cutover is authorized by this record.**
+
+The source candidate now also includes
+`20260828002432_lewis_connector_capability_gates` and
+`20260828004945_lewis_workspace_preference_parity`.
+
+- External connectors fail closed unless the direct Workspace owner has an
+  active plan with `external_connectors` enabled and a positive
+  `integration_limit`. The gate validates provider-to-credential-family
+  mapping, reserves capacity for active OAuth attempts, enables RLS on the
+  private credential/attempt tables, and prevents an in-flight OAuth callback
+  from recreating a credential after native disconnect.
+- Native disconnect removes the Workspace-held encrypted credential, clears
+  linked metadata, and invalidates relevant OAuth attempts. It does not claim
+  provider-side grant revocation; that remains a provider-adapter release gate.
+- ChatGPT and Claude are now modeled exclusively as `mcp_oauth` assistant
+  connections rather than API-key integrations. The generic credential route
+  rejects them.
+- Lewis adds narrow preference/assistant parity only: read/save three valid
+  display-clock time zones, list assistant states without client IDs, and
+  disconnect only the current assistant with explicit confirmation. It still
+  does not activate external providers, return credentials, send messages, or
+  create calendar events.
+- The consumer production matrix and ordered cutover gates are recorded in
+  `docs/architecture/lewis-consumer-mcp-readiness.md`. A clean dedicated Entry
+  production identity authority remains the recommended path; promotion of a
+  populated development identity project requires a separate approved identity
+  inventory, cleanup/retention decision, and secret/session rotation plan.
+
+All three new source migrations were applied only to the local Supabase stack.
+The local ledger matches source through `20260828004945`, and local schema lint
+reports no errors. The shared production runtime remains on its previous live
+MCP contract and external connectors remain disabled there.
+
+## Consumer connector release control — 2026-08-28
+
+Status: **Local source and verification complete; no hosted migration,
+runtime deployment, Auth configuration, provider consent, or production cutover
+is authorized by this record.**
+
+The source candidate now also includes
+`20260828011121_lewis_connector_release_registry`. It introduces a private,
+default-off provider release registry. An active Personal plan and external
+connection capacity no longer suffice to start OAuth or save a credential: the
+provider must also be explicitly released in both the source application and
+the database. Generic integration routes reject unreleased providers, while a
+legacy connection can still be natively disconnected and purged.
+
+The public catalog now accurately labels external providers as planned. It no
+longer claims that Workspace can send Slack messages, create Calendar events,
+draft/send Gmail, write files, create exports, or otherwise operate a provider
+without its separately reviewed action adapter. Future provider releases must
+include the action contract, exact scopes, confirmation UX, idempotency,
+outbound audit, refresh/revocation, provider test evidence, and a written
+production gate.
+
+A read-only live smoke check of the Workspace assistant-connection route found
+that it remains stuck at “Loading your private workspace” with an
+`AuthRetryableFetchError` before sign-in. This confirms the current paused or
+misaligned public runtime/identity configuration is a release blocker. It was
+observed only; no production setting was changed.
+
+## Assistant connection parity control — 2026-08-28
+
+Status: **Local source and verification complete; no hosted migration, runtime
+deployment, Auth configuration, external-provider consent, or production
+cutover is authorized by this record.**
+
+The source candidate now also includes
+`20260828100646_lewis_assistant_connection_parity`. Native Workspace already
+lets an owner revoke any ChatGPT or Claude connection. Lewis now has the same
+confirmed capability through an opaque `connection_id` returned from its
+assistant-connection list. It never returns an OAuth client ID or credential.
+
+- The controlled revoke RPC requires an active current MCP bearer, the Personal
+  Workspace capability, a target authorization owned by the same user and
+  Workspace, and explicit tool-layer confirmation. It invalidates future calls
+  from the target connection and records an audit event without storing the raw
+  client identifier in the event.
+- A guessed connection handle from another Workspace is treated as absent and
+  cannot reveal or alter that connection. The current-assistant self-disconnect
+  remains available for the fast “remove this assistant now” path.
+- This closes the remaining native write/control mismatch found in the parity
+  review. External-provider credentials and actions remain intentionally
+  unreleased until each provider has its own adapter, consent scope, action
+  contract, and written production gate.
+
+## Partner workspace boundary correction — 2026-08-28
+
+Status: **No hosted project has been resumed, linked, migrated, configured, or
+deployed. The previously considered paused projects are explicitly out of
+scope.**
+
+The partner workspace shown by the user contains the intended active sandboxes:
+`lead-emergence-entry-dev` (`vnjdubrnmxvmsccxmhst`) and
+`lead-emergence-consulting-dev` (`eudlnlizoioqwqjuxgro`).
+
+- Lewis Workspace uses `lead-emergence-entry-dev` as the shared identity and
+  production-foundation candidate. `lead-emergence-consulting-dev` remains out
+  of scope for this private Workspace product.
+- `lead-emergence-personal-sandbox` and `lead-emergence-meridian-sandbox` are
+  paused projects in a different workspace. They must remain untouched and are
+  not production candidates.
+- Read-only Entry inventory found no deployed Edge Functions and no configured
+  project secrets. The accessible Vercel team likewise has no project. There is
+  therefore no existing owned Workspace runtime to repair or cut over; the
+  shared foundation must be deliberately established on Entry before Lewis can
+  be deployed.
+- Entry schema presence remains unverified: the hosted CLI requires a linked
+  IPv4 connection for database inspection, while this repository is explicitly
+  prohibited from linking to a hosted project. The designated shared-migration
+  repository is also currently dirty, so no attempt was made to stage or apply
+  Workspace migrations there.
+- Before any hosted change, the written gate must still record the Entry project
+  identity inventory and retention decision, session/secret rotation plan, Auth
+  and OAuth configuration, Workspace migration authority, Vercel runtime
+  environment, and a reversible acceptance test plan.

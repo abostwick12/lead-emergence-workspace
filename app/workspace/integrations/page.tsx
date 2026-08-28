@@ -42,7 +42,7 @@ import {
 } from "@/lib/workspace/mcp-catalog";
 import { listIntegrationConnections, listMcpAuthorizations } from "@/lib/workspace/repository";
 import { getWorkspaceClient } from "@/lib/supabase/client";
-import { getIntegrationProvider, isGoogleWorkspaceConnection } from "@/lib/integrations/providers";
+import { getIntegrationProvider } from "@/lib/integrations/providers";
 import type { IntegrationConnection, McpAuthorizationRecord } from "@/lib/workspace/types";
 import styles from "./integrations.module.css";
 
@@ -104,7 +104,8 @@ const STATUS_META: Record<McpDisplayStatus, { label: string; action: string }> =
   reconnect_required: { label: "Reconnect required", action: "Review" },
   disconnected: { label: "Disconnected", action: "Review" },
   error: { label: "Action needed", action: "Review" },
-  available: { label: "Not connected", action: "View setup" }
+  available: { label: "Not connected", action: "View setup" },
+  catalog_only: { label: "Planned", action: "Details" }
 };
 
 function formatLastSuccess(value: string | null): string {
@@ -119,15 +120,14 @@ function selectedMessage(entry: McpCatalogEntry, connection: IntegrationConnecti
     if (assistantConnection?.status === "connected") return `${entry.name} is connected through Workspace OAuth and controlled tool authorization. You can disconnect it from Settings.`;
     return `${entry.name} can connect to the Workspace-native assistant interface with explicit OAuth consent. Workspace remains the system of record.`;
   }
-  if (isGoogleWorkspaceConnection(entry.id)) {
-    if (connection?.status === "connected") return "Gmail and Google Calendar share one secure Google authorization. Both connection cards are ready to use; provider credentials remain outside the Workspace.";
-    return "One secure Google authorization connects Gmail and Google Calendar together. It requests only message read/draft and calendar event read access.";
-  }
   if (connection?.status === "connected") {
-    return `${entry.name} is connected. Connection metadata is visible here; provider credentials remain outside the Workspace.`;
+    return `${entry.name} is connected. Connection metadata is visible here; its encrypted credential is isolated in the private Workspace vault.`;
   }
   if (connection) {
     return `${entry.name} already has Workspace metadata, but provider authorization still needs attention. ${entry.boundary}`;
+  }
+  if (!getIntegrationProvider(entry.id)?.consumerConnectionReady) {
+    return `${entry.name} is catalogued for this Workspace, but it cannot collect credentials or access provider data until its provider-specific adapter is reviewed and released. ${entry.boundary}`;
   }
   if (entry.supportsWorkspaceMetadata) {
     return `${entry.name} is supported by the current metadata model. An approved provider authorization endpoint is still required before it can connect.`;
@@ -136,7 +136,7 @@ function selectedMessage(entry: McpCatalogEntry, connection: IntegrationConnecti
 }
 
 export default function IntegrationsPage() {
-  const { user, workspace } = useWorkspace();
+  const { user, workspace, capabilities } = useWorkspace();
   const [connections, setConnections] = useState<IntegrationConnection[]>([]);
   const [assistantConnections, setAssistantConnections] = useState<McpAuthorizationRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,6 +199,8 @@ export default function IntegrationsPage() {
     [selectedId]
   );
   const selectedConnection = selectedEntry ? findConnectionForEntry(selectedEntry, connections) : undefined;
+  const selectedProvider = selectedEntry ? getIntegrationProvider(selectedEntry.id) : undefined;
+  const externalConnectionsEnabled = capabilities.external_connectors && capabilities.integration_limit > 0;
   const activeCount = connections.filter((connection) => connection.status === "connected").length + assistantConnections.filter((connection) => connection.status === "connected").length;
   const attentionCount = connections.filter(
     (connection) => connection.status === "reconnect_required" || connection.status === "error"
@@ -251,6 +253,23 @@ export default function IntegrationsPage() {
       setApiKey("");
     } catch (caught) {
       setConnectionError(caught instanceof Error ? caught.message : "Could not connect this provider.");
+    } finally {
+      setConnectingId(null);
+    }
+  };
+
+  const disconnectExternalConnection = async (entry: McpCatalogEntry) => {
+    if (!workspace || !user) return setConnectionError("Sign in before changing an integration.");
+    setConnectingId(entry.id);
+    setConnectionError(null);
+    try {
+      const token = await accessToken();
+      const response = await fetch(`/api/integrations/${entry.id}/disconnect`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ workspaceId: workspace.id }) });
+      const payload = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(payload.message || "Could not disconnect this provider from Workspace.");
+      setConnections(await listIntegrationConnections(workspace.id));
+    } catch (caught) {
+      setConnectionError(caught instanceof Error ? caught.message : "Could not disconnect this provider from Workspace.");
     } finally {
       setConnectingId(null);
     }
@@ -378,11 +397,22 @@ export default function IntegrationsPage() {
                     <p>{selectedMessage(selectedEntry, selectedConnection, assistantConnections.find((item) => item.assistant_provider === selectedEntry.id))}</p>
                     {selectedEntry.id === "chatgpt" || selectedEntry.id === "claude" ? (
                       <Link className={styles.connectButton} href={`/workspace/integrations/assistant?provider=${selectedEntry.id}`}>Connect assistant</Link>
-                    ) : getIntegrationProvider(selectedEntry.id)?.connectionMethod === "oauth" || getIntegrationProvider(selectedEntry.id)?.connectionMethod === "github_app" ? (
+                    ) : selectedConnection && selectedConnection.status !== "disconnected" && getIntegrationProvider(selectedEntry.id)?.supportsDisconnect ? (
+                      <div>
+                        <button type="button" className={styles.connectButton} disabled={connectingId === selectedEntry.id} onClick={() => void disconnectExternalConnection(selectedEntry)}>
+                          {connectingId === selectedEntry.id ? "Disconnecting…" : "Disconnect from Workspace"}
+                        </button>
+                        <p className={styles.providerSetupNote}>This removes the encrypted Workspace credential. Revoke the provider-side grant there as well if you no longer want it active.</p>
+                      </div>
+                    ) : !selectedProvider?.consumerConnectionReady ? (
+                      <p className={styles.providerSetupNote}>This connector is planned, not active. Workspace will not collect a credential or access provider data until its provider-specific action contract and release checks are complete.</p>
+                    ) : !externalConnectionsEnabled ? (
+                      <p className={styles.providerSetupNote}>External connections are not included for this Workspace right now. They remain unavailable until the plan explicitly enables them and includes connection capacity.</p>
+                    ) : selectedProvider.connectionMethod === "oauth" || selectedProvider.connectionMethod === "github_app" ? (
                       <button type="button" className={styles.connectButton} disabled={connectingId === selectedEntry.id} onClick={() => void startExternalConnection(selectedEntry)}>
-                        {connectingId === selectedEntry.id ? "Opening secure connection…" : isGoogleWorkspaceConnection(selectedEntry.id) ? "Connect Google services" : getMcpSetupLabel(selectedEntry)}
+                        {connectingId === selectedEntry.id ? "Opening secure connection…" : getMcpSetupLabel(selectedEntry)}
                       </button>
-                    ) : getIntegrationProvider(selectedEntry.id)?.connectionMethod === "api_key" ? (
+                    ) : selectedProvider.connectionMethod === "api_key" ? (
                       <form className={styles.apiKeyForm} onSubmit={(event) => void connectApiKey(event, selectedEntry)}>
                         <label className="sr-only" htmlFor={`api-key-${selectedEntry.id}`}>API key for {selectedEntry.name}</label>
                         <input id={`api-key-${selectedEntry.id}`} type="password" autoComplete="off" required value={apiKey} placeholder="Paste API key once" onChange={(event) => setApiKey(event.target.value)} />
@@ -396,7 +426,7 @@ export default function IntegrationsPage() {
               {connectionError ? <p className={styles.connectionError} role="alert">{connectionError}</p> : null}
 
               <p className={styles.boundaryNote}>
-                Connections use an encrypted Workspace vault. OAuth tokens, API keys, connector secrets, and ministry credentials are never stored in the Workspace data API.
+                Connections use an encrypted private Workspace vault. OAuth tokens, API keys, connector secrets, and ministry credentials are never stored in the Workspace data API.
               </p>
             </div>
           ) : null}
@@ -413,6 +443,7 @@ export default function IntegrationsPage() {
       <section className={styles.connectionsGrid} aria-label="Workspace connections">
         {MCP_CATALOG.map((entry) => {
           const connection = findConnectionForEntry(entry, connections);
+          const provider = getIntegrationProvider(entry.id);
           const status = displayStatus(entry, connections, assistantConnections);
           const meta = STATUS_META[status];
           return (
@@ -433,7 +464,7 @@ export default function IntegrationsPage() {
               </div>
               <p className={styles.cardDetail}>{entry.detail}</p>
               <footer className={styles.cardFooter}>
-                <span>{entry.id === "chatgpt" || entry.id === "claude" ? "Workspace OAuth" : connection ? "Workspace metadata" : "Catalog only"}</span>
+                <span>{entry.id === "chatgpt" || entry.id === "claude" ? "Workspace OAuth" : connection ? "Workspace metadata" : provider?.consumerConnectionReady ? "Connection setup" : "Planned connector"}</span>
                 <span>
                   <RefreshCw size={11} aria-hidden="true" />
                   {formatLastSuccess(connection?.last_success_at ?? null)}

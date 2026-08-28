@@ -384,3 +384,122 @@ Not executed or not claimable at this checkpoint:
   connector credential/OAuth-attempt storage. No workaround was attempted.
   Real ChatGPT/Claude acceptance, Auth hook/provider configuration, Vercel
   routing, connector OAuth, and user/task migration remain out of scope.
+
+## Lewis internal Workspace-parity source verification — 2026-08-28
+
+This is source and local-test evidence only. It does not authorize or record a
+hosted migration, Vercel deployment, Auth configuration change, OAuth-provider
+activation, connector authorization, or user-data migration.
+
+- Added source migration `20260828000252_lewis_workspace_parity_actions`.
+  It adds narrow, tenant-scoped MCP RPCs for Quick Capture resolution/discard,
+  Workspace memory, career opportunities, confirmed configuration replacement,
+  and read-only integration-connection status. The RPCs require the existing
+  MCP bearer/client/plan boundary; destructive operations require an explicit
+  tool-level confirmation; create/replace operations use private idempotency
+  receipts. It does not expose Workspace tables, connector credentials, or an
+  arbitrary database operation.
+- Local migration application and `supabase migration list --local` — **PASS**.
+  The local ledger contains `20260828000252` with matching source and local
+  history. No hosted target was linked or changed.
+- Local `supabase db lint --local` — **PASS**, no schema errors in extensions,
+  `public`, `workspace`, or `workspace_private`.
+- `npm run check:boundaries` — **PASS**; 52 runtime files have no Ministry or
+  Consulting import and no service-role client.
+- `npm run test:schema` — **18/18 PASS**, including the parity migration's
+  controlled function, grant/revoke, capability, private-receipt, and no-secret
+  contract checks.
+- `npm run test:unit` — **61/61 PASS** in eleven files, including the public
+  Lewis tool contract, confirmation requirements, and narrow RPC argument
+  mappings.
+- `npm run typecheck`, `npm run lint`, and `npm run build` — **PASS**. The
+  production build compiled the Workspace OAuth, MCP, and integration-route
+  surfaces successfully.
+- `npm run test:rls` — **138/138 PASS** across five pgTAP files. The new 31
+  assertions verify cross-tenant denial, ordinary-RLS denial for MCP bearers,
+  plan-capability denial, client binding, idempotent replay, no existence oracle
+  for another user's memory, and connector metadata read-only behavior.
+
+## Lewis consumer-readiness source verification — 2026-08-28
+
+This evidence is local-only. It does not represent a hosted Supabase migration,
+Vercel deployment, Auth configuration change, real ChatGPT/Claude acceptance,
+or external-provider connection.
+
+- Local migration application — **PASS** for
+  `20260828002432_lewis_connector_capability_gates` and
+  `20260828004945_lewis_workspace_preference_parity`.
+- `supabase migration list --local` — **PASS**; source and local history both
+  end at `20260828004945`.
+- `supabase db lint --local` — **PASS**, with no schema errors in extensions,
+  `public`, `workspace`, or `workspace_private`.
+- `npm run test:rls` — **177/177 PASS** across seven pgTAP files. The added
+  coverage proves default plan denial, capacity reservation, provider-family
+  validation, linked Google behavior, downgrade-safe disconnect, invalidated
+  in-flight OAuth completion, private credential removal, MCP-bearer profile
+  RLS denial, valid IANA display clocks, assistant self-disconnect, and
+  post-disconnect bearer denial.
+- `npm run check:boundaries` — **PASS**; 53 runtime files have no Ministry or
+  Consulting import and no service-role client.
+- `npm run test:schema` — **21/21 PASS**, including the connector capability,
+  OAuth completion, display-clock, and assistant self-service source contracts.
+- `npm run typecheck`, `npm run lint`, `npm run test:unit`, and `npm run build`
+  — **PASS**. Unit coverage is **64/64 PASS** and the production build includes
+  the new native disconnect route without a route conflict.
+- `git diff --check` — **PASS**; Git reported only the repository's existing
+  line-ending conversion warnings.
+
+## Assistant connection parity verification — 2026-08-28
+
+This evidence is local-only. It does not authorize or represent a hosted
+Supabase migration, runtime deployment, Auth change, external-provider consent,
+or consumer release.
+
+- Local migration application and `supabase migration list --local` — **PASS**
+  for `20260828100646_lewis_assistant_connection_parity`; source and local
+  history both include it as the latest migration.
+- `supabase db lint --local` — **PASS**, with no schema errors in extensions,
+  `public`, `workspace`, or `workspace_private`.
+- `npm run test:rls` — **185/185 PASS** across seven pgTAP files. The new
+  coverage proves opaque assistant connection handles, confirmed revocation of
+  a separately authorized assistant, current-bearer continuity, and
+  cross-Workspace revocation denial.
+- `npm run test:schema` — **23/23 PASS**, including the opaque assistant-handle
+  and tenant-bound revocation source contract.
+- `npm run test:unit` — **66/66 PASS** in eleven files, including confirmation
+  and narrow RPC argument mapping for an assistant-connection disconnect.
+- `npm run check:boundaries`, `npm run typecheck`, `npm run lint`, and
+  `npm run build` — **PASS**. Boundaries verified 53 runtime files with no
+  Ministry or Consulting import and no service-role client; the production build
+  includes the controlled MCP route and all Workspace surfaces successfully.
+
+## Consumer connector release-control verification — 2026-08-28
+
+This evidence is local-only. It does not authorize or represent a hosted
+Supabase migration, runtime deployment, Auth change, external-provider consent,
+or consumer release.
+
+- Local migration application — **PASS** for
+  `20260828011121_lewis_connector_release_registry`.
+- `supabase migration list --local` — **PASS**; source and local history both
+  included `20260828011121` through that release-control checkpoint.
+- `supabase db lint --local` — **PASS**, with no schema errors in extensions,
+  `public`, `workspace`, or `workspace_private`.
+- `npm run test:rls` — **179/179 PASS** across seven pgTAP files. The added
+  checks prove that an active plan is still denied until the provider is
+  explicitly released, while the previous capacity, owner, disconnect, and
+  OAuth-race controls remain intact.
+- `npm run test:schema` — **22/22 PASS**, including the private release
+  registry, no-direct-table-access, application route gate, and least-privilege
+  scope contract.
+- `npm run test:unit` — **65/65 PASS** in eleven files. The catalog marks
+  external providers as planned, preserves ChatGPT/Claude Workspace OAuth, and
+  excludes Gmail compose, Slack post, and Microsoft file-write scopes.
+- `npm run typecheck` — **PASS**.
+- `npm run check:boundaries`, `npm run lint`, and `npm run build` — **PASS**
+  after the release-control changes. Boundaries verified 53 runtime files with
+  no Ministry or Consulting import and no service-role client; the production
+  build includes the planned-connector and native-disconnect routes without a
+  route conflict.
+- `git diff --check` — **PASS**; Git reported only the repository's existing
+  line-ending conversion warnings.

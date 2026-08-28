@@ -16,12 +16,19 @@ export const INTEGRATION_PROVIDER_IDS = [
 ] as const;
 
 export type IntegrationProviderId = (typeof INTEGRATION_PROVIDER_IDS)[number];
-export type IntegrationConnectionMethod = "oauth" | "api_key" | "github_app" | "oauth1";
+export type IntegrationConnectionMethod = "oauth" | "api_key" | "github_app" | "oauth1" | "mcp_oauth";
 
 export type IntegrationProvider = {
   id: IntegrationProviderId;
   credentialFamily: string;
   connectionMethod: IntegrationConnectionMethod;
+  /**
+   * A provider cannot collect a consumer credential simply because it appears
+   * in the catalog. This is paired with the private database release gate so
+   * future adapters must opt in at both the application and persistence
+   * layers.
+   */
+  consumerConnectionReady: boolean;
   setupLabel: string;
   scopes: readonly string[];
   supportsDisconnect: boolean;
@@ -35,23 +42,26 @@ export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationPro
     id: "logos",
     credentialFamily: "logos",
     connectionMethod: "oauth1",
-    setupLabel: "Connect Logos",
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
     scopes: [],
     supportsDisconnect: true
   },
   chatgpt: {
     id: "chatgpt",
-    credentialFamily: "openai",
-    connectionMethod: "api_key",
-    setupLabel: "Add OpenAI API key",
+    credentialFamily: "workspace_mcp",
+    connectionMethod: "mcp_oauth",
+    consumerConnectionReady: true,
+    setupLabel: "Connect through Workspace OAuth",
     scopes: [],
     supportsDisconnect: true
   },
   claude: {
     id: "claude",
-    credentialFamily: "anthropic",
-    connectionMethod: "api_key",
-    setupLabel: "Add Anthropic API key",
+    credentialFamily: "workspace_mcp",
+    connectionMethod: "mcp_oauth",
+    consumerConnectionReady: true,
+    setupLabel: "Connect through Workspace OAuth",
     scopes: [],
     supportsDisconnect: true
   },
@@ -59,23 +69,26 @@ export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationPro
     id: "gmail",
     credentialFamily: "google",
     connectionMethod: "oauth",
-    setupLabel: "Connect Gmail",
-    scopes: ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.compose"],
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
+    scopes: ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly"],
     supportsDisconnect: true
   },
   slack: {
     id: "slack",
     credentialFamily: "slack",
     connectionMethod: "oauth",
-    setupLabel: "Connect Slack",
-    scopes: ["chat:write", "channels:read", "groups:read"],
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
+    scopes: ["channels:read", "groups:read"],
     supportsDisconnect: true
   },
   google_calendar: {
     id: "google_calendar",
     credentialFamily: "google",
     connectionMethod: "oauth",
-    setupLabel: "Connect Google Calendar",
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
     scopes: ["openid", "email", "https://www.googleapis.com/auth/calendar.events.readonly"],
     supportsDisconnect: true
   },
@@ -83,7 +96,8 @@ export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationPro
     id: "monday",
     credentialFamily: "monday",
     connectionMethod: "oauth",
-    setupLabel: "Connect Monday.com",
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
     scopes: ["me:read", "boards:read", "workspaces:read"],
     supportsDisconnect: true
   },
@@ -91,7 +105,8 @@ export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationPro
     id: "github",
     credentialFamily: "github",
     connectionMethod: "github_app",
-    setupLabel: "Install GitHub App",
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
     scopes: [],
     supportsDisconnect: true
   },
@@ -99,7 +114,8 @@ export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationPro
     id: "linkedin",
     credentialFamily: "linkedin",
     connectionMethod: "oauth",
-    setupLabel: "Connect LinkedIn",
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
     scopes: ["openid", "profile", "email"],
     supportsDisconnect: true
   },
@@ -107,15 +123,17 @@ export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationPro
     id: "google_drive",
     credentialFamily: "google",
     connectionMethod: "oauth",
-    setupLabel: "Connect Google Drive",
-    scopes: ["openid", "email", "https://www.googleapis.com/auth/drive.file"],
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
+    scopes: ["openid", "email", "https://www.googleapis.com/auth/drive.metadata.readonly"],
     supportsDisconnect: true
   },
   firecrawl: {
     id: "firecrawl",
     credentialFamily: "firecrawl",
     connectionMethod: "api_key",
-    setupLabel: "Add Firecrawl API key",
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
     scopes: [],
     supportsDisconnect: true
   },
@@ -123,7 +141,8 @@ export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationPro
     id: "canva",
     credentialFamily: "canva",
     connectionMethod: "oauth",
-    setupLabel: "Connect Canva",
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
     scopes: ["openid", "profile", "design:meta:read"],
     supportsDisconnect: true
   },
@@ -131,15 +150,17 @@ export const INTEGRATION_PROVIDERS: Record<IntegrationProviderId, IntegrationPro
     id: "powerpoint",
     credentialFamily: "microsoft",
     connectionMethod: "oauth",
-    setupLabel: "Connect Microsoft 365",
-    scopes: ["openid", "profile", "offline_access", "User.Read", "Files.ReadWrite"],
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
+    scopes: ["openid", "profile", "offline_access", "User.Read", "Files.Read"],
     supportsDisconnect: true
   },
   youversion: {
     id: "youversion",
     credentialFamily: "youversion",
     connectionMethod: "oauth",
-    setupLabel: "Connect YouVersion",
+    consumerConnectionReady: false,
+    setupLabel: "Planned connector",
     scopes: ["openid", "profile", "email"],
     supportsDisconnect: true
   }

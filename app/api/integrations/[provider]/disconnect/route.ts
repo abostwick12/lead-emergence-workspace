@@ -13,24 +13,23 @@ export async function POST(request: Request, context: { params: Promise<{ provid
   const { provider: providerId } = await context.params;
   const provider = getIntegrationProvider(providerId);
   if (!provider || !isIntegrationProviderId(providerId)) return NextResponse.json({ message: "Unknown connection." }, { status: 404 });
-  if (!provider.consumerConnectionReady || provider.connectionMethod !== "api_key") return NextResponse.json({ message: "This provider's Workspace connection is not available yet." }, { status: 400 });
+  if (provider.connectionMethod === "mcp_oauth") return NextResponse.json({ message: "Assistant connections are managed from Workspace settings." }, { status: 400 });
   const token = accessToken(request);
-  if (!token) return NextResponse.json({ message: "Sign in before connecting an integration." }, { status: 401 });
+  if (!token) return NextResponse.json({ message: "Sign in before changing an integration." }, { status: 401 });
 
   try {
-    const body = await request.json() as { apiKey?: unknown; workspaceId?: unknown };
-    if (typeof body.workspaceId !== "string" || typeof body.apiKey !== "string" || body.apiKey.trim().length < 8) {
-      return NextResponse.json({ message: "Enter a valid API key." }, { status: 400 });
-    }
+    const body = await request.json() as { workspaceId?: unknown };
+    if (typeof body.workspaceId !== "string") return NextResponse.json({ message: "Invalid Workspace connection request." }, { status: 400 });
     await verifyWorkspaceOwner(token, body.workspaceId);
     await saveIntegrationCredential({
       accessToken: token,
-      credential: { api_key: body.apiKey.trim() },
+      credential: {},
       provider: providerId,
+      status: "disconnected",
       workspaceId: body.workspaceId
     });
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ message: "Could not save this connection." }, { status: 400 });
+    return NextResponse.json({ message: "Could not disconnect this provider from Workspace." }, { status: 400 });
   }
 }

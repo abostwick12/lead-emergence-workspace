@@ -13,6 +13,10 @@ function accessToken(request: Request): string | null {
 export async function POST(request: Request, context: { params: Promise<{ provider: string }> }) {
   const { provider } = await context.params;
   if (!isIntegrationProviderId(provider)) return NextResponse.json({ message: "Unknown connection." }, { status: 404 });
+  const providerConfiguration = getIntegrationProvider(provider);
+  if (!providerConfiguration || !providerConfiguration.consumerConnectionReady || (providerConfiguration.connectionMethod !== "oauth" && providerConfiguration.connectionMethod !== "github_app")) {
+    return NextResponse.json({ message: "This provider's Workspace connection is not available yet." }, { status: 400 });
+  }
   const token = accessToken(request);
   if (!token) return NextResponse.json({ message: "Sign in before connecting an integration." }, { status: 401 });
 
@@ -20,8 +24,7 @@ export async function POST(request: Request, context: { params: Promise<{ provid
     const body = await request.json() as { workspaceId?: unknown };
     if (typeof body.workspaceId !== "string") return NextResponse.json({ message: "Invalid Workspace connection request." }, { status: 400 });
     await verifyWorkspaceOwner(token, body.workspaceId);
-    const providerConfiguration = getIntegrationProvider(provider);
-    const flow = providerConfiguration?.connectionMethod === "github_app"
+    const flow = providerConfiguration.connectionMethod === "github_app"
       ? createGitHubAppFlow({ accessToken: token, workspaceId: body.workspaceId })
       : createOAuthFlow({ accessToken: token, provider, workspaceId: body.workspaceId });
     await createOAuthAttempt({
@@ -40,8 +43,7 @@ export async function POST(request: Request, context: { params: Promise<{ provid
       secure: process.env.NODE_ENV === "production"
     });
     return response;
-  } catch (caught) {
-    const message = caught instanceof Error ? caught.message : "Could not start this connection.";
-    return NextResponse.json({ message }, { status: 400 });
+  } catch {
+    return NextResponse.json({ message: "Could not start this connection." }, { status: 400 });
   }
 }
