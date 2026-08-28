@@ -9,3 +9,14 @@ export function normalizeMcpResourceUri(value: string, production = process.env.
   }
   return resource.toString();
 }
+
+export function configuredMcpResourceUri(input = {
+  configured: process.env.WORKSPACE_MCP_RESOURCE_URI?.trim(),
+  applicationOrigin: process.env.NEXT_PUBLIC_APP_URL?.trim(),
+  production: process.env.NODE_ENV === "production"
+}) {
+  if (input.configured) return normalizeMcpResourceUri(input.configured, input.production);
+  if (input.production) throw new Error("WORKSPACE_MCP_RESOURCE_URI must be configured in production.");
+  if (!input.applicationOrigin) throw new Error("WORKSPACE_MCP_RESOURCE_URI or NEXT_PUBLIC_APP_URL must be configured.");
+  return normalizeMcpResourceUri(new URL("/api/mcp", input.applicationOrigin).toString(), false);
+}

@@ -1,13 +1,10 @@
 import "server-only";
 
 import { createWorkspaceBearerClient, workspaceSupabaseUrl } from "@/lib/supabase/server";
-import { normalizeMcpResourceUri } from "@/lib/workspace/mcp-uri";
+import { configuredMcpResourceUri } from "@/lib/workspace/mcp-uri";
 
 export function workspaceMcpResourceUri() {
-  const configured = process.env.WORKSPACE_MCP_RESOURCE_URI?.trim();
-  if (configured) return normalizeMcpResourceUri(configured);
-  const origin = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://workspace.leademergence.com";
-  return normalizeMcpResourceUri(new URL("/api/mcp", origin).toString());
+  return configuredMcpResourceUri();
 }
 
 export function workspaceProtectedResourceMetadata() {

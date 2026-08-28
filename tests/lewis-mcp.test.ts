@@ -233,6 +233,7 @@ describe("Lewis MCP contract", () => {
   });
 
   it("returns an MCP reauthorization challenge when a controlled RPC detects a disconnected bearer", async () => {
+    vi.stubEnv("WORKSPACE_MCP_RESOURCE_URI", "http://localhost:3000/api/mcp");
     const client = await connectLewis(vi.fn(async () => ({
       data: null,
       error: { code: "42501", message: "This AI assistant connection is disconnected or requires authorization." }
