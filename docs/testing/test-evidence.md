@@ -533,3 +533,28 @@ or consumer release.
   route conflict.
 - `git diff --check` — **PASS**; Git reported only the repository's existing
   line-ending conversion warnings.
+
+## Trusted OIDC provisioning boundary remediation — 2026-08-29
+
+Source-only/local verification for the forward-only Workspace admission hardening.
+No hosted migration, Auth configuration, provider, user, OIDC callback, MCP state,
+or service restart was performed.
+
+- `git diff --check` — **PASS**.
+- `npm run check:boundaries` — **PASS**. Verified 55 runtime files; no
+  Ministry/Consulting runtime import or service-role client.
+- `npm run test:schema` — **PASS**. **25/25** source-policy contracts pass,
+  including the Entry-only login, update-only clock preferences, strict trusted
+  identity predicate, and revoked direct admission-write controls.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **PASS**. **13 files / 71 tests**.
+- `npm run build` — **PASS** on Next.js 16.3.2.
+- `npm run test:provisioning-concurrency` — **PASS**. Simultaneous local,
+  synthetic trusted-identity first provisioning produced exactly one Personal
+  Workspace, active owner membership, plan, and onboarding row.
+- Initial `npm run test:rls` unavailability was resolved by recreating only the
+  isolated local Docker/Supabase topology (`supabase stop --no-backup`, then
+  `supabase start`). The project remained unlinked and no hosted target was
+  used. The final candidate run is **PASS — 11 files / 247 assertions / 0
+  failures**, including the new trusted OIDC boundary pgTAP file.
