@@ -226,13 +226,7 @@ export async function saveClockTimeZones(userId: string, clockTimeZones: ClockTi
     .maybeSingle();
   if (updateError) throw new Error(updateError.message);
   if (updated) return normalizeClockTimeZones((updated as UserProfileRecord).clock_timezones);
-
-  const { data: inserted, error: insertError } = await getWorkspaceClient()
-    .from("user_profiles")
-    .insert({ user_id: userId, clock_timezones: clockTimeZones })
-    .select("user_id, timezone, clock_timezones")
-    .single();
-  return normalizeClockTimeZones(required(inserted as UserProfileRecord | null, insertError).clock_timezones);
+  throw new Error("Workspace profile is unavailable. Complete Lead Emergence sign-in and try again.");
 }
 
 export async function listDailyBriefings(workspaceId: string): Promise<DailyBriefingRecord[]> {

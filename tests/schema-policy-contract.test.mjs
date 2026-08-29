@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const sql = await readFile("supabase/migrations/20260820000000_workspace_foundation.sql", "utf8");
 const productizationSql = await readFile("supabase/migrations/20260822044610_workspace_productization.sql", "utf8");
+const trustedOidcBoundarySql = await readFile("supabase/migrations/20260829120000_workspace_trusted_oidc_provisioning_boundary.sql", "utf8");
 const clockPreferencesSql = await readFile("supabase/migrations/20260821172607_workspace_clock_preferences.sql", "utf8");
 const firstCaptureEventSql = await readFile("supabase/migrations/20260822124500_workspace_first_capture_event.sql", "utf8");
 const privateRlsSql = await readFile("supabase/migrations/20260822132000_workspace_private_rls.sql", "utf8");
@@ -81,6 +82,26 @@ test("provisions Personal product state only through the trusted Entry identity 
   assert.match(productizationSql, /insert into workspace\.personal_onboarding/);
 });
 
+test("makes trusted OIDC identity and the provisioning RPC the only Personal admission path", () => {
+  assert.match(trustedOidcBoundarySql, /revoke insert, update on table workspace\.user_profiles from authenticated/);
+  assert.match(trustedOidcBoundarySql, /grant update \(clock_timezones\) on table workspace\.user_profiles to authenticated/);
+  assert.match(trustedOidcBoundarySql, /revoke insert, update on table workspace\.workspaces from authenticated/);
+  assert.match(trustedOidcBoundarySql, /revoke insert on table workspace\.workspace_memberships from authenticated/);
+  assert.match(trustedOidcBoundarySql, /drop policy if exists user_profiles_insert_self/);
+  assert.match(trustedOidcBoundarySql, /drop policy if exists workspaces_insert_personal_owner/);
+  assert.match(trustedOidcBoundarySql, /drop policy if exists workspace_memberships_insert_personal_owner/);
+  assert.match(trustedOidcBoundarySql, /identity\.provider_id = identity\.identity_data ->> 'sub'/);
+  assert.match(trustedOidcBoundarySql, /if trusted_identity_count <> 1 then/);
+  assert.match(trustedOidcBoundarySql, /select count\(\*\) into workspace_count[\s\S]*?if workspace_count = 0 then/);
+  assert.match(trustedOidcBoundarySql, /profile_canonical_subject is distinct from canonical_subject::uuid/);
+  assert.match(trustedOidcBoundarySql, /owner_membership_count <> 1/);
+  assert.match(trustedOidcBoundarySql, /revoke all on function workspace\.ensure_personal_workspace\(\) from public, anon/);
+  assert.match(trustedOidcBoundarySql, /grant execute on function workspace\.ensure_personal_workspace\(\) to authenticated/);
+  assert.match(workspaceRepository, /Workspace profile is unavailable\. Complete Lead Emergence sign-in and try again\./);
+  assert.doesNotMatch(workspaceRepository, /\.from\("user_profiles"\)[\s\S]{0,320}\.insert\(/);
+  assert.doesNotMatch(loginPage, /signInWithPassword|legacy=1|rollback sign-in|auth-legacy-toggle/);
+});
+
 test("keeps the Gate C application private, non-indexed, and upload-disabled", () => {
   assert.doesNotMatch(loginPage, /signUp\s*\(/);
   assert.match(loginPage, /active Personal entitlement/);
@@ -134,7 +155,7 @@ test("signs out the current browser session before returning to login", () => {
 
 test("preserves only an allowlisted Workspace pathname across login", () => {
   assert.match(workspaceShell, /workspaceLoginHref\(pathname\)/);
-  assert.match(loginPage, /normalizeWorkspaceReturnPath\(next\)/);
+  assert.match(loginPage, /normalizeWorkspaceReturnPath\(params\.get\("next"\)\)/);
   assert.match(workspaceShell, /window\.location\.replace\("\/login"\)/);
 });
 

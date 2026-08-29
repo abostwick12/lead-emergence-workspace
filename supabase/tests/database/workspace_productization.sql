@@ -67,11 +67,29 @@ select is(has_function_privilege('anon', 'workspace.mcp_create_task(text,uuid,te
 
 update workspace.workspace_memberships set status = 'revoked', revoked_at = now()
 where workspace_id = '6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' and user_id = '62222222-2222-4222-8222-222222222222';
+insert into auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+select
+  '6f000000-0000-4000-8000-000000000002',
+  '64444444-4444-4444-8444-444444444444',
+  '62222222-2222-4222-8222-222222222222',
+  '{"sub":"64444444-4444-4444-8444-444444444444","email":"product.bob@example.invalid"}'::jsonb,
+  provider_identifier,
+  now(), now(), now()
+from workspace_private.trusted_identity_providers
+where enabled
+order by provider_identifier
+limit 1;
+update workspace.user_profiles set
+  canonical_user_id = '64444444-4444-4444-8444-444444444444',
+  entry_provider = (
+    select provider from auth.identities where user_id = '62222222-2222-4222-8222-222222222222'
+  )
+where user_id = '62222222-2222-4222-8222-222222222222';
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"62222222-2222-4222-8222-222222222222","role":"authenticated","aud":"authenticated"}', true);
 select throws_ok(
   $sql$select workspace.ensure_personal_workspace()$sql$,
-  '42501', 'Personal Workspace authorization is not active.',
+  '42501', 'Personal Workspace integrity requires review.',
   'sign-in provisioning cannot reactivate a revoked product-local membership'
 );
 select throws_ok(
@@ -83,8 +101,9 @@ reset role;
 update workspace.workspace_memberships set status = 'active', revoked_at = null
 where workspace_id = '6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' and user_id = '62222222-2222-4222-8222-222222222222';
 
-insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+insert into auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 select
+  '6f000000-0000-4000-8000-000000000001',
   '63333333-3333-4333-8333-333333333333',
   '61111111-1111-4111-8111-111111111111',
   '{"sub":"63333333-3333-4333-8333-333333333333","email":"product.alice@example.invalid"}'::jsonb,
@@ -96,11 +115,15 @@ order by provider_identifier
 limit 1;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
-select lives_ok($sql$select workspace.ensure_personal_workspace()$sql$, 'existing active owner can reconcile a verified Entry identity');
+select throws_ok(
+  $sql$select workspace.ensure_personal_workspace()$sql$,
+  '42501', 'Personal Workspace integrity requires review.',
+  'an existing unlinked owner graph cannot be silently reconciled to a verified Entry identity'
+);
 select is(
   (select canonical_user_id from workspace.user_profiles where user_id = '61111111-1111-4111-8111-111111111111'),
-  '63333333-3333-4333-8333-333333333333'::uuid,
-  'existing owner stores the canonical Entry identity without changing Workspace ownership'
+  null,
+  'the rejected existing graph retains no auto-linked canonical Entry identity'
 );
 reset role;
 
