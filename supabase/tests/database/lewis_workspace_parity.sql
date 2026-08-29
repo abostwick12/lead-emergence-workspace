@@ -1,6 +1,6 @@
 begin;
 
-select plan(31);
+select plan(35);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -106,7 +106,7 @@ select is(
 );
 select throws_ok(
   $sql$select workspace.mcp_resolve_capture('7a100000-0000-4000-8000-000000000001', '7a900000-0000-4000-8000-000000000001', 'life')$sql$,
-  '22023', 'Reuse a capture request identifier only with the same capture details.',
+  '22023', 'Reuse an MCP request identifier only with the same action details.',
   'capture request identifiers cannot be reused with different data'
 );
 select throws_ok(
@@ -229,6 +229,35 @@ select is(
   (select content ->> 'text' from workspace.personal_configuration_items where workspace_id = '7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and area = 'priorities' and active),
   'Updated private priority',
   'configuration replacement stores the exact confirmed text'
+);
+select is(
+  (select count(*) from workspace_private.mcp_action_receipts
+   where operation_name in ('resolve_capture','create_memory','create_career_opportunity','replace_workspace_configuration')
+     and (coalesce(request_payload::text, '') || coalesce(result::text, '')) ~
+       '(Alice first private capture|Alice confirmed memory|Alice New Company|Updated private priority)'),
+  0::bigint,
+  'metadata-only receipts do not duplicate distinctive private capture, memory, career, or configuration content'
+);
+select is(
+  (select count(*) from workspace_private.mcp_action_receipts
+   where operation_name in ('resolve_capture','create_memory','create_career_opportunity','replace_workspace_configuration')
+     and (coalesce(request_payload::text, '') || coalesce(result::text, '')) ~* '(access_token|refresh_token|secret|credential)'),
+  0::bigint,
+  'metadata-only parity receipts contain no secret or token-shaped content'
+);
+select is(
+  (select count(*) from workspace_private.mcp_action_receipts
+   where operation_name in ('resolve_capture','create_memory','create_career_opportunity','replace_workspace_configuration')
+     and (request_hash is null or affected_record_id is null or outcome <> 'succeeded')),
+  0::bigint,
+  'metadata-only parity receipts retain hash, canonical reference, and success outcome'
+);
+select is(
+  (select count(*) from workspace_private.mcp_action_receipts
+   where operation_name in ('resolve_capture','create_memory','create_career_opportunity','replace_workspace_configuration')
+     and expires_at <= created_at + interval '31 days'),
+  4::bigint,
+  'metadata-only parity receipts retain the bounded expiration'
 );
 
 set local role authenticated;

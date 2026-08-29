@@ -1,6 +1,6 @@
 begin;
 
-select plan(70);
+select plan(74);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -234,8 +234,50 @@ select is(
 select is(pg_catalog.jsonb_array_length(workspace.mcp_list_tasks() -> 'tasks'), 3, 'idempotent task creation does not duplicate the task');
 select throws_ok(
   $sql$select workspace.mcp_create_task('Different task', '61111111-1111-4111-8111-111111111101')$sql$,
-  '22023', 'Reuse a task request identifier only with the same task details.',
+  '22023', 'Reuse an MCP request identifier only with the same action details.',
   'Lewis rejects request identifier reuse with different task details'
+);
+reset role;
+select ok(
+  (select request_hash is not null and affected_record_id is not null and outcome = 'succeeded'
+   from workspace_private.mcp_action_receipts
+   where operation_name = 'create_task' and idempotency_key = '61111111-1111-4111-8111-111111111101'),
+  'task receipt retains only hash, canonical reference, and normalized outcome'
+);
+select is(
+  (select count(*) from workspace_private.mcp_action_receipts
+   where operation_name = 'create_task'
+     and idempotency_key = '61111111-1111-4111-8111-111111111101'
+     and (coalesce(request_payload::text, '') || coalesce(result::text, '')) like '%Make an appointment with Sandy at the Care Coalition%'),
+  0::bigint,
+  'task receipt does not retain distinctive private task body text'
+);
+select is(
+  (select count(*) from workspace_private.mcp_action_receipts
+   where operation_name = 'create_task'
+     and idempotency_key = '61111111-1111-4111-8111-111111111101'
+     and (coalesce(request_payload::text, '') || coalesce(result::text, '')) ~* '(access_token|refresh_token|secret|credential)'),
+  0::bigint,
+  'task receipt contains no token or secret-shaped field'
+);
+select ok(
+  (select expires_at > created_at and expires_at <= created_at + interval '31 days'
+   from workspace_private.mcp_action_receipts
+   where operation_name = 'create_task' and idempotency_key = '61111111-1111-4111-8111-111111111101'),
+  'task receipt retains the bounded 30-day expiration'
+);
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  pg_catalog.jsonb_build_object(
+    'sub', '61111111-1111-4111-8111-111111111111',
+    'role', 'authenticated',
+    'aud', current_setting('request.test_mcp_resource_uri'),
+    'client_id', 'alice-mcp-client',
+    'workspace_mcp', 'true',
+    'iat', 1900000000
+  )::text,
+  true
 );
 select is(
   workspace.mcp_update_task(
