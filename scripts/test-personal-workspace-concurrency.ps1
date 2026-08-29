@@ -33,6 +33,7 @@ if ($first.State -ne 'Completed' -or $second.State -ne 'Completed') { throw "Con
 
 $counts = Invoke-LocalSql @"
 select json_build_object(
+  'profiles', (select count(*) from workspace.user_profiles where user_id='$userId'),
   'workspaces', (select count(*) from workspace.workspaces where owner_user_id='$userId' and workspace_type='personal'),
   'memberships', (select count(*) from workspace.workspace_memberships where user_id='$userId' and role='owner' and status='active'),
   'plans', (select count(*) from workspace.personal_plans where user_id='$userId'),
@@ -40,8 +41,8 @@ select json_build_object(
 );
 "@
 
-if ($counts -notmatch '"workspaces"\s*:\s*1' -or $counts -notmatch '"memberships"\s*:\s*1' -or $counts -notmatch '"plans"\s*:\s*1' -or $counts -notmatch '"onboarding"\s*:\s*1') {
+if ($counts -notmatch '"profiles"\s*:\s*1' -or $counts -notmatch '"workspaces"\s*:\s*1' -or $counts -notmatch '"memberships"\s*:\s*1' -or $counts -notmatch '"plans"\s*:\s*1' -or $counts -notmatch '"onboarding"\s*:\s*1') {
   throw "Concurrent provisioning violated Personal tenancy invariants: $counts"
 }
 
-Write-Output 'PASS: simultaneous first-login provisioning produced exactly one Workspace, owner membership, plan, and onboarding row.'
+Write-Output 'PASS: simultaneous trusted first-login provisioning produced exactly one profile, Workspace, active owner membership, plan, and onboarding row.'

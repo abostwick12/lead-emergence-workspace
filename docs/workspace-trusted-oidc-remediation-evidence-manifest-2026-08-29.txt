@@ -13,7 +13,7 @@ LOCAL_DB_CONTAINER=supabase_db_lead-emergence-workspace-local
 LOCAL_ONLY=true
 DEPLOYED_MIGRATION=20260829120000
 RLS_RESULT=PASS;files=11;assertions=247;failures=0;skipped=0
-CONCURRENCY_RESULT=PASS;one_profile_one_workspace_one_active_owner_one_plan_one_onboarding
+CONCURRENCY_RESULT=PASS;fresh_follow_up=profile_count=1;workspace_count=1;active_owner_membership_count=1;plan_count=1;onboarding_count=1
 SCHEMA_RESULT=PASS;25/25
 UNIT_RESULT=PASS;files=14;tests=74
 BUILD_RESULT=PASS;Next.js=16.3.2
