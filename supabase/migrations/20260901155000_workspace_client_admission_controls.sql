@@ -113,9 +113,35 @@ begin
 end;
 $$;
 
+create or replace function public.get_workspace_personal_admission_summary(p_user_id uuid)
+returns jsonb
+language sql
+security invoker
+set search_path = ''
+as $$
+  select workspace_private.personal_admission_summary(p_user_id);
+$$;
+
+create or replace function public.set_workspace_personal_admission_status(
+  p_user_id uuid,
+  p_status text,
+  p_reason_code text
+)
+returns jsonb
+language sql
+security invoker
+set search_path = ''
+as $$
+  select workspace_private.set_personal_admission_status(p_user_id, p_status, p_reason_code);
+$$;
+
 revoke all on function workspace_private.personal_admission_summary(uuid) from public, anon, authenticated;
 revoke all on function workspace_private.set_personal_admission_status(uuid, text, text) from public, anon, authenticated;
+revoke all on function public.get_workspace_personal_admission_summary(uuid) from public, anon, authenticated;
+revoke all on function public.set_workspace_personal_admission_status(uuid, text, text) from public, anon, authenticated;
 grant execute on function workspace_private.personal_admission_summary(uuid) to service_role;
 grant execute on function workspace_private.set_personal_admission_status(uuid, text, text) to service_role;
+grant execute on function public.get_workspace_personal_admission_summary(uuid) to service_role;
+grant execute on function public.set_workspace_personal_admission_status(uuid, text, text) to service_role;
 
 comment on function workspace_private.set_personal_admission_status(uuid, text, text) is 'Service-only Personal admission suspension/reactivation. Suspension preserves data and revokes all private MCP resource grants.';

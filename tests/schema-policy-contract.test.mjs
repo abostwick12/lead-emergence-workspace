@@ -153,6 +153,8 @@ test("revokes the durable MCP grant on every disconnect path", () => {
 test("suspends Personal capability without deleting data or silently restoring MCP", () => {
   assert.match(clientAdmissionControlsSql, /create or replace function workspace_private\.personal_admission_summary/i);
   assert.match(clientAdmissionControlsSql, /create or replace function workspace_private\.set_personal_admission_status/i);
+  assert.match(clientAdmissionControlsSql, /create or replace function public\.get_workspace_personal_admission_summary/i);
+  assert.match(clientAdmissionControlsSql, /create or replace function public\.set_workspace_personal_admission_status/i);
   assert.match(clientAdmissionControlsSql, /p_status not in \('active', 'suspended'\)/i);
   assert.match(clientAdmissionControlsSql, /else 'structurally_inconsistent'/i);
   assert.match(clientAdmissionControlsSql, /update workspace\.personal_plans set status = p_status/i);
