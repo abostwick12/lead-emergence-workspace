@@ -118,6 +118,8 @@ test("adopts only an explicitly approved dynamic public OAuth client for Workspa
   assert.match(mcpResourceAdmissionSql, /primary key \(user_id, client_id, resource_uri\)/i);
   assert.match(mcpResourceAdmissionSql, /mcp_dynamic_admission_enabled', 'false'/i);
   assert.match(mcpResourceAdmissionSql, /create or replace function workspace_private\.resolve_mcp_oauth_authorization/i);
+  assert.match(mcpResourceAdmissionSql, /from auth\.oauth_authorizations as oauth_authorization/i);
+  assert.doesNotMatch(mcpResourceAdmissionSql, /as authorization\b/i);
   assert.match(mcpResourceAdmissionSql, /v_client\.registration_type <> 'dynamic'/i);
   assert.match(mcpResourceAdmissionSql, /v_client\.client_type <> 'public'/i);
   assert.match(mcpResourceAdmissionSql, /v_client\.token_endpoint_auth_method <> 'none'/i);
