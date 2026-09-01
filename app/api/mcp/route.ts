@@ -1,11 +1,13 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { authenticateMcpRequest, mcpUnauthorized, workspaceMcpResourceUri } from "@/lib/workspace/mcp-auth";
+import { authenticateMcpRequest, mcpUnauthorized, mcpWwwAuthenticateChallenge, workspaceMcpResourceUri } from "@/lib/workspace/mcp-auth";
 import { isMcpCorsOrigin, isMcpRequestOriginAllowed } from "@/lib/workspace/mcp-origin";
 import { createWorkspaceMcpServer } from "@/lib/workspace/mcp-server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const observableMcpMethods = new Set(["initialize", "tools/list"]);
 
 export async function POST(request: Request) {
   return handleMcpRequest(request);
@@ -25,9 +27,12 @@ async function handleMcpRequest(request: Request) {
   if (process.env.NODE_ENV === "production" && new URL(request.url).host !== resource.host) {
     return Response.json({ error: "misdirected_request" }, { status: 421 });
   }
+  const requestMessages = await mcpRequestMessages(request);
   const authenticated = await authenticateMcpRequest(request);
-  if (!authenticated) return withCors(request, mcpUnauthorized());
-  const requestMethods = await mcpRequestMethods(request);
+  if (!authenticated) return handleUnauthenticatedMcpRequest(request, requestMessages);
+  const requestMethods = new Set(requestMessages
+    .filter((message) => observableMcpMethods.has(message.method))
+    .map((message) => message.method));
   await recordMcpEvent(authenticated.supabase, "token_admitted");
 
   const registration = await authenticated.supabase.rpc("mcp_register_connection");
@@ -62,15 +67,65 @@ async function recordMcpEvent(supabase: SupabaseClient<any, any, any, any, any>,
   try { await supabase.rpc("mcp_record_observability_event", { p_event_type: eventType }); } catch { /* no-op */ }
 }
 
-async function mcpRequestMethods(request: Request) {
-  if (request.method !== "POST") return new Set<string>();
+type McpRequestMessage = {
+  id: unknown;
+  method: string;
+};
+
+async function mcpRequestMessages(request: Request): Promise<McpRequestMessage[]> {
+  if (request.method !== "POST") return [];
   const body = await request.clone().json().catch(() => null);
   const messages = Array.isArray(body) ? body : [body];
-  return new Set(messages.flatMap((message) => {
+  return messages.flatMap((message) => {
     if (!message || typeof message !== "object") return [];
     const method = (message as { method?: unknown }).method;
-    return typeof method === "string" && ["initialize", "tools/list"].includes(method) ? [method] : [];
-  }));
+    if (typeof method !== "string") return [];
+    return [{ id: (message as { id?: unknown }).id, method }];
+  });
+}
+
+function handleUnauthenticatedMcpRequest(request: Request, messages: McpRequestMessage[]) {
+  const toolCall = messages.length === 1 && messages[0]?.method === "tools/call" ? messages[0] : null;
+  if (toolCall && toolCall.id !== undefined) return mcpToolAuthenticationRequired(request, toolCall.id);
+
+  // Discovery contains only static, non-user-specific tool descriptions. It
+  // must remain readable without a bearer so OpenAI hosts can see each
+  // tool's OAuth policy before requesting access. No call handler runs here.
+  const discoveryMethods = new Set(["initialize", "notifications/initialized", "ping", "tools/list"]);
+  if (request.method === "POST" && messages.length > 0 && messages.every((message) => discoveryMethods.has(message.method))) {
+    return handleMcpDiscoveryRequest(request);
+  }
+
+  return withCors(request, mcpUnauthorized());
+}
+
+async function handleMcpDiscoveryRequest(request: Request) {
+  try {
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+    // Discovery never invokes a tool handler, so it has no database client and
+    // cannot reveal Workspace content. Authenticated requests construct the
+    // normal server below with a bearer-bound client.
+    const server = createWorkspaceMcpServer(null as never);
+    await server.connect(transport);
+    return withCors(request, await transport.handleRequest(request));
+  } catch {
+    return withCors(request, mcpUnauthorized());
+  }
+}
+
+function mcpToolAuthenticationRequired(request: Request, id: unknown) {
+  return withCors(request, Response.json({
+    jsonrpc: "2.0",
+    id,
+    result: {
+      isError: true,
+      content: [{ type: "text", text: "Workspace authentication is required." }],
+      _meta: { "mcp/www_authenticate": [mcpWwwAuthenticateChallenge()] },
+    },
+  }, { status: 200 }));
 }
 
 export function DELETE(request: Request) {

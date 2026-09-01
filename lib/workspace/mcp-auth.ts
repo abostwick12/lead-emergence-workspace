@@ -35,7 +35,10 @@ export function mcpUnauthorized(message = "Authorization is required.") {
 }
 
 export function mcpWwwAuthenticateChallenge() {
-  return `Bearer resource_metadata="${mcpResourceMetadataUri()}", scope="openid email profile"`;
+  // OpenAI hosts require an RFC 6750 error and description when a tool asks
+  // them to begin or renew OAuth. Keep this content-free: it is an OAuth
+  // protocol signal, not an application error channel.
+  return `Bearer resource_metadata="${mcpResourceMetadataUri()}", scope="openid email profile", error="invalid_token", error_description="Workspace authentication is required"`;
 }
 
 export async function authenticateMcpRequest(request: Request) {
