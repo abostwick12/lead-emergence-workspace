@@ -168,11 +168,11 @@ begin
     return;
   end if;
 
-  select authorization.*
+  select oauth_authorization.*
     into v_authorization
-  from auth.oauth_authorizations as authorization
-  where authorization.authorization_id = p_authorization_id
-    and authorization.user_id = auth.uid()
+  from auth.oauth_authorizations as oauth_authorization
+  where oauth_authorization.authorization_id = p_authorization_id
+    and oauth_authorization.user_id = auth.uid()
   limit 1;
 
   if not found then
@@ -300,11 +300,11 @@ begin
     raise exception 'The requested OAuth authorization is not eligible for Workspace MCP.' using errcode = '42501';
   end if;
 
-  select authorization.client_id into v_client_id
-  from auth.oauth_authorizations as authorization
-  where authorization.authorization_id = p_authorization_id
-    and authorization.user_id = auth.uid()
-    and authorization.status = 'approved'
+  select oauth_authorization.client_id into v_client_id
+  from auth.oauth_authorizations as oauth_authorization
+  where oauth_authorization.authorization_id = p_authorization_id
+    and oauth_authorization.user_id = auth.uid()
+    and oauth_authorization.status = 'approved'
   limit 1;
 
   if v_client_id is null then
