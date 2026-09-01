@@ -23,6 +23,22 @@ async function connectLewis(rpc: ReturnType<typeof vi.fn>) {
 }
 
 describe("Lewis MCP contract", () => {
+  it("publishes OAuth tool policy at the standard top-level wire field", async () => {
+    const server = createWorkspaceMcpServer({ rpc: vi.fn(async () => ({ data: {}, error: null })) } as never);
+    const internal = server.server as unknown as {
+      _requestHandlers: Map<string, (request: unknown, extra: unknown) => Promise<{ tools: Array<Record<string, unknown>> }>>;
+    };
+    const listTools = internal._requestHandlers.get("tools/list");
+
+    expect(listTools).toBeDefined();
+    const result = await listTools!({ method: "tools/list", params: {} }, {});
+    const onboarding = result.tools.find((tool) => tool.name === "get_onboarding_state");
+
+    expect(onboarding?.securitySchemes).toEqual([
+      { type: "oauth2", scopes: ["openid", "email", "profile"] }
+    ]);
+  });
+
   it("publishes durable, explicit Workspace controls alongside the existing tools", async () => {
     const client = await connectLewis(vi.fn(async () => ({ data: {}, error: null })));
 

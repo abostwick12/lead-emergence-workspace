@@ -1,6 +1,7 @@
 import "server-only";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import * as z from "zod/v4";
 import { mcpWwwAuthenticateChallenge } from "@/lib/workspace/mcp-auth";
@@ -37,11 +38,23 @@ const taskUpdateInput = z.object({
   { message: "Provide at least one task field to update." }
 );
 
-// SDK 1.30 publishes descriptor metadata through `_meta`. Keep the OAuth
-// scheme beside every tool until the SDK exposes the MCP top-level field.
+// ChatGPT requires this standard, top-level tool field to decide which tools
+// need OAuth. It deliberately mirrors the protected-resource metadata rather
+// than expanding the scopes Workspace actually uses.
 const workspaceOAuthToolMeta = {
   securitySchemes: [{ type: "oauth2", scopes: ["openid", "email", "profile"] }]
 } as const;
+
+type McpToolListResult = {
+  tools: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+};
+
+type McpToolListHandler = (request: unknown, extra: unknown) => Promise<McpToolListResult>;
+
+type McpServerInternals = {
+  _requestHandlers: Map<string, McpToolListHandler>;
+};
 
 export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any, any, any>, currentClientId?: string) {
   const server = new McpServer({ name: "lewis", version: "1.4.0" });
@@ -359,7 +372,32 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
     description: "A conversational onboarding posture that asks one useful question at a time and confirms interpretations before storing them."
   }, async () => ({ messages: [{ role: "user", content: { type: "text", text: "Continue my Lead Emergence Workspace setup. First check my onboarding state and existing setup. Ask one useful question at a time, adapt to my answers, allow me to skip or say I don't know, and confirm meaningful interpretations before storing them as configuration." } }] }));
 
+  publishTopLevelOAuthSecuritySchemes(server);
   return server;
+}
+
+/**
+ * MCP SDK 1.30 serializes arbitrary tool metadata but has not yet exposed the
+ * standard `securitySchemes` field in `registerTool`. Preserve its generated
+ * schemas/handlers, then decorate the wire-level tools/list response with the
+ * standard field ChatGPT consumes. Keep the legacy `_meta` copy for older MCP
+ * clients until the SDK supports this field natively.
+ */
+function publishTopLevelOAuthSecuritySchemes(server: McpServer) {
+  const internalServer = server.server as unknown as McpServerInternals;
+  const existing = internalServer._requestHandlers.get("tools/list");
+  if (!existing) throw new Error("Workspace MCP tools/list handler was not initialized.");
+
+  server.server.setRequestHandler(ListToolsRequestSchema, async (request, extra) => {
+    const result = await existing(request, extra) as McpToolListResult;
+    return {
+      ...result,
+      tools: result.tools.map((tool) => ({
+        ...tool,
+        securitySchemes: workspaceOAuthToolMeta.securitySchemes,
+      })),
+    } as never;
+  });
 }
 
 async function rpcResult(supabase: SupabaseClient<any, any, any, any, any>, name: string, args?: Record<string, unknown>) {
