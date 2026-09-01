@@ -84,8 +84,9 @@ test("provisions Personal product state only through the trusted Entry identity 
 
 test("keeps the Gate C application private, non-indexed, and upload-disabled", () => {
   assert.doesNotMatch(loginPage, /signUp\s*\(/);
-  assert.match(loginPage, /active Personal entitlement/);
-  assert.match(loginPage, /Continue with Lead Emergence/);
+  assert.match(loginPage, /Continuing with Lead Emergence/);
+  assert.match(loginPage, /window\.location\.replace\(signInHref\)/);
+  assert.match(loginPage, /legacy/);
   assert.match(envExample, /NEXT_PUBLIC_WORKSPACE_UPLOADS_ENABLED=false/);
   assert.match(nextConfig, /X-Robots-Tag/);
   assert.match(robots, /disallow:\s*"\//);
