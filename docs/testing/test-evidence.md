@@ -533,3 +533,54 @@ or consumer release.
   route conflict.
 - `git diff --check` — **PASS**; Git reported only the repository's existing
   line-ending conversion warnings.
+
+## Resource-bound dynamic MCP admission source verification — 2026-09-01
+
+This evidence is local-only. Dynamic MCP admission remains default-disabled in
+the migration. It does not authorize a hosted migration, an Auth configuration
+change, a Vercel deployment, or a real assistant connection.
+
+- `npm run test:schema` — **26/26 PASS**. The added contracts require an exact
+  Workspace MCP resource, public dynamic client with `none` token
+  authentication, authorization-code plus refresh-token grants, S256 PKCE,
+  `openid`, exact registered redirect URI, explicit private grant, and every
+  disconnect-path revocation. They also reject Auth-catalog writes and raw
+  subject/client values in the admission audit table.
+- `npm run check:boundaries` — **PASS**; 53 runtime files have no Ministry or
+  Consulting runtime import and no service-role client.
+- `npm run typecheck`, `npm run lint`, `npm run test:unit`, and `npm run build`
+  — **PASS**. Unit coverage is **66/66 PASS**.
+- `supabase db lint --local` and the local pgTAP command — **UNAVAILABLE**:
+  this workstation has no Docker executable and no local Postgres listener at
+  the configured local Supabase port. Neither command connected to the hosted
+  project.
+- `git diff --check` — **PASS**, apart from the repository's existing
+  line-ending conversion warnings.
+
+### Runtime-observability follow-up — 2026-09-01
+
+- The stateless Streamable HTTP route now records only allowlisted, content-free
+  lifecycle events after bearer admission: token admitted, connection
+  registered, transport initialized, and tools-list completed. It inspects only
+  JSON-RPC method names `initialize` and `tools/list`; it neither logs nor
+  persists tool arguments or Workspace content.
+- `npm run test:schema` — **26/26 PASS**; `npm run check:boundaries` —
+  **PASS**; `npm run typecheck`, `npm run lint`, `npm run test:unit`, and
+  `npm run build` — **PASS**. Unit coverage is **68/68 PASS**.
+- Local database lint and pgTAP remain **UNAVAILABLE** for the previously
+  recorded Docker/local-listener reason. No hosted action was performed.
+
+### Provider-grant revocation follow-up — 2026-09-01
+
+- Every Workspace-native disconnect already revokes the official user OAuth
+  grant after the database disconnect. MCP self-disconnect and opaque
+  assistant-connection disconnect now make the same supported Supabase OAuth
+  revocation attempt after their database RPC has atomically revoked the
+  Workspace authorization and private resource grant.
+- A provider-revocation failure cannot restore access: the private grant is
+  inactive and the access-token hook remains fail-closed. The MCP tool reports
+  only the boolean `provider_grant_revoked`; it never returns a client ID,
+  token, code, or callback value.
+- `npm run test:schema` — **26/26 PASS**; `npm run check:boundaries`,
+  `npm run typecheck`, `npm run lint`, and `npm run build` — **PASS**;
+  `npm run test:unit` — **69/69 PASS**.

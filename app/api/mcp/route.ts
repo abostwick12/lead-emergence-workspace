@@ -1,4 +1,5 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { authenticateMcpRequest, mcpUnauthorized, workspaceMcpResourceUri } from "@/lib/workspace/mcp-auth";
 import { isMcpCorsOrigin, isMcpRequestOriginAllowed } from "@/lib/workspace/mcp-origin";
 import { createWorkspaceMcpServer } from "@/lib/workspace/mcp-server";
@@ -26,6 +27,8 @@ async function handleMcpRequest(request: Request) {
   }
   const authenticated = await authenticateMcpRequest(request);
   if (!authenticated) return withCors(request, mcpUnauthorized());
+  const requestMethods = await mcpRequestMethods(request);
+  await recordMcpEvent(authenticated.supabase, "token_admitted");
 
   const registration = await authenticated.supabase.rpc("mcp_register_connection");
   if (registration.error) return withCors(request, mcpUnauthorized("This connection is disconnected, unavailable, or not included."));
@@ -38,13 +41,36 @@ async function handleMcpRequest(request: Request) {
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
-    const server = createWorkspaceMcpServer(authenticated.supabase);
+    const server = createWorkspaceMcpServer(authenticated.supabase, authenticated.claims.client_id as string);
     await server.connect(transport);
-    return withCors(request, await transport.handleRequest(request));
+    if (requestMethods.has("initialize")) {
+      await recordMcpEvent(authenticated.supabase, "connection_registered");
+      await recordMcpEvent(authenticated.supabase, "transport_initialized");
+    }
+    const response = await transport.handleRequest(request);
+    if (response.ok && requestMethods.has("tools/list")) await recordMcpEvent(authenticated.supabase, "tools_list_completed");
+    return withCors(request, response);
   } catch (caught) {
     console.error("Workspace MCP request failed", { error_type: caught instanceof Error ? caught.name : "UnknownError" });
     return withCors(request, Response.json({ jsonrpc: "2.0", error: { code: -32603, message: "Workspace MCP could not process the request safely." }, id: null }, { status: 500 }));
   }
+}
+
+async function recordMcpEvent(supabase: SupabaseClient<any, any, any, any, any>, eventType: "token_admitted" | "transport_initialized" | "tools_list_completed" | "connection_registered") {
+  // Observability is deliberately non-authoritative: an audit write failure must
+  // not expand or interrupt an already-authorized MCP request.
+  try { await supabase.rpc("mcp_record_observability_event", { p_event_type: eventType }); } catch { /* no-op */ }
+}
+
+async function mcpRequestMethods(request: Request) {
+  if (request.method !== "POST") return new Set<string>();
+  const body = await request.clone().json().catch(() => null);
+  const messages = Array.isArray(body) ? body : [body];
+  return new Set(messages.flatMap((message) => {
+    if (!message || typeof message !== "object") return [];
+    const method = (message as { method?: unknown }).method;
+    return typeof method === "string" && ["initialize", "tools/list"].includes(method) ? [method] : [];
+  }));
 }
 
 export function DELETE(request: Request) {
