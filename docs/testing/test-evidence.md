@@ -540,12 +540,16 @@ This evidence is local-only. Dynamic MCP admission remains default-disabled in
 the migration. It does not authorize a hosted migration, an Auth configuration
 change, a Vercel deployment, or a real assistant connection.
 
-- `npm run test:schema` — **26/26 PASS**. The added contracts require an exact
+- `npm run test:schema` — **27/27 PASS**. The added contracts require an exact
   Workspace MCP resource, public dynamic client with `none` token
   authentication, authorization-code plus refresh-token grants, S256 PKCE,
   `openid`, exact registered redirect URI, explicit private grant, and every
   disconnect-path revocation. They also reject Auth-catalog writes and raw
   subject/client values in the admission audit table.
+- The client-admission control contract additionally proves that suspension
+  preserves client data, disables the Personal plan, disconnects MCP sessions,
+  and revokes every private resource grant; reactivation never recreates a
+  grant or an assistant connection.
 - `npm run check:boundaries` — **PASS**; 53 runtime files have no Ministry or
   Consulting runtime import and no service-role client.
 - `npm run typecheck`, `npm run lint`, `npm run test:unit`, and `npm run build`

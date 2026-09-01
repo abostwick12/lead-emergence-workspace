@@ -36,6 +36,7 @@ const integrationCredentialRoute = await readFile("app/api/integrations/[provide
 const setupPage = await readFile("components/workspace-setup.tsx", "utf8");
 const mcpRoute = await readFile("app/api/mcp/route.ts", "utf8");
 const mcpResourceAdmissionSql = await readFile("supabase/migrations/20260901150529_workspace_mcp_resource_admission.sql", "utf8");
+const clientAdmissionControlsSql = await readFile("supabase/migrations/20260901155000_workspace_client_admission_controls.sql", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -147,6 +148,20 @@ test("revokes the durable MCP grant on every disconnect path", () => {
   assert.match(mcpResourceAdmissionSql, /create or replace function workspace\.mcp_disconnect_assistant_connection/i);
   const revocations = mcpResourceAdmissionSql.match(/revoke_mcp_oauth_resource_grant/g) ?? [];
   assert.ok(revocations.length >= 4, "expected helper definition plus every disconnect path");
+});
+
+test("suspends Personal capability without deleting data or silently restoring MCP", () => {
+  assert.match(clientAdmissionControlsSql, /create or replace function workspace_private\.personal_admission_summary/i);
+  assert.match(clientAdmissionControlsSql, /create or replace function workspace_private\.set_personal_admission_status/i);
+  assert.match(clientAdmissionControlsSql, /create or replace function public\.get_workspace_personal_admission_summary/i);
+  assert.match(clientAdmissionControlsSql, /create or replace function public\.set_workspace_personal_admission_status/i);
+  assert.match(clientAdmissionControlsSql, /p_status not in \('active', 'suspended'\)/i);
+  assert.match(clientAdmissionControlsSql, /else 'structurally_inconsistent'/i);
+  assert.match(clientAdmissionControlsSql, /update workspace\.personal_plans set status = p_status/i);
+  assert.match(clientAdmissionControlsSql, /update workspace\.mcp_authorizations/i);
+  assert.match(clientAdmissionControlsSql, /update workspace_private\.mcp_oauth_resource_grants/i);
+  assert.match(clientAdmissionControlsSql, /p_status = 'suspended'/i);
+  assert.doesNotMatch(clientAdmissionControlsSql, /delete from workspace\.|delete from workspace_private\./i);
 });
 
 test("keeps plans separate from record authorization and prepares trials without billing", () => {
