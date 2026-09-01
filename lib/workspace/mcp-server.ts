@@ -43,7 +43,7 @@ const workspaceOAuthToolMeta = {
   securitySchemes: [{ type: "oauth2", scopes: ["openid", "email", "profile"] }]
 } as const;
 
-export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any, any, any>) {
+export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any, any, any>, currentClientId?: string) {
   const server = new McpServer({ name: "lewis", version: "1.4.0" });
 
   server.registerTool("get_onboarding_state", {
@@ -344,7 +344,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
     inputSchema: { user_confirmed: z.literal(true) },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     _meta: workspaceOAuthToolMeta
-  }, () => rpcResult(supabase, "mcp_disconnect_current_assistant"));
+  }, () => disconnectMcpAssistant(supabase, "mcp_disconnect_current_assistant", undefined, currentClientId));
 
   server.registerTool("disconnect_assistant_connection", {
     title: "Disconnect a Workspace assistant connection",
@@ -352,7 +352,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
     inputSchema: { connection_id: z.uuid(), user_confirmed: z.literal(true) },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     _meta: workspaceOAuthToolMeta
-  }, ({ connection_id }) => rpcResult(supabase, "mcp_disconnect_assistant_connection", { target_connection_id: connection_id }));
+  }, ({ connection_id }) => disconnectMcpAssistant(supabase, "mcp_disconnect_assistant_connection", { target_connection_id: connection_id }));
 
   server.registerPrompt("lead_emergence_onboarding", {
     title: "Lead Emergence Personal onboarding",
@@ -372,6 +372,58 @@ async function rpcResult(supabase: SupabaseClient<any, any, any, any, any>, name
     };
   }
   return { content: [{ type: "text" as const, text: JSON.stringify(data) }], structuredContent: data && typeof data === "object" ? data as Record<string, unknown> : { result: data } };
+}
+
+async function disconnectMcpAssistant(
+  supabase: SupabaseClient<any, any, any, any, any>,
+  name: "mcp_disconnect_current_assistant" | "mcp_disconnect_assistant_connection",
+  args?: Record<string, unknown>,
+  currentClientId?: string,
+) {
+  const clientId = name === "mcp_disconnect_current_assistant"
+    ? currentClientId
+    : await connectionClientId(supabase, args?.target_connection_id);
+  const { data, error } = await supabase.rpc(name, args);
+  if (error) return rpcError(error);
+
+  // The private grant and Workspace authorization are revoked atomically by
+  // the RPC above. Supabase grant revocation is a best-effort second boundary:
+  // an endpoint failure cannot reconnect the client because the durable grant
+  // is already inactive and the access-token hook fails closed.
+  const grantRevoked = clientId && isUuid(clientId) ? await revokeProviderGrant(supabase, clientId) : false;
+  const result = data && typeof data === "object" ? data as Record<string, unknown> : { result: data };
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify({ ...result, provider_grant_revoked: grantRevoked }) }],
+    structuredContent: { ...result, provider_grant_revoked: grantRevoked },
+  };
+}
+
+async function connectionClientId(supabase: SupabaseClient<any, any, any, any, any>, connectionId: unknown) {
+  if (!isUuid(connectionId)) return null;
+  try {
+    const { data, error } = await supabase
+      .from("mcp_authorizations")
+      .select("client_id")
+      .eq("id", connectionId)
+      .maybeSingle();
+    return error || !data || typeof data.client_id !== "string" ? null : data.client_id;
+  } catch { return null; }
+}
+
+function rpcError(error: { code?: string; message?: string }) {
+  return {
+    isError: true,
+    content: [{ type: "text" as const, text: safeToolError(error.code) }],
+    ...(requiresReauthorization(error) ? { _meta: { "mcp/www_authenticate": [mcpWwwAuthenticateChallenge()] } } : {}),
+  };
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function revokeProviderGrant(supabase: SupabaseClient<any, any, any, any, any>, clientId: string) {
+  try { return !(await supabase.auth.oauth.revokeGrant({ clientId })).error; } catch { return false; }
 }
 
 function requiresReauthorization(error: { code?: string; message?: string }) {

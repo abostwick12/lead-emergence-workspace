@@ -41,7 +41,7 @@ async function handleMcpRequest(request: Request) {
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
-    const server = createWorkspaceMcpServer(authenticated.supabase);
+    const server = createWorkspaceMcpServer(authenticated.supabase, authenticated.claims.client_id as string);
     await server.connect(transport);
     if (requestMethods.has("initialize")) {
       await recordMcpEvent(authenticated.supabase, "connection_registered");

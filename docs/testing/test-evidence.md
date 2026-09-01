@@ -569,3 +569,18 @@ change, a Vercel deployment, or a real assistant connection.
   `npm run build` — **PASS**. Unit coverage is **68/68 PASS**.
 - Local database lint and pgTAP remain **UNAVAILABLE** for the previously
   recorded Docker/local-listener reason. No hosted action was performed.
+
+### Provider-grant revocation follow-up — 2026-09-01
+
+- Every Workspace-native disconnect already revokes the official user OAuth
+  grant after the database disconnect. MCP self-disconnect and opaque
+  assistant-connection disconnect now make the same supported Supabase OAuth
+  revocation attempt after their database RPC has atomically revoked the
+  Workspace authorization and private resource grant.
+- A provider-revocation failure cannot restore access: the private grant is
+  inactive and the access-token hook remains fail-closed. The MCP tool reports
+  only the boolean `provider_grant_revoked`; it never returns a client ID,
+  token, code, or callback value.
+- `npm run test:schema` — **26/26 PASS**; `npm run check:boundaries`,
+  `npm run typecheck`, `npm run lint`, and `npm run build` — **PASS**;
+  `npm run test:unit` — **69/69 PASS**.
