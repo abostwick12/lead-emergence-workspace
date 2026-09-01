@@ -556,3 +556,16 @@ change, a Vercel deployment, or a real assistant connection.
   project.
 - `git diff --check` — **PASS**, apart from the repository's existing
   line-ending conversion warnings.
+
+### Runtime-observability follow-up — 2026-09-01
+
+- The stateless Streamable HTTP route now records only allowlisted, content-free
+  lifecycle events after bearer admission: token admitted, connection
+  registered, transport initialized, and tools-list completed. It inspects only
+  JSON-RPC method names `initialize` and `tools/list`; it neither logs nor
+  persists tool arguments or Workspace content.
+- `npm run test:schema` — **26/26 PASS**; `npm run check:boundaries` —
+  **PASS**; `npm run typecheck`, `npm run lint`, `npm run test:unit`, and
+  `npm run build` — **PASS**. Unit coverage is **68/68 PASS**.
+- Local database lint and pgTAP remain **UNAVAILABLE** for the previously
+  recorded Docker/local-listener reason. No hosted action was performed.
