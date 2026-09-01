@@ -35,6 +35,7 @@ const integrationStartRoute = await readFile("app/api/integrations/[provider]/st
 const integrationCredentialRoute = await readFile("app/api/integrations/[provider]/credential/route.ts", "utf8");
 const setupPage = await readFile("components/workspace-setup.tsx", "utf8");
 const mcpRoute = await readFile("app/api/mcp/route.ts", "utf8");
+const mcpResourceAdmissionSql = await readFile("supabase/migrations/20260901150529_workspace_mcp_resource_admission.sql", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -110,6 +111,42 @@ test("binds MCP OAuth tokens to the canonical resource and denies ordinary RLS t
   assert.match(productizationSql, /workspace_private\.has_personal_capability\(target_workspace_id, 'workspace_mcp'\)/);
   assert.match(mcpRoute, /WWW-Authenticate/);
   assert.match(mcpRoute, /WebStandardStreamableHTTPServerTransport/);
+});
+
+test("adopts only an explicitly approved dynamic public OAuth client for Workspace MCP", () => {
+  assert.match(mcpResourceAdmissionSql, /create table if not exists workspace_private\.mcp_oauth_resource_grants/i);
+  assert.match(mcpResourceAdmissionSql, /primary key \(user_id, client_id, resource_uri\)/i);
+  assert.match(mcpResourceAdmissionSql, /mcp_dynamic_admission_enabled', 'false'/i);
+  assert.match(mcpResourceAdmissionSql, /create or replace function workspace_private\.resolve_mcp_oauth_authorization/i);
+  assert.match(mcpResourceAdmissionSql, /v_client\.registration_type <> 'dynamic'/i);
+  assert.match(mcpResourceAdmissionSql, /v_client\.client_type <> 'public'/i);
+  assert.match(mcpResourceAdmissionSql, /v_client\.token_endpoint_auth_method <> 'none'/i);
+  assert.match(mcpResourceAdmissionSql, /authorization_code', 'refresh_token/i);
+  assert.match(mcpResourceAdmissionSql, /v_authorization\.resource is distinct from 'https:\/\/workspace\.leademergence\.com\/api\/mcp'/i);
+  assert.match(mcpResourceAdmissionSql, /code_challenge_method::text <> 's256'/i);
+  assert.match(mcpResourceAdmissionSql, /not \('openid' = any\(v_scopes\)\)/i);
+  assert.match(mcpResourceAdmissionSql, /redirect_uri = any\(string_to_array\(v_client\.redirect_uris, ','\)\)/i);
+  assert.match(mcpResourceAdmissionSql, /create or replace function workspace\.activate_mcp_oauth_grant/i);
+  assert.match(mcpResourceAdmissionSql, /authorization\.status = 'approved'/i);
+  assert.match(mcpResourceAdmissionSql, /create or replace function workspace_private\.mcp_admission_fingerprint/i);
+  assert.match(mcpResourceAdmissionSql, /create or replace function workspace_private\.record_mcp_oauth_admission_event/i);
+  assert.match(mcpResourceAdmissionSql, /user_fingerprint text/i);
+  assert.match(mcpResourceAdmissionSql, /client_fingerprint text/i);
+  assert.match(mcpResourceAdmissionSql, /request_fingerprint text/i);
+  assert.match(mcpResourceAdmissionSql, /create or replace function workspace_private\.set_mcp_dynamic_admission_enabled/i);
+  assert.match(mcpResourceAdmissionSql, /current_user not in \('service_role', 'postgres'\)/i);
+  assert.match(mcpResourceAdmissionSql, /mcp_oauth_resource_grants as grant_record/i);
+  assert.match(mcpResourceAdmissionSql, /workspace_private\.mcp_dynamic_admission_enabled\(\)/i);
+  assert.doesNotMatch(mcpResourceAdmissionSql, /insert into auth\.|update auth\.|delete from auth\./i);
+  assert.doesNotMatch(mcpResourceAdmissionSql, /mcp_oauth_admission_audit \(user_id, client_id/i);
+});
+
+test("revokes the durable MCP grant on every disconnect path", () => {
+  assert.match(mcpResourceAdmissionSql, /create or replace function workspace\.disconnect_personal_mcp/i);
+  assert.match(mcpResourceAdmissionSql, /create or replace function workspace\.mcp_disconnect_current_assistant/i);
+  assert.match(mcpResourceAdmissionSql, /create or replace function workspace\.mcp_disconnect_assistant_connection/i);
+  const revocations = mcpResourceAdmissionSql.match(/revoke_mcp_oauth_resource_grant/g) ?? [];
+  assert.ok(revocations.length >= 4, "expected helper definition plus every disconnect path");
 });
 
 test("keeps plans separate from record authorization and prepares trials without billing", () => {

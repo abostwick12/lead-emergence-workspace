@@ -533,3 +533,26 @@ or consumer release.
   route conflict.
 - `git diff --check` — **PASS**; Git reported only the repository's existing
   line-ending conversion warnings.
+
+## Resource-bound dynamic MCP admission source verification — 2026-09-01
+
+This evidence is local-only. Dynamic MCP admission remains default-disabled in
+the migration. It does not authorize a hosted migration, an Auth configuration
+change, a Vercel deployment, or a real assistant connection.
+
+- `npm run test:schema` — **26/26 PASS**. The added contracts require an exact
+  Workspace MCP resource, public dynamic client with `none` token
+  authentication, authorization-code plus refresh-token grants, S256 PKCE,
+  `openid`, exact registered redirect URI, explicit private grant, and every
+  disconnect-path revocation. They also reject Auth-catalog writes and raw
+  subject/client values in the admission audit table.
+- `npm run check:boundaries` — **PASS**; 53 runtime files have no Ministry or
+  Consulting runtime import and no service-role client.
+- `npm run typecheck`, `npm run lint`, `npm run test:unit`, and `npm run build`
+  — **PASS**. Unit coverage is **66/66 PASS**.
+- `supabase db lint --local` and the local pgTAP command — **UNAVAILABLE**:
+  this workstation has no Docker executable and no local Postgres listener at
+  the configured local Supabase port. Neither command connected to the hosted
+  project.
+- `git diff --check` — **PASS**, apart from the repository's existing
+  line-ending conversion warnings.
