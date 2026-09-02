@@ -13,6 +13,42 @@ Lead Emergence is one persistent personal operating harness. Transition is a cha
 
 The SOTF Bundle should reinforce human coaching rather than replace the fellow. The Workspace handles execution between coaching conversations: context gathering, preparation, follow-through, research, relationship management, interview preparation, and daily/weekly operating rhythms.
 
+## AI-native design objective
+
+The SOTF Bundle is an AI-native apprenticeship as well as a transition execution layer. A member should be able to begin with no advanced prompting, connector knowledge, MCP knowledge, or workflow-design experience and progressively learn to operate through a persistent, connected, self-improving professional AI system.
+
+The user should not have to understand the infrastructure. Lewis and the SOTF Bundle should expose the value and teach the operating habits while keeping OAuth consent, data access, durable memory promotion, and improvement approval explicit.
+
+The progression is:
+
+1. **AI-assisted** — delegate useful preparation, drafting, research, and follow-through.
+2. **Context-aware** — build enough confirmed professional context that the user no longer has to restate their transition repeatedly.
+3. **Workflow-native** — operate through reusable skills and workflows rather than one-off prompts.
+4. **Proactive** — let approved connectors and daily/weekly rhythms keep the Workspace current and surface what deserves attention.
+5. **Self-improving** — learn from context gaps, edits, friction, and repeated work, then propose evidence-backed improvements for approval.
+
+Progression should be based on readiness signals and demonstrated use, not gamified novelty or forced feature unlocks. The system should never block core transition support because a user has not connected every optional source or reached a later stage.
+
+## Plugin packaging target
+
+The SOTF Bundle should be distributable as a plugin-style bundle over the Lead Emergence harness. The package contains the operating instructions, skills, workflow definitions, onboarding progression, connector recommendations, and self-improvement behaviors; Lead Emergence remains the persistent authorization, state, relationship, decision, and memory system underneath it.
+
+Target installation experience:
+
+> "Lewis, set up my SOTF Bundle."
+
+Lewis should then:
+
+1. install or resume the idempotent bundle state;
+2. inspect which required and optional capabilities already exist;
+3. present only the OAuth or consent steps the user must personally authorize;
+4. configure the bundle after authorization without exposing MCP URLs, client IDs, callback URLs, database settings, or infrastructure details;
+5. harvest only approved sources for initial context candidates;
+6. ask the user to confirm uncertain or durable context before promotion;
+7. leave the bundle in a resumable `ready`, `partial`, or `needs_authorization` state rather than failing as an all-or-nothing setup.
+
+The bundle may later be packaged for multiple AI clients, but the professional context must remain portable in Lead Emergence rather than being trapped in a single assistant's project or folder limits.
+
 ## Core architecture
 
 ### Lead Emergence Core
@@ -37,6 +73,7 @@ Persistent capabilities shared across chapters:
 
 Adds:
 
+- AI-native progression
 - transition roadmap
 - coaching-session preparation and reinforcement
 - job/company intelligence
@@ -165,4 +202,4 @@ This branch intentionally does not:
 - auto-write durable memory from external content;
 - deploy or cut over production.
 
-The first slice defines bundle inheritance, the daily/weekly rhythm model, context-promotion guardrails, self-improvement proposal primitives, a user-facing SOTF Bundle page, and unit tests. Connector execution, persistent improvement-signal storage, approval history, and durable data-model additions should follow as separate reviewed slices after the current login/MCP work is unstuck.
+The first slice defines bundle inheritance, the daily/weekly rhythm model, context-promotion guardrails, self-improvement proposal primitives, an explicit five-stage AI-native pathway, a user-facing SOTF Bundle page, and unit tests. Connector execution, one-command bundle installation, persistent progression state, persistent improvement-signal storage, approval history, and durable data-model additions should follow as separate reviewed slices after the current login/MCP work is unstuck.
