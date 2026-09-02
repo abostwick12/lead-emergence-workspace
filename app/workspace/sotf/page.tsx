@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarDays, CheckCircle2, CircleAlert, CircleDashed, Mail, MessageSquare, RefreshCw, Sparkles } from "lucide-react";
 import { useWorkspace } from "@/components/workspace-provider";
-import { listIntegrationConnections } from "@/lib/workspace/repository";
+import { SOTF_AI_NATIVE_PATHWAY } from "@/lib/workspace/ai-native";
 import { WORKSPACE_BUNDLES } from "@/lib/workspace/bundles";
+import { listIntegrationConnections } from "@/lib/workspace/repository";
 import { buildDailyRhythmPlan, type RhythmStep } from "@/lib/workspace/rhythm";
 import type { IntegrationConnection } from "@/lib/workspace/types";
 
@@ -42,6 +43,17 @@ export default function SotfBundlePage() {
     <h1 className="page-title">Turn transition context into a daily operating rhythm.</h1>
     <p className="page-lede">{bundle.description} The same approved professional context can remain useful after transition instead of being discarded when the fellowship ends.</p>
     {error ? <p className="error">{error}</p> : null}
+
+    <section className="card" style={{ marginTop: 20 }}>
+      <p className="eyebrow">AI-native pathway</p>
+      <h2>Learn the operating model while the system learns you.</h2>
+      <p className="page-lede">The SOTF Bundle is designed to move from guided AI assistance to a connected, workflow-native, self-improving professional operating system without requiring advanced prompting or technical setup.</p>
+      <div className="grid two" style={{ marginTop: 14 }}>
+        {SOTF_AI_NATIVE_PATHWAY.map((stage, index) => <article className="item" key={stage.id}>
+          <div className="row"><div><span className="pill">Stage {index + 1}</span><h3 style={{ marginTop: 8 }}>{stage.label}</h3><p>{stage.userGoal}</p><p className="muted">{stage.systemBehavior}</p></div></div>
+        </article>)}
+      </div>
+    </section>
 
     <section className="grid two" style={{ marginTop: 20 }}>
       <article className="card">
