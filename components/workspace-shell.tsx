@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Bell, BrainCircuit, BriefcaseBusiness, Compass, Crosshair, Menu, Moon, Plug, Radar, Settings, Target, X } from "lucide-react";
+import { Bell, BrainCircuit, BriefcaseBusiness, Compass, Crosshair, Menu, Moon, PackageOpen, Plug, Radar, Settings, Target, X } from "lucide-react";
 import { QuickCaptureDialog } from "@/components/quick-capture-dialog";
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider";
 import { WorkspaceClocks, WorkspaceHeaderDate } from "@/components/workspace-clocks";
@@ -12,7 +12,7 @@ import { workspaceLoginHref } from "@/lib/workspace/return-path";
 
 const links = [
   ["/workspace", "Command Center", Compass], ["/workspace/tasks", "Daily Focus", Target], ["/workspace/career", "Pipeline", BriefcaseBusiness],
-  ["/workspace/capture", "Signals", Radar], ["/workspace/memory", "Memory", BrainCircuit], ["/workspace/integrations", "Connections", Plug]
+  ["/workspace/capture", "Signals", Radar], ["/workspace/sotf", "SOTF Bundle", PackageOpen], ["/workspace/memory", "Memory", BrainCircuit], ["/workspace/integrations", "Connections", Plug]
 ] as const;
 
 function ProtectedShell({ children }: { children: React.ReactNode }) {
