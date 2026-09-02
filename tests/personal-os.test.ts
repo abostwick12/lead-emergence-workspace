@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SOTF_AI_NATIVE_PATHWAY, nextAiNativeStage } from "@/lib/workspace/ai-native";
 import { WORKSPACE_BUNDLES, bundleIncludesWorkflow, resolveBundleWorkflowKeys } from "@/lib/workspace/bundles";
 import { buildDailyRhythmPlan, evaluateContextCandidate } from "@/lib/workspace/rhythm";
 import { proposeSelfImprovements } from "@/lib/workspace/self-improvement";
@@ -19,12 +20,35 @@ describe("Personal OS bundles", () => {
     expect(workflows).toContain("friction_review");
     expect(workflows).toContain("skill_discovery");
     expect(workflows).toContain("improve_filter");
+    expect(workflows).toContain("ai_native_progression");
   });
 
   it("keeps professional work on the same core harness instead of creating a separate product", () => {
     expect(bundleIncludesWorkflow(["professional_work"], "self_improvement_review")).toBe(true);
     expect(bundleIncludesWorkflow(["professional_work"], "stakeholder_context")).toBe(true);
     expect(bundleIncludesWorkflow(["professional_work"], "interview_lab")).toBe(false);
+  });
+});
+
+describe("SOTF Bundle AI-native pathway", () => {
+  it("walks from assisted use to a controlled self-improving operating system", () => {
+    expect(SOTF_AI_NATIVE_PATHWAY.map((stage) => stage.id)).toEqual([
+      "assisted",
+      "context_aware",
+      "workflow_native",
+      "proactive",
+      "self_improving"
+    ]);
+    expect(nextAiNativeStage("assisted")?.id).toBe("context_aware");
+    expect(nextAiNativeStage("proactive")?.id).toBe("self_improving");
+    expect(nextAiNativeStage("self_improving")).toBeNull();
+  });
+
+  it("keeps every progression stage focused on user capability, not AI novelty", () => {
+    for (const stage of SOTF_AI_NATIVE_PATHWAY) {
+      expect(stage.userGoal.length).toBeGreaterThan(20);
+      expect(stage.readinessSignals.length).toBeGreaterThan(0);
+    }
   });
 });
 
