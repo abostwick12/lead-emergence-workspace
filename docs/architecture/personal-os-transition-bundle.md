@@ -23,6 +23,11 @@ Persistent capabilities shared across chapters:
 - weekly review
 - context promotion
 - self-improvement review
+- context-gap learning
+- learning from repeated edits
+- workflow-friction review
+- repeated-work skill discovery
+- Improve filter for evaluating new AI ideas
 - meeting preparation
 - decision support
 - relationship follow-up
@@ -39,6 +44,8 @@ Adds:
 - interview lab
 - application quality gate
 - career-hypothesis review
+
+The SOTF Bundle inherits the Core self-improvement capabilities so learning accumulated during transition continues into later professional work.
 
 ### Professional Work bundle
 
@@ -63,8 +70,9 @@ The same person-level context remains underneath every bundle. A user can have m
 ### Continuous
 
 1. Meeting/coaching ingestion: extract decisions, commitments, relationships, assumptions, and learning from approved notes/transcripts.
-2. Context promotion: distinguish short-lived working context from chapter-level and career-level durable context.
-3. Relationship and opportunity updates: connect new information to existing people, companies, opportunities, and commitments.
+2. Context-gap learning: notice unfamiliar terms, people, projects, organizations, or transition concepts; ask for clarification when needed and propose confirmed definitions for context.
+3. Context promotion: distinguish short-lived working context from chapter-level and career-level durable context.
+4. Relationship and opportunity updates: connect new information to existing people, companies, opportunities, and commitments.
 
 ### End of day
 
@@ -77,8 +85,39 @@ The same person-level context remains underneath every bundle. A user can have m
 
 1. Review goals, commitments, relationships, opportunities, and career hypotheses.
 2. Set the next week's priorities.
-3. Review repeated user corrections, missing context, and workflow friction.
-4. Propose skill/workflow/context improvements for user approval. Never silently rewrite core instructions.
+3. Learn from edits by comparing recurring changes between AI drafts/recommendations and what the user actually used.
+4. Review workflow friction and propose fixes where correction, extra steps, or cleanup repeatedly occur.
+5. Detect repeated work sequences that may deserve a reusable skill.
+6. Run the Improve filter on new AI tactics, tools, prompts, or workflows and distinguish likely value from hype before suggesting adoption.
+7. Combine these signals into a self-improvement review and present evidence-backed proposals for user approval.
+
+## Daniel-style controlled self-improvement
+
+The system follows the useful mechanisms demonstrated in Daniel Blum's self-improving PM workflow while preserving Lead Emergence's stronger approval and memory guardrails.
+
+### Context-gap learning
+
+When the system repeatedly encounters a term or concept it does not understand, it should ask rather than guess. Once the user confirms the meaning, that definition can become a durable context candidate.
+
+### Learn from edits
+
+When an AI-generated message, recommendation, brief, or artifact is materially edited before use, retain a privacy-safe comparison signal. Repeated similar edits can produce a proposed communication or working preference. A single edit should not rewrite a durable preference.
+
+### Friction review
+
+Skills and workflows should emit friction signals when they repeatedly require correction, manual cleanup, redundant steps, or abandonment. The weekly loop should rank recurring friction and propose a concrete change with supporting evidence.
+
+### Skill discovery
+
+Repeated multi-step sequences can be candidates for a new reusable skill. The system should propose the skill only after sufficient repetition and should show the sequence and expected value before the user approves it.
+
+### Improve filter
+
+The user can give Lewis an article, podcast, post, prompt, workflow, or tool idea and ask whether it should be incorporated. The Improve filter should compare the idea against existing capabilities, overlap, expected value, integration cost, risks, and evidence. The default outcome can be reject, retain for later, or run a bounded experiment; novelty alone is not sufficient evidence to change the system.
+
+### Approval contract
+
+Every durable self-improvement proposal records evidence and requires explicit user approval. The system may observe and propose autonomously, but it must not silently rewrite its core instructions, durable preferences, or skill definitions. Sensitive evidence is excluded from automatic improvement proposals.
 
 ## Memory model
 
@@ -105,11 +144,13 @@ Supabase remains the structured system of record and authorization boundary. A u
 ## Self-optimization loop
 
 1. Observe user work and approved source data.
-2. Compare AI drafts/recommendations with user edits, rejections, and corrections.
-3. Detect repeated friction or missing context.
-4. Generate an improvement proposal with supporting evidence.
-5. Require user approval.
-6. Apply only the approved context, preference, or workflow change.
+2. Detect context gaps while refusing to invent missing definitions.
+3. Compare AI drafts/recommendations with user edits, rejections, and corrections.
+4. Capture recurring workflow friction and repeated work sequences.
+5. Evaluate external AI ideas through the Improve filter.
+6. Generate evidence-backed context, preference, workflow, skill, or experiment proposals.
+7. Require user approval.
+8. Apply only the approved change and retain enough provenance to reverse it later.
 
 This is controlled self-improvement, not autonomous instruction drift.
 
@@ -124,4 +165,4 @@ This branch intentionally does not:
 - auto-write durable memory from external content;
 - deploy or cut over production.
 
-The first slice defines bundle inheritance, the daily/weekly rhythm model, context-promotion guardrails, a user-facing SOTF Bundle page, and unit tests. Connector execution and durable data-model additions should follow as separate reviewed slices after the current login/MCP work is unstuck.
+The first slice defines bundle inheritance, the daily/weekly rhythm model, context-promotion guardrails, self-improvement proposal primitives, a user-facing SOTF Bundle page, and unit tests. Connector execution, persistent improvement-signal storage, approval history, and durable data-model additions should follow as separate reviewed slices after the current login/MCP work is unstuck.
