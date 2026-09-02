@@ -106,6 +106,12 @@ export function buildDailyRhythmPlan(connectedProviders: IntegrationProviderId[]
         status: "review"
       },
       {
+        id: "context-gap-learning",
+        label: "Context gap learning",
+        purpose: "Notice unfamiliar terms, people, projects, or transition concepts and ask for confirmation before adding useful definitions to context.",
+        status: "review"
+      },
+      {
         id: "context-promotion",
         label: "Context promotion",
         purpose: "Keep temporary information temporary and propose only durable, confirmed context for longer-term memory.",
@@ -128,9 +134,33 @@ export function buildDailyRhythmPlan(connectedProviders: IntegrationProviderId[]
         status: "ready"
       },
       {
+        id: "edit-learning",
+        label: "Learn from your edits",
+        purpose: "Compare repeated changes to drafts and recommendations, then propose durable voice, tone, or working preferences for approval.",
+        status: "review"
+      },
+      {
+        id: "friction-review",
+        label: "Friction review",
+        purpose: "Surface workflows that repeatedly require correction, extra steps, or manual cleanup and propose a specific fix.",
+        status: "review"
+      },
+      {
+        id: "skill-discovery",
+        label: "Skill discovery",
+        purpose: "Detect repeated sequences of work that may deserve a reusable skill or workflow and propose one instead of creating it silently.",
+        status: "review"
+      },
+      {
+        id: "improve-filter",
+        label: "Improve filter",
+        purpose: "Evaluate new AI tactics or tools against the current system, separate likely value from hype, and recommend a bounded experiment when warranted.",
+        status: "review"
+      },
+      {
         id: "self-improvement",
         label: "Self-improvement review",
-        purpose: "Detect repeated corrections, missing context, and workflow friction, then propose changes for user approval rather than rewriting instructions autonomously.",
+        purpose: "Combine context gaps, edits, friction, repeated work, and experiments into proposed system changes that always require user approval.",
         status: "review"
       }
     ]
