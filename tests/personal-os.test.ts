@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WORKSPACE_BUNDLES, bundleIncludesWorkflow, resolveBundleWorkflowKeys } from "@/lib/workspace/bundles";
 import { buildDailyRhythmPlan, evaluateContextCandidate } from "@/lib/workspace/rhythm";
+import { proposeSelfImprovements } from "@/lib/workspace/self-improvement";
 
 describe("Personal OS bundles", () => {
   it("keeps the required SOTF Bundle user-facing label", () => {
@@ -13,6 +14,11 @@ describe("Personal OS bundles", () => {
     expect(workflows).toContain("weekly_review");
     expect(workflows).toContain("coaching_reinforcement");
     expect(workflows).toContain("interview_lab");
+    expect(workflows).toContain("context_gap_learning");
+    expect(workflows).toContain("edit_learning");
+    expect(workflows).toContain("friction_review");
+    expect(workflows).toContain("skill_discovery");
+    expect(workflows).toContain("improve_filter");
   });
 
   it("keeps professional work on the same core harness instead of creating a separate product", () => {
@@ -88,6 +94,28 @@ describe("Daily rhythm planning", () => {
 
   it("keeps self-improvement changes in review instead of autonomous instruction mutation", () => {
     const plan = buildDailyRhythmPlan([]);
+    expect(plan.continuous.find((step) => step.id === "context-gap-learning")?.status).toBe("review");
+    expect(plan.weekly.find((step) => step.id === "edit-learning")?.status).toBe("review");
+    expect(plan.weekly.find((step) => step.id === "friction-review")?.status).toBe("review");
+    expect(plan.weekly.find((step) => step.id === "skill-discovery")?.status).toBe("review");
+    expect(plan.weekly.find((step) => step.id === "improve-filter")?.status).toBe("review");
     expect(plan.weekly.find((step) => step.id === "self-improvement")?.status).toBe("review");
+  });
+});
+
+describe("Self-improvement proposals", () => {
+  it("learns from repeated edits without changing instructions automatically", () => {
+    const proposals = proposeSelfImprovements([{ id: "edit-1", kind: "user_edit", summary: "User repeatedly shortens networking drafts.", occurrences: 3, evidence: ["draft-a", "draft-b"] }]);
+    expect(proposals[0]?.type).toBe("preference_update");
+    expect(proposals[0]?.requiresApproval).toBe(true);
+  });
+
+  it("suggests a new skill only after repeated work", () => {
+    expect(proposeSelfImprovements([{ id: "sequence-1", kind: "repeated_sequence", summary: "Research role then prepare contact outreach.", occurrences: 2, evidence: [] }])).toHaveLength(0);
+    expect(proposeSelfImprovements([{ id: "sequence-1", kind: "repeated_sequence", summary: "Research role then prepare contact outreach.", occurrences: 3, evidence: [] }])[0]?.type).toBe("new_skill");
+  });
+
+  it("does not turn sensitive evidence into an automatic improvement proposal", () => {
+    expect(proposeSelfImprovements([{ id: "sensitive-1", kind: "context_gap", summary: "Sensitive context", occurrences: 2, evidence: [], sensitive: true }])).toEqual([]);
   });
 });
