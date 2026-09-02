@@ -13,6 +13,7 @@ export type WorkspaceWorkflowKey =
   | "meeting_prep"
   | "decision_support"
   | "relationship_follow_up"
+  | "ai_native_progression"
   | "transition_roadmap"
   | "coaching_reinforcement"
   | "job_intelligence"
@@ -62,6 +63,7 @@ export const WORKSPACE_BUNDLES: Record<WorkspaceBundleId, WorkspaceBundle> = {
     description: "Transition-specific workflows that reinforce SOTF fellowship coaching and execution without replacing the human fellow.",
     inherits: ["core"],
     workflows: [
+      "ai_native_progression",
       "transition_roadmap",
       "coaching_reinforcement",
       "job_intelligence",
