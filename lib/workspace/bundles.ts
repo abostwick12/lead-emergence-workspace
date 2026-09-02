@@ -48,8 +48,8 @@ export const WORKSPACE_BUNDLES: Record<WorkspaceBundleId, WorkspaceBundle> = {
   },
   sotf_transition: {
     id: "sotf_transition",
-    label: "SOTF Transition",
-    description: "Transition-specific workflows that reinforce fellowship coaching and execution without replacing the human fellow.",
+    label: "SOTF Bundle",
+    description: "Transition-specific workflows that reinforce SOTF fellowship coaching and execution without replacing the human fellow.",
     inherits: ["core"],
     workflows: [
       "transition_roadmap",
