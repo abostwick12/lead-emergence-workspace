@@ -5,6 +5,11 @@ export type WorkspaceWorkflowKey =
   | "weekly_review"
   | "context_promotion"
   | "self_improvement_review"
+  | "context_gap_learning"
+  | "edit_learning"
+  | "friction_review"
+  | "skill_discovery"
+  | "improve_filter"
   | "meeting_prep"
   | "decision_support"
   | "relationship_follow_up"
@@ -40,6 +45,11 @@ export const WORKSPACE_BUNDLES: Record<WorkspaceBundleId, WorkspaceBundle> = {
       "weekly_review",
       "context_promotion",
       "self_improvement_review",
+      "context_gap_learning",
+      "edit_learning",
+      "friction_review",
+      "skill_discovery",
+      "improve_filter",
       "meeting_prep",
       "decision_support",
       "relationship_follow_up"
