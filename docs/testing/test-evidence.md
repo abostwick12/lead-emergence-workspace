@@ -584,3 +584,35 @@ change, a Vercel deployment, or a real assistant connection.
 - `npm run test:schema` — **26/26 PASS**; `npm run check:boundaries`,
   `npm run typecheck`, `npm run lint`, and `npm run build` — **PASS**;
   `npm run test:unit` — **69/69 PASS**.
+# P1 / S1a generic bundle entitlement foundation — 2026-09-02
+
+- Branch: `codex/personal-os-transition-bundle`.
+- Hosted/production infrastructure: **NOT CONTACTED / NOT MODIFIED**.
+- `supabase db reset --local` — **PASS**. Every repository migration replayed
+  from an empty local Postgres database through
+  `20260902162536_bundle_entitlement_foundation.sql`, followed by the local seed.
+- `npm run test:rls` — **PASS, 242/242 assertions across 8 files**. The focused
+  bundle suite contributes 57 assertions covering cross-Workspace denial,
+  ordinary-user assignment/invite denial, owner reads, invalid/mismatched/
+  consumed/expired/revoked invite denial, idempotent assignment and claim,
+  canonical source/issuer capture, active/expired/revoked resolution, additive
+  capability state, and private-schema isolation.
+- `npm run test:bundle:local` — **PASS** against loopback Supabase and a local
+  Next.js server. Disposable real Auth sessions completed authorized founder
+  assignment, idempotent repeat, owner resolution, ordinary-user denial,
+  invite issuance, retry-stable link recovery, intended-user claim, repeated
+  claim, invite-source resolution, revocation denial, invalid-token denial, and
+  exact one-entitlement counts. The test-only admin token created Auth fixtures
+  only; Workspace setup and all acceptance actions used normal authenticated
+  RLS/product paths. A final local database reset removed every acceptance
+  fixture without granting the service role Workspace-schema access.
+- `supabase db advisors --local` — **PASS, no security or performance issues**.
+- `npm run check:boundaries` — **PASS**; no Ministry/Consulting runtime import or
+  service-role runtime client.
+- `npm run test:schema` — **PASS, 29/29**.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **PASS, 90/90**.
+- `npm run build` — **PASS** with Next.js 16.3.2; all bundle APIs and the
+  authenticated operator/claim pages compiled as dynamic routes.
+- `git diff --check` — **PASS**.

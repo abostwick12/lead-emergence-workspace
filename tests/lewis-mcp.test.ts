@@ -48,6 +48,9 @@ describe("Lewis MCP contract", () => {
       "get_leadership_state", "list_tasks", "create_task", "update_task", "delete_task",
       "list_captures", "resolve_capture", "dismiss_capture",
       "list_memory", "create_memory", "delete_memory",
+      "list_professional_context", "list_context_candidates", "propose_context_candidate",
+      "review_context_candidate", "get_context_provenance", "link_professional_context",
+      "manage_professional_context",
       "list_career_opportunities", "create_career_opportunity", "update_career_opportunity",
       "replace_confirmed_workspace_configuration", "list_integration_connections",
       "get_clock_preferences", "save_clock_preferences",
@@ -196,6 +199,147 @@ describe("Lewis MCP contract", () => {
     });
 
     expect(result.isError).toBe(true);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("maps governed Professional Context Graph operations to narrow RPC contracts", async () => {
+    const rpc = vi.fn(async () => ({ data: {}, error: null }));
+    const client = await connectLewis(rpc);
+
+    await client.callTool({
+      name: "propose_context_candidate",
+      arguments: {
+        request_id: "00000000-0000-4000-8000-000000000201",
+        family: "lesson",
+        label: "Quantify operational scale",
+        summary: "State team size and outcomes in interview examples.",
+        proposed_tier: "chapter",
+        chapter_key: "sotf_transition",
+        privacy: "normal",
+        source_type: "workflow",
+        source_reference: "interview-lab:session-1",
+        observed_at: "2026-09-02T18:00:00Z",
+        confidence: 0.8,
+        evidence_excerpt: "The coach requested clearer evidence of scale.",
+        evidence_role: "supporting",
+        source_record_type: null,
+        source_record_id: null,
+        conflicts_with_context_id: null,
+        possible_match_context_id: null,
+        retention: "retain",
+        military_sensitivity: "none"
+      }
+    });
+    await client.callTool({
+      name: "review_context_candidate",
+      arguments: {
+        candidate_id: "00000000-0000-4000-8000-000000000202",
+        decision: "correct",
+        request_id: "00000000-0000-4000-8000-000000000203",
+        tier: "chapter",
+        corrected_label: null,
+        corrected_summary: "Quantify team size, operating tempo, and outcomes.",
+        chapter_key: "sotf_transition",
+        review_notes: "Confirmed and amended by the user.",
+        user_confirmed: true
+      }
+    });
+    await client.callTool({
+      name: "list_professional_context",
+      arguments: {
+        purpose: "learning",
+        tiers: ["chapter", "core"],
+        include_private: false,
+        explicit_private_access: false,
+        page_size: 25
+      }
+    });
+    await client.callTool({
+      name: "link_professional_context",
+      arguments: {
+        source_context_id: "00000000-0000-4000-8000-000000000204",
+        link_type: "derived_from",
+        request_id: "00000000-0000-4000-8000-000000000205",
+        target_context_id: null,
+        target_record_type: "memory_entry",
+        target_record_id: "00000000-0000-4000-8000-000000000206",
+        user_confirmed: true
+      }
+    });
+
+    expect(rpc).toHaveBeenNthCalledWith(1, "mcp_propose_context_candidate", {
+      request_id: "00000000-0000-4000-8000-000000000201",
+      target_family: "lesson",
+      proposed_label: "Quantify operational scale",
+      proposed_summary: "State team size and outcomes in interview examples.",
+      proposed_tier: "chapter",
+      target_privacy_level: "normal",
+      target_source_type: "workflow",
+      target_source_reference: "interview-lab:session-1",
+      target_observed_at: "2026-09-02T18:00:00Z",
+      target_confidence: 0.8,
+      evidence_excerpt: "The coach requested clearer evidence of scale.",
+      target_evidence_role: "supporting",
+      target_chapter_key: "sotf_transition",
+      target_source_record_type: null,
+      target_source_record_id: null,
+      target_conflict_with_entity_id: null,
+      target_possible_match_entity_id: null,
+      target_retention: "retain",
+      target_military_sensitivity: "none"
+    });
+    expect(rpc).toHaveBeenNthCalledWith(2, "mcp_review_context_candidate", {
+      target_candidate_id: "00000000-0000-4000-8000-000000000202",
+      target_decision: "correct",
+      request_id: "00000000-0000-4000-8000-000000000203",
+      target_tier: "chapter",
+      corrected_label: null,
+      corrected_summary: "Quantify team size, operating tempo, and outcomes.",
+      target_chapter_key: "sotf_transition",
+      review_notes: "Confirmed and amended by the user."
+    });
+    expect(rpc).toHaveBeenNthCalledWith(3, "mcp_list_professional_context", {
+      target_purpose: "learning",
+      target_tiers: ["chapter", "core"],
+      include_private: false,
+      explicit_private_access: false,
+      page_size: 25
+    });
+    expect(rpc).toHaveBeenNthCalledWith(4, "mcp_link_professional_context", {
+      source_context_id: "00000000-0000-4000-8000-000000000204",
+      link_type: "derived_from",
+      request_id: "00000000-0000-4000-8000-000000000205",
+      target_context_id: null,
+      target_record_type: "memory_entry",
+      target_record_id: "00000000-0000-4000-8000-000000000206"
+    });
+  });
+
+  it("rejects unconfirmed context review and deletion before database access", async () => {
+    const rpc = vi.fn(async () => ({ data: {}, error: null }));
+    const client = await connectLewis(rpc);
+
+    const review = await client.callTool({
+      name: "review_context_candidate",
+      arguments: {
+        candidate_id: "00000000-0000-4000-8000-000000000202",
+        decision: "approve",
+        request_id: "00000000-0000-4000-8000-000000000203",
+        user_confirmed: false
+      }
+    });
+    const deletion = await client.callTool({
+      name: "manage_professional_context",
+      arguments: {
+        context_id: "00000000-0000-4000-8000-000000000204",
+        action: "delete",
+        request_id: "00000000-0000-4000-8000-000000000205",
+        user_confirmed: false
+      }
+    });
+
+    expect(review.isError).toBe(true);
+    expect(deletion.isError).toBe(true);
     expect(rpc).not.toHaveBeenCalled();
   });
 

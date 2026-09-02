@@ -1,6 +1,6 @@
 # Personal OS + SOTF Bundle architecture
 
-Status: source architecture and first additive implementation slice
+Status: P1 generic bundle entitlement foundation complete locally
 Branch: `codex/personal-os-transition-bundle`
 
 ## Naming contract
@@ -174,6 +174,33 @@ Confirmed context expected to remain useful across chapters: professional identi
 
 Ingestion is not memory. Email, Slack, meeting notes, and documents may produce memory candidates, but durable promotion requires explicit evidence and confirmation. Sensitive material always requires review.
 
+### Professional Context Graph implementation
+
+The Pilot graph uses six generic, Workspace-scoped records:
+
+- `context_chapters` identifies bounded chapters without turning SOTF into a separate account or memory system.
+- `professional_context_entities` contains only reviewed context across Working, Chapter, and Core tiers.
+- `professional_context_links` relates context to other context or existing tasks, commitments, meetings, decisions, captures, job applications, and legacy memory records without copying them.
+- `context_evidence` records bounded source references, timestamps, confidence, and supporting or contradicting excerpts rather than raw source bodies.
+- `context_candidates` is the ingestion and conflict-review queue.
+- `context_reviews` preserves explicit approve, correct, reject, supersede, promote, archive, and delete decisions.
+
+Working context expires after 30 days unless explicitly promoted. Chapter context
+is attached to a named professional chapter; Core context has no chapter binding.
+Exact repeats are deterministically reconciled, while ambiguous matches remain
+candidates. Conflicting evidence points to the active context it challenges and
+cannot replace that context without an explicit supersession review.
+
+Existing `memory_entries` remain intact. Lewis returns them as a separate
+`legacy_memory` compatibility collection and can link graph context to a legacy
+memory record. P2 performs no destructive backfill.
+
+Private context is omitted from default Lewis retrieval. Sensitive context can
+become durable only through explicit candidate review. Do-not-retain content and
+content marked as suspected classified, CUI, or operationally sensitive military
+information receive a non-retained response before any candidate, evidence,
+workflow payload, or cache record is written.
+
 ## Knowledge-store direction
 
 Supabase remains the structured system of record and authorization boundary. A user-owned external store can serve as a portable, human-readable memory mirror and raw-document archive. Notion is a strong candidate for living structured context; Google Drive remains appropriate for source documents and archives. Connector implementation is deferred to a separately reviewed slice.
@@ -191,12 +218,28 @@ Supabase remains the structured system of record and authorization boundary. A u
 
 This is controlled self-improvement, not autonomous instruction drift.
 
+## P1 entitlement foundation
+
+The Workspace now stores generic `bundle_definitions`, `bundle_capabilities`,
+and canonical `bundle_entitlements`. `sotf_transition` is an ordinary catalog
+row. Active entitlements can originate from operator assignment, invite,
+subscription, promotion, or organization license; Pilot V1 implements the first
+two end to end.
+
+Operator assignment and invite issuance run through bounded product routes with
+normal authenticated sessions. Hash-only invitations live outside the exposed
+schema, claims bind the verified Auth email to the user's active Personal
+Workspace, and assignment/issuance/claim retries reconcile without duplicate
+entitlement state. Entitlement resolution is source-neutral and returns
+available, active, unavailable, expired, or revoked state plus additive bundle
+capabilities.
+
 ## Current implementation boundary
 
 This branch intentionally does not:
 
 - change login or MCP OAuth behavior;
-- apply or add a hosted migration;
+- apply a hosted migration or contact hosted infrastructure;
 - enable a new external connector;
 - send email or Slack messages;
 - auto-write durable memory from external content;

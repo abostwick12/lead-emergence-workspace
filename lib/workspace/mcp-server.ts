@@ -18,6 +18,21 @@ const taskPriority = z.enum(["critical", "high", "medium", "low"]);
 const captureStatus = z.enum(["unprocessed", "processed", "discarded"]);
 const memoryType = z.enum(["fact", "preference", "context", "relationship"]);
 const careerStatus = z.enum(["researching", "applied", "phone_screen", "interview", "offer", "rejected", "withdrawn"]);
+const contextFamily = z.enum([
+  "professional_identity", "strength", "skill", "work_preference", "communication_preference",
+  "goal", "career_direction", "target_function", "target_industry", "target_role",
+  "decision_criterion", "career_hypothesis", "person", "organization", "relationship",
+  "opportunity", "accomplishment", "responsibility", "story_bank", "coaching_guidance",
+  "feedback", "lesson", "assumption", "context_gap"
+]);
+const contextTier = z.enum(["working", "chapter", "core"]);
+const contextPrivacy = z.enum(["normal", "private", "sensitive"]);
+const contextSource = z.enum(["user_supplied", "connector", "workflow", "inferred", "legacy_memory"]);
+const contextRecordType = z.enum(["task", "commitment", "meeting", "decision", "capture", "job_application", "memory_entry"]);
+const contextPurpose = z.enum(["all", "profile", "direction", "relationships", "work", "learning"]);
+const contextCandidateStatus = z.enum(["pending", "conflict", "confirmed", "corrected", "rejected", "archived"]);
+const contextReviewDecision = z.enum(["approve", "correct", "reject", "supersede"]);
+const contextLinkType = z.enum(["related_to", "supports", "contradicts", "about", "applies_to", "derived_from", "fulfilled_by"]);
 const boundedPageSize = z.number().int().min(1).max(50).default(25);
 const clockTimeZones = z.array(z.string().trim().min(1).max(80)).min(3).max(3).refine(
   (timeZones) => new Set(timeZones).size === 3,
@@ -222,6 +237,173 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     _meta: workspaceOAuthToolMeta
   }, ({ capture_id }) => rpcResult(supabase, "mcp_dismiss_capture", { target_capture_id: capture_id }));
+
+  server.registerTool("list_professional_context", {
+    title: "List confirmed professional context",
+    description: "Retrieve bounded, confirmed Working/Chapter/Core professional context by purpose. Private context is excluded unless the user explicitly requests it. Legacy Workspace memory is returned separately for compatibility and is never copied into the graph.",
+    inputSchema: {
+      purpose: contextPurpose.default("all"),
+      tiers: z.array(contextTier).min(1).max(3).default(["chapter", "core"]),
+      include_private: z.boolean().default(false),
+      explicit_private_access: z.boolean().default(false),
+      page_size: boundedPageSize
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ purpose, tiers, include_private, explicit_private_access, page_size }) => rpcResult(supabase, "mcp_list_professional_context", {
+    target_purpose: purpose,
+    target_tiers: tiers,
+    include_private,
+    explicit_private_access,
+    page_size
+  }));
+
+  server.registerTool("list_context_candidates", {
+    title: "Inspect professional context candidates",
+    description: "Read the governed context review queue, including conflicts and prior rejected candidates. Private candidates require an explicit user request.",
+    inputSchema: {
+      status: contextCandidateStatus.optional(),
+      include_private: z.boolean().default(false),
+      explicit_private_access: z.boolean().default(false),
+      page_size: boundedPageSize
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ status, include_private, explicit_private_access, page_size }) => rpcResult(supabase, "mcp_list_context_candidates", {
+    target_status: status ?? null,
+    include_private,
+    explicit_private_access,
+    page_size
+  }));
+
+  server.registerTool("propose_context_candidate", {
+    title: "Propose professional context for review",
+    description: "Record one bounded observation as a reviewable candidate with provenance. This never creates durable professional truth. Mark do-not-retain or suspected classified/CUI/operationally-sensitive military material so Workspace can refuse persistence.",
+    inputSchema: {
+      request_id: z.uuid(),
+      family: contextFamily,
+      label: z.string().trim().min(1).max(240),
+      summary: z.string().trim().min(1).max(5000),
+      proposed_tier: contextTier.default("working"),
+      chapter_key: z.string().regex(/^[a-z][a-z0-9_]{2,63}$/).nullable().optional(),
+      privacy: contextPrivacy.default("normal"),
+      source_type: contextSource,
+      source_reference: z.string().trim().min(1).max(500).nullable().optional(),
+      observed_at: z.string().datetime({ offset: true }),
+      confidence: z.number().min(0).max(1),
+      evidence_excerpt: z.string().trim().min(1).max(2000).nullable().optional(),
+      evidence_role: z.enum(["supporting", "contradicting"]).default("supporting"),
+      source_record_type: contextRecordType.nullable().optional(),
+      source_record_id: z.uuid().nullable().optional(),
+      conflicts_with_context_id: z.uuid().nullable().optional(),
+      possible_match_context_id: z.uuid().nullable().optional(),
+      retention: z.enum(["retain", "do_not_retain"]).default("retain"),
+      military_sensitivity: z.enum(["none", "suspected_classified", "suspected_cui", "operationally_sensitive"]).default("none")
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, (input) => rpcResult(supabase, "mcp_propose_context_candidate", {
+    request_id: input.request_id,
+    target_family: input.family,
+    proposed_label: input.label,
+    proposed_summary: input.summary,
+    proposed_tier: input.proposed_tier,
+    target_privacy_level: input.privacy,
+    target_source_type: input.source_type,
+    target_source_reference: input.source_reference ?? null,
+    target_observed_at: input.observed_at,
+    target_confidence: input.confidence,
+    evidence_excerpt: input.evidence_excerpt ?? null,
+    target_evidence_role: input.evidence_role,
+    target_chapter_key: input.chapter_key ?? null,
+    target_source_record_type: input.source_record_type ?? null,
+    target_source_record_id: input.source_record_id ?? null,
+    target_conflict_with_entity_id: input.conflicts_with_context_id ?? null,
+    target_possible_match_entity_id: input.possible_match_context_id ?? null,
+    target_retention: input.retention,
+    target_military_sensitivity: input.military_sensitivity
+  }));
+
+  server.registerTool("review_context_candidate", {
+    title: "Review a professional context candidate",
+    description: "Approve, correct, reject, or explicitly supersede conflicting context only after the user reviews the candidate. Core promotion is always user governed.",
+    inputSchema: {
+      candidate_id: z.uuid(),
+      decision: contextReviewDecision,
+      request_id: z.uuid(),
+      tier: contextTier.nullable().optional(),
+      corrected_label: z.string().trim().min(1).max(240).nullable().optional(),
+      corrected_summary: z.string().trim().min(1).max(5000).nullable().optional(),
+      chapter_key: z.string().regex(/^[a-z][a-z0-9_]{2,63}$/).nullable().optional(),
+      review_notes: z.string().trim().min(1).max(2000).nullable().optional(),
+      user_confirmed: z.literal(true)
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, (input) => rpcResult(supabase, "mcp_review_context_candidate", {
+    target_candidate_id: input.candidate_id,
+    target_decision: input.decision,
+    request_id: input.request_id,
+    target_tier: input.tier ?? null,
+    corrected_label: input.corrected_label ?? null,
+    corrected_summary: input.corrected_summary ?? null,
+    target_chapter_key: input.chapter_key ?? null,
+    review_notes: input.review_notes ?? null
+  }));
+
+  server.registerTool("get_context_provenance", {
+    title: "Inspect professional context provenance",
+    description: "Inspect bounded supporting and contradicting evidence, review history, and unresolved conflicts for one professional context item.",
+    inputSchema: { context_id: z.uuid() },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, ({ context_id }) => rpcResult(supabase, "mcp_get_context_provenance", { target_entity_id: context_id }));
+
+  server.registerTool("link_professional_context", {
+    title: "Link professional context to an existing record",
+    description: "Link confirmed professional context to another context item or an existing Workspace task, commitment, meeting, decision, capture, job application, or legacy memory record without copying that record.",
+    inputSchema: {
+      source_context_id: z.uuid(),
+      link_type: contextLinkType,
+      request_id: z.uuid(),
+      target_context_id: z.uuid().nullable().optional(),
+      target_record_type: contextRecordType.nullable().optional(),
+      target_record_id: z.uuid().nullable().optional(),
+      user_confirmed: z.literal(true)
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, (input) => rpcResult(supabase, "mcp_link_professional_context", {
+    source_context_id: input.source_context_id,
+    link_type: input.link_type,
+    request_id: input.request_id,
+    target_context_id: input.target_context_id ?? null,
+    target_record_type: input.target_record_type ?? null,
+    target_record_id: input.target_record_id ?? null
+  }));
+
+  server.registerTool("manage_professional_context", {
+    title: "Promote, archive, or delete professional context",
+    description: "Apply an explicit user decision to promote confirmed context, archive it, or delete its retained content. Working can promote to Chapter/Core; Chapter can promote to Core.",
+    inputSchema: {
+      context_id: z.uuid(),
+      action: z.enum(["promote", "archive", "delete"]),
+      request_id: z.uuid(),
+      tier: z.enum(["chapter", "core"]).nullable().optional(),
+      chapter_key: z.string().regex(/^[a-z][a-z0-9_]{2,63}$/).nullable().optional(),
+      review_notes: z.string().trim().min(1).max(2000).nullable().optional(),
+      user_confirmed: z.literal(true)
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    _meta: workspaceOAuthToolMeta
+  }, (input) => rpcResult(supabase, "mcp_manage_professional_context", {
+    target_entity_id: input.context_id,
+    target_action: input.action,
+    request_id: input.request_id,
+    target_tier: input.tier ?? null,
+    target_chapter_key: input.chapter_key ?? null,
+    review_notes: input.review_notes ?? null
+  }));
 
   server.registerTool("list_memory", {
     title: "List Workspace memory",

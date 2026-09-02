@@ -106,6 +106,30 @@ describe("Context promotion guardrails", () => {
     expect(decision.action).toBe("promote");
     expect(decision.tier).toBe("core");
   });
+
+  it("refuses durable retention for do-not-retain and suspected controlled military context", () => {
+    const transient = evaluateContextCandidate({
+      content: "Use this only to answer the immediate question.",
+      scope: "temporary",
+      durable: false,
+      userConfirmed: true,
+      sensitive: false,
+      retention: "do_not_retain",
+      sourceType: "user"
+    });
+    const controlled = evaluateContextCandidate({
+      content: "Potentially controlled operational detail.",
+      scope: "career",
+      durable: true,
+      userConfirmed: true,
+      sensitive: true,
+      militarySensitivity: "suspected_cui",
+      sourceType: "user"
+    });
+
+    expect(transient).toMatchObject({ action: "do_not_retain", tier: null });
+    expect(controlled).toMatchObject({ action: "do_not_retain", tier: null });
+  });
 });
 
 describe("Daily rhythm planning", () => {

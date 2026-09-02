@@ -2,7 +2,7 @@ import type { IntegrationProviderId } from "@/lib/integrations/providers";
 
 export type MemoryTier = "working" | "chapter" | "core";
 export type ContextScope = "temporary" | "chapter" | "career";
-export type PromotionAction = "keep_working" | "promote" | "review_required" | "archive_only";
+export type PromotionAction = "keep_working" | "promote" | "review_required" | "do_not_retain";
 
 export type ContextCandidate = {
   content: string;
@@ -10,6 +10,9 @@ export type ContextCandidate = {
   durable: boolean;
   userConfirmed: boolean;
   sensitive: boolean;
+  privacy?: "normal" | "private" | "sensitive";
+  retention?: "retain" | "do_not_retain";
+  militarySensitivity?: "none" | "suspected_classified" | "suspected_cui" | "operationally_sensitive";
   sourceType: "user" | "email" | "slack" | "calendar" | "meeting" | "document" | "assistant";
 };
 
@@ -37,6 +40,16 @@ export type DailyRhythmPlan = {
 };
 
 export function evaluateContextCandidate(candidate: ContextCandidate): PromotionDecision {
+  if (candidate.retention === "do_not_retain" || (candidate.militarySensitivity && candidate.militarySensitivity !== "none")) {
+    return {
+      action: "do_not_retain",
+      tier: null,
+      reason: candidate.retention === "do_not_retain"
+        ? "Do-not-retain context may support the immediate request but must not enter evidence or durable memory."
+        : "Suspected classified, CUI, or operationally sensitive military material must not enter the Professional Context Graph."
+    };
+  }
+
   if (candidate.sensitive) {
     return {
       action: "review_required",

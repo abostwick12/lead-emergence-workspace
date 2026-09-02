@@ -36,6 +36,13 @@ const integrationCredentialRoute = await readFile("app/api/integrations/[provide
 const setupPage = await readFile("components/workspace-setup.tsx", "utf8");
 const mcpRoute = await readFile("app/api/mcp/route.ts", "utf8");
 const mcpResourceAdmissionSql = await readFile("supabase/migrations/20260901150529_workspace_mcp_resource_admission.sql", "utf8");
+const bundleEntitlementSql = await readFile("supabase/migrations/20260902162536_bundle_entitlement_foundation.sql", "utf8");
+const bundleAssignmentRoute = await readFile("app/api/operator/bundles/assign/route.ts", "utf8");
+const bundleInviteRoute = await readFile("app/api/operator/bundles/invites/route.ts", "utf8");
+const bundleClaimRoute = await readFile("app/api/bundles/invites/claim/route.ts", "utf8");
+const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
+const professionalContextSql = await readFile("supabase/migrations/20260902174817_professional_context_graph.sql", "utf8");
+const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -338,4 +345,88 @@ test("keeps OAuth consent disclosure aligned with the controlled Lewis action se
   assert.match(consentPage, /task or memory deletion, capture discard, and configuration replacement require explicit confirmation/);
   assert.match(consentPage, /does not connect external services, reveal connector credentials, send messages, or create calendar events/);
   assert.match(consentPage, /registered connection, or disconnection state/);
+});
+
+test("models SOTF as generic catalog data with additive bundle capabilities", () => {
+  assert.match(bundleEntitlementSql, /create table if not exists workspace\.bundle_definitions/i);
+  assert.match(bundleEntitlementSql, /create table if not exists workspace\.bundle_capabilities/i);
+  assert.match(bundleEntitlementSql, /create table if not exists workspace\.bundle_entitlements/i);
+  assert.match(bundleEntitlementSql, /'sotf_transition',\s*'SOTF Bundle'/i);
+  assert.match(bundleEntitlementSql, /'operator_assignment', 'invite', 'subscription', 'promotion', 'organization_license'/i);
+  assert.match(bundleEntitlementSql, /join workspace\.bundle_capabilities/i);
+  assert.match(bundleEntitlementSql, /create or replace function workspace_private\.has_personal_capability/i);
+  assert.doesNotMatch(bundleEntitlementSql, /sotf_(?:cohort|member)|cohort_membership/i);
+});
+
+test("keeps bundle writes private and exposes only fail-closed authenticated bridges", () => {
+  assert.match(bundleEntitlementSql, /create table if not exists workspace_private\.bundle_invites/i);
+  assert.match(bundleEntitlementSql, /alter table workspace_private\.bundle_invites enable row level security/i);
+  assert.match(bundleEntitlementSql, /revoke all on workspace_private\.bundle_invites from public, anon, authenticated/i);
+  assert.match(bundleEntitlementSql, /create or replace function workspace\.issue_bundle_assignment[\s\S]*security definer[\s\S]*workspace_private\.issue_bundle_assignment/i);
+  assert.match(bundleEntitlementSql, /set search_path = ''/i);
+  assert.match(bundleEntitlementSql, /workspace_bundle_operator/i);
+  assert.match(bundleEntitlementSql, /workspace_private\.is_direct_session\(\)/i);
+  assert.match(bundleEntitlementSql, /revoke all on function workspace\.issue_bundle_assignment/i);
+  assert.match(bundleEntitlementSql, /grant execute on function workspace\.issue_bundle_assignment[^\n]+ to authenticated/i);
+  assert.doesNotMatch(bundleAssignmentRoute + bundleInviteRoute + bundleClaimRoute + bundleServer, /SUPABASE_SERVICE_ROLE_KEY|getSupabaseAdminClient|service_role/i);
+});
+
+test("uses bounded hash-only single-claim invites and retry-stable product routes", () => {
+  assert.match(bundleEntitlementSql, /token_hash text not null unique/i);
+  assert.match(bundleEntitlementSql, /extensions\.digest\(normalized_token, 'sha256'\)/i);
+  assert.match(bundleEntitlementSql, /claimed_entitlement_id uuid references workspace\.bundle_entitlements/i);
+  assert.match(bundleEntitlementSql, /expires_at <= now\(\)/i);
+  assert.match(bundleEntitlementSql, /idempotent_replay/i);
+  assert.match(bundleServer, /createHmac\("sha256"/i);
+  assert.match(bundleServer, /BUNDLE_INVITE_TOKEN_SECRET/i);
+  assert.match(bundleInviteRoute, /issue_bundle_invite/i);
+  assert.match(bundleClaimRoute, /ensure_personal_workspace/i);
+  assert.match(bundleClaimRoute, /claim_bundle_invite/i);
+  assert.doesNotMatch(bundleInviteRoute + bundleClaimRoute, /token_hash/i);
+  assert.match(envExample, /BUNDLE_INVITE_TOKEN_SECRET/);
+});
+
+test("builds a governed Professional Context Graph instead of a second memory silo", () => {
+  for (const table of [
+    "context_chapters", "professional_context_entities", "professional_context_links",
+    "context_evidence", "context_candidates", "context_reviews"
+  ]) {
+    assert.match(professionalContextSql, new RegExp(`create table workspace\\.${table}`, "i"));
+    assert.match(professionalContextSql, new RegExp(`alter table workspace\\.${table} enable row level security`, "i"));
+  }
+  assert.match(professionalContextSql, /tier in \('working', 'chapter', 'core'\)/i);
+  assert.match(professionalContextSql, /entity_family text not null check \(entity_family in/i);
+  assert.match(professionalContextSql, /'professional_identity'[\s\S]*'career_hypothesis'[\s\S]*'story_bank'[\s\S]*'context_gap'/i);
+  assert.match(professionalContextSql, /target_record_type[\s\S]*'task'[\s\S]*'commitment'[\s\S]*'job_application'[\s\S]*'memory_entry'/i);
+  assert.doesNotMatch(professionalContextSql, /sotf_(?:cohort|member)|cohort_membership/i);
+});
+
+test("keeps ingestion candidate-based, provenance-rich, private by default, and non-retaining when required", () => {
+  assert.match(professionalContextSql, /create or replace function workspace\.mcp_propose_context_candidate/i);
+  assert.match(professionalContextSql, /target_retention = 'do_not_retain'[\s\S]*'retained', false[\s\S]*insert into workspace\.context_candidates/i);
+  assert.match(professionalContextSql, /target_military_sensitivity <> 'none'/i);
+  assert.match(professionalContextSql, /evidence_role text not null check \(evidence_role in \('supporting', 'contradicting'\)\)/i);
+  assert.match(professionalContextSql, /source_type text not null check \(source_type in \('user_supplied', 'connector', 'workflow', 'inferred', 'legacy_memory'\)\)/i);
+  assert.match(professionalContextSql, /status = 'conflict'[\s\S]*explicitly superseded or rejected/i);
+  assert.match(professionalContextSql, /privacy_level <> 'private' or include_private/i);
+  assert.match(professionalContextSql, /include_private and not explicit_private_access/i);
+  assert.match(professionalContextSql, /unique index context_candidates_evidence_dedupe_idx/i);
+});
+
+test("exposes only bounded capability-gated Lewis context operations and preserves legacy memory", () => {
+  for (const functionName of [
+    "mcp_list_professional_context", "mcp_list_context_candidates",
+    "mcp_propose_context_candidate", "mcp_review_context_candidate",
+    "mcp_get_context_provenance", "mcp_link_professional_context",
+    "mcp_manage_professional_context"
+  ]) {
+    assert.match(professionalContextSql, new RegExp(`create or replace function workspace\\.${functionName}`, "i"));
+    assert.match(professionalContextSql, new RegExp(`grant execute on function workspace\\.${functionName}`, "i"));
+    assert.match(mcpServer, new RegExp(`registerTool\\("${functionName.replace("mcp_", "")}"`, "i"));
+  }
+  assert.match(professionalContextSql, /require_mcp_capability\('professional_context'\)/i);
+  assert.match(professionalContextSql, /authorization[\s\S]*require_mcp_workspace|require_mcp_workspace\(\)/i);
+  assert.match(professionalContextSql, /'legacy_memory'[\s\S]*from workspace\.memory_entries/i);
+  assert.match(professionalContextSql, /source_record_id[\s\S]*context_record_belongs_to_workspace/i);
+  assert.doesNotMatch(professionalContextSql + mcpServer, /SUPABASE_SERVICE_ROLE_KEY|service_role|generic sql/i);
 });
