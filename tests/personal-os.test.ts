@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { bundleIncludesWorkflow, resolveBundleWorkflowKeys } from "@/lib/workspace/bundles";
+import { WORKSPACE_BUNDLES, bundleIncludesWorkflow, resolveBundleWorkflowKeys } from "@/lib/workspace/bundles";
 import { buildDailyRhythmPlan, evaluateContextCandidate } from "@/lib/workspace/rhythm";
 
 describe("Personal OS bundles", () => {
-  it("lets the SOTF transition bundle inherit the persistent core workflows", () => {
+  it("keeps the required SOTF Bundle user-facing label", () => {
+    expect(WORKSPACE_BUNDLES.sotf_transition.label).toBe("SOTF Bundle");
+  });
+
+  it("lets the internal SOTF bundle inherit the persistent core workflows", () => {
     const workflows = resolveBundleWorkflowKeys(["sotf_transition"]);
     expect(workflows).toContain("daily_rhythm");
     expect(workflows).toContain("weekly_review");
