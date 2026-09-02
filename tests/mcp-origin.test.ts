@@ -48,10 +48,12 @@ describe("Lewis MCP origin policy", () => {
     }));
 
     expect(response.status).toBe(200);
-    const payload = await response.json() as { result: { tools: Array<{ name: string; securitySchemes?: unknown }> } };
-    expect(payload.result.tools.find((tool) => tool.name === "get_onboarding_state")?.securitySchemes).toEqual([
+    const payload = await response.json() as { result: { tools: Array<{ name: string; securitySchemes?: unknown; outputSchema?: { type?: string } }> } };
+    const onboarding = payload.result.tools.find((tool) => tool.name === "get_onboarding_state");
+    expect(onboarding?.securitySchemes).toEqual([
       { type: "oauth2", scopes: ["openid", "email", "profile"] },
     ]);
+    expect(onboarding?.outputSchema?.type).toBe("object");
   });
 
   it("returns the required OAuth challenge as a JSON-RPC tool result without a bearer", async () => {
