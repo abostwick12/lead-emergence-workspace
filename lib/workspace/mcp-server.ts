@@ -258,7 +258,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       page_size: boundedPageSize
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: workspaceOAuthToolMeta
+    ...workspaceMcpToolContract
   }, ({ purpose, tiers, include_private, explicit_private_access, page_size }) => rpcResult(supabase, "mcp_list_professional_context", {
     target_purpose: purpose,
     target_tiers: tiers,
@@ -277,7 +277,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       page_size: boundedPageSize
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: workspaceOAuthToolMeta
+    ...workspaceMcpToolContract
   }, ({ status, include_private, explicit_private_access, page_size }) => rpcResult(supabase, "mcp_list_context_candidates", {
     target_status: status ?? null,
     include_private,
@@ -310,7 +310,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       military_sensitivity: z.enum(["none", "suspected_classified", "suspected_cui", "operationally_sensitive"]).default("none")
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: workspaceOAuthToolMeta
+    ...workspaceMcpToolContract
   }, (input) => rpcResult(supabase, "mcp_propose_context_candidate", {
     request_id: input.request_id,
     target_family: input.family,
@@ -348,7 +348,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       user_confirmed: z.literal(true)
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
-    _meta: workspaceOAuthToolMeta
+    ...workspaceMcpToolContract
   }, (input) => rpcResult(supabase, "mcp_review_context_candidate", {
     target_candidate_id: input.candidate_id,
     target_decision: input.decision,
@@ -365,7 +365,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
     description: "Inspect bounded supporting and contradicting evidence, review history, and unresolved conflicts for one professional context item.",
     inputSchema: { context_id: z.uuid() },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: workspaceOAuthToolMeta
+    ...workspaceMcpToolContract
   }, ({ context_id }) => rpcResult(supabase, "mcp_get_context_provenance", { target_entity_id: context_id }));
 
   server.registerTool("link_professional_context", {
@@ -381,7 +381,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       user_confirmed: z.literal(true)
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    _meta: workspaceOAuthToolMeta
+    ...workspaceMcpToolContract
   }, (input) => rpcResult(supabase, "mcp_link_professional_context", {
     source_context_id: input.source_context_id,
     link_type: input.link_type,
@@ -404,7 +404,7 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       user_confirmed: z.literal(true)
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
-    _meta: workspaceOAuthToolMeta
+    ...workspaceMcpToolContract
   }, (input) => rpcResult(supabase, "mcp_manage_professional_context", {
     target_entity_id: input.context_id,
     target_action: input.action,

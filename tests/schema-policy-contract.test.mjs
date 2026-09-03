@@ -341,8 +341,10 @@ test("extends Lewis through narrow, tenant-scoped internal parity actions", () =
 });
 
 test("keeps OAuth consent disclosure aligned with the controlled Lewis action set", () => {
-  assert.match(consentPage, /Quick Captures, personal memory, career opportunities, and integration connection status/);
+  assert.match(consentPage, /Quick Captures, personal memory, career opportunities, integration connection status, and governed professional context/);
+  assert.match(consentPage, /Professional observations remain review candidates until you approve, correct, reject, or explicitly resolve them/);
   assert.match(consentPage, /task or memory deletion, capture discard, and configuration replacement require explicit confirmation/);
+  assert.match(consentPage, /Context promotion, archival, deletion, and conflict supersession also require explicit confirmation/);
   assert.match(consentPage, /does not connect external services, reveal connector credentials, send messages, or create calendar events/);
   assert.match(consentPage, /registered connection, or disconnection state/);
 });
