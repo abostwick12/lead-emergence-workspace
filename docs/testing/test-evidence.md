@@ -677,3 +677,38 @@ change, a Vercel deployment, or a real assistant connection.
 - P2 remains disabled and release-blocked. A reviewed fresh migration replay,
   proof of a production cleanup schedule no slower than 15 minutes, hosted gate
   approval, deployment, and production acceptance evidence are still required.
+
+# P2 Professional Context release hardening B2.1 — 2026-09-03
+
+- Branch baseline: `bddefa3d2345af9bac15769f68bd49ea5d54e86e` on
+  `codex/personal-os-transition-bundle`.
+- Hosted migrations, deployment, capability activation, and destructive fresh
+  replay: **NOT RUN**. The forward-only
+  `20260903190000_professional_context_release_hardening.sql` migration was
+  applied only to the existing local database. Thirteen live B2.1 function-body
+  hashes match the current migration source after whitespace normalization.
+- Focused Professional Context confirmation/B2.1 pgTAP — **PASS, 147/147
+  assertions**. Coverage includes persisted terminalization and synchronous
+  clearing for stale preview, capability loss, ownership-membership loss,
+  authorization epoch change, disconnect, and expiry; wrong-client denial;
+  separate private/sensitive grants; military-sensitive refusal; bounded
+  delete/redaction fanout with no partial request; action-specific result
+  minimization; cleanup retention; catalog-wide API-role privilege inspection;
+  and scheduler absence, misconfiguration, repair, and idempotency.
+- Scheduler release preflight against the persistent local target — **EXPECTED
+  NOT READY** with `scheduler_unavailable`. The pgTAP scheduler cases install
+  `pg_cron` only inside the rolled-back test transaction; they prove the
+  scheduling implementation but not persistent target-environment execution.
+- `npm run check:boundaries` — **PASS**; 74 runtime files contain no
+  Ministry/Consulting runtime import or service-role client.
+- `npm run test:schema` — **PASS, 36/36**.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **PASS, 104/104 across 15 files**.
+- `npm run build` — **PASS** with Next.js 16.3.2.
+- `npm run test:rls` — **PASS, 481/481 assertions across 10 files**.
+- `supabase db advisors --local` — **PASS, no issues found**.
+- P2 remains disabled and release-blocked. A reviewed fresh migration replay,
+  persistent target pg_cron/job validation and observed execution, hosted gate
+  approval, deployment, production acceptance, and the B2.2 first-party
+  private/sensitive read-grant controls remain required.

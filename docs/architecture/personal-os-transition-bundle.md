@@ -273,8 +273,13 @@ This branch intentionally does not:
 
 The current branch contains the P1 bundle foundation and a locally hardened P2
 Professional Context Graph with direct-session confirmation authority and
-short-lived protected-read grants. P2 is not activated for SOTF entitlements and
-is not release-ready. A reviewed fresh migration replay, operational cleanup
-scheduling, hosted release approval, deployment and acceptance, connector
-execution, one-command bundle installation, persistent progression state, and
-later self-improvement capabilities remain separate reviewed slices.
+short-lived protected-read grants. B2.1 materializes terminal authority loss,
+bounds protected target snapshots, reduces completed results to action-level
+status, and adds a fail-closed scheduler preflight. Missing `pg_cron` remains
+valid for ordinary local development but is release-NOT-READY; implementation
+of cleanup is not evidence that the target scheduler exists or has executed.
+P2 is not activated for SOTF entitlements and is not release-ready. A reviewed
+fresh migration replay, proven target cleanup scheduling, hosted release
+approval, deployment and acceptance, connector execution, one-command bundle
+installation, persistent progression state, and later self-improvement
+capabilities remain separate reviewed slices.

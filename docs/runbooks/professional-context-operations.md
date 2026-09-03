@@ -89,14 +89,29 @@ deployment, and acceptance evidence.
 
 ## Confirmation retention
 
-Pending requests expire logically after 30 minutes. Completed, denied, stale,
-expired, and revoked requests clear protected payload and target snapshots
-synchronously. Once `expires_at` is reached, content is inaccessible and cannot
-be executed even if physical cleanup has not run yet. The cleanup function must
-run at least every 15 minutes in a release environment; it is scheduled through
-`pg_cron` when that extension is present. Content-free confirmation/audit
-metadata is retained for 30 days by default and is server-configurable. A stale
-request is terminal: Lewis must submit a new logical request with a new UUID.
+Pending requests expire logically after 30 minutes. Preview, status, denial, and
+execution paths materialize detected expiry, stale target state, authorization
+change, capability loss, or ownership loss as a terminal row and synchronously
+clear the normalized payload and protected target snapshot. Once `expires_at`
+is reached, content is inaccessible and cannot be executed even if physical
+cleanup has not run yet. Retained target snapshots are limited to 64 KiB and 128
+decision-relevant related rows; delete/redaction stores counts plus a
+deterministic aggregate fingerprint and refuses larger fanout before creating a
+request. Completed results retain only an action-level allowlist and never
+retain candidate, context, supersession, conflict, or link identifiers.
+
+The cleanup function is safe to invoke directly and expires pending rows,
+removes content-free terminal metadata after the server-configurable 30-day
+default, and removes stale grants. When `pg_cron` is installed, the migration
+reconciles one active `workspace-professional-context-confirmation-cleanup` job
+at `*/15 * * * *`. A missing scheduler does not break ordinary local
+development, but it is not proof of the physical-cleanup SLA and makes a target
+environment release-NOT-READY. Before release, execute the read-only
+`supabase/preflight/professional_context_cleanup_scheduler.sql` against the
+intended target; it fails closed for a missing, duplicate, inactive,
+misconfigured, or slower-than-contracted job. Record actual target execution
+separately from implementation and scheduling evidence. A stale request is
+terminal: Lewis must submit a new logical request with a new UUID.
 
 ## Local verification
 
@@ -108,6 +123,10 @@ supabase test db --local supabase/tests/database/professional_context_confirmati
 npm run test:rls
 supabase db advisors --local
 ```
+
+The focused confirmation pgTAP installs `pg_cron` only inside its rolled-back
+test transaction to verify deterministic, idempotent scheduling and negative
+preflight cases. It does not establish target-environment scheduler readiness.
 
 Run a fresh local migration replay only when that destructive local action has
 been separately authorized. Never link this repository to or run this

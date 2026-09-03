@@ -44,6 +44,8 @@ const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
 const professionalContextSql = await readFile("supabase/migrations/20260902174817_professional_context_graph.sql", "utf8");
 const professionalContextHardeningSql = await readFile("supabase/migrations/20260902213000_professional_context_phase_a_hardening.sql", "utf8");
 const professionalContextConfirmationSql = await readFile("supabase/migrations/20260903160000_professional_context_confirmation_authority.sql", "utf8");
+const professionalContextReleaseHardeningSql = await readFile("supabase/migrations/20260903190000_professional_context_release_hardening.sql", "utf8");
+const professionalContextCleanupPreflightSql = await readFile("supabase/preflight/professional_context_cleanup_scheduler.sql", "utf8");
 const professionalContextArchitecture = await readFile("docs/architecture/personal-os-transition-bundle.md", "utf8");
 const professionalContextRunbook = await readFile("docs/runbooks/professional-context-operations.md", "utf8");
 const rlsPolicyMatrix = await readFile("docs/security/rls-policy-matrix.md", "utf8");
@@ -483,6 +485,30 @@ test("makes B2 confirmation non-transferable, content-minimized, and independent
   assert.match(professionalContextConfirmationSql, /revoke all on function workspace\.mcp_manage_professional_context_protected/i);
   assert.doesNotMatch(professionalContextConfirmationSql, /update workspace\.bundle_capabilities[\s\S]*professional_context[\s\S]*enabled\s*=\s*true/i);
   assert.doesNotMatch(professionalContextConfirmationSql, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+});
+
+test("hardens B2.1 terminalization, snapshot bounds, result references, and cleanup preflight", () => {
+  assert.match(professionalContextReleaseHardeningSql, /materialize_professional_context_confirmation/i);
+  assert.match(professionalContextReleaseHardeningSql, /'workspace_access_changed'/i);
+  assert.match(professionalContextReleaseHardeningSql, /set status = next_status, normalized_payload = null, target_state_snapshot = null/i);
+  assert.match(professionalContextReleaseHardeningSql, /is_valid_mcp_request\(\)/i);
+  assert.match(professionalContextReleaseHardeningSql, /professional_context_confirmation_snapshot_max_bytes', '65536'/i);
+  assert.match(professionalContextReleaseHardeningSql, /professional_context_confirmation_snapshot_max_items', '128'/i);
+  assert.match(professionalContextReleaseHardeningSql, /professional_context_confirmation_snapshot_size_check/i);
+  assert.match(professionalContextReleaseHardeningSql, /The confirmation target state exceeds supported bounds/i);
+  assert.match(professionalContextReleaseHardeningSql, /'affected_state_fingerprint'[^]*'delete-fanout'/i);
+  assert.match(professionalContextReleaseHardeningSql, /professional_context_confirmation_result_allowlist_check/i);
+  assert.match(professionalContextReleaseHardeningSql, /jsonb_build_object\('kind', 'candidate'\)/i);
+  assert.match(professionalContextReleaseHardeningSql, /jsonb_build_object\(\s*'kind', 'context_review', 'decision', request_record\.action_type/i);
+  assert.doesNotMatch(professionalContextReleaseHardeningSql, /bounded_result_reference :=[^;]*(candidate_id|context_id|superseded_context_id|link_id)/i);
+  assert.match(professionalContextReleaseHardeningSql, /professional_context_cleanup_schedule_status/i);
+  assert.match(professionalContextReleaseHardeningSql, /ensure_professional_context_cleanup_schedule/i);
+  assert.match(professionalContextReleaseHardeningSql, /'\*\/15 \* \* \* \*'/i);
+  assert.match(professionalContextReleaseHardeningSql, /scheduler_unavailable/i);
+  assert.match(professionalContextCleanupPreflightSql, /if not coalesce\(\(readiness ->> 'ready'\)::boolean, false\)/i);
+  assert.match(professionalContextCleanupPreflightSql, /raise exception 'Professional Context cleanup scheduler is NOT READY/i);
+  assert.doesNotMatch(professionalContextReleaseHardeningSql, /update workspace\.bundle_capabilities[^]*professional_context[^]*enabled\s*=\s*true/i);
+  assert.doesNotMatch(professionalContextReleaseHardeningSql + professionalContextCleanupPreflightSql, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
 test("scopes non-retention claims to graph content and prohibits controlled-material submission", () => {

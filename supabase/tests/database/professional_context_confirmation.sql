@@ -38,6 +38,9 @@ as $$
     when 'result' then result_reference::text
     when 'action' then action_type
     when 'edited' then user_edited_fields::text
+    when 'reason' then terminal_reason_code
+    when 'cleared_at' then payload_cleared_at::text
+    when 'snapshot_bytes' then pg_column_size(target_state_snapshot)::text
   end
   from workspace_private.professional_context_confirmation_requests where id = target_id;
 $$;
@@ -153,6 +156,47 @@ select is(has_function_privilege('authenticated', 'workspace_private.invalidate_
 select is((select count(*)::integer from pg_trigger
   where tgname = 'invalidate_professional_context_authority_on_mcp_change' and not tgisinternal),
   1, 'MCP authorization changes have one Professional Context invalidation trigger');
+select is((
+  select count(*)::integer
+  from pg_proc as procedure
+  join pg_namespace as namespace on namespace.oid = procedure.pronamespace
+  where namespace.nspname = 'workspace'
+    and procedure.proname like '%context%'
+    and (
+      has_function_privilege('anon', procedure.oid, 'execute')
+      or exists (
+        select 1 from aclexplode(coalesce(procedure.proacl, acldefault('f', procedure.proowner))) as privilege
+        where privilege.grantee = 0 and privilege.privilege_type = 'EXECUTE'
+      )
+    )
+), 0, 'no Workspace context function is executable by anon or PUBLIC');
+select is((
+  select array_agg(signature order by signature)
+  from (
+    select format('%I.%I(%s)', namespace.nspname, procedure.proname,
+      pg_get_function_identity_arguments(procedure.oid)) as signature
+    from pg_proc as procedure
+    join pg_namespace as namespace on namespace.oid = procedure.pronamespace
+    where namespace.nspname = 'workspace'
+      and procedure.proname like '%context%'
+      and has_function_privilege('authenticated', procedure.oid, 'execute')
+  ) as allowed_surface
+), array[
+  'workspace.confirm_and_execute_professional_context(target_request_id uuid, final_corrected_label text, final_corrected_summary text)',
+  'workspace.create_professional_context_read_grant(target_client_id text, target_privacy_scope text)',
+  'workspace.deny_professional_context_confirmation(target_request_id uuid)',
+  'workspace.get_professional_context_confirmation(target_request_id uuid)',
+  'workspace.list_professional_context_read_grants()',
+  'workspace.mcp_get_context_confirmation_status(target_request_id uuid)',
+  'workspace.mcp_get_context_provenance_granted(target_entity_id uuid, requested_privacy_scopes text[])',
+  'workspace.mcp_list_context_candidates_granted(target_status text, requested_privacy_scopes text[], page_size integer)',
+  'workspace.mcp_list_professional_context_granted(target_purpose text, target_tiers text[], requested_privacy_scopes text[], page_size integer)',
+  'workspace.mcp_request_context_link(source_context_id uuid, link_type text, request_id uuid, target_context_id uuid, target_record_type text, target_record_id uuid)',
+  'workspace.mcp_request_context_management(target_entity_id uuid, target_action text, request_id uuid, target_tier text, target_chapter_key text, review_notes text)',
+  'workspace.mcp_request_context_review(target_candidate_id uuid, target_decision text, request_id uuid, corrected_label text, corrected_summary text, review_notes text)',
+  'workspace.mcp_submit_context_candidate(request_id uuid, target_family text, proposed_label text, proposed_summary text, proposed_tier text, target_privacy_level text, target_source_type text, target_source_reference text, target_observed_at timestamp with time zone, target_confidence numeric, evidence_excerpt text, target_evidence_role text, target_chapter_key text, target_source_record_type text, target_source_record_id uuid, target_conflict_with_entity_id uuid, target_possible_match_entity_id uuid, target_retention text, target_military_sensitivity text)',
+  'workspace.revoke_professional_context_read_grant(target_grant_id uuid)'
+]::text[], 'authenticated Professional Context execution surface exactly matches the explicit allowlist');
 
 -- Test-only activation after the separation assertion.
 update workspace.bundle_capabilities set enabled = true
@@ -255,6 +299,13 @@ select is(workspace.mcp_submit_context_candidate(
   'do_not_retain', 'none'
 ) ->> 'outcome', 'refused', 'do-not-retain material is refused before confirmation storage');
 select is(pg_temp.pc_count('confirmation'), 1, 'refusal creates no confirmation row');
+select is(workspace.mcp_submit_context_candidate(
+  'b1900000-0000-4000-8000-000000000026', 'responsibility', 'Military-sensitive refusal',
+  'This must be refused before confirmation persistence.', 'working', 'sensitive', 'user_supplied', null,
+  '2026-09-02T12:06:30Z', 1, null, 'supporting', null, null, null, null, null,
+  'retain', 'suspected_cui'
+) ->> 'outcome', 'refused', 'military-sensitive material is refused through the B2 submission path');
+select is(pg_temp.pc_count('confirmation'), 1, 'military-sensitive refusal creates no confirmation row');
 
 reset role;
 set local role authenticated;
@@ -267,6 +318,16 @@ select throws_ok(format(
   'select workspace.confirm_and_execute_professional_context(%L::uuid)',
   current_setting('request.private_confirmation_id')
 ), '22023', 'Confirmation request not found.', 'another Workspace owner cannot execute the request');
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1222222-2222-4222-8222-222222222222', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc222222-2222-4222-8222-222222222222',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select throws_ok(format(
+  'select workspace.mcp_get_context_confirmation_status(%L::uuid)',
+  current_setting('request.private_confirmation_id')
+), '22023', 'Confirmation request not found.', 'wrong-client MCP status polling cannot discover a confirmation');
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
@@ -278,6 +339,8 @@ select is(workspace.confirm_and_execute_professional_context(
 ) ->> 'status', 'completed', 'direct confirmation atomically executes the protected proposal');
 select is(pg_temp.pc_count('candidate', 'Private mentor'), 1, 'completed protected proposal creates its candidate');
 select is(pg_temp.pc_confirmation_value(current_setting('request.private_confirmation_id')::uuid, 'payload'), null, 'completed request clears transient payload');
+select is(pg_temp.pc_confirmation_value(current_setting('request.private_confirmation_id')::uuid, 'result'),
+  '{"kind": "candidate"}', 'protected proposal completion retains no candidate identifier');
 select is(workspace.confirm_and_execute_professional_context(
   current_setting('request.private_confirmation_id')::uuid
 ) ->> 'idempotent_replay', 'true', 'double confirm returns the completed result without another mutation');
@@ -339,14 +402,20 @@ select is(pg_temp.pc_count('entity'), 0, 'MCP review request does not execute ap
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
-select set_config('request.normal_entity_id', workspace.confirm_and_execute_professional_context(
+select is(workspace.confirm_and_execute_professional_context(
   current_setting('request.review_confirmation_id')::uuid
-) #>> '{result,context_id}', true);
+) ->> 'status', 'completed', 'normal review confirmation returns a minimized completion status');
 select is(pg_temp.pc_confirmation_value(current_setting('request.review_confirmation_id')::uuid, 'status'), 'completed', 'direct confirmation executes exact candidate approval');
 select is(pg_temp.pc_count('entity', 'Normal autonomous candidate'), 1, 'approved candidate becomes confirmed context');
-select set_config('request.private_entity_id', workspace.confirm_and_execute_professional_context(
+select is(pg_temp.pc_confirmation_value(current_setting('request.review_confirmation_id')::uuid, 'result'),
+  '{"kind": "context_review", "decision": "approve"}', 'normal review completion retains only its action-specific allowlist');
+select set_config('request.normal_entity_id', pg_temp.pc_candidate_value('Normal autonomous candidate', 'context_id'), true);
+select is(workspace.confirm_and_execute_professional_context(
   current_setting('request.private_review_confirmation_id')::uuid
-) #>> '{result,context_id}', true);
+) ->> 'status', 'completed', 'direct confirmation executes the protected candidate approval');
+select set_config('request.private_entity_id', pg_temp.pc_candidate_value('Private mentor', 'context_id'), true);
+select is(pg_temp.pc_confirmation_value(current_setting('request.private_review_confirmation_id')::uuid, 'result'),
+  '{"kind": "context_review", "decision": "approve"}', 'protected review result retains no candidate, context, conflict, or supersession identifiers');
 
 reset role;
 set local role authenticated;
@@ -398,6 +467,14 @@ select set_config('request.jwt.claims', jsonb_build_object(
 select ok(not (workspace.mcp_list_context_candidates_granted(null, array['private'], 25)
   -> 'candidates' @> '[{"proposed_label":"Private mentor"}]'::jsonb),
   'revoked private grant stops protected reads');
+select is(workspace.mcp_get_context_confirmation_status(
+  current_setting('request.private_review_confirmation_id')::uuid
+) -> 'result', '{"kind": "context_review", "decision": "approve"}'::jsonb,
+  'protected review status remains useful but identifier-free after private grant revocation');
+select ok(position(current_setting('request.private_entity_id') in
+  workspace.mcp_get_context_confirmation_status(
+    current_setting('request.private_review_confirmation_id')::uuid
+  )::text) = 0, 'completed status does not bypass protected reads with a retained relationship identifier');
 
 reset role;
 set local role authenticated;
@@ -422,6 +499,32 @@ select set_config('request.jwt.claims', jsonb_build_object(
 select ok(not (workspace.mcp_list_context_candidates_granted(null, array['private'], 25)
   -> 'candidates' @> '[{"proposed_label":"Private mentor"}]'::jsonb),
   'expired private grant stops protected reads');
+
+select set_config('request.sensitive_confirmation_id', workspace.mcp_submit_context_candidate(
+  'b1900000-0000-4000-8000-000000000027', 'feedback', 'Sensitive grant boundary',
+  'Visible only through an explicit sensitive grant.', 'working', 'sensitive', 'user_supplied', null,
+  '2026-09-02T12:09:30Z', 1
+) ->> 'confirmation_request_id', true);
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is(workspace.confirm_and_execute_professional_context(
+  current_setting('request.sensitive_confirmation_id')::uuid
+) ->> 'status', 'completed', 'direct confirmation persists the sensitive candidate');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select ok(not (workspace.mcp_list_context_candidates_granted(null, array['private'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Sensitive grant boundary"}]'::jsonb),
+  'private grant does not imply sensitive access');
+select ok(workspace.mcp_list_context_candidates_granted(null, array['sensitive'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Sensitive grant boundary"}]'::jsonb,
+  'sensitive grant returns the sensitive candidate');
 
 -- Correction stays request-only and the direct owner may edit only the two
 -- correction fields before the exact operation is atomically executed.
@@ -652,10 +755,11 @@ select is(workspace.deny_professional_context_confirmation(
 ) ->> 'status', 'denied', 'direct owner denial is terminal');
 select is(pg_temp.pc_confirmation_value(current_setting('request.denied_confirmation_id')::uuid, 'payload'), null, 'denial clears protected payload synchronously');
 select is(pg_temp.pc_count('candidate', 'Denied private person'), 0, 'denied protected proposal creates no graph candidate');
-select is(workspace.confirm_and_execute_professional_context(
+select is(workspace.get_professional_context_confirmation(
   current_setting('request.expired_confirmation_id')::uuid
-) ->> 'status', 'expired', 'logical expiry prevents execution immediately');
+) ->> 'status', 'expired', 'preview materializes logical expiry immediately');
 select is(pg_temp.pc_confirmation_value(current_setting('request.expired_confirmation_id')::uuid, 'payload'), null, 'expiry clears protected payload synchronously');
+select is(pg_temp.pc_confirmation_value(current_setting('request.expired_confirmation_id')::uuid, 'snapshot'), null, 'expiry clears protected target state synchronously');
 select is(pg_temp.pc_count('candidate', 'Expired sensitive feedback'), 0, 'expired protected proposal creates no graph candidate');
 
 reset role;
@@ -677,10 +781,256 @@ where id = (select primary_target_id from workspace_private.professional_context
   where id = current_setting('request.stale_confirmation_id')::uuid);
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
-select is(workspace.confirm_and_execute_professional_context(
+select is(workspace.get_professional_context_confirmation(
   current_setting('request.stale_confirmation_id')::uuid
-) ->> 'status', 'stale', 'changed target state terminalizes the request as stale');
+) ->> 'status', 'stale', 'preview persists changed target state as stale');
 select is(pg_temp.pc_confirmation_value(current_setting('request.stale_confirmation_id')::uuid, 'payload'), null, 'stale request clears transient payload');
+select is(pg_temp.pc_confirmation_value(current_setting('request.stale_confirmation_id')::uuid, 'snapshot'), null, 'stale request clears transient target state');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select ok(position('Changed after the confirmation was prepared' in
+  workspace.mcp_get_context_confirmation_status(
+    current_setting('request.stale_confirmation_id')::uuid
+  )::text) = 0, 'terminal MCP polling exposes no protected preview content');
+
+-- Capability and ownership loss can still identify and safely terminalize an
+-- already-bound request without restoring preview or mutation authority.
+select set_config('request.capability_confirmation_id', workspace.mcp_submit_context_candidate(
+  'b1900000-0000-4000-8000-000000000028', 'goal', 'Capability-loss payload',
+  'This protected payload must be cleared when P2 authority is removed.',
+  'working', 'private', 'user_supplied', null, '2026-09-02T12:21:00Z', 1
+) ->> 'confirmation_request_id', true);
+reset role;
+update workspace.bundle_capabilities set enabled = false
+where bundle_key = 'sotf_transition' and capability_key = 'professional_context';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is(workspace.get_professional_context_confirmation(
+  current_setting('request.capability_confirmation_id')::uuid
+) ->> 'status', 'revoked', 'capability loss persists revoked status through the narrow direct status path');
+select is(pg_temp.pc_confirmation_value(current_setting('request.capability_confirmation_id')::uuid, 'reason'),
+  'capability_unavailable', 'capability loss records the bounded reason code');
+select is(pg_temp.pc_confirmation_value(current_setting('request.capability_confirmation_id')::uuid, 'payload'),
+  null, 'capability loss clears protected payload');
+select is(pg_temp.pc_confirmation_value(current_setting('request.capability_confirmation_id')::uuid, 'snapshot'),
+  null, 'capability loss clears protected target state');
+reset role;
+update workspace.bundle_capabilities set enabled = true
+where bundle_key = 'sotf_transition' and capability_key = 'professional_context';
+
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select set_config('request.membership_confirmation_id', workspace.mcp_submit_context_candidate(
+  'b1900000-0000-4000-8000-000000000029', 'goal', 'Membership-loss payload',
+  'This protected payload must be cleared when ownership is lost.',
+  'working', 'private', 'user_supplied', null, '2026-09-02T12:22:00Z', 1
+) ->> 'confirmation_request_id', true);
+reset role;
+update workspace.workspace_memberships set status = 'revoked', revoked_at = now()
+where workspace_id = 'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  and user_id = 'b1111111-1111-4111-8111-111111111111';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is(workspace.get_professional_context_confirmation(
+  current_setting('request.membership_confirmation_id')::uuid
+) ->> 'status', 'revoked', 'ownership membership loss persists revoked status without preview access');
+select is(pg_temp.pc_confirmation_value(current_setting('request.membership_confirmation_id')::uuid, 'reason'),
+  'workspace_access_changed', 'ownership membership loss records the bounded reason code');
+select is(pg_temp.pc_confirmation_value(current_setting('request.membership_confirmation_id')::uuid, 'payload'),
+  null, 'ownership membership loss clears protected payload');
+select is(pg_temp.pc_confirmation_value(current_setting('request.membership_confirmation_id')::uuid, 'snapshot'),
+  null, 'ownership membership loss clears protected target state');
+reset role;
+update workspace.workspace_memberships set status = 'active', revoked_at = null
+where workspace_id = 'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  and user_id = 'b1111111-1111-4111-8111-111111111111';
+
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select set_config('request.epoch_confirmation_id', workspace.mcp_submit_context_candidate(
+  'b1900000-0000-4000-8000-000000000030', 'goal', 'Epoch-change payload',
+  'This protected payload must be cleared by the authorization trigger.',
+  'working', 'private', 'user_supplied', null, '2026-09-02T12:23:00Z', 1
+) ->> 'confirmation_request_id', true);
+reset role;
+update workspace.mcp_authorizations
+set authorization_valid_after = now(), updated_at = now()
+where id = 'b1cc1111-1111-4111-8111-111111111111';
+select is(pg_temp.pc_confirmation_value(current_setting('request.epoch_confirmation_id')::uuid, 'status'),
+  'revoked', 'authorization epoch change immediately revokes the pending request');
+select is(pg_temp.pc_confirmation_value(current_setting('request.epoch_confirmation_id')::uuid, 'payload'),
+  null, 'authorization epoch change immediately clears payload');
+select is(pg_temp.pc_confirmation_value(current_setting('request.epoch_confirmation_id')::uuid, 'snapshot'),
+  null, 'authorization epoch change immediately clears target state');
+
+-- Bounded snapshots preserve stale detection but reject unusually connected
+-- delete/redaction targets before a confirmation row can be inserted.
+insert into workspace.context_evidence (
+  workspace_id, entity_id, evidence_role, source_type, source_reference,
+  observed_at, confidence, privacy_level, evidence_fingerprint, created_by
+) values (
+  'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  current_setting('request.normal_entity_id')::uuid,
+  'supporting', 'inferred', 'bounded-fanout-1', now(), 0.5, 'normal',
+  encode(extensions.digest(convert_to('bounded-fanout-1', 'UTF8'), 'sha256'), 'hex'),
+  'b1111111-1111-4111-8111-111111111111'
+);
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select set_config('request.bounded_delete_confirmation_id', workspace.mcp_request_context_management(
+  current_setting('request.normal_entity_id')::uuid, 'delete',
+  'b1900000-0000-4000-8000-000000000033'
+) ->> 'confirmation_request_id', true);
+select ok(pg_temp.pc_confirmation_value(
+  current_setting('request.bounded_delete_confirmation_id')::uuid, 'snapshot_bytes'
+)::integer <= 65536, 'normal bounded delete target snapshot succeeds within the byte limit');
+reset role;
+insert into workspace.context_evidence (
+  workspace_id, entity_id, evidence_role, source_type, source_reference,
+  observed_at, confidence, privacy_level, evidence_fingerprint, created_by
+) values (
+  'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  current_setting('request.normal_entity_id')::uuid,
+  'supporting', 'inferred', 'bounded-fanout-2', now(), 0.5, 'normal',
+  encode(extensions.digest(convert_to('bounded-fanout-2', 'UTF8'), 'sha256'), 'hex'),
+  'b1111111-1111-4111-8111-111111111111'
+);
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is(workspace.get_professional_context_confirmation(
+  current_setting('request.bounded_delete_confirmation_id')::uuid
+) ->> 'status', 'stale', 'minimized delete fanout fingerprint preserves stale-state detection');
+select is(pg_temp.pc_confirmation_value(
+  current_setting('request.bounded_delete_confirmation_id')::uuid, 'payload'
+), null, 'fanout stale detection clears the pending payload');
+reset role;
+delete from workspace.context_evidence
+where workspace_id = 'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  and entity_id = current_setting('request.normal_entity_id')::uuid
+  and source_reference like 'bounded-fanout-%';
+
+insert into workspace.context_evidence (
+  workspace_id, entity_id, evidence_role, source_type, source_reference,
+  observed_at, confidence, privacy_level, evidence_fingerprint, created_by
+)
+select
+  'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  current_setting('request.normal_entity_id')::uuid,
+  'supporting', 'inferred', 'fanout-' || series::text,
+  now(), 0.5, 'normal',
+  encode(extensions.digest(convert_to('fanout-' || series::text, 'UTF8'), 'sha256'), 'hex'),
+  'b1111111-1111-4111-8111-111111111111'
+from generate_series(1, 129) as series;
+select set_config('request.confirmation_count_before_fanout', pg_temp.pc_count('confirmation')::text, true);
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select throws_ok(format(
+  'select workspace.mcp_request_context_management(%L::uuid, %L, %L::uuid)',
+  current_setting('request.normal_entity_id'), 'delete',
+  'b1900000-0000-4000-8000-000000000031'
+), '54000', 'The confirmation target state exceeds supported bounds.',
+  'large delete/redaction fanout fails with a bounded error');
+reset role;
+select is(pg_temp.pc_count('confirmation'), current_setting('request.confirmation_count_before_fanout')::integer,
+  'large fanout failure leaves no partial confirmation state');
+delete from workspace.context_evidence
+where workspace_id = 'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  and entity_id = current_setting('request.normal_entity_id')::uuid
+  and source_reference like 'fanout-%';
+select ok(not exists (
+  select 1 from workspace_private.professional_context_confirmation_requests
+  where status = 'pending' and pg_column_size(target_state_snapshot) > 65536
+), 'all retained pending target snapshots satisfy the explicit byte limit');
+
+-- Cleanup implementation is independently executable. Scheduler readiness is
+-- false before pg_cron exists, then deterministic and idempotent once installed.
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select set_config('request.cleanup_expired_id', workspace.mcp_submit_context_candidate(
+  'b1900000-0000-4000-8000-000000000032', 'goal', 'Cleanup expiry payload',
+  'The cleanup function must clear this expired protected payload.',
+  'working', 'private', 'user_supplied', null, '2026-09-02T12:24:00Z', 1
+) ->> 'confirmation_request_id', true);
+reset role;
+update workspace_private.professional_context_confirmation_requests
+set requested_at = now() - interval '31 minutes', expires_at = now() - interval '1 minute'
+where id = current_setting('request.cleanup_expired_id')::uuid;
+update workspace_private.professional_context_confirmation_requests
+set terminal_at = now() - interval '31 days'
+where id = current_setting('request.denied_confirmation_id')::uuid;
+update workspace_private.professional_context_read_grants
+set issued_at = now() - interval '32 days', expires_at = now() - interval '31 days'
+where id = (current_setting('request.expiring_private_grant')::jsonb ->> 'grant_id')::uuid;
+select set_config('request.cleanup_result', workspace_private.cleanup_professional_context_confirmations()::text, true);
+select is(pg_temp.pc_confirmation_value(current_setting('request.cleanup_expired_id')::uuid, 'status'),
+  'expired', 'cleanup expires pending rows');
+select is(pg_temp.pc_confirmation_value(current_setting('request.cleanup_expired_id')::uuid, 'payload'),
+  null, 'cleanup clears expired protected payload');
+select is(pg_temp.pc_confirmation_value(current_setting('request.cleanup_expired_id')::uuid, 'snapshot'),
+  null, 'cleanup clears expired target state');
+select ok((current_setting('request.cleanup_result')::jsonb ->> 'metadata_deleted')::integer >= 1,
+  'cleanup removes terminal metadata older than configured retention');
+select ok((current_setting('request.cleanup_result')::jsonb ->> 'stale_grants_deleted')::integer >= 1,
+  'cleanup removes stale grants');
+select is((workspace_private.professional_context_cleanup_schedule_status() ->> 'ready')::boolean,
+  false, 'release preflight reports NOT READY when scheduler capability is absent');
+select is(workspace_private.professional_context_cleanup_schedule_status() ->> 'reason',
+  'scheduler_unavailable', 'missing scheduler is not represented as success');
+create extension pg_cron;
+select is((workspace_private.ensure_professional_context_cleanup_schedule() ->> 'ready')::boolean,
+  true, 'installed pg_cron receives the deterministic cleanup schedule');
+select is((workspace_private.ensure_professional_context_cleanup_schedule() ->> 'ready')::boolean,
+  true, 'cleanup scheduling is idempotent');
+select is((select count(*)::integer from cron.job
+  where jobname = 'workspace-professional-context-confirmation-cleanup'),
+  1, 'idempotent scheduling creates exactly one cleanup job');
+select cron.schedule(
+  'workspace-professional-context-confirmation-cleanup',
+  '0 * * * *',
+  'select workspace_private.cleanup_professional_context_confirmations()'
+);
+select is(workspace_private.professional_context_cleanup_schedule_status() ->> 'reason',
+  'cleanup_job_misconfigured', 'release preflight rejects an incorrect cadence');
+select cron.schedule(
+  'workspace-professional-context-confirmation-cleanup',
+  '*/15 * * * *',
+  'select 1'
+);
+select is(workspace_private.professional_context_cleanup_schedule_status() ->> 'reason',
+  'cleanup_job_misconfigured', 'release preflight rejects an incorrect target function');
+select is((workspace_private.ensure_professional_context_cleanup_schedule() ->> 'ready')::boolean,
+  true, 'scheduler reconciliation restores the exact bounded cleanup job');
 
 reset role;
 set local role authenticated;

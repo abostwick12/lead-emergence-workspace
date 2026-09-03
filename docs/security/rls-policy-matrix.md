@@ -16,7 +16,7 @@
 | `context_evidence` | Active Personal owner with `professional_context` capability | No direct client writes; evidence is created only with a validated candidate/source. |
 | `context_candidates` | Active Personal owner with `professional_context` capability | No direct client writes; MCP proposal/review RPCs preserve confirmation and conflict state. |
 | `context_reviews` | Active Personal owner with `professional_context` capability | No direct client writes; immutable decision/audit records carry their own privacy classification except privacy deletion redaction. |
-| `workspace_private.professional_context_confirmation_requests` | No browser/Data API table access | Security-definer request-only MCP RPCs create pending rows; only direct owner-session RPCs may preview, deny, or atomically confirm and execute. RLS has no policies. |
+| `workspace_private.professional_context_confirmation_requests` | No browser/Data API table access | Security-definer request-only MCP RPCs create size/count-bounded pending rows. Identity-bound status/preview paths may only materialize terminal invalidation and clear protected state after authority loss; they do not restore preview or mutation authority. Only a still-authorized direct owner session may deny or atomically confirm and execute. Completed results retain action-level status only. RLS has no policies. |
 | `workspace_private.professional_context_read_grants` | No browser/Data API table access | Direct owner-session RPCs create/revoke authorization-bound private or sensitive read grants. RLS has no policies. |
 | Domain tables | Active member | Active personal owner with matching `created_by`; tenancy immutable. |
 | `audit_events` | Active member | Trigger only. |
