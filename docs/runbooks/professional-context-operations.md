@@ -56,6 +56,17 @@ omitted completely when access is absent, without counts or existence markers.
 Existing `memory_entries` are returned separately as `legacy_memory` and are not
 copied or changed.
 
+The owner manages these grants at
+`/workspace/professional-context/access`. The page identifies each connection
+from its canonical Workspace MCP authorization, obtains current grant state
+through `list_professional_context_read_grants()`, and uses separate Private and
+Sensitive controls. Mutations require the cookie-backed first-party session,
+exact trusted Origin, same-origin fetch metadata, JSON content, and the scoped
+HttpOnly-cookie CSRF token. Bearer requests cannot load, create, renew, or
+revoke grants. After every mutation and when the displayed expiration is
+reached, the page reloads authoritative server/database state rather than
+promoting a client timer to authority.
+
 `link_professional_context` relates confirmed context to another context item or
 an existing Workspace task, commitment, meeting, decision, capture, job
 application, or legacy memory record. Both ends must belong to the caller's
@@ -83,9 +94,10 @@ metadata may still be written.
 P1 bundle entitlements do not activate Professional Context. Phase A leaves the
 SOTF Bundle capability mapping disabled; activation requires a later explicit
 migration or release action. Phase B2 implements direct-session
-confirm-and-execute authority, but P2 remains release-blocked pending a reviewed
-fresh migration replay, production cleanup scheduling, hosted release approval,
-deployment, and acceptance evidence.
+confirm-and-execute authority, and B2.2 adds first-party protected-read grant
+controls without enabling the capability. P2 remains release-blocked pending a
+reviewed fresh migration replay, production cleanup scheduling, hosted release
+approval, deployment, and acceptance evidence.
 
 ## Confirmation retention
 

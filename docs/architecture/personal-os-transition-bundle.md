@@ -1,6 +1,6 @@
 # Personal OS + SOTF Bundle architecture
 
-Status: P1 generic bundle entitlement foundation complete locally; P2 Professional Context Graph Phase A hardened locally and release-blocked
+Status: P1 generic bundle entitlement foundation complete locally; P2 Professional Context Graph B2.2 hardened locally and release-blocked
 Branch: `codex/personal-os-transition-bundle`
 
 ## Naming contract
@@ -201,6 +201,15 @@ operation is request-only; a direct Workspace owner session revalidates and
 executes the exact pending operation atomically. No confirmed or consumed token
 is transferable back to the assistant.
 
+The first-party Workspace protected-read surface lists canonical connected MCP
+authorizations and invokes only the existing direct-session grant functions.
+Private and Sensitive are separate controls for each connection: Private lasts
+10 minutes, Sensitive lasts 5 minutes, and either can be revoked immediately.
+The UI reloads database-derived state after each mutation and at expiration;
+client timers only trigger that authoritative refresh. Grant creation and
+listing reject bearer authority, and no grant permits a Professional Context
+mutation.
+
 Existing `memory_entries` remain intact. Lewis returns them as a separate
 `legacy_memory` compatibility collection and can link graph context to a legacy
 memory record. P2 performs no destructive backfill.
@@ -275,9 +284,12 @@ The current branch contains the P1 bundle foundation and a locally hardened P2
 Professional Context Graph with direct-session confirmation authority and
 short-lived protected-read grants. B2.1 materializes terminal authority loss,
 bounds protected target snapshots, reduces completed results to action-level
-status, and adds a fail-closed scheduler preflight. Missing `pg_cron` remains
-valid for ordinary local development but is release-NOT-READY; implementation
-of cleanup is not evidence that the target scheduler exists or has executed.
+status, and adds a fail-closed scheduler preflight. B2.2 adds the minimal
+first-party controls to list, create, renew, and revoke separate Private and
+Sensitive read grants for a canonical connected client. Missing `pg_cron`
+remains valid for ordinary local development but is release-NOT-READY;
+implementation of cleanup is not evidence that the target scheduler exists or
+has executed.
 P2 is not activated for SOTF entitlements and is not release-ready. A reviewed
 fresh migration replay, proven target cleanup scheduling, hosted release
 approval, deployment and acceptance, connector execution, one-command bundle

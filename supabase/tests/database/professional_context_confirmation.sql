@@ -318,6 +318,11 @@ select throws_ok(format(
   'select workspace.confirm_and_execute_professional_context(%L::uuid)',
   current_setting('request.private_confirmation_id')
 ), '22023', 'Confirmation request not found.', 'another Workspace owner cannot execute the request');
+select throws_ok(
+  $$select workspace.create_professional_context_read_grant('bc111111-1111-4111-8111-111111111111', 'private')$$,
+  '42501', 'This assistant connection is not authorized.',
+  'another Workspace owner cannot grant access to the first owner connection'
+);
 select set_config('request.jwt.claims', jsonb_build_object(
   'sub', 'b1222222-2222-4222-8222-222222222222', 'role', 'authenticated',
   'aud', current_setting('request.pc_resource_uri'),
@@ -367,12 +372,36 @@ select throws_ok(format(
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select set_config('request.replaced_private_grant_id', workspace.create_professional_context_read_grant(
+  'bc111111-1111-4111-8111-111111111111', 'private'
+) ->> 'grant_id', true);
 select set_config('request.private_grant_id', workspace.create_professional_context_read_grant(
   'bc111111-1111-4111-8111-111111111111', 'private'
 ) ->> 'grant_id', true);
-select ok((workspace.create_professional_context_read_grant(
+select isnt(current_setting('request.private_grant_id'), current_setting('request.replaced_private_grant_id'),
+  'repeated same-scope creation replaces the prior grant deterministically');
+select set_config('request.sensitive_grant', workspace.create_professional_context_read_grant(
   'bc111111-1111-4111-8111-111111111111', 'sensitive'
-) ->> 'expires_at')::timestamptz <= now() + interval '5 minutes 2 seconds', 'sensitive grant lasts no more than five minutes');
+)::text, true);
+select ok((current_setting('request.sensitive_grant')::jsonb ->> 'expires_at')::timestamptz
+  between now() + interval '4 minutes 58 seconds' and now() + interval '5 minutes 2 seconds',
+  'sensitive grant lasts five minutes');
+select is(jsonb_array_length(jsonb_path_query_array(
+  workspace.list_professional_context_read_grants(),
+  '$.grants[*] ? (@.privacy_scope == "private" && @.status == "active")'
+)), 1, 'authoritative list reports one active private grant after replacement');
+select is(jsonb_array_length(jsonb_path_query_array(
+  workspace.list_professional_context_read_grants(),
+  '$.grants[*] ? (@.privacy_scope == "sensitive" && @.status == "active")'
+)), 1, 'private creation and replacement do not create or replace the sensitive grant');
+
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1222222-2222-4222-8222-222222222222","role":"authenticated","aud":"authenticated"}', true);
+select throws_ok(format(
+  'select workspace.revoke_professional_context_read_grant(%L::uuid)',
+  current_setting('request.private_grant_id')
+), '22023', 'Protected-read grant not found.', 'another Workspace owner cannot revoke the first owner grant');
 
 reset role;
 set local role authenticated;
@@ -455,6 +484,10 @@ select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-1111111
 select is(workspace.revoke_professional_context_read_grant(
   current_setting('request.private_grant_id')::uuid
 ) ->> 'status', 'revoked', 'user can immediately revoke a private grant');
+select is(jsonb_array_length(jsonb_path_query_array(
+  workspace.list_professional_context_read_grants(),
+  '$.grants[*] ? (@.privacy_scope == "sensitive" && @.status == "active")'
+)), 1, 'revoking private access leaves sensitive access active');
 
 reset role;
 set local role authenticated;
@@ -489,6 +522,13 @@ reset role;
 update workspace_private.professional_context_read_grants
 set issued_at = now() - interval '11 minutes', expires_at = now() - interval '1 minute'
 where id = (current_setting('request.expiring_private_grant')::jsonb ->> 'grant_id')::uuid;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is(jsonb_array_length(jsonb_path_query_array(
+  workspace.list_professional_context_read_grants(),
+  '$.grants[*] ? (@.privacy_scope == "private" && @.status == "active")'
+)), 0, 'expired private grants are not presented as active');
+reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', jsonb_build_object(
   'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
@@ -810,7 +850,24 @@ reset role;
 update workspace.bundle_capabilities set enabled = false
 where bundle_key = 'sotf_transition' and capability_key = 'professional_context';
 set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select throws_ok(
+  $$select workspace.mcp_list_context_candidates_granted(null, array['sensitive'], 25)$$,
+  '42501', 'This Workspace capability is not included for the current Personal plan.',
+  'capability loss invalidates a still-unexpired protected-read grant'
+);
+reset role;
+set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is(jsonb_array_length(jsonb_path_query_array(
+  workspace.list_professional_context_read_grants(),
+  '$.grants[*] ? (@.status == "active")'
+)), 0, 'capability loss prevents stored grants from being presented as active');
 select is(workspace.get_professional_context_confirmation(
   current_setting('request.capability_confirmation_id')::uuid
 ) ->> 'status', 'revoked', 'capability loss persists revoked status through the narrow direct status path');
@@ -841,7 +898,25 @@ update workspace.workspace_memberships set status = 'revoked', revoked_at = now(
 where workspace_id = 'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
   and user_id = 'b1111111-1111-4111-8111-111111111111';
 set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select throws_ok(
+  $$select workspace.mcp_list_context_candidates_granted(null, array['sensitive'], 25)$$,
+  '42501', 'The AI assistant connection is not included for this Workspace.',
+  'ownership membership loss invalidates a still-unexpired protected-read grant'
+);
+reset role;
+set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select throws_ok(
+  $$select workspace.list_professional_context_read_grants()$$,
+  '42501', 'Personal Workspace not found.',
+  'ownership membership loss prevents protected grants from being presented as active'
+);
 select is(workspace.get_professional_context_confirmation(
   current_setting('request.membership_confirmation_id')::uuid
 ) ->> 'status', 'revoked', 'ownership membership loss persists revoked status without preview access');
@@ -878,6 +953,13 @@ select is(pg_temp.pc_confirmation_value(current_setting('request.epoch_confirmat
   null, 'authorization epoch change immediately clears payload');
 select is(pg_temp.pc_confirmation_value(current_setting('request.epoch_confirmation_id')::uuid, 'snapshot'),
   null, 'authorization epoch change immediately clears target state');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is(jsonb_array_length(jsonb_path_query_array(
+  workspace.list_professional_context_read_grants(),
+  '$.grants[*] ? (@.status == "active")'
+)), 0, 'authorization epoch change prevents prior grants from being presented as active');
+reset role;
 
 -- Bounded snapshots preserve stale detection but reject unusually connected
 -- delete/redaction targets before a confirmation row can be inserted.
@@ -1034,6 +1116,12 @@ select is((workspace_private.ensure_professional_context_cleanup_schedule() ->> 
 
 reset role;
 set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select set_config('request.disconnect_grant_id', workspace.create_professional_context_read_grant(
+  'bc111111-1111-4111-8111-111111111111', 'private'
+) ->> 'grant_id', true);
+reset role;
+set local role authenticated;
 select set_config('request.jwt.claims', jsonb_build_object(
   'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
   'aud', current_setting('request.pc_resource_uri'),
@@ -1054,6 +1142,10 @@ select is(pg_temp.pc_confirmation_value(current_setting('request.revoked_confirm
   null, 'assistant disconnect clears protected payload in the disconnect transaction');
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is(jsonb_array_length(jsonb_path_query_array(
+  workspace.list_professional_context_read_grants(),
+  '$.grants[*] ? (@.status == "active")'
+)), 0, 'disconnect prevents its protected-read grants from being presented as active');
 select is(workspace.confirm_and_execute_professional_context(
   current_setting('request.revoked_confirmation_id')::uuid
 ) ->> 'status', 'revoked', 'a terminal revoked request cannot execute after disconnect');

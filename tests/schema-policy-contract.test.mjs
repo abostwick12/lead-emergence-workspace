@@ -45,11 +45,15 @@ const professionalContextSql = await readFile("supabase/migrations/2026090217481
 const professionalContextHardeningSql = await readFile("supabase/migrations/20260902213000_professional_context_phase_a_hardening.sql", "utf8");
 const professionalContextConfirmationSql = await readFile("supabase/migrations/20260903160000_professional_context_confirmation_authority.sql", "utf8");
 const professionalContextReleaseHardeningSql = await readFile("supabase/migrations/20260903190000_professional_context_release_hardening.sql", "utf8");
+const professionalContextReadGrantControlsSql = await readFile("supabase/migrations/20260903210000_professional_context_read_grant_controls.sql", "utf8");
 const professionalContextCleanupPreflightSql = await readFile("supabase/preflight/professional_context_cleanup_scheduler.sql", "utf8");
 const professionalContextArchitecture = await readFile("docs/architecture/personal-os-transition-bundle.md", "utf8");
 const professionalContextRunbook = await readFile("docs/runbooks/professional-context-operations.md", "utf8");
 const rlsPolicyMatrix = await readFile("docs/security/rls-policy-matrix.md", "utf8");
 const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
+const professionalContextReadGrantRoute = await readFile("app/api/workspace/professional-context/read-grants/route.ts", "utf8");
+const professionalContextReadGrantComponent = await readFile("components/professional-context-read-grants.tsx", "utf8");
+const workspaceSettingsPage = await readFile("app/workspace/settings/page.tsx", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -509,6 +513,29 @@ test("hardens B2.1 terminalization, snapshot bounds, result references, and clea
   assert.match(professionalContextCleanupPreflightSql, /raise exception 'Professional Context cleanup scheduler is NOT READY/i);
   assert.doesNotMatch(professionalContextReleaseHardeningSql, /update workspace\.bundle_capabilities[^]*professional_context[^]*enabled\s*=\s*true/i);
   assert.doesNotMatch(professionalContextReleaseHardeningSql + professionalContextCleanupPreflightSql, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+});
+
+test("adds separate first-party B2.2 protected-read controls without granting MCP mutation authority", () => {
+  assert.match(professionalContextReadGrantControlsSql, /require_direct_context_workspace\(\)/i);
+  assert.match(professionalContextReadGrantControlsSql, /has_personal_capability\(target_workspace_id, 'core_workspace'\)/i);
+  assert.match(professionalContextReadGrantControlsSql, /has_personal_capability\(target_workspace_id, 'workspace_mcp'\)/i);
+  assert.match(professionalContextReadGrantControlsSql, /has_personal_capability\(target_workspace_id, 'professional_context'\)/i);
+  assert.match(professionalContextReadGrantControlsSql, /target_privacy_scope = 'private' then interval '10 minutes' else interval '5 minutes'/i);
+  assert.match(professionalContextReadGrantControlsSql, /authorization_valid_after is distinct from grant_record\.authorization_valid_after/i);
+  assert.match(professionalContextReadGrantRoute, /auth\.getUser\(\)/i);
+  assert.match(professionalContextReadGrantRoute, /headers\.has\("authorization"\)/i);
+  assert.match(professionalContextReadGrantRoute, /assertFirstPartyProfessionalContextMutation/i);
+  assert.match(professionalContextReadGrantRoute, /create_professional_context_read_grant/i);
+  assert.match(professionalContextReadGrantRoute, /revoke_professional_context_read_grant/i);
+  assert.match(professionalContextReadGrantRoute, /list_professional_context_read_grants/i);
+  assert.doesNotMatch(professionalContextReadGrantRoute, /\.from\(["']professional_context_read_grants["']\)/i);
+  assert.match(professionalContextReadGrantComponent, /Enable Private Access/);
+  assert.match(professionalContextReadGrantComponent, /Enable Sensitive Access/);
+  assert.doesNotMatch(professionalContextReadGrantComponent, /Enable all protected context/i);
+  assert.match(professionalContextReadGrantComponent, /Read-only/);
+  assert.match(professionalContextReadGrantComponent, /classified, CUI, or operationally sensitive/i);
+  assert.match(workspaceSettingsPage, /\/workspace\/professional-context\/access/i);
+  assert.doesNotMatch(professionalContextReadGrantControlsSql + professionalContextReadGrantRoute, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
 test("scopes non-retention claims to graph content and prohibits controlled-material submission", () => {

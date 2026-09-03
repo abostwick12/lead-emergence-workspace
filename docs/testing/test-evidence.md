@@ -712,3 +712,39 @@ change, a Vercel deployment, or a real assistant connection.
   persistent target pg_cron/job validation and observed execution, hosted gate
   approval, deployment, production acceptance, and the B2.2 first-party
   private/sensitive read-grant controls remain required.
+
+# P2 first-party protected-read grant controls B2.2 — 2026-09-03
+
+- Branch baseline: `40a8f3d8714712693772a78899d2eab930ad7608` on
+  `codex/personal-os-transition-bundle`.
+- Hosted migrations, deployment, capability activation, and destructive fresh
+  replay: **NOT RUN**. The forward-only
+  `20260903210000_professional_context_read_grant_controls.sql` migration was
+  applied only to the existing local database.
+- Focused Professional Context confirmation/grant pgTAP — **PASS, 160/160
+  assertions**. Added coverage proves direct-owner creation, wrong-owner
+  creation/revocation denial, deterministic same-scope renewal, independent
+  Private and Sensitive scopes, 10-minute and 5-minute durations, authoritative
+  active/expired status, immediate one-scope revocation, and invalidation after
+  capability loss, ownership-membership loss, authorization-epoch change, and
+  disconnect. Existing MCP grant-aware read and mutation-denial coverage remains
+  green.
+- Focused first-party route/security and grant-state unit tests — **PASS, 26/26
+  across 3 files**. Coverage includes cookie-backed owner state, canonical
+  connection data, requested-scope isolation, authoritative reload after
+  revocation, bearer denial, Origin/CSRF/fetch-context/content-type checks, and
+  rejection of client-supplied identity fields.
+- `npm run check:boundaries` — **PASS**; 78 runtime files contain no
+  Ministry/Consulting runtime import or service-role client.
+- `npm run test:schema` — **PASS, 37/37**.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **PASS, 122/122 across 17 files**.
+- `npm run build` — **PASS** with Next.js 16.3.2; the protected-read page and
+  no-store first-party API compiled successfully.
+- `npm run test:rls` — **PASS, 494/494 assertions across 10 files**.
+- `git diff --check` — **PASS**; Git reported only line-ending conversion
+  warnings.
+- P2 remains disabled and release-blocked. Fresh migration replay is explicitly
+  deferred. Persistent target cleanup-scheduler proof, hosted gate approval,
+  deployment, and production acceptance evidence remain required.
