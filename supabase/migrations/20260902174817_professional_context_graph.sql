@@ -17,7 +17,7 @@ on conflict (capability_key) do update set
   updated_at = now();
 
 insert into workspace.bundle_capabilities (bundle_key, capability_key, enabled)
-values ('sotf_transition', 'professional_context', true)
+values ('sotf_transition', 'professional_context', false)
 on conflict (bundle_key, capability_key) do update set
   enabled = excluded.enabled,
   updated_at = now();
@@ -141,6 +141,7 @@ create table workspace.context_reviews (
   previous_status text,
   next_status text,
   review_notes text check (review_notes is null or char_length(review_notes) between 1 and 2000),
+  privacy_level text not null default 'normal' check (privacy_level in ('normal', 'private', 'sensitive')),
   resulting_entity_id uuid,
   request_fingerprint text not null check (request_fingerprint ~ '^[0-9a-f]{64}$'),
   client_id text,
@@ -745,7 +746,7 @@ begin
           and entity.lifecycle_status = 'active'
           and entity.tier = any(target_tiers)
           and (entity.tier <> 'working' or entity.expires_at > now())
-          and (entity.privacy_level <> 'private' or include_private)
+          and (entity.privacy_level not in ('private', 'sensitive') or include_private)
           and case target_purpose
             when 'profile' then entity.entity_family in (
               'professional_identity', 'strength', 'skill', 'work_preference', 'communication_preference'
@@ -822,7 +823,7 @@ begin
         select * from workspace.context_candidates
         where workspace_id = target_workspace_id
           and (target_status is null or status = target_status)
-          and (privacy_level <> 'private' or include_private)
+          and (privacy_level not in ('private', 'sensitive') or include_private)
         order by created_at desc, id desc
         limit page_size
       ) as candidate_record

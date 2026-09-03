@@ -616,3 +616,30 @@ change, a Vercel deployment, or a real assistant connection.
 - `npm run build` — **PASS** with Next.js 16.3.2; all bundle APIs and the
   authenticated operator/claim pages compiled as dynamic routes.
 - `git diff --check` — **PASS**.
+
+# P2 Professional Context hardening Phase A — 2026-09-03
+
+- Branch baseline: `bacdd11d8d5d42a5c484ae75187572064992c965` on
+  `codex/personal-os-transition-bundle`.
+- Hosted migrations, deployment, and capability activation: **NOT RUN**. The
+  existing local database received only the forward
+  `20260902213000_professional_context_phase_a_hardening.sql` migration. A
+  destructive local reset was neither required nor performed.
+- Focused Professional Context pgTAP — **PASS, 92/92 assertions**. Coverage
+  includes default and explicit protected retrieval, protected nested
+  provenance/conflict omission, ID-targeted protection, exact approve and
+  supersede behavior, actual correction, mutation-free rejection, graph-content
+  refusal, P1/P2 activation separation, and cross-Workspace isolation.
+- `npm run check:boundaries` — **PASS**; 70 runtime files contain no
+  Ministry/Consulting runtime import or service-role client.
+- `npm run test:schema` — **PASS, 34/34**.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **PASS, 95/95 across 14 files**.
+- `npm run build` — **PASS** with Next.js 16.3.2.
+- `npm run test:rls` — **PASS, 334/334 assertions across 9 files**.
+- `git diff --check` — **PASS**; Git reported only line-ending conversion
+  warnings.
+- Server-verifiable user-confirmation receipts remain **NOT IMPLEMENTED**. P2
+  remains release-blocked and the `professional_context` SOTF Bundle mapping
+  remains disabled.

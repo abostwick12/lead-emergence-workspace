@@ -1,6 +1,6 @@
 # Personal OS + SOTF Bundle architecture
 
-Status: P1 generic bundle entitlement foundation complete locally
+Status: P1 generic bundle entitlement foundation complete locally; P2 Professional Context Graph Phase A hardened locally and release-blocked
 Branch: `codex/personal-os-transition-bundle`
 
 ## Naming contract
@@ -191,15 +191,30 @@ Exact repeats are deterministically reconciled, while ambiguous matches remain
 candidates. Conflicting evidence points to the active context it challenges and
 cannot replace that context without an explicit supersession review.
 
+Candidate decisions have distinct meanings. `approve` accepts the candidate
+exactly, `correct` requires an actual normalized content change, `reject` creates
+no confirmed entity, and `supersede` accepts the conflicting candidate exactly.
+The current MCP boundary records an authorized client's confirmation
+attestation; an independently server-verifiable user-confirmation receipt is a
+later release requirement. P2 remains release-blocked until that requirement is
+implemented and reviewed.
+
 Existing `memory_entries` remain intact. Lewis returns them as a separate
 `legacy_memory` compatibility collection and can link graph context to a legacy
 memory record. P2 performs no destructive backfill.
 
-Private context is omitted from default Lewis retrieval. Sensitive context can
-become durable only through explicit candidate review. Do-not-retain content and
-content marked as suspected classified, CUI, or operationally sensitive military
-information receive a non-retained response before any candidate, evidence,
-workflow payload, or cache record is written.
+Private and sensitive context are omitted from ordinary Lewis retrieval. Every
+MCP path requires explicit protected-context access before it can return or act
+on protected entities, candidates, evidence, source references, review notes,
+links, or conflicts. Without that access, protected conflicts are omitted
+without an existence indicator.
+
+Classified, CUI, and operationally sensitive material must not be submitted.
+When the proposal refusal path is used, it creates no Professional Context Graph
+candidate, evidence, confirmed-context, or other graph content row. The request
+is still processed by the connected assistant, application runtime, and request
+infrastructure; content-free authentication, connection, authorization, or
+observability metadata may still be written.
 
 ## Knowledge-store direction
 
@@ -234,6 +249,12 @@ entitlement state. Entitlement resolution is source-neutral and returns
 available, active, unavailable, expired, or revoked state plus additive bundle
 capabilities.
 
+P1 entitlement infrastructure does not activate P2. The
+`professional_context` capability definition exists, but its SOTF Bundle mapping
+is disabled in this phase. A later, separately reviewed activation migration or
+release action is required before existing SOTF entitlements receive the
+capability. This branch does not perform hosted activation.
+
 ## Current implementation boundary
 
 This branch intentionally does not:
@@ -245,4 +266,8 @@ This branch intentionally does not:
 - auto-write durable memory from external content;
 - deploy or cut over production.
 
-The first slice defines bundle inheritance, the daily/weekly rhythm model, context-promotion guardrails, self-improvement proposal primitives, an explicit five-stage AI-native pathway, a user-facing SOTF Bundle page, and unit tests. Connector execution, one-command bundle installation, persistent progression state, persistent improvement-signal storage, approval history, and durable data-model additions should follow as separate reviewed slices after the current login/MCP work is unstuck.
+The current branch contains the P1 bundle foundation and a locally hardened P2
+Professional Context Graph. P2 is not activated for SOTF entitlements and is not
+release-ready. Server-verifiable confirmation receipts, connector execution,
+one-command bundle installation, persistent progression state, and later
+self-improvement capabilities remain separate reviewed slices.

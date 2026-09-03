@@ -15,7 +15,7 @@
 | `professional_context_links` | Active Personal owner with `professional_context` capability | No direct client writes; link RPC validates both targets belong to the same Workspace. |
 | `context_evidence` | Active Personal owner with `professional_context` capability | No direct client writes; evidence is created only with a validated candidate/source. |
 | `context_candidates` | Active Personal owner with `professional_context` capability | No direct client writes; MCP proposal/review RPCs preserve confirmation and conflict state. |
-| `context_reviews` | Active Personal owner with `professional_context` capability | No direct client writes; immutable user-decision/audit records except privacy deletion redaction. |
+| `context_reviews` | Active Personal owner with `professional_context` capability | No direct client writes; immutable decision/audit records carry their own privacy classification except privacy deletion redaction. |
 | Domain tables | Active member | Active personal owner with matching `created_by`; tenancy immutable. |
 | `audit_events` | Active member | Trigger only. |
 
@@ -25,7 +25,15 @@ direct session and a current Auth app-metadata authorization; invite claims also
 bind the verified Auth email to the claimant's active Personal Workspace owner
 context. Context MCP functions additionally require a current MCP authorization
 epoch and active bundle capability; an MCP bearer cannot traverse the graph
-tables directly. Private context is excluded from default MCP projections, and
-do-not-retain or suspected controlled military content is rejected before any
-write. Local migration replay, 295 pgTAP assertions, and database advisors
-passed on 2026-09-02.
+tables directly. Private and sensitive context are excluded from ordinary MCP
+projections and require explicit protected-context access at every top-level,
+nested, ID-targeted, and mutation-response path. Protected conflicts are omitted
+without an existence indicator. The legacy unguarded mutation and provenance
+RPC signatures are revoked from API roles.
+
+The P2 capability is defined but its SOTF Bundle mapping remains disabled; P1
+entitlement presence alone therefore cannot activate it. Classified, CUI, and operationally
+sensitive material must not be submitted. A refused proposal creates no
+Professional Context Graph candidate, evidence, confirmed-context, or other
+graph content row, although request processing and content-free authentication,
+connection, authorization, or observability metadata can still occur.

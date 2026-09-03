@@ -42,6 +42,10 @@ const bundleInviteRoute = await readFile("app/api/operator/bundles/invites/route
 const bundleClaimRoute = await readFile("app/api/bundles/invites/claim/route.ts", "utf8");
 const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
 const professionalContextSql = await readFile("supabase/migrations/20260902174817_professional_context_graph.sql", "utf8");
+const professionalContextHardeningSql = await readFile("supabase/migrations/20260902213000_professional_context_phase_a_hardening.sql", "utf8");
+const professionalContextArchitecture = await readFile("docs/architecture/personal-os-transition-bundle.md", "utf8");
+const professionalContextRunbook = await readFile("docs/runbooks/professional-context-operations.md", "utf8");
+const rlsPolicyMatrix = await readFile("docs/security/rls-policy-matrix.md", "utf8");
 const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
@@ -342,9 +346,10 @@ test("extends Lewis through narrow, tenant-scoped internal parity actions", () =
 
 test("keeps OAuth consent disclosure aligned with the controlled Lewis action set", () => {
   assert.match(consentPage, /Quick Captures, personal memory, career opportunities, integration connection status, and governed professional context/);
-  assert.match(consentPage, /Professional observations remain review candidates until you approve, correct, reject, or explicitly resolve them/);
-  assert.match(consentPage, /task or memory deletion, capture discard, and configuration replacement require explicit confirmation/);
-  assert.match(consentPage, /Context promotion, archival, deletion, and conflict supersession also require explicit confirmation/);
+  assert.match(consentPage, /Professional observations remain candidates until your authorized assistant records an approve, correct, reject, or conflict-supersession decision/);
+  assert.match(consentPage, /approval and supersession accept the candidate exactly, while correction records an actual change/);
+  assert.match(consentPage, /independently verified confirmation receipts for Professional Context are not yet released/);
+  assert.match(consentPage, /Private and sensitive professional context requires explicit protected-context access/);
   assert.match(consentPage, /does not connect external services, reveal connector credentials, send messages, or create calendar events/);
   assert.match(consentPage, /registered connection, or disconnection state/);
 });
@@ -403,32 +408,61 @@ test("builds a governed Professional Context Graph instead of a second memory si
   assert.doesNotMatch(professionalContextSql, /sotf_(?:cohort|member)|cohort_membership/i);
 });
 
-test("keeps ingestion candidate-based, provenance-rich, private by default, and non-retaining when required", () => {
+test("keeps ingestion candidate-based, provenance-rich, protected by default, and graph-non-retaining when required", () => {
   assert.match(professionalContextSql, /create or replace function workspace\.mcp_propose_context_candidate/i);
   assert.match(professionalContextSql, /target_retention = 'do_not_retain'[\s\S]*'retained', false[\s\S]*insert into workspace\.context_candidates/i);
   assert.match(professionalContextSql, /target_military_sensitivity <> 'none'/i);
   assert.match(professionalContextSql, /evidence_role text not null check \(evidence_role in \('supporting', 'contradicting'\)\)/i);
   assert.match(professionalContextSql, /source_type text not null check \(source_type in \('user_supplied', 'connector', 'workflow', 'inferred', 'legacy_memory'\)\)/i);
   assert.match(professionalContextSql, /status = 'conflict'[\s\S]*explicitly superseded or rejected/i);
-  assert.match(professionalContextSql, /privacy_level <> 'private' or include_private/i);
+  assert.match(professionalContextSql, /privacy_level not in \('private', 'sensitive'\) or include_private/i);
   assert.match(professionalContextSql, /include_private and not explicit_private_access/i);
   assert.match(professionalContextSql, /unique index context_candidates_evidence_dedupe_idx/i);
+  assert.match(professionalContextSql, /values \('sotf_transition', 'professional_context', false\)/i);
 });
 
 test("exposes only bounded capability-gated Lewis context operations and preserves legacy memory", () => {
   for (const functionName of [
     "mcp_list_professional_context", "mcp_list_context_candidates",
-    "mcp_propose_context_candidate", "mcp_review_context_candidate",
-    "mcp_get_context_provenance", "mcp_link_professional_context",
-    "mcp_manage_professional_context"
+    "mcp_propose_context_candidate_protected", "mcp_review_context_candidate_protected",
+    "mcp_get_context_provenance_protected", "mcp_link_professional_context_protected",
+    "mcp_manage_professional_context_protected"
   ]) {
-    assert.match(professionalContextSql, new RegExp(`create or replace function workspace\\.${functionName}`, "i"));
-    assert.match(professionalContextSql, new RegExp(`grant execute on function workspace\\.${functionName}`, "i"));
-    assert.match(mcpServer, new RegExp(`registerTool\\("${functionName.replace("mcp_", "")}"`, "i"));
+    assert.match(professionalContextHardeningSql, new RegExp(`create or replace function workspace\\.${functionName}`, "i"));
   }
+  for (const toolName of [
+    "list_professional_context", "list_context_candidates", "propose_context_candidate",
+    "review_context_candidate", "get_context_provenance", "link_professional_context",
+    "manage_professional_context"
+  ]) assert.match(mcpServer, new RegExp(`registerTool\\("${toolName}"`, "i"));
   assert.match(professionalContextSql, /require_mcp_capability\('professional_context'\)/i);
   assert.match(professionalContextSql, /authorization[\s\S]*require_mcp_workspace|require_mcp_workspace\(\)/i);
   assert.match(professionalContextSql, /'legacy_memory'[\s\S]*from workspace\.memory_entries/i);
   assert.match(professionalContextSql, /source_record_id[\s\S]*context_record_belongs_to_workspace/i);
   assert.doesNotMatch(professionalContextSql + mcpServer, /SUPABASE_SERVICE_ROLE_KEY|service_role|generic sql/i);
+});
+
+test("hardens protected context and review semantics without activating P2", () => {
+  assert.match(professionalContextHardeningSql, /enabled = false/i);
+  assert.match(professionalContextHardeningSql, /is_protected_context_privacy/i);
+  assert.match(professionalContextHardeningSql, /privacy_level in \('private', 'sensitive'\)/i);
+  assert.match(professionalContextHardeningSql, /Approval must accept the candidate exactly/i);
+  assert.match(professionalContextHardeningSql, /A correction must make an actual normalized content change/i);
+  assert.match(professionalContextHardeningSql, /must not include candidate mutations/i);
+  assert.match(professionalContextHardeningSql, /candidate\.conflict_with_entity_id,[\s\S]*candidate\.possible_match_entity_id/i);
+  assert.match(professionalContextHardeningSql, /selected_candidate\.conflict_with_entity_id,[\s\S]*selected_candidate\.possible_match_entity_id/i);
+  assert.match(professionalContextHardeningSql, /context,chapter_id[\s\S]*expected_chapter_id/i);
+  assert.match(professionalContextHardeningSql, /enforce_context_review_immutable_tenancy/i);
+  assert.match(professionalContextHardeningSql, /new\.reviewed_by is distinct from old\.reviewed_by/i);
+  assert.match(professionalContextHardeningSql, /revoke all on function workspace\.mcp_get_context_provenance\(uuid\)/i);
+  assert.match(mcpServer, /include_protected: z\.boolean\(\)\.default\(false\)/i);
+  assert.match(mcpServer, /explicit_protected_access: explicitProtectedContextAccess/i);
+});
+
+test("scopes non-retention claims to graph content and prohibits controlled-material submission", () => {
+  const claims = professionalContextArchitecture + professionalContextRunbook + rlsPolicyMatrix + mcpServer + consentPage;
+  assert.match(claims, /must not be submitted|do not submit classified, CUI/i);
+  assert.match(claims, /no Professional Context Graph/i);
+  assert.doesNotMatch(claims, /before any (?:candidate, evidence, workflow payload, or cache record|graph, evidence, cache, or workflow record|write)/i);
+  assert.doesNotMatch(claims, /end-to-end non-retention/i);
 });
