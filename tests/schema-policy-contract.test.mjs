@@ -43,6 +43,7 @@ const bundleClaimRoute = await readFile("app/api/bundles/invites/claim/route.ts"
 const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
 const professionalContextSql = await readFile("supabase/migrations/20260902174817_professional_context_graph.sql", "utf8");
 const professionalContextHardeningSql = await readFile("supabase/migrations/20260902213000_professional_context_phase_a_hardening.sql", "utf8");
+const professionalContextConfirmationSql = await readFile("supabase/migrations/20260903160000_professional_context_confirmation_authority.sql", "utf8");
 const professionalContextArchitecture = await readFile("docs/architecture/personal-os-transition-bundle.md", "utf8");
 const professionalContextRunbook = await readFile("docs/runbooks/professional-context-operations.md", "utf8");
 const rlsPolicyMatrix = await readFile("docs/security/rls-policy-matrix.md", "utf8");
@@ -455,8 +456,33 @@ test("hardens protected context and review semantics without activating P2", () 
   assert.match(professionalContextHardeningSql, /enforce_context_review_immutable_tenancy/i);
   assert.match(professionalContextHardeningSql, /new\.reviewed_by is distinct from old\.reviewed_by/i);
   assert.match(professionalContextHardeningSql, /revoke all on function workspace\.mcp_get_context_provenance\(uuid\)/i);
-  assert.match(mcpServer, /include_protected: z\.boolean\(\)\.default\(false\)/i);
-  assert.match(mcpServer, /explicit_protected_access: explicitProtectedContextAccess/i);
+  assert.match(mcpServer, /privacy_scopes: z\.array\(contextProtectedScope\)/i);
+  assert.match(mcpServer, /requested_privacy_scopes: privacy_scopes/i);
+});
+
+test("makes B2 confirmation non-transferable, content-minimized, and independent from P1 activation", () => {
+  assert.match(professionalContextConfirmationSql, /professional_context_confirmation_requests/i);
+  assert.match(professionalContextConfirmationSql, /professional_context_read_grants/i);
+  assert.match(professionalContextConfirmationSql, /status in \('pending', 'completed', 'denied', 'stale', 'expired', 'revoked'\)/i);
+  assert.doesNotMatch(professionalContextConfirmationSql, /status in \([^)]*'confirmed'|status in \([^)]*'consumed'/i);
+  assert.match(professionalContextConfirmationSql, /expires_at timestamptz not null default \(now\(\) \+ interval '30 minutes'\)/i);
+  assert.match(professionalContextConfirmationSql, /target_privacy_scope = 'private' then interval '10 minutes' else interval '5 minutes'/i);
+  assert.match(professionalContextConfirmationSql, /professional_context_confirmation_metadata_retention_days', '30'/i);
+  assert.match(professionalContextConfirmationSql, /professional_context_confirmation_cleanup_minutes', '15'/i);
+  assert.match(professionalContextConfirmationSql, /workspace_private\.is_direct_session\(\)/i);
+  assert.match(professionalContextConfirmationSql, /authorization_valid_after is distinct from request_record\.authorization_valid_after/i);
+  assert.match(professionalContextConfirmationSql, /set status = 'completed', normalized_payload = null, target_state_snapshot = null/i);
+  assert.match(professionalContextConfirmationSql, /set status = 'expired', normalized_payload = null, target_state_snapshot = null/i);
+  assert.match(professionalContextConfirmationSql, /create or replace function workspace\.mcp_submit_context_candidate/i);
+  assert.match(professionalContextConfirmationSql, /if target_privacy_level = 'normal' then[\s\S]*mcp_propose_context_candidate/i);
+  assert.match(professionalContextConfirmationSql, /create or replace function workspace\.mcp_request_context_review/i);
+  assert.match(professionalContextConfirmationSql, /create or replace function workspace\.mcp_request_context_link/i);
+  assert.match(professionalContextConfirmationSql, /create or replace function workspace\.mcp_request_context_management/i);
+  assert.match(professionalContextConfirmationSql, /revoke all on function workspace\.mcp_review_context_candidate_protected/i);
+  assert.match(professionalContextConfirmationSql, /revoke all on function workspace\.mcp_link_professional_context_protected/i);
+  assert.match(professionalContextConfirmationSql, /revoke all on function workspace\.mcp_manage_professional_context_protected/i);
+  assert.doesNotMatch(professionalContextConfirmationSql, /update workspace\.bundle_capabilities[\s\S]*professional_context[\s\S]*enabled\s*=\s*true/i);
+  assert.doesNotMatch(professionalContextConfirmationSql, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
 test("scopes non-retention claims to graph content and prohibits controlled-material submission", () => {

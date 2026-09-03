@@ -33,13 +33,11 @@ const contextPurpose = z.enum(["all", "profile", "direction", "relationships", "
 const contextCandidateStatus = z.enum(["pending", "conflict", "confirmed", "corrected", "rejected", "archived"]);
 const contextLinkType = z.enum(["related_to", "supports", "contradicts", "about", "applies_to", "derived_from", "fulfilled_by"]);
 const boundedPageSize = z.number().int().min(1).max(50).default(25);
-const explicitProtectedContextAccess = z.boolean().default(false).describe("True only when the user explicitly requested access to private or sensitive Professional Context for this operation.");
+const contextProtectedScope = z.enum(["private", "sensitive"]);
 const contextReviewCommon = {
   candidate_id: z.uuid(),
   request_id: z.uuid(),
   review_notes: z.string().trim().min(1).max(2000).nullable().optional(),
-  explicit_protected_access: explicitProtectedContextAccess,
-  user_confirmed: z.literal(true),
 };
 const contextReviewInput = z.discriminatedUnion("decision", [
   z.strictObject({ ...contextReviewCommon, decision: z.literal("approve") }),
@@ -271,49 +269,41 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
 
   server.registerTool("list_professional_context", {
     title: "List confirmed professional context",
-    description: "Retrieve bounded, confirmed Working/Chapter/Core professional context by purpose. Private and sensitive context are excluded unless the user explicitly requests protected-context access. Legacy Workspace memory is returned separately for compatibility and is never copied into the graph.",
-    inputSchema: z.object({
+    description: "Retrieve bounded, confirmed Working/Chapter/Core professional context by purpose. Private and sensitive context require separate, active first-party Workspace read grants. Legacy Workspace memory is returned separately and is never copied into the graph.",
+    inputSchema: {
       purpose: contextPurpose.default("all"),
       tiers: z.array(contextTier).min(1).max(3).default(["chapter", "core"]),
-      include_protected: z.boolean().default(false),
-      explicit_protected_access: explicitProtectedContextAccess,
+      privacy_scopes: z.array(contextProtectedScope).max(2).default([]),
       page_size: boundedPageSize
-    }).refine((input) => !input.include_protected || input.explicit_protected_access, {
-      message: "Protected context requires explicit access confirmation.",
-    }),
+    },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     ...workspaceMcpToolContract
-  }, ({ purpose, tiers, include_protected, explicit_protected_access, page_size }) => rpcResult(supabase, "mcp_list_professional_context", {
+  }, ({ purpose, tiers, privacy_scopes, page_size }) => rpcResult(supabase, "mcp_list_professional_context_granted", {
     target_purpose: purpose,
     target_tiers: tiers,
-    include_private: include_protected,
-    explicit_private_access: explicit_protected_access,
+    requested_privacy_scopes: privacy_scopes,
     page_size
   }));
 
   server.registerTool("list_context_candidates", {
     title: "Inspect professional context candidates",
-    description: "Read the governed context review queue, including conflicts and prior rejected candidates. Private and sensitive candidates require explicit protected-context access.",
-    inputSchema: z.object({
+    description: "Read the governed context review queue. Private and sensitive candidates require separate, active first-party Workspace read grants.",
+    inputSchema: {
       status: contextCandidateStatus.optional(),
-      include_protected: z.boolean().default(false),
-      explicit_protected_access: explicitProtectedContextAccess,
+      privacy_scopes: z.array(contextProtectedScope).max(2).default([]),
       page_size: boundedPageSize
-    }).refine((input) => !input.include_protected || input.explicit_protected_access, {
-      message: "Protected candidates require explicit access confirmation.",
-    }),
+    },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     ...workspaceMcpToolContract
-  }, ({ status, include_protected, explicit_protected_access, page_size }) => rpcResult(supabase, "mcp_list_context_candidates", {
+  }, ({ status, privacy_scopes, page_size }) => rpcResult(supabase, "mcp_list_context_candidates_granted", {
     target_status: status ?? null,
-    include_private: include_protected,
-    explicit_private_access: explicit_protected_access,
+    requested_privacy_scopes: privacy_scopes,
     page_size
   }));
 
   server.registerTool("propose_context_candidate", {
     title: "Propose professional context for review",
-    description: "Record one bounded observation as a reviewable candidate with provenance. This never creates durable professional truth. Do not submit classified, CUI, or operationally sensitive material. A refusal prevents Professional Context Graph content rows, but the connected assistant and request infrastructure still process the request.",
+    description: "Submit one bounded observation with provenance. Normal retained observations create only unconfirmed candidates. Private or sensitive observations create a first-party confirmation request and are not persisted in the graph until confirmed. Classified, CUI, operationally sensitive, and do-not-retain material is refused before confirmation or graph persistence.",
     inputSchema: z.object({
       request_id: z.uuid(),
       family: contextFamily,
@@ -334,13 +324,10 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       possible_match_context_id: z.uuid().nullable().optional(),
       retention: z.enum(["retain", "do_not_retain"]).default("retain"),
       military_sensitivity: z.enum(["none", "suspected_classified", "suspected_cui", "operationally_sensitive"]).default("none"),
-      explicit_protected_access: explicitProtectedContextAccess,
-    }).refine((input) => !["private", "sensitive"].includes(input.privacy) || input.explicit_protected_access, {
-      message: "Private and sensitive proposals require explicit protected-context access.",
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     ...workspaceMcpToolContract
-  }, (input) => rpcResult(supabase, "mcp_propose_context_candidate_protected", {
+  }, (input) => rpcResult(supabase, "mcp_submit_context_candidate", {
     request_id: input.request_id,
     target_family: input.family,
     proposed_label: input.label,
@@ -360,42 +347,37 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
     target_possible_match_entity_id: input.possible_match_context_id ?? null,
     target_retention: input.retention,
     target_military_sensitivity: input.military_sensitivity,
-    explicit_protected_access: input.explicit_protected_access,
   }));
 
   server.registerTool("review_context_candidate", {
     title: "Review a professional context candidate",
-    description: "Approve, correct, reject, or explicitly supersede conflicting context only after the user reviews the candidate. Core promotion is always user governed.",
+    description: "Request first-party review to approve, correct, reject, or supersede a candidate. This creates a pending Workspace confirmation and never executes the decision in the MCP session.",
     inputSchema: contextReviewInput,
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     ...workspaceMcpToolContract
-  }, (input) => rpcResult(supabase, "mcp_review_context_candidate_protected", {
+  }, (input) => rpcResult(supabase, "mcp_request_context_review", {
     target_candidate_id: input.candidate_id,
     target_decision: input.decision,
     request_id: input.request_id,
-    target_tier: null,
     corrected_label: input.decision === "correct" ? input.corrected_label ?? null : null,
     corrected_summary: input.decision === "correct" ? input.corrected_summary ?? null : null,
-    target_chapter_key: null,
     review_notes: input.review_notes ?? null,
-    explicit_protected_access: input.explicit_protected_access,
   }));
 
   server.registerTool("get_context_provenance", {
     title: "Inspect professional context provenance",
-    description: "Inspect bounded supporting and contradicting evidence, review history, and conflict history for one professional context item. Private and sensitive content require explicit protected-context access, including nested evidence, review notes, and conflicts.",
-    inputSchema: { context_id: z.uuid(), explicit_protected_access: explicitProtectedContextAccess },
+    description: "Inspect bounded evidence, review history, links, and conflict history. Every private or sensitive nested object requires its matching active first-party Workspace read grant.",
+    inputSchema: { context_id: z.uuid(), privacy_scopes: z.array(contextProtectedScope).max(2).default([]) },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     ...workspaceMcpToolContract
-  }, ({ context_id, explicit_protected_access }) => rpcResult(supabase, "mcp_get_context_provenance_protected", {
+  }, ({ context_id, privacy_scopes }) => rpcResult(supabase, "mcp_get_context_provenance_granted", {
     target_entity_id: context_id,
-    include_protected: explicit_protected_access,
-    explicit_protected_access,
+    requested_privacy_scopes: privacy_scopes,
   }));
 
   server.registerTool("link_professional_context", {
     title: "Link professional context to an existing record",
-    description: "Link confirmed professional context to another context item or an existing Workspace task, commitment, meeting, decision, capture, job application, or legacy memory record without copying that record.",
+    description: "Request a first-party-confirmed link between exact displayed records. The MCP session creates only a pending confirmation request.",
     inputSchema: {
       source_context_id: z.uuid(),
       link_type: contextLinkType,
@@ -403,24 +385,21 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       target_context_id: z.uuid().nullable().optional(),
       target_record_type: contextRecordType.nullable().optional(),
       target_record_id: z.uuid().nullable().optional(),
-      explicit_protected_access: explicitProtectedContextAccess,
-      user_confirmed: z.literal(true)
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     ...workspaceMcpToolContract
-  }, (input) => rpcResult(supabase, "mcp_link_professional_context_protected", {
+  }, (input) => rpcResult(supabase, "mcp_request_context_link", {
     source_context_id: input.source_context_id,
     link_type: input.link_type,
     request_id: input.request_id,
     target_context_id: input.target_context_id ?? null,
     target_record_type: input.target_record_type ?? null,
     target_record_id: input.target_record_id ?? null,
-    explicit_protected_access: input.explicit_protected_access,
   }));
 
   server.registerTool("manage_professional_context", {
     title: "Promote, archive, or delete professional context",
-    description: "Apply an explicit user decision to promote confirmed context, archive it, or delete its retained content. Working can promote to Chapter/Core; Chapter can promote to Core.",
+    description: "Request first-party confirmation to promote, archive, or delete retained context. The MCP session creates only a pending request and cannot execute the mutation.",
     inputSchema: {
       context_id: z.uuid(),
       action: z.enum(["promote", "archive", "delete"]),
@@ -428,19 +407,26 @@ export function createWorkspaceMcpServer(supabase: SupabaseClient<any, any, any,
       tier: z.enum(["chapter", "core"]).nullable().optional(),
       chapter_key: z.string().regex(/^[a-z][a-z0-9_]{2,63}$/).nullable().optional(),
       review_notes: z.string().trim().min(1).max(2000).nullable().optional(),
-      explicit_protected_access: explicitProtectedContextAccess,
-      user_confirmed: z.literal(true)
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     ...workspaceMcpToolContract
-  }, (input) => rpcResult(supabase, "mcp_manage_professional_context_protected", {
+  }, (input) => rpcResult(supabase, "mcp_request_context_management", {
     target_entity_id: input.context_id,
     target_action: input.action,
     request_id: input.request_id,
     target_tier: input.tier ?? null,
     target_chapter_key: input.chapter_key ?? null,
     review_notes: input.review_notes ?? null,
-    explicit_protected_access: input.explicit_protected_access,
+  }));
+
+  server.registerTool("get_professional_context_change_status", {
+    title: "Check a Professional Context confirmation",
+    description: "Poll one confirmation request created by this assistant connection. The result is content-minimized and never returns protected preview content.",
+    inputSchema: { confirmation_request_id: z.uuid() },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    ...workspaceMcpToolContract
+  }, ({ confirmation_request_id }) => rpcResult(supabase, "mcp_get_context_confirmation_status", {
+    target_request_id: confirmation_request_id
   }));
 
   server.registerTool("list_memory", {

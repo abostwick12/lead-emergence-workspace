@@ -16,6 +16,8 @@
 | `context_evidence` | Active Personal owner with `professional_context` capability | No direct client writes; evidence is created only with a validated candidate/source. |
 | `context_candidates` | Active Personal owner with `professional_context` capability | No direct client writes; MCP proposal/review RPCs preserve confirmation and conflict state. |
 | `context_reviews` | Active Personal owner with `professional_context` capability | No direct client writes; immutable decision/audit records carry their own privacy classification except privacy deletion redaction. |
+| `workspace_private.professional_context_confirmation_requests` | No browser/Data API table access | Security-definer request-only MCP RPCs create pending rows; only direct owner-session RPCs may preview, deny, or atomically confirm and execute. RLS has no policies. |
+| `workspace_private.professional_context_read_grants` | No browser/Data API table access | Direct owner-session RPCs create/revoke authorization-bound private or sensitive read grants. RLS has no policies. |
 | Domain tables | Active member | Active personal owner with matching `created_by`; tenancy immutable. |
 | `audit_events` | Active member | Trigger only. |
 
@@ -25,11 +27,14 @@ direct session and a current Auth app-metadata authorization; invite claims also
 bind the verified Auth email to the claimant's active Personal Workspace owner
 context. Context MCP functions additionally require a current MCP authorization
 epoch and active bundle capability; an MCP bearer cannot traverse the graph
-tables directly. Private and sensitive context are excluded from ordinary MCP
-projections and require explicit protected-context access at every top-level,
-nested, ID-targeted, and mutation-response path. Protected conflicts are omitted
-without an existence indicator. The legacy unguarded mutation and provenance
-RPC signatures are revoked from API roles.
+tables directly. Normal retained proposals may autonomously create unconfirmed
+candidates. Protected proposals and all governed mutations instead create
+private pending requests; only an owning direct Workspace session can execute
+them. Private and sensitive reads require separate, short-lived, DB-backed
+grants at every top-level, nested, and ID-targeted response path. Grants never
+authorize mutations. Protected conflicts are omitted without an existence
+indicator. The legacy unguarded mutation, client-attested mutation, and
+client-attested protected-read RPC signatures are revoked from API roles.
 
 The P2 capability is defined but its SOTF Bundle mapping remains disabled; P1
 entitlement presence alone therefore cannot activate it. Classified, CUI, and operationally

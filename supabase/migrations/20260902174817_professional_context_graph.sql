@@ -1087,9 +1087,10 @@ begin
     set review_notes = null
     where workspace_id = target_workspace_id
       and (entity_id = selected_entity.id or resulting_entity_id = selected_entity.id);
-    delete from workspace.professional_context_links
-    where workspace_id = target_workspace_id
-      and (source_entity_id = selected_entity.id or target_entity_id = selected_entity.id);
+    delete from workspace.professional_context_links as link_to_delete
+    where link_to_delete.workspace_id = target_workspace_id
+      and (link_to_delete.source_entity_id = selected_entity.id
+        or link_to_delete.target_entity_id = selected_entity.id);
     update workspace.professional_context_entities
     set label = 'Deleted context', summary = '[deleted by user]', lifecycle_status = 'deleted',
       dedupe_key = workspace_private.context_fingerprint('deleted', selected_entity.id::text),

@@ -54,7 +54,7 @@ describe("Lewis MCP contract", () => {
       "list_memory", "create_memory", "delete_memory",
       "list_professional_context", "list_context_candidates", "propose_context_candidate",
       "review_context_candidate", "get_context_provenance", "link_professional_context",
-      "manage_professional_context",
+      "manage_professional_context", "get_professional_context_change_status",
       "list_career_opportunities", "create_career_opportunity", "update_career_opportunity",
       "replace_confirmed_workspace_configuration", "list_integration_connections",
       "get_clock_preferences", "save_clock_preferences",
@@ -231,8 +231,7 @@ describe("Lewis MCP contract", () => {
         conflicts_with_context_id: null,
         possible_match_context_id: null,
         retention: "retain",
-        military_sensitivity: "none",
-        explicit_protected_access: false
+        military_sensitivity: "none"
       }
     });
     await client.callTool({
@@ -243,9 +242,7 @@ describe("Lewis MCP contract", () => {
         request_id: "00000000-0000-4000-8000-000000000203",
         corrected_label: null,
         corrected_summary: "Quantify team size, operating tempo, and outcomes.",
-        review_notes: "Confirmed and amended by the user.",
-        explicit_protected_access: false,
-        user_confirmed: true
+        review_notes: "Confirmed and amended by the user."
       }
     });
     await client.callTool({
@@ -253,8 +250,7 @@ describe("Lewis MCP contract", () => {
       arguments: {
         purpose: "learning",
         tiers: ["chapter", "core"],
-        include_protected: false,
-        explicit_protected_access: false,
+        privacy_scopes: [],
         page_size: 25
       }
     });
@@ -266,13 +262,11 @@ describe("Lewis MCP contract", () => {
         request_id: "00000000-0000-4000-8000-000000000205",
         target_context_id: null,
         target_record_type: "memory_entry",
-        target_record_id: "00000000-0000-4000-8000-000000000206",
-        explicit_protected_access: false,
-        user_confirmed: true
+        target_record_id: "00000000-0000-4000-8000-000000000206"
       }
     });
 
-    expect(rpc).toHaveBeenNthCalledWith(1, "mcp_propose_context_candidate_protected", {
+    expect(rpc).toHaveBeenNthCalledWith(1, "mcp_submit_context_candidate", {
       request_id: "00000000-0000-4000-8000-000000000201",
       target_family: "lesson",
       proposed_label: "Quantify operational scale",
@@ -291,39 +285,33 @@ describe("Lewis MCP contract", () => {
       target_conflict_with_entity_id: null,
       target_possible_match_entity_id: null,
       target_retention: "retain",
-      target_military_sensitivity: "none",
-      explicit_protected_access: false
+      target_military_sensitivity: "none"
     });
-    expect(rpc).toHaveBeenNthCalledWith(2, "mcp_review_context_candidate_protected", {
+    expect(rpc).toHaveBeenNthCalledWith(2, "mcp_request_context_review", {
       target_candidate_id: "00000000-0000-4000-8000-000000000202",
       target_decision: "correct",
       request_id: "00000000-0000-4000-8000-000000000203",
-      target_tier: null,
       corrected_label: null,
       corrected_summary: "Quantify team size, operating tempo, and outcomes.",
-      target_chapter_key: null,
-      review_notes: "Confirmed and amended by the user.",
-      explicit_protected_access: false
+      review_notes: "Confirmed and amended by the user."
     });
-    expect(rpc).toHaveBeenNthCalledWith(3, "mcp_list_professional_context", {
+    expect(rpc).toHaveBeenNthCalledWith(3, "mcp_list_professional_context_granted", {
       target_purpose: "learning",
       target_tiers: ["chapter", "core"],
-      include_private: false,
-      explicit_private_access: false,
+      requested_privacy_scopes: [],
       page_size: 25
     });
-    expect(rpc).toHaveBeenNthCalledWith(4, "mcp_link_professional_context_protected", {
+    expect(rpc).toHaveBeenNthCalledWith(4, "mcp_request_context_link", {
       source_context_id: "00000000-0000-4000-8000-000000000204",
       link_type: "derived_from",
       request_id: "00000000-0000-4000-8000-000000000205",
       target_context_id: null,
       target_record_type: "memory_entry",
-      target_record_id: "00000000-0000-4000-8000-000000000206",
-      explicit_protected_access: false
+      target_record_id: "00000000-0000-4000-8000-000000000206"
     });
   });
 
-  it("rejects unconfirmed context review and deletion before database access", async () => {
+  it("maps governed context decisions to request-only RPCs without client confirmation attestation", async () => {
     const rpc = vi.fn(async () => ({ data: {}, error: null }));
     const client = await connectLewis(rpc);
 
@@ -332,8 +320,7 @@ describe("Lewis MCP contract", () => {
       arguments: {
         candidate_id: "00000000-0000-4000-8000-000000000202",
         decision: "approve",
-        request_id: "00000000-0000-4000-8000-000000000203",
-        user_confirmed: false
+        request_id: "00000000-0000-4000-8000-000000000203"
       }
     });
     const deletion = await client.callTool({
@@ -341,14 +328,28 @@ describe("Lewis MCP contract", () => {
       arguments: {
         context_id: "00000000-0000-4000-8000-000000000204",
         action: "delete",
-        request_id: "00000000-0000-4000-8000-000000000205",
-        user_confirmed: false
+        request_id: "00000000-0000-4000-8000-000000000205"
       }
     });
 
-    expect(review.isError).toBe(true);
-    expect(deletion.isError).toBe(true);
-    expect(rpc).not.toHaveBeenCalled();
+    expect(review.isError).not.toBe(true);
+    expect(deletion.isError).not.toBe(true);
+    expect(rpc).toHaveBeenNthCalledWith(1, "mcp_request_context_review", {
+      target_candidate_id: "00000000-0000-4000-8000-000000000202",
+      target_decision: "approve",
+      request_id: "00000000-0000-4000-8000-000000000203",
+      corrected_label: null,
+      corrected_summary: null,
+      review_notes: null
+    });
+    expect(rpc).toHaveBeenNthCalledWith(2, "mcp_request_context_management", {
+      target_entity_id: "00000000-0000-4000-8000-000000000204",
+      target_action: "delete",
+      request_id: "00000000-0000-4000-8000-000000000205",
+      target_tier: null,
+      target_chapter_key: null,
+      review_notes: null
+    });
   });
 
   it("rejects ambiguous candidate-review semantics before database access", async () => {
@@ -356,9 +357,7 @@ describe("Lewis MCP contract", () => {
     const client = await connectLewis(rpc);
     const base = {
       candidate_id: "00000000-0000-4000-8000-000000000202",
-      request_id: "00000000-0000-4000-8000-000000000203",
-      explicit_protected_access: false,
-      user_confirmed: true
+      request_id: "00000000-0000-4000-8000-000000000203"
     };
 
     const approveMutation = await client.callTool({
@@ -384,7 +383,7 @@ describe("Lewis MCP contract", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("maps explicit protected provenance access to the hardened RPC", async () => {
+  it("maps separately requested protected scopes to the grant-aware provenance RPC", async () => {
     const rpc = vi.fn(async () => ({ data: {}, error: null }));
     const client = await connectLewis(rpc);
 
@@ -392,14 +391,25 @@ describe("Lewis MCP contract", () => {
       name: "get_context_provenance",
       arguments: {
         context_id: "00000000-0000-4000-8000-000000000204",
-        explicit_protected_access: true
+        privacy_scopes: ["private", "sensitive"]
       }
     });
 
-    expect(rpc).toHaveBeenCalledWith("mcp_get_context_provenance_protected", {
+    expect(rpc).toHaveBeenCalledWith("mcp_get_context_provenance_granted", {
       target_entity_id: "00000000-0000-4000-8000-000000000204",
-      include_protected: true,
-      explicit_protected_access: true
+      requested_privacy_scopes: ["private", "sensitive"]
+    });
+  });
+
+  it("polls only the bound content-minimized confirmation status RPC", async () => {
+    const rpc = vi.fn(async () => ({ data: { status: "pending" }, error: null }));
+    const client = await connectLewis(rpc);
+    await client.callTool({
+      name: "get_professional_context_change_status",
+      arguments: { confirmation_request_id: "00000000-0000-4000-8000-000000000207" }
+    });
+    expect(rpc).toHaveBeenCalledWith("mcp_get_context_confirmation_status", {
+      target_request_id: "00000000-0000-4000-8000-000000000207"
     });
   });
 

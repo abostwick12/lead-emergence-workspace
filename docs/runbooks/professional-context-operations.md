@@ -8,17 +8,23 @@ migration, deployment, connector release, plugin package, or later SOTF goal.
 1. Lewis calls `propose_context_candidate` with one bounded observation,
    provenance, confidence, intended tier, privacy classification, and a UUID
    reused on retry.
-2. Workspace creates only a candidate and bounded evidence. It does not create
+2. A normal, retained proposal creates only an unconfirmed candidate and bounded
+   evidence. It does not require first-party confirmation and cannot create
    confirmed professional context.
-3. Lewis presents the candidate through `list_context_candidates`.
-4. After an authorized assistant records the user's decision, Lewis calls
-   `review_context_candidate`. This phase accepts the assistant's attestation;
-   the server-verifiable confirmation receipt is not implemented yet.
-5. Approved context becomes Working, Chapter, or Core. Working expires after 30
-   days. Chapter requires a chapter key. Core promotion is explicit.
-6. Later `manage_professional_context` actions can promote, archive, or delete a
-   retained item. Deletion redacts retained content while preserving a minimal
-   audit tombstone.
+3. A private or sensitive proposal creates a private pending confirmation
+   request. It creates no graph candidate or evidence until the owner reviews
+   the exact request in a direct Workspace session.
+4. Lewis presents candidates through `list_context_candidates`. Approve,
+   correct, reject, supersede, link, promote, archive, and delete tools create
+   request-only confirmation records and cannot execute their mutations.
+5. The owner opens the exact Workspace review URL and confirms or denies the
+   operation. The server revalidates the owning session, assistant authorization
+   epoch, capability, expiry, payload fingerprint, and target-state fingerprint,
+   then executes the mutation atomically. Only correction label/summary fields
+   may be edited during review.
+6. Approved context becomes Working, Chapter, or Core. Working expires after 30
+   days. Chapter requires a chapter key. Core promotion is explicit. Deletion
+   redacts retained content while preserving a minimal audit tombstone.
 
 Rejected candidates remain dedupe history. The same observation and evidence do
 not silently reappear; materially new evidence can create a new candidate.
@@ -37,8 +43,13 @@ Review decisions are not interchangeable:
 ## Retrieval and links
 
 `list_professional_context` retrieves confirmed context by purpose and tier.
-Private and sensitive context are excluded unless both protected inclusion and
-explicit protected-context access are true. The rule applies independently to
+Private and sensitive context are excluded unless the MCP connection requests
+that exact privacy scope and has an active server-side read grant. Private and
+sensitive are separate controls: a private grant lasts 10 minutes, a sensitive
+grant lasts 5 minutes, and neither implies the other. The owner may revoke a
+grant immediately. Expiry, disconnect, authorization-epoch change, ownership
+loss, or entitlement/capability loss makes it unusable. Grants authorize reads
+only. The rule applies independently to
 entities, candidates, evidence, source references, review notes, conflicts,
 links, ID-targeted operations, and mutation responses. Protected conflicts are
 omitted completely when access is absent, without counts or existence markers.
@@ -71,18 +82,33 @@ metadata may still be written.
 
 P1 bundle entitlements do not activate Professional Context. Phase A leaves the
 SOTF Bundle capability mapping disabled; activation requires a later explicit
-migration or release action. P2 remains release-blocked until server-verifiable
-confirmation receipts are implemented and reviewed.
+migration or release action. Phase B2 implements direct-session
+confirm-and-execute authority, but P2 remains release-blocked pending a reviewed
+fresh migration replay, production cleanup scheduling, hosted release approval,
+deployment, and acceptance evidence.
+
+## Confirmation retention
+
+Pending requests expire logically after 30 minutes. Completed, denied, stale,
+expired, and revoked requests clear protected payload and target snapshots
+synchronously. Once `expires_at` is reached, content is inaccessible and cannot
+be executed even if physical cleanup has not run yet. The cleanup function must
+run at least every 15 minutes in a release environment; it is scheduled through
+`pg_cron` when that extension is present. Content-free confirmation/audit
+metadata is retained for 30 days by default and is server-configurable. A stale
+request is terminal: Lewis must submit a new logical request with a new UUID.
 
 ## Local verification
 
 Start the repository-local Supabase stack and run:
 
 ```text
-supabase db reset --local
 supabase test db --local supabase/tests/database/professional_context_graph.sql
+supabase test db --local supabase/tests/database/professional_context_confirmation.sql
 npm run test:rls
 supabase db advisors --local
 ```
 
-Never link this repository to or run this acceptance against hosted production.
+Run a fresh local migration replay only when that destructive local action has
+been separately authorized. Never link this repository to or run this
+acceptance against hosted production.

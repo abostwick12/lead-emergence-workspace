@@ -153,6 +153,26 @@ select is(has_table_privilege('authenticated', 'workspace.context_evidence', 'in
 select is(has_function_privilege('anon', 'workspace.mcp_get_context_provenance_protected(uuid,boolean,boolean)', 'execute'), false, 'anonymous callers cannot inspect context provenance');
 select is(has_function_privilege('authenticated', 'workspace.mcp_get_context_provenance(uuid)', 'execute'), false, 'the unprotected provenance signature is not callable');
 
+-- Preserve the Phase A domain-semantic suite after B2 revokes every API-role
+-- mutation signature. These transaction-local grants exercise the underlying
+-- implementation only; the B2 suite separately proves production lockdown.
+grant execute on function workspace.mcp_propose_context_candidate_protected(
+  uuid, text, text, text, text, text, text, text, timestamptz, numeric,
+  text, text, text, text, uuid, uuid, uuid, text, text, boolean
+) to authenticated;
+grant execute on function workspace.mcp_review_context_candidate_protected(
+  uuid, text, uuid, text, text, text, text, text, boolean
+) to authenticated;
+grant execute on function workspace.mcp_get_context_provenance_protected(uuid, boolean, boolean) to authenticated;
+grant execute on function workspace.mcp_link_professional_context_protected(
+  uuid, text, uuid, uuid, text, uuid, boolean
+) to authenticated;
+grant execute on function workspace.mcp_manage_professional_context_protected(
+  uuid, text, uuid, text, text, text, boolean
+) to authenticated;
+grant execute on function workspace.mcp_list_professional_context(text, text[], boolean, boolean, integer) to authenticated;
+grant execute on function workspace.mcp_list_context_candidates(text, boolean, boolean, integer) to authenticated;
+
 -- Test-only activation exercises P2 after proving that P1 entitlement alone is insufficient.
 update workspace.bundle_capabilities set enabled = true
 where bundle_key = 'sotf_transition' and capability_key = 'professional_context';

@@ -194,20 +194,25 @@ cannot replace that context without an explicit supersession review.
 Candidate decisions have distinct meanings. `approve` accepts the candidate
 exactly, `correct` requires an actual normalized content change, `reject` creates
 no confirmed entity, and `supersede` accepts the conflicting candidate exactly.
-The current MCP boundary records an authorized client's confirmation
-attestation; an independently server-verifiable user-confirmation receipt is a
-later release requirement. P2 remains release-blocked until that requirement is
-implemented and reviewed.
+Normal retained candidates remain autonomous, visibly unconfirmed proposals.
+Private and sensitive proposals persist no graph content until first-party
+confirmation. Every MCP-initiated review, link, promotion, archive, and delete
+operation is request-only; a direct Workspace owner session revalidates and
+executes the exact pending operation atomically. No confirmed or consumed token
+is transferable back to the assistant.
 
 Existing `memory_entries` remain intact. Lewis returns them as a separate
 `legacy_memory` compatibility collection and can link graph context to a legacy
 memory record. P2 performs no destructive backfill.
 
-Private and sensitive context are omitted from ordinary Lewis retrieval. Every
-MCP path requires explicit protected-context access before it can return or act
-on protected entities, candidates, evidence, source references, review notes,
-links, or conflicts. Without that access, protected conflicts are omitted
-without an existence indicator.
+Private and sensitive context are omitted from ordinary Lewis retrieval. A
+server-side grant bound to the owner, Workspace, MCP authorization, client, and
+authorization epoch is required in addition to requesting the exact privacy
+scope. Private grants last 10 minutes and sensitive grants last 5 minutes;
+neither implies the other and both authorize reads only. Nested entities,
+candidates, evidence, source references, review notes, links, and conflicts are
+filtered by their own classification. Without access, protected conflicts are
+omitted without an existence indicator.
 
 Classified, CUI, and operationally sensitive material must not be submitted.
 When the proposal refusal path is used, it creates no Professional Context Graph
@@ -267,7 +272,9 @@ This branch intentionally does not:
 - deploy or cut over production.
 
 The current branch contains the P1 bundle foundation and a locally hardened P2
-Professional Context Graph. P2 is not activated for SOTF entitlements and is not
-release-ready. Server-verifiable confirmation receipts, connector execution,
-one-command bundle installation, persistent progression state, and later
-self-improvement capabilities remain separate reviewed slices.
+Professional Context Graph with direct-session confirmation authority and
+short-lived protected-read grants. P2 is not activated for SOTF entitlements and
+is not release-ready. A reviewed fresh migration replay, operational cleanup
+scheduling, hosted release approval, deployment and acceptance, connector
+execution, one-command bundle installation, persistent progression state, and
+later self-improvement capabilities remain separate reviewed slices.

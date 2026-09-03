@@ -643,3 +643,37 @@ change, a Vercel deployment, or a real assistant connection.
 - Server-verifiable user-confirmation receipts remain **NOT IMPLEMENTED**. P2
   remains release-blocked and the `professional_context` SOTF Bundle mapping
   remains disabled.
+
+# P2 Professional Context hardening Phase B2 — 2026-09-03
+
+- Branch baseline: `c9ace25de446e91a01bb6d39174a3ce90f34ab89` on
+  `codex/personal-os-transition-bundle`.
+- Hosted migrations, deployment, and capability activation: **NOT RUN**. The
+  existing local database received only the forward
+  `20260903160000_professional_context_confirmation_authority.sql` migration
+  and bounded function replacements needed while validating its current source.
+  A destructive local reset was neither authorized nor performed.
+- Focused Professional Context confirmation pgTAP — **PASS, 99/99 assertions**.
+  Coverage includes autonomous normal candidates; zero graph persistence before
+  protected-proposal confirmation; approve, correct, reject, supersede, link,
+  promote, archive, and delete request-only behavior; direct-session execution;
+  correction-field limits; idempotent completion; separate private/sensitive
+  grants; immediate grant revocation; denied, expired, stale, and disconnected
+  terminal states; synchronous payload clearing; and P1/P2 activation separation.
+- `npm run check:boundaries` — **PASS**; 74 runtime files contain no
+  Ministry/Consulting runtime import or service-role client.
+- `npm run test:schema` — **PASS, 35/35**.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **PASS, 104/104 across 15 files**.
+- `npm run build` — **PASS** with Next.js 16.3.2; the direct Workspace review
+  page and API compile as dynamic routes.
+- Focused Phase A + Phase B2 Professional Context pgTAP — **PASS, 191/191
+  assertions across 2 files**.
+- `npm run test:rls` — **PASS, 433/433 assertions across 10 files**.
+- `supabase db advisors --local` — **PASS, no issues found**.
+- `git diff --check` — **PASS**; Git reported only line-ending conversion
+  warnings.
+- P2 remains disabled and release-blocked. A reviewed fresh migration replay,
+  proof of a production cleanup schedule no slower than 15 minutes, hosted gate
+  approval, deployment, and production acceptance evidence are still required.
