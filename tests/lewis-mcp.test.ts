@@ -37,6 +37,10 @@ describe("Lewis MCP contract", () => {
     expect(onboarding?.securitySchemes).toEqual([
       { type: "oauth2", scopes: ["openid", "email", "profile"] }
     ]);
+    expect(onboarding?.outputSchema).toMatchObject({ type: "object" });
+    for (const tool of result.tools) {
+      expect((tool.outputSchema as { type?: unknown } | undefined)?.type).toBe("object");
+    }
   });
 
   it("publishes durable, explicit Workspace controls alongside the existing tools", async () => {
