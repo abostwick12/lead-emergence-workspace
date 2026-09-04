@@ -46,6 +46,7 @@ const professionalContextHardeningSql = await readFile("supabase/migrations/2026
 const professionalContextConfirmationSql = await readFile("supabase/migrations/20260903160000_professional_context_confirmation_authority.sql", "utf8");
 const professionalContextReleaseHardeningSql = await readFile("supabase/migrations/20260903190000_professional_context_release_hardening.sql", "utf8");
 const professionalContextReadGrantControlsSql = await readFile("supabase/migrations/20260903210000_professional_context_read_grant_controls.sql", "utf8");
+const professionalContextGrantTerminalInvalidationSql = await readFile("supabase/migrations/20260904120000_professional_context_grant_terminal_invalidation.sql", "utf8");
 const professionalContextCleanupPreflightSql = await readFile("supabase/preflight/professional_context_cleanup_scheduler.sql", "utf8");
 const professionalContextArchitecture = await readFile("docs/architecture/personal-os-transition-bundle.md", "utf8");
 const professionalContextRunbook = await readFile("docs/runbooks/professional-context-operations.md", "utf8");
@@ -536,6 +537,29 @@ test("adds separate first-party B2.2 protected-read controls without granting MC
   assert.match(professionalContextReadGrantComponent, /classified, CUI, or operationally sensitive/i);
   assert.match(workspaceSettingsPage, /\/workspace\/professional-context\/access/i);
   assert.doesNotMatch(professionalContextReadGrantControlsSql + professionalContextReadGrantRoute, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
+});
+
+test("makes protected-read authority loss terminal without activating P2", () => {
+  assert.match(professionalContextGrantTerminalInvalidationSql, /professional_context_grant_authority_epochs/i);
+  assert.match(professionalContextGrantTerminalInvalidationSql, /grant_record\.authority_epoch\s*=\s*authority\.authority_epoch/i);
+  assert.match(professionalContextGrantTerminalInvalidationSql, /grant_record\.authority_epoch is distinct from current_authority_epoch/i);
+  assert.match(professionalContextGrantTerminalInvalidationSql, /professional_context_capability_deadline/i);
+  assert.match(professionalContextGrantTerminalInvalidationSql, /min\(entitlement\.expires_at\)/i);
+  for (const authorityTable of [
+    "workspace_memberships", "personal_plans", "plan_capabilities",
+    "bundle_entitlements", "bundle_capabilities", "bundle_definitions",
+  ]) {
+    assert.match(
+      professionalContextGrantTerminalInvalidationSql,
+      new RegExp(`on workspace\\.${authorityTable}`, "i"),
+      `${authorityTable} must invalidate the grant authority epoch`,
+    );
+  }
+  assert.match(professionalContextGrantTerminalInvalidationSql, /revoke all on table workspace_private\.professional_context_grant_authority_epochs[\s\S]*from public, anon, authenticated/i);
+  assert.match(professionalContextGrantTerminalInvalidationSql, /revoke all on function workspace_private\.bump_professional_context_grant_authority/i);
+  assert.doesNotMatch(professionalContextGrantTerminalInvalidationSql, /grant execute on function workspace_private\./i);
+  assert.doesNotMatch(professionalContextGrantTerminalInvalidationSql, /update workspace\.bundle_capabilities[^]*professional_context[^]*enabled\s*=\s*true/i);
+  assert.doesNotMatch(professionalContextGrantTerminalInvalidationSql, /SUPABASE_SERVICE_ROLE_KEY|service_role/i);
 });
 
 test("scopes non-retention claims to graph content and prohibits controlled-material submission", () => {

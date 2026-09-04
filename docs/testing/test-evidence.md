@@ -748,3 +748,32 @@ change, a Vercel deployment, or a real assistant connection.
 - P2 remains disabled and release-blocked. Fresh migration replay is explicitly
   deferred. Persistent target cleanup-scheduler proof, hosted gate approval,
   deployment, and production acceptance evidence remain required.
+
+# P2 protected-grant terminal invalidation B2.3 — 2026-09-04
+
+- Branch baseline: `f05a10ed5a80e892ccab9a52660796e49e72243f` on
+  `codex/personal-os-transition-bundle`.
+- Hosted migrations, deployment, and capability activation: **NOT RUN**. P2
+  remains disabled. The release-grade disposable fresh-stack convergence replay
+  remains deferred to the next independent release-verification gate.
+- `supabase db reset --local` — **PASS**. All 24 repository migrations replayed
+  from zero through the additive
+  `20260904120000_professional_context_grant_terminal_invalidation.sql`
+  migration, followed by the local seed.
+- Focused Professional Context confirmation/grant pgTAP — **PASS, 183/183
+  assertions**. New executable coverage proves no revival after capability
+  restoration, owner-membership restoration, bundle-entitlement renewal, and
+  MCP reconnect; new direct grants work after restoration; explicit revocation
+  and expiry remain terminal; bundle expiry caps grant lifetime; and Private and
+  Sensitive authority remain independent.
+- `npm run check:boundaries` — **PASS**; 78 runtime files contain no
+  Ministry/Consulting runtime import or service-role client.
+- `npm run test:schema` — **PASS, 38/38**.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS**.
+- `npm run test:unit` — **PASS, 122/122 across 17 files**.
+- `npm run build` — **PASS** with Next.js 16.3.2.
+- `npm run test:rls` — **PASS, 517/517 assertions across 10 files**.
+- `supabase db advisors --local` — **PASS, no issues found**.
+- `git diff --check` — **PASS**; Git reported only line-ending conversion
+  warnings.

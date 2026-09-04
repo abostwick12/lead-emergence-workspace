@@ -138,8 +138,10 @@ select is((select enabled from workspace.bundle_capabilities
   'P1 still does not activate P2');
 select is((select relrowsecurity from pg_class where oid = 'workspace_private.professional_context_confirmation_requests'::regclass), true, 'confirmation requests use RLS');
 select is((select relrowsecurity from pg_class where oid = 'workspace_private.professional_context_read_grants'::regclass), true, 'protected-read grants use RLS');
+select is((select relrowsecurity from pg_class where oid = 'workspace_private.professional_context_grant_authority_epochs'::regclass), true, 'grant authority epochs use RLS');
 select is(has_table_privilege('authenticated', 'workspace_private.professional_context_confirmation_requests', 'select'), false, 'authenticated clients cannot read confirmation storage');
 select is(has_table_privilege('authenticated', 'workspace_private.professional_context_read_grants', 'select'), false, 'authenticated clients cannot read grant storage');
+select is(has_table_privilege('authenticated', 'workspace_private.professional_context_grant_authority_epochs', 'select'), false, 'authenticated clients cannot read grant authority epochs');
 select is(has_function_privilege('authenticated', 'workspace.mcp_review_context_candidate_protected(uuid,text,uuid,text,text,text,text,text,boolean)', 'execute'), false, 'Phase A review execution is revoked');
 select is(has_function_privilege('authenticated', 'workspace.mcp_link_professional_context_protected(uuid,text,uuid,uuid,text,uuid,boolean)', 'execute'), false, 'Phase A link execution is revoked');
 select is(has_function_privilege('authenticated', 'workspace.mcp_manage_professional_context_protected(uuid,text,uuid,text,text,text,boolean)', 'execute'), false, 'Phase A management execution is revoked');
@@ -153,9 +155,13 @@ select is(has_function_privilege('authenticated', 'workspace.mcp_list_profession
 select is(has_function_privilege('authenticated', 'workspace.mcp_list_context_candidates(text,boolean,boolean,integer)', 'execute'), false, 'client-attested protected candidate reads are revoked');
 select is(has_function_privilege('authenticated', 'workspace.mcp_get_context_provenance(uuid)', 'execute'), false, 'legacy unprotected provenance is revoked');
 select is(has_function_privilege('authenticated', 'workspace_private.invalidate_professional_context_authority()', 'execute'), false, 'authorization invalidation trigger helper is private');
+select is(has_function_privilege('authenticated', 'workspace_private.bump_professional_context_grant_authority(uuid,uuid)', 'execute'), false, 'grant authority epoch helper is private');
 select is((select count(*)::integer from pg_trigger
   where tgname = 'invalidate_professional_context_authority_on_mcp_change' and not tgisinternal),
   1, 'MCP authorization changes have one Professional Context invalidation trigger');
+select is((select count(*)::integer from pg_trigger
+  where tgname like 'bump_professional_context_grant_on_%' and not tgisinternal),
+  6, 'all six mutable persisted grant trust authorities have one invalidation trigger');
 select is((
   select count(*)::integer
   from pg_proc as procedure
@@ -888,6 +894,41 @@ select set_config('request.jwt.claims', jsonb_build_object(
   'client_id', 'bc111111-1111-4111-8111-111111111111',
   'workspace_mcp', 'true', 'iat', 1900000000
 )::text, true);
+select ok(not (workspace.mcp_list_context_candidates_granted(null, array['sensitive'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Sensitive grant boundary"}]'::jsonb),
+  'restoring capability does not revive the old sensitive grant');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is((
+  select listed_grant.status
+  from jsonb_to_recordset(workspace.list_professional_context_read_grants() -> 'grants')
+    as listed_grant(grant_id uuid, status text)
+  where listed_grant.grant_id = (current_setting('request.sensitive_grant')::jsonb ->> 'grant_id')::uuid
+), 'revoked', 'capability restoration presents the old sensitive grant as terminally revoked');
+select set_config('request.capability_restored_sensitive_grant_id', workspace.create_professional_context_read_grant(
+  'bc111111-1111-4111-8111-111111111111', 'sensitive'
+) ->> 'grant_id', true);
+select set_config('request.membership_private_grant_id', workspace.create_professional_context_read_grant(
+  'bc111111-1111-4111-8111-111111111111', 'private'
+) ->> 'grant_id', true);
+select isnt(current_setting('request.capability_restored_sensitive_grant_id'),
+  current_setting('request.sensitive_grant')::jsonb ->> 'grant_id',
+  'restored capability requires a new sensitive grant');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select ok(workspace.mcp_list_context_candidates_granted(null, array['sensitive'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Sensitive grant boundary"}]'::jsonb,
+  'a new direct sensitive grant works after capability restoration');
+select ok(workspace.mcp_list_context_candidates_granted(null, array['private'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Private mentor"}]'::jsonb,
+  'a new direct private grant works before membership loss');
 select set_config('request.membership_confirmation_id', workspace.mcp_submit_context_candidate(
   'b1900000-0000-4000-8000-000000000029', 'goal', 'Membership-loss payload',
   'This protected payload must be cleared when ownership is lost.',
@@ -938,6 +979,53 @@ select set_config('request.jwt.claims', jsonb_build_object(
   'client_id', 'bc111111-1111-4111-8111-111111111111',
   'workspace_mcp', 'true', 'iat', 1900000000
 )::text, true);
+select ok(not (workspace.mcp_list_context_candidates_granted(null, array['private'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Private mentor"}]'::jsonb),
+  'restoring membership and ownership does not revive the old private grant');
+select ok(not (workspace.mcp_list_context_candidates_granted(null, array['sensitive'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Sensitive grant boundary"}]'::jsonb),
+  'restoring membership and ownership does not revive the old sensitive grant');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is((
+  select listed_grant.status
+  from jsonb_to_recordset(workspace.list_professional_context_read_grants() -> 'grants')
+    as listed_grant(grant_id uuid, status text)
+  where listed_grant.grant_id = current_setting('request.membership_private_grant_id')::uuid
+), 'revoked', 'membership restoration presents the old private grant as terminally revoked');
+select set_config('request.membership_restored_private_grant_id', workspace.create_professional_context_read_grant(
+  'bc111111-1111-4111-8111-111111111111', 'private'
+) ->> 'grant_id', true);
+select isnt(current_setting('request.membership_restored_private_grant_id'),
+  current_setting('request.membership_private_grant_id'),
+  'restored membership and ownership require a new private grant');
+select is((
+  select listed_grant.status
+  from jsonb_to_recordset(workspace.list_professional_context_read_grants() -> 'grants')
+    as listed_grant(grant_id uuid, status text)
+  where listed_grant.grant_id = current_setting('request.private_grant_id')::uuid
+), 'revoked', 'explicit revocation remains terminal after authority restoration');
+select is((
+  select listed_grant.status
+  from jsonb_to_recordset(workspace.list_professional_context_read_grants() -> 'grants')
+    as listed_grant(grant_id uuid, status text)
+  where listed_grant.grant_id = (current_setting('request.expiring_private_grant')::jsonb ->> 'grant_id')::uuid
+), 'expired', 'expiry remains terminal after authority restoration');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select ok(workspace.mcp_list_context_candidates_granted(null, array['private'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Private mentor"}]'::jsonb,
+  'a new direct private grant works after membership restoration');
+select ok(not (workspace.mcp_list_context_candidates_granted(null, array['sensitive'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Sensitive grant boundary"}]'::jsonb),
+  'the new private grant does not revive or imply sensitive authority');
 select set_config('request.epoch_confirmation_id', workspace.mcp_submit_context_candidate(
   'b1900000-0000-4000-8000-000000000030', 'goal', 'Epoch-change payload',
   'This protected payload must be cleared by the authorization trigger.',
@@ -959,6 +1047,71 @@ select is(jsonb_array_length(jsonb_path_query_array(
   workspace.list_professional_context_read_grants(),
   '$.grants[*] ? (@.status == "active")'
 )), 0, 'authorization epoch change prevents prior grants from being presented as active');
+reset role;
+
+-- A grant backed by expiring bundle authority cannot outlive that authority.
+-- Renewal also changes the private authority epoch, so restoration cannot
+-- revive the still-unexpired stored grant even without an intervening read.
+update workspace.bundle_entitlements
+set expires_at = now() + interval '2 minutes', updated_at = now()
+where workspace_id = 'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  and bundle_key = 'sotf_transition';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select set_config('request.time_bound_private_grant', workspace.create_professional_context_read_grant(
+  'bc111111-1111-4111-8111-111111111111', 'private'
+)::text, true);
+select is(
+  (current_setting('request.time_bound_private_grant')::jsonb ->> 'expires_at')::timestamptz,
+  (select expires_at from workspace.bundle_entitlements
+    where workspace_id = 'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+      and bundle_key = 'sotf_transition'),
+  'bundle-backed grant expiry is capped at the current entitlement deadline'
+);
+reset role;
+update workspace.bundle_entitlements
+set starts_at = now() - interval '2 minutes',
+    expires_at = now() - interval '1 minute',
+    updated_at = now()
+where workspace_id = 'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  and bundle_key = 'sotf_transition';
+update workspace.bundle_entitlements
+set expires_at = null, updated_at = now()
+where workspace_id = 'b1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  and bundle_key = 'sotf_transition';
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select ok(not (workspace.mcp_list_context_candidates_granted(null, array['private'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Private mentor"}]'::jsonb),
+  'entitlement renewal cannot revive the old time-bound grant');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is((
+  select listed_grant.status
+  from jsonb_to_recordset(workspace.list_professional_context_read_grants() -> 'grants')
+    as listed_grant(grant_id uuid, status text)
+  where listed_grant.grant_id = (current_setting('request.time_bound_private_grant')::jsonb ->> 'grant_id')::uuid
+), 'revoked', 'renewed entitlement presents the old still-unexpired grant as terminally revoked');
+select set_config('request.renewed_entitlement_private_grant_id', workspace.create_professional_context_read_grant(
+  'bc111111-1111-4111-8111-111111111111', 'private'
+) ->> 'grant_id', true);
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select ok(workspace.mcp_list_context_candidates_granted(null, array['private'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Private mentor"}]'::jsonb,
+  'a new direct private grant works after entitlement renewal');
 reset role;
 
 -- Bounded snapshots preserve stale detection but reject unusually connected
@@ -1134,7 +1287,9 @@ select set_config('request.revoked_confirmation_id', workspace.mcp_submit_contex
   '2026-09-02T12:20:00Z', 1
 ) ->> 'confirmation_request_id', true);
 reset role;
-update workspace.mcp_authorizations set status = 'disconnected', disconnected_at = now()
+update workspace.mcp_authorizations
+set status = 'disconnected', disconnected_at = now(),
+    authorization_valid_after = now() + interval '1 second', updated_at = now()
 where id = 'b1cc1111-1111-4111-8111-111111111111';
 select is(pg_temp.pc_confirmation_value(current_setting('request.revoked_confirmation_id')::uuid, 'status'),
   'revoked', 'assistant disconnect terminalizes the pending request in the disconnect transaction');
@@ -1151,6 +1306,33 @@ select is(workspace.confirm_and_execute_professional_context(
 ) ->> 'status', 'revoked', 'a terminal revoked request cannot execute after disconnect');
 select is(pg_temp.pc_count('candidate', 'Revoked private proposal'), 0, 'revoked protected proposal creates no graph candidate');
 
+reset role;
+update workspace.mcp_authorizations
+set status = 'connected', disconnected_at = null,
+    authorization_valid_after = now() + interval '2 seconds', updated_at = now()
+where id = 'b1cc1111-1111-4111-8111-111111111111';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"b1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select is((
+  select listed_grant.status
+  from jsonb_to_recordset(workspace.list_professional_context_read_grants() -> 'grants')
+    as listed_grant(grant_id uuid, status text)
+  where listed_grant.grant_id = current_setting('request.disconnect_grant_id')::uuid
+), 'revoked', 'reconnect does not revive the pre-disconnect grant');
+select set_config('request.reconnected_private_grant_id', workspace.create_professional_context_read_grant(
+  'bc111111-1111-4111-8111-111111111111', 'private'
+) ->> 'grant_id', true);
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'b1111111-1111-4111-8111-111111111111', 'role', 'authenticated',
+  'aud', current_setting('request.pc_resource_uri'),
+  'client_id', 'bc111111-1111-4111-8111-111111111111',
+  'workspace_mcp', 'true', 'iat', 1900000000
+)::text, true);
+select ok(workspace.mcp_list_context_candidates_granted(null, array['private'], 25)
+  -> 'candidates' @> '[{"proposed_label":"Private mentor"}]'::jsonb,
+  'a new direct private grant works after reconnect');
 reset role;
 select * from finish();
 rollback;
