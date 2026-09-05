@@ -39,19 +39,24 @@ const contextReviewCommon = {
   request_id: z.uuid(),
   review_notes: z.string().trim().min(1).max(2000).nullable().optional(),
 };
-const contextReviewInput = z.discriminatedUnion("decision", [
-  z.strictObject({ ...contextReviewCommon, decision: z.literal("approve") }),
-  z.strictObject({
-    ...contextReviewCommon,
-    decision: z.literal("correct"),
-    corrected_label: z.string().trim().min(1).max(240).nullable().optional(),
-    corrected_summary: z.string().trim().min(1).max(5000).nullable().optional(),
-  }),
-  z.strictObject({ ...contextReviewCommon, decision: z.literal("reject") }),
-  z.strictObject({ ...contextReviewCommon, decision: z.literal("supersede") }),
-]).superRefine((input, context) => {
+const contextReviewInput = z.strictObject({
+  ...contextReviewCommon,
+  decision: z.enum(["approve", "correct", "reject", "supersede"]),
+  corrected_label: z.string().trim().min(1).max(240).nullable().optional(),
+  corrected_summary: z.string().trim().min(1).max(5000).nullable().optional(),
+}).superRefine((input, context) => {
   if (input.decision === "correct" && input.corrected_label == null && input.corrected_summary == null) {
     context.addIssue({ code: "custom", message: "A correction must provide a corrected label or summary." });
+  }
+
+  if (
+    input.decision !== "correct" &&
+    ("corrected_label" in input || "corrected_summary" in input)
+  ) {
+    context.addIssue({
+      code: "custom",
+      message: "Corrected fields are allowed only when the decision is correct.",
+    });
   }
 });
 const clockTimeZones = z.array(z.string().trim().min(1).max(80)).min(3).max(3).refine(

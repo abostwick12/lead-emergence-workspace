@@ -69,6 +69,19 @@ describe("Lewis MCP contract", () => {
     const saveClockPreferences = tools.tools.find((tool) => tool.name === "save_clock_preferences");
     const disconnectAssistant = tools.tools.find((tool) => tool.name === "disconnect_current_assistant");
     const disconnectAssistantConnection = tools.tools.find((tool) => tool.name === "disconnect_assistant_connection");
+    const proposal = tools.tools.find((tool) => tool.name === "propose_context_candidate");
+    const review = tools.tools.find((tool) => tool.name === "review_context_candidate");
+    const reviewSchema = review?.inputSchema as {
+      type?: string;
+      properties?: Record<string, {
+        type?: string;
+        format?: string;
+        enum?: string[];
+        anyOf?: Array<{ type?: string; minLength?: number; maxLength?: number }>;
+      }>;
+      required?: string[];
+      additionalProperties?: boolean;
+    };
     expect(create?.inputSchema.required).toEqual(expect.arrayContaining(["title", "request_id", "user_confirmed"]));
     expect(create?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: true });
     expect(create?._meta).toMatchObject({ securitySchemes: [{ type: "oauth2", scopes: ["openid", "email", "profile"] }] });
@@ -80,6 +93,34 @@ describe("Lewis MCP contract", () => {
     expect(disconnectAssistant?.annotations).toMatchObject({ destructiveHint: true, idempotentHint: true });
     expect(disconnectAssistantConnection?.inputSchema.required).toEqual(expect.arrayContaining(["connection_id", "user_confirmed"]));
     expect(disconnectAssistantConnection?.annotations).toMatchObject({ destructiveHint: true, idempotentHint: true });
+    expect(reviewSchema.type).toBe("object");
+    expect(Object.keys(reviewSchema.properties ?? {}).sort()).toEqual([
+      "candidate_id", "corrected_label", "corrected_summary", "decision", "request_id", "review_notes"
+    ]);
+    expect(reviewSchema.required?.sort()).toEqual(["candidate_id", "decision", "request_id"]);
+    expect(reviewSchema.additionalProperties).toBe(false);
+    expect(reviewSchema.properties?.candidate_id).toMatchObject({ type: "string", format: "uuid" });
+    expect(reviewSchema.properties?.request_id).toMatchObject({ type: "string", format: "uuid" });
+    expect(reviewSchema.properties?.decision?.enum).toEqual(["approve", "correct", "reject", "supersede"]);
+    expect(reviewSchema.properties?.review_notes?.anyOf).toContainEqual({ type: "string", minLength: 1, maxLength: 2000 });
+    expect(reviewSchema.properties?.corrected_label?.anyOf).toContainEqual({ type: "string", minLength: 1, maxLength: 240 });
+    expect(reviewSchema.properties?.corrected_summary?.anyOf).toContainEqual({ type: "string", minLength: 1, maxLength: 5000 });
+    expect(proposal?.inputSchema.required).toEqual(expect.arrayContaining([
+      "request_id", "family", "label", "summary", "source_type", "observed_at", "confidence"
+    ]));
+
+    const emptyInputTools = tools.tools
+      .filter((tool) => Object.keys(tool.inputSchema.properties ?? {}).length === 0)
+      .map((tool) => tool.name)
+      .sort();
+    expect(emptyInputTools).toEqual([
+      "get_clock_preferences",
+      "get_leadership_state",
+      "get_onboarding_state",
+      "get_workspace_setup",
+      "list_assistant_connections",
+      "list_integration_connections"
+    ]);
   });
 
   it("maps a confirmed task creation to the database contract", async () => {
@@ -323,6 +364,15 @@ describe("Lewis MCP contract", () => {
         request_id: "00000000-0000-4000-8000-000000000203"
       }
     });
+    const rejection = await client.callTool({
+      name: "review_context_candidate",
+      arguments: {
+        candidate_id: "00000000-0000-4000-8000-000000000202",
+        decision: "reject",
+        request_id: "00000000-0000-4000-8000-000000000206",
+        review_notes: "The synthetic candidate should not be retained."
+      }
+    });
     const deletion = await client.callTool({
       name: "manage_professional_context",
       arguments: {
@@ -333,6 +383,7 @@ describe("Lewis MCP contract", () => {
     });
 
     expect(review.isError).not.toBe(true);
+    expect(rejection.isError).not.toBe(true);
     expect(deletion.isError).not.toBe(true);
     expect(rpc).toHaveBeenNthCalledWith(1, "mcp_request_context_review", {
       target_candidate_id: "00000000-0000-4000-8000-000000000202",
@@ -342,7 +393,15 @@ describe("Lewis MCP contract", () => {
       corrected_summary: null,
       review_notes: null
     });
-    expect(rpc).toHaveBeenNthCalledWith(2, "mcp_request_context_management", {
+    expect(rpc).toHaveBeenNthCalledWith(2, "mcp_request_context_review", {
+      target_candidate_id: "00000000-0000-4000-8000-000000000202",
+      target_decision: "reject",
+      request_id: "00000000-0000-4000-8000-000000000206",
+      corrected_label: null,
+      corrected_summary: null,
+      review_notes: "The synthetic candidate should not be retained."
+    });
+    expect(rpc).toHaveBeenNthCalledWith(3, "mcp_request_context_management", {
       target_entity_id: "00000000-0000-4000-8000-000000000204",
       target_action: "delete",
       request_id: "00000000-0000-4000-8000-000000000205",
@@ -376,8 +435,44 @@ describe("Lewis MCP contract", () => {
       name: "review_context_candidate",
       arguments: { ...base, decision: "supersede", corrected_summary: "Changed while superseding." }
     });
+    const missingCandidate = await client.callTool({
+      name: "review_context_candidate",
+      arguments: { decision: "approve", request_id: base.request_id }
+    });
+    const invalidDecision = await client.callTool({
+      name: "review_context_candidate",
+      arguments: { ...base, decision: "execute" }
+    });
+    const malformedRequestId = await client.callTool({
+      name: "review_context_candidate",
+      arguments: { ...base, decision: "approve", request_id: "not-a-uuid" }
+    });
+    const oversizedNotes = await client.callTool({
+      name: "review_context_candidate",
+      arguments: { ...base, decision: "approve", review_notes: "x".repeat(2001) }
+    });
+    const injectedAuthority = await client.callTool({
+      name: "review_context_candidate",
+      arguments: {
+        ...base,
+        decision: "approve",
+        workspace_id: "00000000-0000-4000-8000-000000000999",
+        user_id: "00000000-0000-4000-8000-000000000998",
+        authority_epoch: 999
+      }
+    });
 
-    for (const result of [approveMutation, noOpCorrection, rejectMutation, supersedeMutation]) {
+    for (const result of [
+      approveMutation,
+      noOpCorrection,
+      rejectMutation,
+      supersedeMutation,
+      missingCandidate,
+      invalidDecision,
+      malformedRequestId,
+      oversizedNotes,
+      injectedAuthority
+    ]) {
       expect(result.isError).toBe(true);
     }
     expect(rpc).not.toHaveBeenCalled();
