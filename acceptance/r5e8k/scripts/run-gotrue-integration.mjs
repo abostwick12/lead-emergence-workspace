@@ -470,6 +470,16 @@ function postgresQuery(container, statement, allowFailure = false) {
   );
 }
 
+function postgresQueryAs(container, username, password, statement, allowFailure = false) {
+  return docker(
+    [
+      "exec", "-e", `PGPASSWORD=${password}`, container,
+      "psql", "-h", "127.0.0.1", "-U", username, "-d", "postgres", "-Atq", "-v", "ON_ERROR_STOP=1", "-c", statement,
+    ],
+    { allowFailure },
+  );
+}
+
 function sql(container, statement) {
   return postgresQuery(container, statement).stdout;
 }
@@ -480,8 +490,8 @@ function sqlCount(container, statement) {
   return value;
 }
 
-function namespaceProbe(container, statement) {
-  const result = postgresQuery(container, statement, true);
+function namespaceProbe(query, statement) {
+  const result = query(statement, true);
   if (result.status === 0) {
     return { status: "ok", value: sanitizeDiagnostic(result.stdout) };
   }
@@ -491,17 +501,69 @@ function namespaceProbe(container, statement) {
   };
 }
 
-function captureNamespaceDiagnostics(container) {
+function captureNamespaceDiagnostics(container, runtime = null) {
+  const query = runtime === null
+    ? (statement, allowFailure) => postgresQuery(container, statement, allowFailure)
+    : (statement, allowFailure) => postgresQueryAs(container, runtime.username, runtime.password, statement, allowFailure);
   return {
-    currentUser: namespaceProbe(container, "select current_user"),
-    searchPath: namespaceProbe(container, "show search_path"),
-    unqualifiedIdentitiesRegclass: namespaceProbe(container, "select to_regclass('identities')"),
-    qualifiedIdentitiesRegclass: namespaceProbe(container, "select to_regclass('auth.identities')"),
-    authIdentitiesCount: namespaceProbe(container, "select count(*) from auth.identities"),
-    authUsersCount: namespaceProbe(container, "select count(*) from auth.users"),
-    unqualifiedIdentitiesCount: namespaceProbe(container, "select count(*) from identities"),
-    qualifiedIdentitiesCount: namespaceProbe(container, "select count(*) from auth.identities"),
+    currentUser: namespaceProbe(query, "select current_user"),
+    searchPath: namespaceProbe(query, "show search_path"),
+    unqualifiedIdentitiesRegclass: namespaceProbe(query, "select to_regclass('identities')"),
+    qualifiedIdentitiesRegclass: namespaceProbe(query, "select to_regclass('auth.identities')"),
+    authIdentitiesCount: namespaceProbe(query, "select count(*) from auth.identities"),
+    authUsersCount: namespaceProbe(query, "select count(*) from auth.users"),
+    unqualifiedIdentitiesCount: namespaceProbe(query, "select count(*) from identities"),
+    qualifiedIdentitiesCount: namespaceProbe(query, "select count(*) from auth.identities"),
   };
+}
+
+function assertAuthRuntimePreflight(container, runtime) {
+  const runtimeFacts = {
+    currentUser: namespaceProbe(
+      (statement, allowFailure) => postgresQueryAs(container, runtime.username, runtime.password, statement, allowFailure),
+      "select current_user",
+    ),
+    searchPath: namespaceProbe(
+      (statement, allowFailure) => postgresQueryAs(container, runtime.username, runtime.password, statement, allowFailure),
+      "show search_path",
+    ),
+    databaseCreatePrivilege: namespaceProbe(
+      (statement, allowFailure) => postgresQueryAs(container, runtime.username, runtime.password, statement, allowFailure),
+      "select has_database_privilege(current_user, current_database(), 'CREATE')::int",
+    ),
+    authSchemaCount: namespaceProbe(
+      (statement, allowFailure) => postgresQuery(container, statement, allowFailure),
+      "select count(*) from pg_namespace where nspname='auth'",
+    ),
+    authTableCount: namespaceProbe(
+      (statement, allowFailure) => postgresQuery(container, statement, allowFailure),
+      "select count(*) from pg_tables where schemaname='auth'",
+    ),
+  };
+  if (
+    runtimeFacts.currentUser.status !== "ok" || runtimeFacts.currentUser.value !== runtime.username ||
+    runtimeFacts.searchPath.status !== "ok" || runtimeFacts.searchPath.value !== "auth" ||
+    runtimeFacts.databaseCreatePrivilege.status !== "ok" || runtimeFacts.databaseCreatePrivilege.value !== "1" ||
+    runtimeFacts.authSchemaCount.status !== "ok" || runtimeFacts.authSchemaCount.value !== "1" ||
+    runtimeFacts.authTableCount.status !== "ok" || runtimeFacts.authTableCount.value !== "0"
+  ) {
+    fail(`local Auth runtime preflight mismatch: ${JSON.stringify(runtimeFacts)}`);
+  }
+  return runtimeFacts;
+}
+
+function assertPostMigrationNamespaceContract(facts, runtimeUsername) {
+  if (
+    facts.currentUser.status !== "ok" || facts.currentUser.value !== runtimeUsername ||
+    facts.searchPath.status !== "ok" || facts.searchPath.value !== "auth" ||
+    facts.qualifiedIdentitiesRegclass.status !== "ok" || !facts.qualifiedIdentitiesRegclass.value ||
+    facts.authIdentitiesCount.status !== "ok" || facts.authIdentitiesCount.value !== "0" ||
+    facts.authUsersCount.status !== "ok" || facts.authUsersCount.value !== "0" ||
+    facts.unqualifiedIdentitiesCount.status !== "ok" || facts.unqualifiedIdentitiesCount.value !== "0" ||
+    facts.qualifiedIdentitiesCount.status !== "ok" || facts.qualifiedIdentitiesCount.value !== "0"
+  ) {
+    fail(`local Auth post-migration namespace contract mismatch: ${JSON.stringify(facts)}`);
+  }
 }
 
 async function createConfirmedUser(baseUrl, adminToken, email, password) {
@@ -596,9 +658,11 @@ async function main() {
     const authPort = await freePort();
     const baseUrl = `http://127.0.0.1:${authPort}`;
     const callbackUrl = `${baseUrl}${CALLBACK_PATH}`;
-    const postgresInitScript = resolve(packageRoot, "tests", "integration", "init-auth-schema.sql");
+    const postgresInitScript = resolve(packageRoot, "tests", "integration", "init-auth-runtime.sh");
     const jwtSecret = `synthetic-r5e8k-${randomBytes(32).toString("base64url")}`;
     const databasePassword = `synthetic-db-${randomBytes(24).toString("base64url")}`;
+    const authDatabasePassword = `synthetic-auth-db-${randomBytes(24).toString("base64url")}`;
+    const authDatabaseRuntime = { username: "supabase_auth_admin", password: authDatabasePassword };
     const smtpPassword = `synthetic-smtp-${randomBytes(18).toString("base64url")}`;
     const keyPair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
     const privateJwk = await webcrypto.subtle.exportKey("jwk", keyPair.privateKey);
@@ -625,6 +689,7 @@ async function main() {
     registerDiagnosticSecrets(
       jwtSecret,
       databasePassword,
+      authDatabasePassword,
       smtpPassword,
       adminToken,
       publicKey,
@@ -641,9 +706,10 @@ async function main() {
     emitDiagnostic("startup-order", { step: 2, dependency: "docker-network", name: network });
     docker([
       "run", "-d", "--name", database, "--network", network,
-      "-v", `${postgresInitScript}:/docker-entrypoint-initdb.d/00-r5e8k-auth-schema.sql:ro`,
+      "-v", `${postgresInitScript}:/docker-entrypoint-initdb.d/00-r5e8k-auth-runtime.sh:ro`,
       "-e", `POSTGRES_PASSWORD=${databasePassword}`,
       "-e", "POSTGRES_DB=postgres",
+      "-e", `R5E8K_AUTH_DB_PASSWORD=${authDatabasePassword}`,
       POSTGRES_IMAGE,
     ], { timeout: 120_000 });
     databaseCreated = true;
@@ -652,6 +718,7 @@ async function main() {
     try {
       postgresReadiness = await waitForFinalPostgresReadiness(database, 60_000);
       emitDiagnostic("startup-order", { step: 4, dependency: "postgres-final-ready", postgresReadiness });
+      emitDiagnostic("auth-runtime-preflight", assertAuthRuntimePreflight(database, authDatabaseRuntime));
     } catch (error) {
       emitStartupDiagnostics({ network, database, auth, smtp });
       throw error;
@@ -668,7 +735,7 @@ async function main() {
       "-e", `GOTRUE_SITE_URL=${callbackUrl}`,
       "-e", `GOTRUE_URI_ALLOW_LIST=${callbackUrl}`,
       "-e", "GOTRUE_DB_DRIVER=postgres",
-      "-e", `DATABASE_URL=postgres://postgres:${databasePassword}@${database}:5432/postgres?sslmode=disable`,
+      "-e", `DATABASE_URL=postgres://${authDatabaseRuntime.username}:${authDatabasePassword}@${database}:5432/postgres?sslmode=disable`,
       "-e", "DB_NAMESPACE=auth",
       "-e", `GOTRUE_JWT_SECRET=${jwtSecret}`,
       "-e", `GOTRUE_JWT_KEYS=${JSON.stringify([privateJwk])}`,
@@ -714,7 +781,9 @@ async function main() {
       throw error;
     }
 
-    emitDiagnostic("namespace-before-fixture", captureNamespaceDiagnostics(database));
+    const namespaceBeforeFixture = captureNamespaceDiagnostics(database, authDatabaseRuntime);
+    assertPostMigrationNamespaceContract(namespaceBeforeFixture, authDatabaseRuntime.username);
+    emitDiagnostic("namespace-before-fixture", namespaceBeforeFixture);
 
     const currentEmail = `r5e8k-main-${suffix}@example.invalid`;
     const newEmail = `r5e8k-new-${suffix}@example.invalid`;
@@ -726,7 +795,7 @@ async function main() {
       userId = await createConfirmedUser(baseUrl, adminToken, currentEmail, initialPassword);
     } catch (error) {
       emitDiagnostic("namespace-after-fixture-failure", {
-        database: captureNamespaceDiagnostics(database),
+        database: captureNamespaceDiagnostics(database, authDatabaseRuntime),
         gotrueLogs: containerLogs(auth),
       });
       throw error;
