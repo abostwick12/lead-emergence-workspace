@@ -158,6 +158,14 @@ function signLegacyJwt(secret, claims) {
   return `${header}.${payload}.${signature}`;
 }
 
+async function signEs256Jwt(privateKey, kid, claims) {
+  const header = base64url(JSON.stringify({ alg: "ES256", typ: "JWT", kid }));
+  const payload = base64url(JSON.stringify(claims));
+  const signed = Buffer.from(`${header}.${payload}`);
+  const signature = Buffer.from(await webcrypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, privateKey, signed));
+  return `${header}.${payload}.${base64url(signature)}`;
+}
+
 function decodeJwt(token) {
   const parts = token.split(".");
   if (parts.length !== 3) fail("backend returned malformed JWT");
@@ -197,6 +205,34 @@ async function assertRecoveryJwt(token, publicJwk, expected) {
     fail("backend recovery JWT claim contract mismatch");
   }
   return { sessionId: claims.session_id, claims };
+}
+
+async function assertFixtureAdminJwt(token, publicJwk, now) {
+  const parsed = decodeJwt(token);
+  if (
+    parsed.header.alg !== "ES256" ||
+    parsed.header.kid !== publicJwk.kid ||
+    parsed.claims.iss !== "supabase" ||
+    parsed.claims.aud !== "authenticated" ||
+    parsed.claims.role !== "service_role" ||
+    parsed.claims.iat !== now ||
+    !Number.isInteger(parsed.claims.exp) ||
+    parsed.claims.exp <= parsed.claims.iat ||
+    parsed.claims.exp - parsed.claims.iat > 3600 ||
+    "session_id" in parsed.claims ||
+    "sub" in parsed.claims ||
+    "email" in parsed.claims
+  ) {
+    fail("synthetic fixture-admin JWT claim contract mismatch");
+  }
+  const key = await webcrypto.subtle.importKey("jwk", publicJwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+  const valid = await webcrypto.subtle.verify(
+    { name: "ECDSA", hash: "SHA-256" },
+    key,
+    parsed.signature,
+    parsed.signed,
+  );
+  if (!valid) fail("synthetic fixture-admin JWT signature rejected");
 }
 
 function assertPasswordJwt(token, expectedSubject) {
@@ -421,7 +457,8 @@ async function jsonRequest(url, init, expectedStatuses = [200]) {
     body = null;
   }
   if (!expectedStatuses.includes(response.status)) {
-    throw new Error(`unexpected Auth status ${response.status}`);
+    const sanitizedResponse = sanitizeDiagnostic(text).slice(0, 512) || "(empty response)";
+    throw new Error(`unexpected Auth status ${response.status}; response=${sanitizedResponse}`);
   }
   return { response, body };
 }
@@ -546,13 +583,14 @@ async function main() {
     Object.assign(privateJwk, { alg: "ES256", use: "sig", kid: keyId });
     Object.assign(publicJwk, { alg: "ES256", use: "sig", kid: keyId });
     const now = Math.floor(Date.now() / 1000);
-    const adminToken = signLegacyJwt(jwtSecret, {
+    const adminToken = await signEs256Jwt(keyPair.privateKey, keyId, {
       iss: "supabase",
       aud: "authenticated",
       role: "service_role",
       iat: now,
       exp: now + 3600,
     });
+    await assertFixtureAdminJwt(adminToken, publicJwk, now);
     const publicKey = signLegacyJwt(jwtSecret, {
       iss: "supabase",
       aud: "authenticated",
