@@ -67,13 +67,41 @@ function containerRuntimeState(name) {
 }
 
 function containerDiagnostic(name) {
-  const result = docker([
-    "inspect",
-    "--format",
-    '{"id":{{json .Id}},"name":{{json .Name}},"image":{{json .Config.Image}},"state":{"status":{{json .State.Status}},"running":{{json .State.Running}},"exitCode":{{json .State.ExitCode}},"error":{{json .State.Error}},"startedAt":{{json .State.StartedAt}},"finishedAt":{{json .State.FinishedAt}},"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}"none"{{end}}},"restartCount":{{json .RestartCount}},"ports":{{json .NetworkSettings.Ports}},"networks":{{json .NetworkSettings.Networks}},"extraHosts":{{json .HostConfig.ExtraHosts}}}',
-    name,
-  ], { allowFailure: true });
-  return result.status === 0 ? JSON.parse(result.stdout) : { name, inspect: "unavailable" };
+  const result = docker(["inspect", name], { allowFailure: true });
+  if (result.status !== 0) {
+    return { name, inspect: "unavailable", error: sanitizeDiagnostic(result.stderr) };
+  }
+  const [details] = JSON.parse(result.stdout);
+  const networks = Object.fromEntries(
+    Object.entries(details.NetworkSettings?.Networks ?? {}).map(([networkName, network]) => [
+      networkName,
+      {
+        endpointId: network.EndpointID,
+        ipAddress: network.IPAddress,
+        ipPrefixLength: network.IPPrefixLen,
+        gateway: network.Gateway,
+        aliases: network.Aliases,
+      },
+    ]),
+  );
+  return {
+    id: details.Id,
+    name: details.Name,
+    image: details.Config?.Image,
+    state: {
+      status: details.State?.Status,
+      running: details.State?.Running,
+      exitCode: details.State?.ExitCode,
+      error: details.State?.Error,
+      startedAt: details.State?.StartedAt,
+      finishedAt: details.State?.FinishedAt,
+      health: details.State?.Health?.Status ?? "none",
+    },
+    restartCount: details.RestartCount,
+    ports: details.NetworkSettings?.Ports,
+    networks,
+    extraHosts: details.HostConfig?.ExtraHosts,
+  };
 }
 
 function containerLogs(name) {
@@ -505,6 +533,8 @@ async function main() {
     emitDiagnostic("startup-order", { step: 3, dependency: "postgres", state: containerRuntimeState(database) });
     await waitFor(() => docker(["exec", database, "pg_isready", "-U", "postgres"], { allowFailure: true }).status === 0, "Postgres readiness", 60_000);
     emitDiagnostic("startup-order", { step: 4, dependency: "postgres-ready", state: containerRuntimeState(database) });
+    sql(database, "create schema if not exists auth");
+    emitDiagnostic("startup-order", { step: 5, dependency: "auth-schema", status: "initialized" });
 
     docker([
       "run", "-d", "--name", auth, "--network", network,
@@ -544,14 +574,20 @@ async function main() {
     ], { timeout: 120_000 });
     authCreated = true;
     emitDiagnostic("startup-order", {
-      step: 5,
+      step: 6,
       dependency: "gotrue-started",
       state: containerRuntimeState(auth),
       readiness: { origin: baseUrl, path: "/health", method: "GET" },
     });
     try {
       const readiness = await waitForGoTrueReadiness(baseUrl, auth, 90_000);
-      emitDiagnostic("startup-order", { step: 6, dependency: "gotrue-ready", readiness });
+      emitDiagnostic("startup-order", { step: 7, dependency: "gotrue-ready", readiness });
+      emitDiagnostic("runtime-ready", {
+        postgres: containerDiagnostic(database),
+        gotrue: containerDiagnostic(auth),
+        smtp: smtp.status(),
+        network: networkDiagnostic(network),
+      });
     } catch (error) {
       emitStartupDiagnostics({ network, database, auth, smtp });
       throw error;
