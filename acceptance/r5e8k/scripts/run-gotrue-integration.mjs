@@ -164,16 +164,74 @@ function recoveryFailureDiagnostics({ error, auth, smtp, network, smtpHost, smtp
   };
 }
 
-function assertSmtpTlsPreflight(container, tlsMaterial) {
-  const caFile = docker(
-    ["exec", container, "/bin/sh", "-c", `test -s ${SMTP_CA_PATH}`],
-    { allowFailure: true },
-  );
-  if (caFile.status !== 0) fail("synthetic SMTP CA file is unavailable inside GoTrue");
+function containerShellProbe(container, command) {
+  const result = docker(["exec", container, "/bin/sh", "-c", command], { allowFailure: true });
   return {
-    caFileExistsInGoTrue: true,
+    succeeded: result.status === 0,
+    output: result.status === 0 ? sanitizeDiagnostic(result.stdout) : "(no output)",
+    diagnostic: result.status === 0 ? "(none)" : sanitizeDiagnostic(result.stderr).slice(0, 512),
+  };
+}
+
+function smtpTlsPreflight(container, tlsMaterial) {
+  const configuredUser = docker(["inspect", "--format", "{{json .Config.User}}", container], { allowFailure: true });
+  const mounts = docker(["inspect", "--format", "{{json .Mounts}}", container], { allowFailure: true });
+  const mountDetails = mounts.status === 0 ? JSON.parse(mounts.stdout) : [];
+  const caMount = mountDetails.find((mount) => mount.Destination === SMTP_CA_PATH) ?? null;
+  const environment = containerShellProbe(container, 'printf %s "$SSL_CERT_FILE"');
+  const uid = containerShellProbe(container, "id -u");
+  const gid = containerShellProbe(container, "id -g");
+  const processIdentity = containerShellProbe(container, "awk '/^(Uid|Gid):/ { print }' /proc/1/status");
+  const ownershipAndMode = containerShellProbe(container, `stat -c '%u:%g %a' "${SMTP_CA_PATH}"`);
+  const nonempty = containerShellProbe(container, `test -s "${SMTP_CA_PATH}"`);
+  const readableByActualUser = containerShellProbe(container, `test -r "${SMTP_CA_PATH}"`);
+  const readToNullByActualUser = containerShellProbe(container, `cat "${SMTP_CA_PATH}" >/dev/null`);
+  const readOnlyForActualUser = containerShellProbe(container, `test ! -w "${SMTP_CA_PATH}"`);
+  return {
+    configuredContainerUser: configuredUser.status === 0 ? JSON.parse(configuredUser.stdout) : "unavailable",
+    actualExecUser: {
+      uid,
+      gid,
+      processIdentity,
+      execution: "docker exec without --user; Docker uses the container's configured user",
+    },
+    sslCertFile: environment,
+    caFile: {
+      ownershipAndNumericMode: ownershipAndMode,
+      nonempty,
+      readableByActualUser,
+      readToNullByActualUser,
+      readOnlyForActualUser,
+      mount: caMount === null
+        ? "unavailable"
+        : { destination: caMount.Destination, readWrite: caMount.RW, sourceBasename: caMount.Source?.split("/").at(-1) ?? "unavailable" },
+    },
     serverCertificate: tlsMaterial.diagnostics,
   };
+}
+
+function assertSmtpTlsReadabilityDiagnosis(preflight) {
+  const expectedIdentity =
+    preflight.configuredContainerUser === "supabase" &&
+    preflight.actualExecUser.uid.succeeded &&
+    preflight.actualExecUser.uid.output === "1000" &&
+    preflight.actualExecUser.gid.succeeded &&
+    preflight.actualExecUser.gid.output === "1000";
+  const expectedPath = preflight.sslCertFile.succeeded && preflight.sslCertFile.output === SMTP_CA_PATH;
+  const fileExistsAndIsNonempty = preflight.caFile.nonempty.succeeded;
+  const canRead = preflight.caFile.readableByActualUser.succeeded;
+  const canReadToNull = preflight.caFile.readToNullByActualUser.succeeded;
+
+  if (!expectedIdentity || !expectedPath || !fileExistsAndIsNonempty) {
+    fail("R5E8K_SMTP_CA_READABILITY_DIAGNOSIS_INCONCLUSIVE: expected non-root GoTrue identity, SSL_CERT_FILE path, or nonempty CA file differs");
+  }
+  if (!canRead && !canReadToNull) {
+    fail("R5E8K_SMTP_CA_READABILITY_DIAGNOSIS_CONFIRMED: GoTrue UID 1000 cannot read the mounted public CA");
+  }
+  if (canRead && canReadToNull) {
+    fail("R5E8K_SMTP_CA_READABILITY_DIAGNOSIS_STOP: mounted CA is already readable by GoTrue UID 1000");
+  }
+  fail("R5E8K_SMTP_CA_READABILITY_DIAGNOSIS_INCONCLUSIVE: read probes disagree");
 }
 
 function networkDiagnostic(name) {
@@ -763,7 +821,9 @@ async function main() {
         smtp: smtp.status(),
         network: networkDiagnostic(network),
       });
-      emitDiagnostic("smtp-tls-preflight", assertSmtpTlsPreflight(auth, smtpTlsMaterial));
+      const tlsPreflight = smtpTlsPreflight(auth, smtpTlsMaterial);
+      emitDiagnostic("smtp-tls-preflight", tlsPreflight);
+      assertSmtpTlsReadabilityDiagnosis(tlsPreflight);
     } catch (error) {
       emitStartupDiagnostics({ network, database, auth, smtp });
       throw error;
