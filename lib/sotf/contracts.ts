@@ -71,7 +71,7 @@ export type Material = z.infer<typeof materialSchema> & { version: number; creat
 export type Application = { opportunityId: string; submittedAt: string; receipt: string; materials: Material[]; status: "applied" | "rejected" | "withdrawn" | "interview" | "offer"; outcome?: { reason: string; source: string; at: string; nextAction: string } };
 export type Interview = z.infer<typeof interviewSchema> & { recordedAt: string };
 export type Offer = z.infer<typeof offerSchema> & { accepted?: { rationale: string; startDate: string; at: string } };
-export type OutboundAction = { id: string; kind: "email" | "calendar_invite" | "coach_share"; recipient: string; subject: string; body: string; personId?: string; meetingId?: string; revision: number; state: "draft" | "approved_for_manual_execution" | "manually_completed" | "failed" | "uncertain"; receipt?: string; updatedAt: string; approvedAt?: string };
+export type OutboundAction = { id: string; kind: "email" | "calendar_invite" | "coach_share"; recipient: string; subject: string; body: string; personId?: string; meetingId?: string; revision: number; state: "draft" | "approved_for_manual_execution" | "manually_completed" | "failed" | "uncertain" | "superseded"; meetingStamp?: string; receipt?: string; updatedAt: string; approvedAt?: string };
 export type PilotState = {
   schemaVersion: 1; revision: number;
   chapter: { timing: string; question: string; weeklyHours: number; phase: "exploring" | "transitioning" | "professional_work"; startedAt: string; nextFocus?: string; reflection?: string; carryForward?: string[] } | null;

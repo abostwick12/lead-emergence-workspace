@@ -1,0 +1,2 @@
+import "../../app/globals.css";
+import React from 'react'; import { createRoot } from 'react-dom/client'; import { SotfExperience } from '../../components/sotf/sotf-experience'; createRoot(document.getElementById('root')!).render(<SotfExperience mode="connected" />);

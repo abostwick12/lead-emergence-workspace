@@ -1,7 +1,9 @@
+import { connection } from "next/server";
 import { SotfExperience } from "@/components/sotf/sotf-experience";
 import Link from "next/link";
 
-export default function SotfBundlePage() {
+export default async function SotfBundlePage() {
+  await connection();
   if (process.env.SOTF_PILOT_ENABLED !== "true") return <section className="workflow-page" aria-label="SOTF Bundle">
     <p className="eyebrow">SOTF Bundle</p>
     <h1 className="page-title">Your next move, connected to what you have learned.</h1>

@@ -43,9 +43,10 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     links(value); const current = state.commitments.find((item) => item.id === value.id);
     upsert(state.commitments, { ...value, status: reopen ? "open" : current?.status ?? "open", result: reopen ? undefined : current?.result, createdAt: current?.createdAt ?? now, updatedAt: now });
   };
+  const meetingStamp = (id: string) => { const item = meeting(id); return JSON.stringify([item.startsAt, item.endsAt, item.status, item.personId, item.objective]); };
   const draft = (value: Omit<OutboundAction, "id" | "revision" | "state" | "updatedAt">, suffix = "action") => {
     links(value); const id = `${envelope.requestId}:${suffix}`;
-    state.actions.push({ ...value, id, revision: 1, state: "draft", updatedAt: now });
+    state.actions.push({ ...value, ...(value.kind === "calendar_invite" && value.meetingId ? { meetingStamp: meetingStamp(value.meetingId) } : {}), id, revision: 1, state: "draft", updatedAt: now });
   };
   let summary: string = command.type.replaceAll("_", " ");
   switch (command.type) {
@@ -114,6 +115,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       if (current?.debrief && (value.status !== "completed" || value.startsAt !== current.startsAt || value.endsAt !== current.endsAt || value.personId !== current.personId || value.opportunityId !== current.opportunityId)) throw new Error("A completed meeting's occurrence and learning links cannot be rewritten by a calendar refresh.");
       const targetId = current?.id ?? value.id;
       upsert(state.meetings, { ...value, id: targetId, debrief: current?.debrief });
+      state.actions.filter((item) => item.kind === "calendar_invite" && item.meetingId === targetId && ["draft", "approved_for_manual_execution", "failed"].includes(item.state) && item.meetingStamp !== meetingStamp(targetId)).forEach((item) => { item.state = "superseded"; item.approvedAt = undefined; item.updatedAt = now; });
       if (value.status === "cancelled") state.commitments.filter((item) => item.meetingId === targetId && item.id.endsWith(":prepare")).forEach((item) => { item.status = "cancelled"; item.updatedAt = now; });
       else if (["planned", "accepted"].includes(value.status)) saveCommitment({ id: `${targetId}:prepare`, title: `Prepare: ${value.title}`.slice(0, 240), owner: "Fellow", due: value.startsAt.slice(0, 10), definitionOfDone: `Review the person, prior interactions, and questions needed to resolve: ${value.objective}`, reviewTrigger: "Meeting time, purpose, or participant changes", meetingId: targetId, personId: value.personId, opportunityId: value.opportunityId }, current?.status === "cancelled" || Boolean(current && (current.startsAt !== value.startsAt || current.objective !== value.objective)));
       summary = `${value.status === "cancelled" ? "Cancelled" : current ? "Reconciled" : "Recorded"} meeting: ${value.title}`; break;
@@ -191,6 +193,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     }
     case "prepare_action": {
       const { type: _type, ...value } = command; void _type;
+      if (value.kind === "calendar_invite" && value.meetingId && meeting(value.meetingId).status !== "accepted") throw new Error("Confirm the agreed meeting time before preparing its invitation.");
       draft(value); summary = `${command.kind} prepared for review; nothing sent.`; break;
     }
     case "revise_action": {
@@ -216,7 +219,8 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     case "retry_action": {
       const item = requireRecord(state.actions, command.actionId, "Action");
       if (!["failed", "uncertain"].includes(item.state)) throw new Error("Completed and pending actions must not be retried.");
-      item.state = "draft"; item.revision += 1; item.approvedAt = undefined; item.updatedAt = now;
+      item.state = item.kind === "calendar_invite" && item.meetingId && item.meetingStamp !== meetingStamp(item.meetingId) ? "superseded" : "draft"; item.revision += 1; item.approvedAt = undefined; item.updatedAt = now;
+      if (item.state === "superseded") { summary = "Non-execution confirmed. Meeting details changed; prepare a new invitation from the current agreement."; break; }
       summary = "Non-execution confirmed; the same action is ready for a fresh exact-draft review. No duplicate action created."; break;
     }
     case "close_chapter": {
@@ -236,5 +240,5 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
 
 export function resumeTransition(state: PilotState, now = new Date().toISOString()) {
   const latestDecision = state.opportunities.filter((item) => item.decision).sort((a, b) => b.decision!.at.localeCompare(a.decision!.at))[0];
-  return { revision: state.revision, chapter: state.chapter, criteria: state.criteria, hypotheses: state.hypotheses, latestDecision: latestDecision ? { opportunity: latestDecision, currentAssessment: assessOpportunity(state, latestDecision.id) } : null, pendingEvidence: state.evidence.filter((item) => item.review === "pending"), nextActions: state.commitments.filter((item) => ["open", "blocked"].includes(item.status)), unfinishedExternalActions: state.actions.filter((item) => item.state !== "manually_completed"), recentChanges: state.changes.slice(-12), protectedContext: { status: "unavailable", instruction: "Do not persist private/sensitive professional context in operational records. Use ordinary transition inputs explicitly confirmed for this workflow; the approved protected capability remains separate." }, generatedAt: now };
+  return { revision: state.revision, chapter: state.chapter, criteria: state.criteria, hypotheses: state.hypotheses, latestDecision: latestDecision ? { opportunity: latestDecision, currentAssessment: assessOpportunity(state, latestDecision.id) } : null, pendingEvidence: state.evidence.filter((item) => item.review === "pending"), nextActions: state.commitments.filter((item) => ["open", "blocked"].includes(item.status)), unfinishedExternalActions: state.actions.filter((item) => !["manually_completed", "superseded"].includes(item.state)), recentChanges: state.changes.slice(-12), protectedContext: { status: "unavailable", instruction: "Do not persist private/sensitive professional context in operational records. Use ordinary transition inputs explicitly confirmed for this workflow; the approved protected capability remains separate." }, generatedAt: now };
 }

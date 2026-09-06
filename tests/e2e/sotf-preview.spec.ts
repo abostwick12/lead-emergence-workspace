@@ -62,3 +62,22 @@ test("a conversation leaves linked evidence, follow-through, and a next touch", 
   await expect(page.getByText("Morgan described a delivery decision owned by the program lead.", { exact: true })).toBeVisible();
   expect(accountRequests).toEqual([]);
 });
+
+
+test("scheduling prepares reviewed times and an invitation without account access", async ({ page }) => {
+  await page.getByRole('button', { name: 'People', exact: true }).click();
+  await page.getByRole('button', { name: 'Find a time', exact: true }).click();
+  const dialog=page.getByRole('dialog');
+  await dialog.getByLabel('Availability source').fill('Fictional reply and my calendar, explicitly checked');
+  const date=new Date(Date.now()+3*86400000).toISOString().slice(0,10);
+  await dialog.getByLabel('Offered start').fill(date+'T09:00'); await dialog.getByLabel('Offered end').fill(date+'T12:00');
+  await dialog.getByLabel('I can start').fill(date+'T08:30'); await dialog.getByLabel('I must finish').fill(date+'T12:30');
+  await dialog.getByLabel('Busy from (optional)').fill(date+'T09:30'); await dialog.getByLabel('Busy until (optional)').fill(date+'T10:00');
+  await dialog.getByRole('checkbox').check(); await dialog.getByRole('button', { name: 'Find useful times' }).click();
+  await expect(dialog.getByRole('heading', { name: 'Review these proposed times' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Save scheduling draft for review' }).click();
+  await expect(page.getByRole('heading', { name: 'Times for our conversation' })).toBeVisible();
+  await page.getByRole('button', { name: 'Prepare invitation draft' }).click();
+  await expect(page.getByText('calendar invite · draft', { exact: true })).toBeVisible();
+  await expect(page.getByText('Review the recipient, local time', { exact: false })).toBeVisible();
+});

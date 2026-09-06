@@ -823,3 +823,19 @@ The SOTF cases additionally verify retrieval of an older relevant story after 70
 One real public employer posting is covered with fictional fellow input and an inspection date; see the source link and scope in `docs/status/sotf-product-execution.md`. No real fellow, employer contact, message, or invitation was used.
 
 Limits: browser checks cover the public fictional preview, not a live authenticated deployment. Hosted schema application, live chooser/SSO operation, production integration behavior, and the unfinished platform landing/film are not claimed as verified. General P2 remains off and protected Professional Context is unavailable through this product slice.
+
+## Final SOTF level-up source acceptance — 2026-09-06
+
+- Required product-boundary check PASS: 95 runtime files, no ministry/Consulting imports or service-role runtime client.
+- Required schema contracts PASS: 38/38.
+- Required TypeScript and lint PASS after correcting one JSX apostrophe in the scheduling form.
+- Required unit tests PASS: 143/143 across 20 files. Added scheduling intersection/buffers/stale checks/DST offsets, invitation supersession and uncertain-execution reconciliation, plus real native API ↔ existing MCP server continuity through a synthetic RPC transport.
+- Required production build PASS: Next.js 16.3.2, including request-time /workspace/sotf and the public fictional preview.
+- Production preview browser suite PASS: 6/6 desktop/mobile tests cover criterion-driven recommendation change, meeting/evidence/follow-up continuity, scheduling and invitation drafts, and no account access from the fictional preview.
+- Connected native component acceptance PASS: 2/2 desktop/mobile tests run the real component with a synthetic session and SotfStore transport. First-session intake, opportunity, decision, uncertain post-commit acknowledgement, same-operation recovery and reload preserve exactly three canonical events. The harness is tests/harness/server.mjs on loopback only; never use it with real data or as application auth.
+- Native API/MCP acceptance verifies a new conversation can recover native state, write a decision visible to native GET, and recover a lost persistence acknowledgement with one event rather than a duplicate. The environment flag-off test keeps SOTF tools unpublished and native persistence unavailable.
+- Isolated local pgTAP remains PASS 23/23; no SQL changes followed that run. Hosted migrations and live data were not targets.
+- The connected harness initially had incorrect middleware ordering, then a nondeterministic socket-reset scenario. Those harness issues were corrected; the final deterministic uncertain-save response and browser runs passed. An overlapped landing run was interrupted; the final independent production landing suite subsequently passed 8/8.
+- Entry branch root typecheck/lint/18 unit tests/build and 8 desktop/mobile browser tests PASS. Film source typecheck and all three local renders completed. Its performance evidence retains slow local LCP as a release concern; no field or physical-device result is claimed.
+
+Original product checkout and the separate security writer were not modified. Auth/session-owner path diffs are empty. The only new Workspace migration is 20260906120000_sotf_operational_workflows.sql. General P2 remains OFF. No main merge, deployed auth test, hosted mutation, external message or calendar invitation occurred.

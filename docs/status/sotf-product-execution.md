@@ -79,3 +79,48 @@ The public-opportunity acceptance case uses a fictional fellow with scoped evide
 ### History compatibility
 
 The pilot log uses schema version 1. Once any environment begins retaining pilot history, release changes must preserve the version-1 reducer's meaning, including generated draft contents and approval revisions. Do not reinterpret saved approvals or regenerate past submitted materials under a changed reducer. A semantic change requires a separately versioned event contract and compatibility tests; do not mutate retained events in place.
+
+## Final product source handoff — 2026-09-06
+
+The checkpoint's remaining implementation work is now resolved for pilot review: reviewed availability and scheduling drafts, invitation preparation and stale-approval recovery, explicit coach-share recipient/content review, preservation of multiple direction links, native first-session persistence/recovery acceptance, and the separate platform landing/film worktree. The SOTF page now evaluates its environment flag at request time with the installed Next.js connection() API.
+
+Product worktree: C:/Users/awbostwick/Documents/ChatGPT/SOTF Product; branch astra/sotf-indispensable; starting commit f141a359a0124d50c454a2acd4f70516a727d5b3; first published checkpoint c73aa22fea9a22a815c8fded628e15cbc802e132. The final task handoff records the ending commit and matching pushed remote.
+
+Landing worktree: C:/Users/awbostwick/Documents/ChatGPT/Lead Emergence Entry Product; branch astra/lead-emergence-front-door; published-main start ef7fd32a573f2f03c0be24f50007ceed600406f2. Landing implementation and exact auth-owner map are documented there in docs/frontdoor-handoff.md, with the separate canonical film/CREATIVE-BRIEF.md and reproducible film/README.md.
+
+### Closed workflow spine
+
+| Experience | Implemented continuity |
+| --- | --- |
+| First session | Short timing/question intake → reviewed criteria and two possible directions → real-role screening → decision and next investigation |
+| Opportunity intelligence | Hard eligibility separate from seven-dimensional fit; scoped evidence and unknowns; confirmed context can change MAYBE to NO; explicit next action and reconsideration trigger |
+| Career learning | Hypotheses retain supporting/conflicting evidence, assumptions, experiments, conversations, roles and explicit direction decisions |
+| Relationships | Person's purpose, genuine overlap and introduction path → outreach draft → reviewed scheduling → agreed meeting → preparation → debrief → commitments, thank-you draft and next touch |
+| Calendar continuity | Stable provider/event identity; reschedule/cancellation updates one meeting; preparation reopens when appropriate; stale unsent invitation approvals are superseded; uncertain executions still require reconciliation |
+| Coaching/weekly | Prior commitments and developments → agenda requiring human judgment → separately reviewed recipient/content share draft → meeting debrief, actions and next weekly change |
+| Accomplishments | Truthful individual contribution, scope, evidence, approved wording and uncertain numbers; full-bank retrieval before limiting results |
+| Applications/interviews | Positioning evidence → immutable material versions → explicit actual submission → sourced outcomes and interview feedback → reviewed learning and next preparation |
+| Offer/professional work | Terms with certainty/source → tradeoffs/questions/negotiation → explicit acceptance rationale → recruiting promises and 30/60/90 commitments → selected continuity beyond transition |
+| Native/ChatGPT recovery | Shared canonical event log, CAS and idempotent confirmed commands; new MCP conversation recovers native decisions; uncertain saves reuse the same operation; failed external actions never become a false success |
+
+### Deliberate product and release limits
+
+- SOTF_PILOT_ENABLED defaults OFF. The ordinary operational migration is source/local acceptance only, and hosted application remains with the existing migration authority under the written release gate. No live entitlement grants, hosted mutations, deployment, route cutover or main merge occurred.
+- General P2 remains OFF. Protected Professional Context is unavailable through this product slice. Its adapter is an external capability contract, not an alternative protected store. This branch does not change existing protected migrations or auth/session owners.
+- Mail and calendar execution are manual. Calendar availability must be checked and entered explicitly; no Google/Outlook credentials are collected by this slice. The provider contract returns unavailable until its existing connection owner releases a real consumer. No real email, invitation, LinkedIn message, application or employer acceptance is performed.
+- Job research and conversational proposals use the fellow's authorized ChatGPT/research workflow. Native screening supports manual role descriptions, evidence and review. There is no unrestricted LinkedIn graph, proprietary job crawler, full historical-chat access or opaque probability score.
+- Native first-value input is guided; the existing Workspace provisioning/setup remains in place. Validate that existing setup → SOTF first-value path with a real invited pilot account before launch. No shortcut around shared sign-in or chooser was added.
+- The local browser harness replaces only the test session/transport around the real connected SOTF component. The API/MCP integration suite separately exercises the real handlers against synthetic RPC transport. SQL authorization and isolation were verified on the isolated local stack. These are not claims of live SSO or deployed MCP acceptance.
+- Unsaved form contents and pending browser recovery state are in memory. Closing the tab may require re-entering unsaved input after checking recovered canonical history. The pilot log is bounded to 2,000 events / 2 MB; exceeding it preserves history and refuses further appends. Larger histories, bounded conversational retrieval and richer artifacts should be evaluated before broader use.
+- The landing's public CTAs all enter shared /login. Published Entry still preserves specific allowlisted handoff/OAuth continuations. A mandatory chooser for every such continuation is a separately authorized auth-owner capability, not invented here. Live default chooser and all enabled destinations need release verification.
+- The cinematic interpretation is ready for creative review. Local LCP was slow under resource contention and mobile throttling; small screens default to the poster and optional film. Clean deployed-preview and physical-phone performance remain release checks.
+
+### Pilot decisions and next build
+
+Five removal-pain experiences now have a concrete source implementation: catching costly bad-fit pursuits; remembering why a person matters and what was promised; recovering older truthful examples; arriving at coaching/conversations with prior work connected; and making later opportunity/interview decisions better through reviewed evidence.
+
+Next: approve and validate the ordinary operational rollout, verify one invited fellow's shared-entry/chooser/Workspace/ChatGPT journey, run a facilitated 14-day pilot, then implement one Google Calendar/Gmail consumer with provider reconciliation through the existing connection owner. Tune retrieval and pacing from actual repeated use.
+
+Deliberately defer bulk outreach, automatic applications, a proprietary resume editor, broad monitoring, a second provider ecosystem, two-way Notion synchronization, and parallel transcript integrations. Keep the pilot centered on closed learning and follow-through loops.
+
+Merge recommendation: ready for source and pilot review on the two dedicated branches. Do not merge to main or deploy from this task. Hosted schema application, live auth/destination verification, invitation/entitlement setup and rollout configuration require the existing owners and recorded written gate; external sends remain separately authorized.
