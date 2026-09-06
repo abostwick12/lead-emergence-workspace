@@ -777,3 +777,28 @@ change, a Vercel deployment, or a real assistant connection.
 - `supabase db advisors --local` — **PASS, no issues found**.
 - `git diff --check` — **PASS**; Git reported only line-ending conversion
   warnings.
+
+# P2 R5E.8L local PKCE acceptance harness — 2026-09-06
+
+- Starting commit: `5b1664c7867896255b25550e6a9bf5937ab90577` at detached HEAD,
+  corresponding to the cached tip of `codex/personal-os-transition-bundle`.
+  The trusted branch preflight did not match, so no commit or push occurred.
+- Hosted Auth, email, fixtures, redirects, Vercel, aliases, configuration,
+  deployments, migrations, Professional Context, and General P2 were not
+  touched.
+- Isolated `acceptance/r5e8k` results: typecheck **PASS**; unit **PASS,
+  348/348**; static build and artifact/header/secret verification **PASS**;
+  Chromium ceremonies **PASS, 9/9** with zero retries and no recording.
+- Pinned GoTrue integration/concurrency test: **UNAVAILABLE**. The runner stopped
+  before local container or fixture creation because no Docker daemon is
+  available. The exact v2.196.0 image/platform pins and normative one-success,
+  one-rejection assertion are implemented; they have not been claimed as
+  evidence.
+- Repository `npm run check:boundaries` — **PASS**, 78 runtime files.
+- Repository `npm run test:schema` — **PASS, 38/38**.
+- Repository `npm run typecheck` — **PASS**.
+- Repository `npm run lint` — **PASS**.
+- Repository `npm run test:unit` — **PASS, 122/122 across 17 files**.
+- Repository `npm run build` — **PASS** with Next.js 16.3.2.
+- This harness remains blocked from R5E.8M readiness until the exact pinned
+  local backend suite, especially the simultaneous-exchange assertion, passes.

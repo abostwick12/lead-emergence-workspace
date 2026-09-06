@@ -1,0 +1,22 @@
+{
+  "publicJwk": {
+    "key_ops": ["verify"],
+    "ext": true,
+    "kty": "EC",
+    "x": "wRCD18HdE5etJ1Jhp53034gGQNZwwXzro9xQEUvRFEQ",
+    "y": "LUortc5wUtfU_n3gGujFSfU8xWqCHIrE3UoR1s4g_uM",
+    "crv": "P-256",
+    "alg": "ES256",
+    "use": "sig",
+    "kid": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+  },
+  "privateJwk": {
+    "key_ops": ["sign"],
+    "ext": true,
+    "kty": "EC",
+    "x": "wRCD18HdE5etJ1Jhp53034gGQNZwwXzro9xQEUvRFEQ",
+    "y": "LUortc5wUtfU_n3gGujFSfU8xWqCHIrE3UoR1s4g_uM",
+    "crv": "P-256",
+    "d": "vuxUqLdxBzAvCKsJkiR6gzoN-4poid-2fSFdCuuLmhM"
+  }
+}

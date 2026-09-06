@@ -1,0 +1,52 @@
+{
+  "schema": "r5e8k-run-manifest/v1",
+  "syntheticOnly": false,
+  "runId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  "projectRef": "vnjdubrnmxvmsccxmhst",
+  "authBaseUrl": "https://vnjdubrnmxvmsccxmhst.supabase.co/auth/v1",
+  "callbackUrl": "https://lead-emergence-entry-sso-preview-git-45c287-emergence-projects.vercel.app/auth/callback",
+  "fixture": {
+    "label": "C",
+    "subject": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    "currentEmail": "current@example.invalid",
+    "newEmail": "new@example.invalid"
+  },
+  "publicKey": "sb_publishable_SYNTHETIC_BROWSER_ONLY",
+  "jwt": {
+    "issuer": "https://vnjdubrnmxvmsccxmhst.supabase.co/auth/v1",
+    "audience": "authenticated",
+    "role": "authenticated",
+    "aal": "aal1",
+    "kid": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    "jwk": {
+      "kty": "EC",
+      "x": "wRCD18HdE5etJ1Jhp53034gGQNZwwXzro9xQEUvRFEQ",
+      "y": "LUortc5wUtfU_n3gGujFSfU8xWqCHIrE3UoR1s4g_uM",
+      "crv": "P-256",
+      "alg": "ES256",
+      "use": "sig",
+      "kid": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    },
+    "lifetimeSeconds": 3600
+  },
+  "timing": {
+    "notBeforeEpochMs": 0,
+    "artifactHardStopEpochMs": 4102444800000,
+    "pkceLifetimeMs": 240000,
+    "backendFlowStateLifetimeSeconds": 300,
+    "postExchangeActionLifetimeMs": 1800000
+  },
+  "authSettings": {
+    "goTrueVersion": "v2.196.0",
+    "secureEmailChange": true,
+    "passwordChangedNotification": false
+  },
+  "budget": {
+    "fixtureMailCalls": 2,
+    "fixtureDeliveries": 3,
+    "totalFixtureLimit": 3,
+    "totalMailCallLimit": 5,
+    "totalDeliveryLimit": 8
+  },
+  "allowFinalUserProbe": false
+}

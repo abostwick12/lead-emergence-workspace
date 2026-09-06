@@ -1,0 +1,25 @@
+{
+  "name": "@lead-emergence/r5e8k-pkce-harness",
+  "version": "0.0.0-private",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --exclude tests/integration/**",
+    "test:browser": "node scripts/verify-browser-fixture.mjs && playwright test",
+    "test:gotrue": "node scripts/run-gotrue-integration.mjs",
+    "verify": "node scripts/verify-artifact.mjs",
+    "test:all": "npm run typecheck && npm run test && npm run build && npm run verify && npm run test:browser && npm run test:gotrue"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "20.19.43",
+    "esbuild": "0.25.10",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

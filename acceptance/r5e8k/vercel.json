@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "routes": [
+    {
+      "src": "^/auth/callback$",
+      "dest": "/auth/callback/index.html",
+      "headers": {"CDN-Cache-Control":"no-store","Cache-Control":"no-store, max-age=0","Content-Security-Policy":"default-src 'none'; script-src 'sha256-BXR21qUFVOUgVWREw4QiK7HUpmX8My6G9T0YM+I8HUE='; script-src-attr 'none'; style-src 'sha256-2uIP9B+ZgZN++2WflseWU4r0ozwUy8myK6HqydygJyQ='; style-src-attr 'none'; connect-src https://vnjdubrnmxvmsccxmhst.supabase.co; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'; worker-src 'none'; child-src 'none'; frame-src 'none'; manifest-src 'none'; media-src 'none'; font-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'","Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Resource-Policy":"same-origin","Origin-Agent-Cluster":"?1","Permissions-Policy":"camera=(), display-capture=(), geolocation=(), microphone=(), payment=(), publickey-credentials-create=(), publickey-credentials-get=(), usb=()","Pragma":"no-cache","Referrer-Policy":"no-referrer","Vercel-CDN-Cache-Control":"no-store","X-Content-Type-Options":"nosniff","X-Frame-Options":"DENY"}
+    },
+    {
+      "src": ".*",
+      "status": 404,
+      "dest": "/404.html",
+      "headers": {"CDN-Cache-Control":"no-store","Cache-Control":"no-store, max-age=0","Content-Security-Policy":"default-src 'none'; frame-ancestors 'none'","Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Resource-Policy":"same-origin","Origin-Agent-Cluster":"?1","Permissions-Policy":"camera=(), display-capture=(), geolocation=(), microphone=(), payment=(), publickey-credentials-create=(), publickey-credentials-get=(), usb=()","Pragma":"no-cache","Referrer-Policy":"no-referrer","Vercel-CDN-Cache-Control":"no-store","X-Content-Type-Options":"nosniff","X-Frame-Options":"DENY"}
+    }
+  ]
+}
