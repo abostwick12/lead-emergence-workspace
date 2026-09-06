@@ -14,9 +14,30 @@ const GOTRUE_IMAGE = `supabase/gotrue@${GOTRUE_AMD64_DIGEST}`;
 const POSTGRES_IMAGE = imagePin.postgresImage;
 const CALLBACK_PATH = "/auth/callback";
 const TEST_TIMEOUT_MS = 120_000;
+const diagnosticSecrets = new Set();
 
 function fail(message) {
   throw new Error(message);
+}
+
+function registerDiagnosticSecrets(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) diagnosticSecrets.add(value);
+  }
+}
+
+function sanitizeDiagnostic(value) {
+  let sanitized = String(value);
+  for (const secret of diagnosticSecrets) sanitized = sanitized.replaceAll(secret, "[REDACTED]");
+  return sanitized
+    .replace(/postgres:\/\/([^:\s/]+):[^@\s/]+@/giu, "postgres://$1:[REDACTED]@")
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/gu, "[REDACTED_JWT]")
+    .replace(/("d"\s*:\s*")[^"]+("?)/giu, "$1[REDACTED]$2");
+}
+
+function emitDiagnostic(label, value) {
+  const serialized = typeof value === "string" ? value : JSON.stringify(value);
+  process.stderr.write(`R5E8K_STARTUP_DIAGNOSTIC ${label} ${sanitizeDiagnostic(serialized)}\n`);
 }
 
 function docker(args, options = {}) {
@@ -27,9 +48,59 @@ function docker(args, options = {}) {
   });
   if (result.error) throw result.error;
   if (!options.allowFailure && result.status !== 0) {
-    throw new Error(`container command failed (${args[0]} ${args[1] ?? ""})`);
+    throw new Error(
+      `container command failed (${args[0]} ${args[1] ?? ""}); status=${result.status}; stderr=${sanitizeDiagnostic(result.stderr.trim())}`,
+    );
   }
   return { status: result.status ?? 1, stdout: result.stdout.trim(), stderr: result.stderr.trim() };
+}
+
+function containerRuntimeState(name) {
+  const result = docker([
+    "inspect",
+    "--format",
+    '{"status":{{json .State.Status}},"running":{{json .State.Running}},"exitCode":{{json .State.ExitCode}},"restartCount":{{json .RestartCount}},"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}"none"{{end}}}',
+    name,
+  ], { allowFailure: true });
+  if (result.status !== 0) return { status: "inspect-unavailable", running: false, exitCode: null, restartCount: null, health: "unknown" };
+  return JSON.parse(result.stdout);
+}
+
+function containerDiagnostic(name) {
+  const result = docker([
+    "inspect",
+    "--format",
+    '{"id":{{json .Id}},"name":{{json .Name}},"image":{{json .Config.Image}},"state":{"status":{{json .State.Status}},"running":{{json .State.Running}},"exitCode":{{json .State.ExitCode}},"error":{{json .State.Error}},"startedAt":{{json .State.StartedAt}},"finishedAt":{{json .State.FinishedAt}},"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}"none"{{end}}},"restartCount":{{json .RestartCount}},"ports":{{json .NetworkSettings.Ports}},"networks":{{json .NetworkSettings.Networks}},"extraHosts":{{json .HostConfig.ExtraHosts}}}',
+    name,
+  ], { allowFailure: true });
+  return result.status === 0 ? JSON.parse(result.stdout) : { name, inspect: "unavailable" };
+}
+
+function containerLogs(name) {
+  const result = docker(["logs", "--timestamps", "--tail", "200", name], { allowFailure: true });
+  return [result.stdout, result.stderr].filter(Boolean).join("\n") || "(no container log output)";
+}
+
+function networkDiagnostic(name) {
+  const result = docker([
+    "network",
+    "inspect",
+    "--format",
+    '{"id":{{json .Id}},"name":{{json .Name}},"driver":{{json .Driver}},"scope":{{json .Scope}},"internal":{{json .Internal}},"containers":{{json .Containers}}}',
+    name,
+  ], { allowFailure: true });
+  return result.status === 0 ? JSON.parse(result.stdout) : { name, inspect: "unavailable" };
+}
+
+function emitStartupDiagnostics({ network, database, auth, smtp }) {
+  const containers = docker(["ps", "-a", "--filter", "name=r5e8k-", "--format", "{{json .}}"], { allowFailure: true });
+  emitDiagnostic("docker-ps-a", containers.stdout || "(no matching containers)");
+  emitDiagnostic("postgres-inspect", containerDiagnostic(database));
+  emitDiagnostic("gotrue-inspect", containerDiagnostic(auth));
+  emitDiagnostic("smtp-status", smtp.status());
+  emitDiagnostic("network-inspect", networkDiagnostic(network));
+  emitDiagnostic("postgres-logs", containerLogs(database));
+  emitDiagnostic("gotrue-logs", containerLogs(auth));
 }
 
 function requireDocker() {
@@ -128,7 +199,9 @@ async function freePort() {
 function startSmtpCapture() {
   const messages = [];
   const sockets = new Set();
+  let acceptedConnections = 0;
   const server = createServer((socket) => {
+    acceptedConnections += 1;
     sockets.add(socket);
     let buffer = "";
     let dataMode = false;
@@ -185,6 +258,17 @@ function startSmtpCapture() {
   });
   return {
     messages,
+    status() {
+      const address = server.address();
+      return {
+        listening: server.listening,
+        bindAddress: address && typeof address !== "string" ? address.address : null,
+        port: address && typeof address !== "string" ? address.port : null,
+        acceptedConnections,
+        activeConnections: sockets.size,
+        capturedMessages: messages.length,
+      };
+    },
     async listen() {
       return new Promise((resolve, reject) => {
         server.once("error", reject);
@@ -210,6 +294,34 @@ async function waitFor(predicate, label, timeoutMs = 30_000) {
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error(`timeout waiting for ${label}`);
+}
+
+async function waitForGoTrueReadiness(baseUrl, container, timeoutMs) {
+  const startedAt = Date.now();
+  const deadline = startedAt + timeoutMs;
+  let lastProbe = { kind: "not-attempted" };
+  while (Date.now() < deadline) {
+    const state = containerRuntimeState(container);
+    if (state.status === "exited" || state.status === "dead") {
+      throw new Error(
+        `GoTrue exited before readiness; status=${state.status}; exitCode=${state.exitCode}; restartCount=${state.restartCount}; lastProbe=${lastProbe.kind}`,
+      );
+    }
+    try {
+      const response = await fetch(`${baseUrl}/health`);
+      lastProbe = { kind: "http", status: response.status };
+      if (response.ok) return { elapsedMs: Date.now() - startedAt, status: response.status };
+    } catch (error) {
+      lastProbe = {
+        kind: "connection-error",
+        code: typeof error?.cause?.code === "string" ? error.cause.code : "unavailable",
+      };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(
+    `timeout waiting for GoTrue readiness; lastProbe=${lastProbe.kind}${lastProbe.status ? `:${lastProbe.status}` : ""}${lastProbe.code ? `:${lastProbe.code}` : ""}`,
+  );
 }
 
 async function waitForMessage(messages, index) {
@@ -366,12 +478,23 @@ async function main() {
       iat: now,
       exp: now + 3600,
     });
+    registerDiagnosticSecrets(
+      jwtSecret,
+      databasePassword,
+      smtpPassword,
+      adminToken,
+      publicKey,
+      JSON.stringify(privateJwk),
+      privateJwk.d,
+    );
 
     docker(["pull", "--platform", "linux/amd64", GOTRUE_IMAGE], { timeout: 300_000 });
     const digests = docker(["image", "inspect", GOTRUE_IMAGE, "--format", "{{json .RepoDigests}}"] ).stdout;
     if (!digests.includes(GOTRUE_AMD64_DIGEST)) fail("pinned GoTrue platform digest verification failed");
     docker(["network", "create", network]);
     networkCreated = true;
+    emitDiagnostic("startup-order", { step: 1, dependency: "smtp", status: smtp.status() });
+    emitDiagnostic("startup-order", { step: 2, dependency: "docker-network", name: network });
     docker([
       "run", "-d", "--name", database, "--network", network,
       "-e", `POSTGRES_PASSWORD=${databasePassword}`,
@@ -379,7 +502,9 @@ async function main() {
       POSTGRES_IMAGE,
     ], { timeout: 120_000 });
     databaseCreated = true;
+    emitDiagnostic("startup-order", { step: 3, dependency: "postgres", state: containerRuntimeState(database) });
     await waitFor(() => docker(["exec", database, "pg_isready", "-U", "postgres"], { allowFailure: true }).status === 0, "Postgres readiness", 60_000);
+    emitDiagnostic("startup-order", { step: 4, dependency: "postgres-ready", state: containerRuntimeState(database) });
 
     docker([
       "run", "-d", "--name", auth, "--network", network,
@@ -418,14 +543,19 @@ async function main() {
       GOTRUE_IMAGE,
     ], { timeout: 120_000 });
     authCreated = true;
-    await waitFor(async () => {
-      try {
-        const response = await fetch(`${baseUrl}/health`);
-        return response.ok;
-      } catch {
-        return false;
-      }
-    }, "GoTrue readiness", 90_000);
+    emitDiagnostic("startup-order", {
+      step: 5,
+      dependency: "gotrue-started",
+      state: containerRuntimeState(auth),
+      readiness: { origin: baseUrl, path: "/health", method: "GET" },
+    });
+    try {
+      const readiness = await waitForGoTrueReadiness(baseUrl, auth, 90_000);
+      emitDiagnostic("startup-order", { step: 6, dependency: "gotrue-ready", readiness });
+    } catch (error) {
+      emitStartupDiagnostics({ network, database, auth, smtp });
+      throw error;
+    }
 
     const currentEmail = `r5e8k-main-${suffix}@example.invalid`;
     const newEmail = `r5e8k-new-${suffix}@example.invalid`;
