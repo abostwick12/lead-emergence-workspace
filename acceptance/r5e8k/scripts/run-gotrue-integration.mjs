@@ -33,6 +33,7 @@ function sanitizeDiagnostic(value) {
   return sanitized
     .replace(/postgres:\/\/([^:\s/]+):[^@\s/]+@/giu, "postgres://$1:[REDACTED]@")
     .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/gu, "[REDACTED_JWT]")
+    .replace(/https?:\/\/[^\s<>"']+/giu, "[REDACTED_URL]")
     .replace(/("d"\s*:\s*")[^"]+("?)/giu, "$1[REDACTED]$2");
 }
 
@@ -108,6 +109,57 @@ function containerDiagnostic(name) {
 function containerLogs(name) {
   const result = docker(["logs", "--timestamps", "--tail", "200", name], { allowFailure: true });
   return [result.stdout, result.stderr].filter(Boolean).join("\n") || "(no container log output)";
+}
+
+function smtpTransportProbe(container, hostname, port) {
+  const resolution = docker(
+    ["exec", container, "/bin/sh", "-c", `awk '$2 == "${hostname}" { print $1 }' /etc/hosts`],
+    { allowFailure: true },
+  );
+  const resolvedAddresses = resolution.status === 0
+    ? resolution.stdout.split(/\s+/u).filter(Boolean)
+    : [];
+  const tcp = docker(
+    ["exec", container, "/bin/sh", "-c", `nc -z -w 3 ${hostname} ${port}`],
+    { allowFailure: true },
+  );
+  return {
+    hostname,
+    port,
+    resolution: {
+      status: resolution.status === 0 && resolvedAddresses.length > 0 ? "resolved" : "unresolved",
+      addresses: resolvedAddresses,
+      diagnostic: resolution.status === 0 ? "(none)" : sanitizeDiagnostic(resolution.stderr).slice(0, 512),
+    },
+    tcp: {
+      status: tcp.status === 0 ? "reachable" : "unreachable",
+      diagnostic: tcp.status === 0 ? "(none)" : sanitizeDiagnostic(tcp.stderr).slice(0, 512),
+    },
+  };
+}
+
+function recoveryErrorId(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.match(/"error_id":"([0-9a-f-]{36})"/iu)?.[1] ?? "unavailable";
+}
+
+function recoveryFailureDiagnostics({ error, auth, smtp, network, smtpHost, smtpPort, transportProbe }) {
+  const errorId = recoveryErrorId(error);
+  const matchingLogs = containerLogs(auth)
+    .split(/\r?\n/gu)
+    .filter((line) => errorId === "unavailable" || line.includes(errorId));
+  return {
+    errorId,
+    smtp: {
+      hostname: smtpHost,
+      port: smtpPort,
+      listener: smtp.status(),
+      transportProbe,
+    },
+    gotrue: containerDiagnostic(auth),
+    network: networkDiagnostic(network),
+    gotrueLogsForErrorId: matchingLogs.join("\n") || "(no matching GoTrue log lines)",
+  };
 }
 
 function networkDiagnostic(name) {
@@ -655,6 +707,7 @@ async function main() {
   try {
     const smtpPort = await smtp.listen();
     smtpStarted = true;
+    const smtpHost = "host.docker.internal";
     const authPort = await freePort();
     const baseUrl = `http://127.0.0.1:${authPort}`;
     const callbackUrl = `${baseUrl}${CALLBACK_PATH}`;
@@ -748,7 +801,7 @@ async function main() {
       "-e", "GOTRUE_MAILER_AUTOCONFIRM=false",
       "-e", "GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED=true",
       "-e", "GOTRUE_MAILER_NOTIFICATIONS_PASSWORD_CHANGED_ENABLED=false",
-      "-e", `GOTRUE_SMTP_HOST=host.docker.internal`,
+      "-e", `GOTRUE_SMTP_HOST=${smtpHost}`,
       "-e", `GOTRUE_SMTP_PORT=${smtpPort}`,
       "-e", "GOTRUE_SMTP_USER=r5e8k-synthetic",
       "-e", `GOTRUE_SMTP_PASS=${smtpPassword}`,
@@ -809,7 +862,23 @@ async function main() {
     const sessionsBeforeExchange = sqlCount(database, `select count(*) from auth.sessions where user_id='${userId}'`);
     if (sessionsBeforeExchange !== 2) fail("ordinary session precondition mismatch");
 
-    const mainFlow = await recoveryCode(baseUrl, publicKey, callbackUrl, currentEmail, smtp.messages);
+    const smtpProbe = smtpTransportProbe(auth, smtpHost, smtpPort);
+    emitDiagnostic("smtp-before-recovery", smtpProbe);
+    let mainFlow;
+    try {
+      mainFlow = await recoveryCode(baseUrl, publicKey, callbackUrl, currentEmail, smtp.messages);
+    } catch (error) {
+      emitDiagnostic("smtp-after-recovery-failure", recoveryFailureDiagnostics({
+        error,
+        auth,
+        smtp,
+        network,
+        smtpHost,
+        smtpPort,
+        transportProbe: smtpProbe,
+      }));
+      throw error;
+    }
     const wrongVerifier = `${mainFlow.verifier.slice(0, -1)}${mainFlow.verifier.endsWith("A") ? "B" : "A"}`;
     const wrong = await exchange(baseUrl, publicKey, mainFlow.authCode, wrongVerifier, "r5e8k-wrong-verifier");
     if (wrong.response.status === 200) fail("wrong PKCE verifier succeeded");
