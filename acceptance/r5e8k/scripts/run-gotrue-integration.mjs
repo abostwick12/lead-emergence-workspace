@@ -178,6 +178,9 @@ function smtpTlsPreflight(container, tlsMaterial) {
   const mounts = docker(["inspect", "--format", "{{json .Mounts}}", container], { allowFailure: true });
   const mountDetails = mounts.status === 0 ? JSON.parse(mounts.stdout) : [];
   const caMount = mountDetails.find((mount) => mount.Destination === SMTP_CA_PATH) ?? null;
+  const mountsFromCertificateDirectory = mountDetails.filter(
+    (mount) => typeof mount.Source === "string" && mount.Source.startsWith(`${dirname(tlsMaterial.caPath)}/`),
+  );
   const environment = containerShellProbe(container, 'printf %s "$SSL_CERT_FILE"');
   const uid = containerShellProbe(container, "id -u");
   const gid = containerShellProbe(container, "id -g");
@@ -204,13 +207,20 @@ function smtpTlsPreflight(container, tlsMaterial) {
       readOnlyForActualUser,
       mount: caMount === null
         ? "unavailable"
-        : { destination: caMount.Destination, readWrite: caMount.RW, sourceBasename: caMount.Source?.split("/").at(-1) ?? "unavailable" },
+        : {
+          type: caMount.Type,
+          destination: caMount.Destination,
+          readWrite: caMount.RW,
+          sourceMatchesPublicCa: caMount.Source === tlsMaterial.caPath,
+          sourceBasename: caMount.Source?.split("/").at(-1) ?? "unavailable",
+          certificateDirectoryMountCount: mountsFromCertificateDirectory.length,
+        },
     },
     serverCertificate: tlsMaterial.diagnostics,
   };
 }
 
-function assertSmtpTlsReadabilityDiagnosis(preflight) {
+function assertSmtpTlsPreflight(preflight) {
   const expectedIdentity =
     preflight.configuredContainerUser === "supabase" &&
     preflight.actualExecUser.uid.succeeded &&
@@ -221,17 +231,30 @@ function assertSmtpTlsReadabilityDiagnosis(preflight) {
   const fileExistsAndIsNonempty = preflight.caFile.nonempty.succeeded;
   const canRead = preflight.caFile.readableByActualUser.succeeded;
   const canReadToNull = preflight.caFile.readToNullByActualUser.succeeded;
+  const publicCertificateMode =
+    preflight.caFile.ownershipAndNumericMode.succeeded &&
+    preflight.caFile.ownershipAndNumericMode.output.endsWith(" 644");
+  const mountIsPublicCaReadOnly =
+    preflight.caFile.mount !== "unavailable" &&
+    preflight.caFile.mount.type === "bind" &&
+    preflight.caFile.mount.destination === SMTP_CA_PATH &&
+    preflight.caFile.mount.readWrite === false &&
+    preflight.caFile.mount.sourceMatchesPublicCa === true &&
+    preflight.caFile.mount.certificateDirectoryMountCount === 1;
+  const mountIsNotWritableByGoTrue = preflight.caFile.readOnlyForActualUser.succeeded;
 
-  if (!expectedIdentity || !expectedPath || !fileExistsAndIsNonempty) {
-    fail("R5E8K_SMTP_CA_READABILITY_DIAGNOSIS_INCONCLUSIVE: expected non-root GoTrue identity, SSL_CERT_FILE path, or nonempty CA file differs");
+  if (
+    !expectedIdentity ||
+    !expectedPath ||
+    !fileExistsAndIsNonempty ||
+    !publicCertificateMode ||
+    !canRead ||
+    !canReadToNull ||
+    !mountIsPublicCaReadOnly ||
+    !mountIsNotWritableByGoTrue
+  ) {
+    fail("R5E8K_SMTP_TLS_PREFLIGHT_FAILED: public CA identity, path, mode, readability, or read-only mount contract differs");
   }
-  if (!canRead && !canReadToNull) {
-    fail("R5E8K_SMTP_CA_READABILITY_DIAGNOSIS_CONFIRMED: GoTrue UID 1000 cannot read the mounted public CA");
-  }
-  if (canRead && canReadToNull) {
-    fail("R5E8K_SMTP_CA_READABILITY_DIAGNOSIS_STOP: mounted CA is already readable by GoTrue UID 1000");
-  }
-  fail("R5E8K_SMTP_CA_READABILITY_DIAGNOSIS_INCONCLUSIVE: read probes disagree");
 }
 
 function networkDiagnostic(name) {
@@ -823,7 +846,7 @@ async function main() {
       });
       const tlsPreflight = smtpTlsPreflight(auth, smtpTlsMaterial);
       emitDiagnostic("smtp-tls-preflight", tlsPreflight);
-      assertSmtpTlsReadabilityDiagnosis(tlsPreflight);
+      assertSmtpTlsPreflight(tlsPreflight);
     } catch (error) {
       emitStartupDiagnostics({ network, database, auth, smtp });
       throw error;

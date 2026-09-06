@@ -1,5 +1,5 @@
 import { createSign, generateKeyPairSync, randomBytes, timingSafeEqual, X509Certificate } from "node:crypto";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -184,7 +184,10 @@ export function createEphemeralSmtpTlsMaterial(hostname) {
   const diagnostics = assertCertificateContract({ caCertificate, serverCertificate, hostname, now });
   const directory = mkdtempSync(join(tmpdir(), "r5e8k-smtp-"));
   const caPath = join(directory, "synthetic-ca.pem");
-  writeFileSync(caPath, caCertificatePem, { mode: 0o600 });
+  // This is a public trust anchor. The non-root GoTrue container user must read
+  // it through the existing read-only bind mount; private keys remain in memory.
+  writeFileSync(caPath, caCertificatePem, { mode: 0o644 });
+  chmodSync(caPath, 0o644);
   const secureContext = createSecureContext({
     key: serverPrivateKeyPem,
     cert: serverCertificatePem,

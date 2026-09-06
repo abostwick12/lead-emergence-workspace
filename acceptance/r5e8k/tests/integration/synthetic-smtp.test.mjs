@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { readdirSync, statSync } from "node:fs";
 import { connect as connectTcp } from "node:net";
+import { dirname } from "node:path";
 import { test } from "node:test";
 import { connect as connectTls } from "node:tls";
 import { createEphemeralSmtpTlsMaterial, startSmtpCapture } from "../../scripts/synthetic-smtp.mjs";
@@ -148,6 +150,9 @@ test("the ephemeral certificate is narrowly scoped and rejects wrong trust or ho
     assert.deepEqual(material.diagnostics.sanDns, [HOSTNAME]);
     assert.equal(material.diagnostics.chainsToGeneratedCa, true);
     assert.equal(material.diagnostics.currentlyValid, true);
+    assert.doesNotMatch(material.caCertificatePem.toString("utf8"), /PRIVATE KEY/u);
+    assert.equal(statSync(material.caPath).mode & 0o777, process.platform === "win32" ? 0o666 : 0o644);
+    assert.deepEqual(readdirSync(dirname(material.caPath)), ["synthetic-ca.pem"]);
 
     const untrustedMaterial = createEphemeralSmtpTlsMaterial(HOSTNAME);
     try {
