@@ -1,0 +1,79 @@
+name: R5E.8K pinned GoTrue gate
+
+on:
+  push:
+    branches:
+      - codex/personal-os-transition-bundle
+
+permissions:
+  contents: read
+
+jobs:
+  gotrue:
+    name: GoTrue v2.196.0 PKCE concurrency
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTRUE_TAG: supabase/gotrue:v2.196.0
+      GOTRUE_AMD64_DIGEST: sha256:7e813221b93fbf54b515036438550e483bfaf057b9db52fe9bc1ce91c47e817e
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the triggering feature commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$GITHUB_SHA" ]]; then
+            echo "Exact checkout verification failed." >&2
+            exit 1
+          fi
+          printf 'feature commit: %s\n' "$actual"
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+
+      - name: Install harness dependencies from lockfile
+        working-directory: acceptance/r5e8k
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Resolve and verify the linux/amd64 GoTrue digest
+        run: |
+          set -euo pipefail
+          mapfile -t platform_digests < <(
+            docker buildx imagetools inspect "$GOTRUE_TAG" --raw |
+              jq -r '
+                .manifests[]
+                | select(.platform.os == "linux" and .platform.architecture == "amd64")
+                | .digest
+              '
+          )
+          if [[ "${#platform_digests[@]}" -ne 1 ]]; then
+            echo "Expected exactly one linux/amd64 GoTrue platform manifest." >&2
+            exit 1
+          fi
+          resolved="${platform_digests[0]}"
+          printf 'resolved GoTrue linux/amd64 digest: %s\n' "$resolved"
+          if [[ "$resolved" != "$GOTRUE_AMD64_DIGEST" ]]; then
+            echo "Pinned GoTrue linux/amd64 digest mismatch." >&2
+            exit 1
+          fi
+          docker pull --platform linux/amd64 "supabase/gotrue@$resolved"
+          repo_digests="$(docker image inspect "supabase/gotrue@$resolved" --format '{{json .RepoDigests}}')"
+          if [[ "$repo_digests" != *"$GOTRUE_AMD64_DIGEST"* ]]; then
+            echo "Pulled GoTrue image did not retain the required digest." >&2
+            exit 1
+          fi
+
+      - name: Run pinned GoTrue recovery and concurrency assertions
+        working-directory: acceptance/r5e8k
+        run: npm run test:gotrue
