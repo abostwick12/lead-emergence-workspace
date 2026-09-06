@@ -802,3 +802,24 @@ change, a Vercel deployment, or a real assistant connection.
 - Repository `npm run build` — **PASS** with Next.js 16.3.2.
 - This harness remains blocked from R5E.8M readiness until the exact pinned
   local backend suite, especially the simultaneous-exchange assertion, passes.
+
+# SOTF Bundle operational workflow checkpoint — 2026-09-06
+
+Isolated worktree: `C:/Users/awbostwick/Documents/ChatGPT/SOTF Product`, branch `astra/sotf-indispensable`, starting commit `f141a359a0124d50c454a2acd4f70516a727d5b3`.
+
+- `npm run check:boundaries` — **PASS**, 93 runtime files; no ministry/Consulting runtime imports or service-role client.
+- `npm run test:schema` — **PASS**, 38/38 existing schema contracts.
+- `npm run typecheck` — **PASS**.
+- `npm run lint` — **PASS** after correcting two JSX apostrophe escaping findings.
+- `npm run test:unit` — **PASS**, 138/138 across 18 files, including 16 SOTF workflow cases.
+- `npm run build` — **PASS**, Next.js 16.3.2, including the fictional preview and existing gated SOTF product page.
+- Local source migrations were replayed on a fresh isolated `sotf-product-acceptance` stack. `supabase --workdir .sotf-local test db <absolute path to supabase/tests/database/sotf_operational_workflows.sql>` — **PASS**, 23/23. The fixtures are synthetic and the acceptance transaction rolls back. The shared/original local stack and hosted project were not targets.
+- `E2E_BASE_URL=http://localhost:3107 npx playwright test tests/e2e/sotf-preview.spec.ts` — **PASS**, 4/4: desktop and mobile context-driven recommendation change, meeting/debrief/evidence/follow-up continuity, and absence of account/Supabase requests from the fictional preview. Desktop and mobile checks assert no page-width overflow.
+- Browser preview initially loaded without client errors; a full-page desktop screenshot was visually inspected. Acceptance screenshots are in ignored `test-results/sotf-decision-desktop.png` and `test-results/sotf-decision-mobile.png`.
+- `git diff --check` — **PASS**; only expected line-ending conversion warnings.
+
+The SOTF cases additionally verify retrieval of an older relevant story after 70 newer stories, declined-opportunity retention, evidence review before changing fit, qualification blockers independent from fit, uncertain-save recovery without a second append, cancellation/restoration of the same meeting, exact-draft approval invalidation, exact submitted wording, interview feedback provenance, offer uncertainty, recruiting promises, and first-90-days continuity.
+
+One real public employer posting is covered with fictional fellow input and an inspection date; see the source link and scope in `docs/status/sotf-product-execution.md`. No real fellow, employer contact, message, or invitation was used.
+
+Limits: browser checks cover the public fictional preview, not a live authenticated deployment. Hosted schema application, live chooser/SSO operation, production integration behavior, and the unfinished platform landing/film are not claimed as verified. General P2 remains off and protected Professional Context is unavailable through this product slice.
