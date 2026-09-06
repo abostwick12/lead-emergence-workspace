@@ -480,6 +480,30 @@ function sqlCount(container, statement) {
   return value;
 }
 
+function namespaceProbe(container, statement) {
+  const result = postgresQuery(container, statement, true);
+  if (result.status === 0) {
+    return { status: "ok", value: sanitizeDiagnostic(result.stdout) };
+  }
+  return {
+    status: "error",
+    stderr: sanitizeDiagnostic(result.stderr).slice(0, 512) || "(no stderr)",
+  };
+}
+
+function captureNamespaceDiagnostics(container) {
+  return {
+    currentUser: namespaceProbe(container, "select current_user"),
+    searchPath: namespaceProbe(container, "show search_path"),
+    unqualifiedIdentitiesRegclass: namespaceProbe(container, "select to_regclass('identities')"),
+    qualifiedIdentitiesRegclass: namespaceProbe(container, "select to_regclass('auth.identities')"),
+    authIdentitiesCount: namespaceProbe(container, "select count(*) from auth.identities"),
+    authUsersCount: namespaceProbe(container, "select count(*) from auth.users"),
+    unqualifiedIdentitiesCount: namespaceProbe(container, "select count(*) from identities"),
+    qualifiedIdentitiesCount: namespaceProbe(container, "select count(*) from auth.identities"),
+  };
+}
+
 async function createConfirmedUser(baseUrl, adminToken, email, password) {
   const { body } = await jsonRequest(`${baseUrl}/admin/users`, {
     method: "POST",
@@ -690,12 +714,23 @@ async function main() {
       throw error;
     }
 
+    emitDiagnostic("namespace-before-fixture", captureNamespaceDiagnostics(database));
+
     const currentEmail = `r5e8k-main-${suffix}@example.invalid`;
     const newEmail = `r5e8k-new-${suffix}@example.invalid`;
     const staleEmail = `r5e8k-stale-${suffix}@example.invalid`;
     const initialPassword = `Synthetic-Initial-${randomBytes(12).toString("base64url")}!`;
     const replacementPassword = `Synthetic-Replacement-${randomBytes(12).toString("base64url")}!`;
-    const userId = await createConfirmedUser(baseUrl, adminToken, currentEmail, initialPassword);
+    let userId;
+    try {
+      userId = await createConfirmedUser(baseUrl, adminToken, currentEmail, initialPassword);
+    } catch (error) {
+      emitDiagnostic("namespace-after-fixture-failure", {
+        database: captureNamespaceDiagnostics(database),
+        gotrueLogs: containerLogs(auth),
+      });
+      throw error;
+    }
     const staleUserId = await createConfirmedUser(baseUrl, adminToken, staleEmail, initialPassword);
 
     const ordinaryOne = await passwordSession(baseUrl, currentEmail, initialPassword, "r5e8k-ordinary-1");
