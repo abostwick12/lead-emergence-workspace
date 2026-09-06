@@ -14,6 +14,7 @@ const GOTRUE_IMAGE = `supabase/gotrue@${GOTRUE_AMD64_DIGEST}`;
 const POSTGRES_IMAGE = imagePin.postgresImage;
 const CALLBACK_PATH = "/auth/callback";
 const TEST_TIMEOUT_MS = 120_000;
+const POSTGRES_INIT_COMPLETE_MARKER = "PostgreSQL init process complete; ready for start up.";
 const diagnosticSecrets = new Set();
 
 function fail(message) {
@@ -352,6 +353,51 @@ async function waitForGoTrueReadiness(baseUrl, container, timeoutMs) {
   );
 }
 
+async function waitForFinalPostgresReadiness(container, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let lifecycleMarkerObserved = false;
+  let lastConnectionStatus = "not-attempted";
+  while (Date.now() < deadline) {
+    const state = containerRuntimeState(container);
+    if (state.status === "exited" || state.status === "dead") {
+      throw new Error(
+        `Postgres exited before final readiness; status=${state.status}; exitCode=${state.exitCode}; restartCount=${state.restartCount}`,
+      );
+    }
+    if (!lifecycleMarkerObserved) {
+      const logs = docker(["logs", "--tail", "200", container], { allowFailure: true });
+      lifecycleMarkerObserved = `${logs.stdout}\n${logs.stderr}`.includes(POSTGRES_INIT_COMPLETE_MARKER);
+    }
+    if (lifecycleMarkerObserved && state.running) {
+      const probe = postgresQuery(
+        container,
+        "select 1::text || '|' || (select count(*) from pg_namespace where nspname='auth')::text || '|' || (select count(*) from pg_tables where schemaname='auth')::text",
+        true,
+      );
+      lastConnectionStatus = probe.status === 0 ? "connected" : "connection-failed";
+      if (probe.status === 0) {
+        const [selectOne, authSchemaCount, authTableCount] = probe.stdout.split("|");
+        if (selectOne !== "1" || authSchemaCount !== "1" || authTableCount !== "0") {
+          throw new Error(
+            `Postgres final readiness invariant mismatch; selectOne=${selectOne}; authSchemaCount=${authSchemaCount}; authTableCount=${authTableCount}`,
+          );
+        }
+        return {
+          lifecycleMarkerObserved,
+          containerRunning: state.running,
+          selectOne: Number(selectOne),
+          authSchemaCount: Number(authSchemaCount),
+          authTableCount: Number(authTableCount),
+        };
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(
+    `timeout waiting for final Postgres readiness; lifecycleMarkerObserved=${lifecycleMarkerObserved}; lastConnectionStatus=${lastConnectionStatus}`,
+  );
+}
+
 async function waitForMessage(messages, index) {
   await waitFor(() => messages.length > index, "synthetic SMTP delivery");
   const decoded = messages[index]
@@ -380,8 +426,15 @@ async function jsonRequest(url, init, expectedStatuses = [200]) {
   return { response, body };
 }
 
+function postgresQuery(container, statement, allowFailure = false) {
+  return docker(
+    ["exec", container, "psql", "-U", "postgres", "-d", "postgres", "-Atq", "-v", "ON_ERROR_STOP=1", "-c", statement],
+    { allowFailure },
+  );
+}
+
 function sql(container, statement) {
-  return docker(["exec", container, "psql", "-U", "postgres", "-d", "postgres", "-Atq", "-v", "ON_ERROR_STOP=1", "-c", statement]).stdout;
+  return postgresQuery(container, statement).stdout;
 }
 
 function sqlCount(container, statement) {
@@ -482,6 +535,7 @@ async function main() {
     const authPort = await freePort();
     const baseUrl = `http://127.0.0.1:${authPort}`;
     const callbackUrl = `${baseUrl}${CALLBACK_PATH}`;
+    const postgresInitScript = resolve(packageRoot, "tests", "integration", "init-auth-schema.sql");
     const jwtSecret = `synthetic-r5e8k-${randomBytes(32).toString("base64url")}`;
     const databasePassword = `synthetic-db-${randomBytes(24).toString("base64url")}`;
     const smtpPassword = `synthetic-smtp-${randomBytes(18).toString("base64url")}`;
@@ -525,16 +579,21 @@ async function main() {
     emitDiagnostic("startup-order", { step: 2, dependency: "docker-network", name: network });
     docker([
       "run", "-d", "--name", database, "--network", network,
+      "-v", `${postgresInitScript}:/docker-entrypoint-initdb.d/00-r5e8k-auth-schema.sql:ro`,
       "-e", `POSTGRES_PASSWORD=${databasePassword}`,
       "-e", "POSTGRES_DB=postgres",
       POSTGRES_IMAGE,
     ], { timeout: 120_000 });
     databaseCreated = true;
     emitDiagnostic("startup-order", { step: 3, dependency: "postgres", state: containerRuntimeState(database) });
-    await waitFor(() => docker(["exec", database, "pg_isready", "-U", "postgres"], { allowFailure: true }).status === 0, "Postgres readiness", 60_000);
-    emitDiagnostic("startup-order", { step: 4, dependency: "postgres-ready", state: containerRuntimeState(database) });
-    sql(database, "create schema if not exists auth");
-    emitDiagnostic("startup-order", { step: 5, dependency: "auth-schema", status: "initialized" });
+    let postgresReadiness;
+    try {
+      postgresReadiness = await waitForFinalPostgresReadiness(database, 60_000);
+      emitDiagnostic("startup-order", { step: 4, dependency: "postgres-final-ready", postgresReadiness });
+    } catch (error) {
+      emitStartupDiagnostics({ network, database, auth, smtp });
+      throw error;
+    }
 
     docker([
       "run", "-d", "--name", auth, "--network", network,
@@ -574,14 +633,14 @@ async function main() {
     ], { timeout: 120_000 });
     authCreated = true;
     emitDiagnostic("startup-order", {
-      step: 6,
+      step: 5,
       dependency: "gotrue-started",
       state: containerRuntimeState(auth),
       readiness: { origin: baseUrl, path: "/health", method: "GET" },
     });
     try {
       const readiness = await waitForGoTrueReadiness(baseUrl, auth, 90_000);
-      emitDiagnostic("startup-order", { step: 7, dependency: "gotrue-ready", readiness });
+      emitDiagnostic("startup-order", { step: 6, dependency: "gotrue-ready", readiness });
       emitDiagnostic("runtime-ready", {
         postgres: containerDiagnostic(database),
         gotrue: containerDiagnostic(auth),
