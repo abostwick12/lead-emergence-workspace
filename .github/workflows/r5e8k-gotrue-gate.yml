@@ -74,6 +74,10 @@ jobs:
             exit 1
           fi
 
+      - name: Verify synthetic SMTP STARTTLS contract
+        working-directory: acceptance/r5e8k
+        run: npm run test:smtp
+
       - name: Run pinned GoTrue recovery and concurrency assertions
         working-directory: acceptance/r5e8k
         run: npm run test:gotrue

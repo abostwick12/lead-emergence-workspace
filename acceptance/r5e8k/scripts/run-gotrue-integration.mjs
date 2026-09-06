@@ -4,6 +4,7 @@ import { createServer } from "node:net";
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createEphemeralSmtpTlsMaterial, startSmtpCapture } from "./synthetic-smtp.mjs";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const imagePin = JSON.parse(readFileSync(resolve(packageRoot, "gotrue-image.json"), "utf8"));
@@ -15,6 +16,7 @@ const POSTGRES_IMAGE = imagePin.postgresImage;
 const CALLBACK_PATH = "/auth/callback";
 const TEST_TIMEOUT_MS = 120_000;
 const POSTGRES_INIT_COMPLETE_MARKER = "PostgreSQL init process complete; ready for start up.";
+const SMTP_CA_PATH = "/etc/ssl/certs/r5e8k-synthetic-smtp-ca.pem";
 const diagnosticSecrets = new Set();
 
 function fail(message) {
@@ -159,6 +161,18 @@ function recoveryFailureDiagnostics({ error, auth, smtp, network, smtpHost, smtp
     gotrue: containerDiagnostic(auth),
     network: networkDiagnostic(network),
     gotrueLogsForErrorId: matchingLogs.join("\n") || "(no matching GoTrue log lines)",
+  };
+}
+
+function assertSmtpTlsPreflight(container, tlsMaterial) {
+  const caFile = docker(
+    ["exec", container, "/bin/sh", "-c", `test -s ${SMTP_CA_PATH}`],
+    { allowFailure: true },
+  );
+  if (caFile.status !== 0) fail("synthetic SMTP CA file is unavailable inside GoTrue");
+  return {
+    caFileExistsInGoTrue: true,
+    serverCertificate: tlsMaterial.diagnostics,
   };
 }
 
@@ -311,97 +325,6 @@ async function freePort() {
       server.close((error) => (error ? reject(error) : resolve(port)));
     });
   });
-}
-
-function startSmtpCapture() {
-  const messages = [];
-  const sockets = new Set();
-  let acceptedConnections = 0;
-  const server = createServer((socket) => {
-    acceptedConnections += 1;
-    sockets.add(socket);
-    let buffer = "";
-    let dataMode = false;
-    let dataLines = [];
-    let authLoginStep = 0;
-    socket.setEncoding("utf8");
-    socket.write("220 r5e8k.synthetic ESMTP\r\n");
-    socket.on("data", (chunk) => {
-      buffer += chunk;
-      while (buffer.includes("\r\n")) {
-        const boundary = buffer.indexOf("\r\n");
-        const line = buffer.slice(0, boundary);
-        buffer = buffer.slice(boundary + 2);
-        if (dataMode) {
-          if (line === ".") {
-            messages.push(dataLines.join("\r\n"));
-            dataLines = [];
-            dataMode = false;
-            socket.write("250 2.0.0 accepted\r\n");
-          } else {
-            dataLines.push(line.startsWith("..") ? line.slice(1) : line);
-          }
-          continue;
-        }
-        if (authLoginStep > 0) {
-          if (authLoginStep === 1) {
-            authLoginStep = 2;
-            socket.write("334 UGFzc3dvcmQ6\r\n");
-          } else {
-            authLoginStep = 0;
-            socket.write("235 2.7.0 authenticated\r\n");
-          }
-          continue;
-        }
-        const command = line.toUpperCase();
-        if (command.startsWith("EHLO") || command.startsWith("HELO")) {
-          socket.write("250-r5e8k.synthetic\r\n250 AUTH PLAIN LOGIN\r\n");
-        } else if (command.startsWith("AUTH PLAIN")) {
-          socket.write("235 2.7.0 authenticated\r\n");
-        } else if (command === "AUTH LOGIN") {
-          authLoginStep = 1;
-          socket.write("334 VXNlcm5hbWU6\r\n");
-        } else if (command === "DATA") {
-          dataMode = true;
-          socket.write("354 End data with <CR><LF>.<CR><LF>\r\n");
-        } else if (command === "QUIT") {
-          socket.end("221 2.0.0 bye\r\n");
-        } else {
-          socket.write("250 2.0.0 ok\r\n");
-        }
-      }
-    });
-    socket.on("close", () => sockets.delete(socket));
-  });
-  return {
-    messages,
-    status() {
-      const address = server.address();
-      return {
-        listening: server.listening,
-        bindAddress: address && typeof address !== "string" ? address.address : null,
-        port: address && typeof address !== "string" ? address.port : null,
-        acceptedConnections,
-        activeConnections: sockets.size,
-        capturedMessages: messages.length,
-      };
-    },
-    async listen() {
-      return new Promise((resolve, reject) => {
-        server.once("error", reject);
-        server.listen(0, "0.0.0.0", () => {
-          const address = server.address();
-          if (address === null || typeof address === "string") return reject(new Error("SMTP bind failed"));
-          resolve(address.port);
-        });
-      });
-    },
-    async close() {
-      for (const socket of sockets) socket.destroy();
-      for (let index = 0; index < messages.length; index += 1) messages[index] = "";
-      return new Promise((resolve) => server.close(() => resolve()));
-    },
-  };
 }
 
 async function waitFor(predicate, label, timeoutMs = 30_000) {
@@ -699,15 +622,15 @@ async function main() {
   const network = `r5e8k-net-${suffix}`;
   const database = `r5e8k-db-${suffix}`;
   const auth = `r5e8k-auth-${suffix}`;
-  const smtp = startSmtpCapture();
+  const smtpHost = "host.docker.internal";
+  const smtpUsername = "r5e8k-synthetic";
+  let smtp = null;
+  let smtpTlsMaterial = null;
   let smtpStarted = false;
   let networkCreated = false;
   let databaseCreated = false;
   let authCreated = false;
   try {
-    const smtpPort = await smtp.listen();
-    smtpStarted = true;
-    const smtpHost = "host.docker.internal";
     const authPort = await freePort();
     const baseUrl = `http://127.0.0.1:${authPort}`;
     const callbackUrl = `${baseUrl}${CALLBACK_PATH}`;
@@ -717,6 +640,15 @@ async function main() {
     const authDatabasePassword = `synthetic-auth-db-${randomBytes(24).toString("base64url")}`;
     const authDatabaseRuntime = { username: "supabase_auth_admin", password: authDatabasePassword };
     const smtpPassword = `synthetic-smtp-${randomBytes(18).toString("base64url")}`;
+    smtpTlsMaterial = createEphemeralSmtpTlsMaterial(smtpHost);
+    smtp = startSmtpCapture({
+      hostname: smtpHost,
+      username: smtpUsername,
+      password: smtpPassword,
+      tlsMaterial: smtpTlsMaterial,
+    });
+    const smtpPort = await smtp.listen();
+    smtpStarted = true;
     const keyPair = await webcrypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
     const privateJwk = await webcrypto.subtle.exportKey("jwk", keyPair.privateKey);
     const publicJwk = await webcrypto.subtle.exportKey("jwk", keyPair.publicKey);
@@ -782,8 +714,10 @@ async function main() {
       "--add-host", "host.docker.internal:host-gateway",
       "--platform", "linux/amd64",
       "-p", `127.0.0.1:${authPort}:9999`,
+      "-v", `${smtpTlsMaterial.caPath}:${SMTP_CA_PATH}:ro`,
       "-e", "GOTRUE_API_HOST=0.0.0.0",
       "-e", "PORT=9999",
+      "-e", `SSL_CERT_FILE=${SMTP_CA_PATH}`,
       "-e", `API_EXTERNAL_URL=${baseUrl}`,
       "-e", `GOTRUE_SITE_URL=${callbackUrl}`,
       "-e", `GOTRUE_URI_ALLOW_LIST=${callbackUrl}`,
@@ -803,7 +737,7 @@ async function main() {
       "-e", "GOTRUE_MAILER_NOTIFICATIONS_PASSWORD_CHANGED_ENABLED=false",
       "-e", `GOTRUE_SMTP_HOST=${smtpHost}`,
       "-e", `GOTRUE_SMTP_PORT=${smtpPort}`,
-      "-e", "GOTRUE_SMTP_USER=r5e8k-synthetic",
+      "-e", `GOTRUE_SMTP_USER=${smtpUsername}`,
       "-e", `GOTRUE_SMTP_PASS=${smtpPassword}`,
       "-e", "GOTRUE_SMTP_ADMIN_EMAIL=r5e8k@example.invalid",
       "-e", "GOTRUE_SMTP_SENDER_NAME=R5E8K Synthetic",
@@ -829,6 +763,7 @@ async function main() {
         smtp: smtp.status(),
         network: networkDiagnostic(network),
       });
+      emitDiagnostic("smtp-tls-preflight", assertSmtpTlsPreflight(auth, smtpTlsMaterial));
     } catch (error) {
       emitStartupDiagnostics({ network, database, auth, smtp });
       throw error;
@@ -1018,6 +953,7 @@ async function main() {
     if (databaseCreated) docker(["rm", "-f", database], { allowFailure: true });
     if (networkCreated) docker(["network", "rm", network], { allowFailure: true });
     if (smtpStarted) await smtp.close();
+    smtpTlsMaterial?.dispose();
   }
 }
 

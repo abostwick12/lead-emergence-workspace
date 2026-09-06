@@ -10,6 +10,7 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude tests/integration/**",
+    "test:smtp": "node --test tests/integration/synthetic-smtp.test.mjs",
     "test:browser": "node scripts/verify-browser-fixture.mjs && playwright test",
     "test:gotrue": "node scripts/run-gotrue-integration.mjs",
     "verify": "node scripts/verify-artifact.mjs",
