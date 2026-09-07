@@ -637,8 +637,8 @@ invite, external send, auth configuration, or route cutover was performed.
   was rejected by Next's development cross-origin protection. The corrected
   same-origin rerun passed; no product code was changed to bypass the check.
 - `git diff --check` — **PASS** after final documentation and source review.
-- `npm run scan:sensitive` — **PASS** for the final RC working tree, 80
-  release-lineage commits, and 508 unique reachable Git blobs;
+- `npm run scan:sensitive` — **PASS** for the final RC working tree, 82
+  release-lineage commits, and 511 unique reachable Git blobs;
   dependency/build/browser output is excluded by the scanner. Three exact,
   source-visible synthetic fixture sets are allowlisted. Real key, token,
   credential, connection-string, personal-identifier, and secret-like
