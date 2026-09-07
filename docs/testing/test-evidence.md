@@ -584,3 +584,81 @@ change, a Vercel deployment, or a real assistant connection.
 - `npm run test:schema` — **26/26 PASS**; `npm run check:boundaries`,
   `npm run typecheck`, `npm run lint`, and `npm run build` — **PASS**;
   `npm run test:unit` — **69/69 PASS**.
+
+## SOTF invited-pilot clean release candidate — 2026-09-07
+
+This evidence belongs to Workspace branch `release/sotf-pilot-rc`, created
+directly from published `origin/main` at
+`c4cfc1beb8b10cbecdc7c72bea447655928b4086`. The reviewed
+`astra/sotf-indispensable` branch was used only as a file-level source; its
+unpublished PC, auth-test, R5, and experimental foundation history is not RC
+ancestry. No hosted migration, production deployment, live entitlement, real
+invite, external send, auth configuration, or route cutover was performed.
+
+- Fresh `npm ci` — **PASS**, 464 packages installed from the lockfile. npm
+  reported one moderate and one high dependency advisory; no automatic
+  dependency mutation was made during this scoped RC.
+- Local `supabase db reset --local` — **PASS** after the final synthetic-fixture
+  cleanup. The clean replay applies
+  `20260902162536_bundle_entitlement_foundation.sql` followed by
+  `20260906120000_sotf_operational_workflows.sql`, after published main.
+- `supabase db lint --local --schema workspace,workspace_private,public
+  --level warning --fail-on error` — **PASS**, no schema errors.
+- `npm run test:rls` — **277/277 PASS** across nine pgTAP files. SOTF coverage
+  includes active, absent, revoked, expired, wrong-Workspace, malformed MCP,
+  unavailable-catalog, disconnected-client, plan, membership, and ordinary-RLS
+  denial states. Revocation preserves ordinary Workspace access.
+- `npm run test:bundle:local` — **PASS** against loopback Next.js and local
+  Supabase: synthetic founder assignment, email-bound single-use invite,
+  claim, idempotent retries, ordinary-user denial, invalid claim, entitlement
+  revocation, and canonical resolution. The final database reset removed its
+  fixed `.invalid` Auth fixtures.
+- `npm run check:boundaries` — **PASS**, 83 runtime files contain no Ministry or
+  Consulting runtime import and no service-role client.
+- `npm run test:schema` — **31/31 PASS**, including entitlement-aware native/MCP
+  presentation and explicit absence of protected PC and General P2.
+- `npm run test:unit` — **100/100 PASS** in 17 files. This includes exact-true
+  MCP catalog admission, native/MCP bidirectional continuity, fresh-conversation
+  recovery, duplicate/replay handling, uncertain-save identity, reviewed
+  scheduling, and the sequential synthetic first-fellow golden path.
+- `npm run typecheck`, `npm run lint`, and `npm run build` — **PASS**. The
+  production build includes SOTF native/API routes and the existing Entry SSO,
+  callback, OAuth, and MCP routes without a route conflict.
+- SOTF browser acceptance — **8/8 PASS** across desktop and mobile: six public
+  preview cases plus two connected synthetic-session cases. It proves a
+  criterion changes the recommendation, evidence/debrief/next-touch behavior,
+  scheduling and manual invitation draft, no account API use in preview,
+  reload continuity, and lost-save recovery. No external message or calendar
+  invitation was sent.
+- Initial browser launch with `127.0.0.1` against a `localhost` Next dev origin
+  was rejected by Next's development cross-origin protection. The corrected
+  same-origin rerun passed; no product code was changed to bypass the check.
+- `git diff --check` — **PASS** after final documentation and source review.
+- `npm run scan:sensitive` — **PASS** for the final RC working tree, 78
+  release-lineage commits, and 505 unique reachable Git blobs;
+  dependency/build/browser output is excluded by the scanner. Three exact,
+  source-visible synthetic fixture sets are allowlisted. Real key, token,
+  credential, connection-string, personal-identifier, and secret-like
+  assignment patterns remain hard failures.
+
+### Separate Entry landing acceptance
+
+- Entry branch `astra/lead-emergence-front-door` was freshly fetched and remains
+  based directly on published Entry `origin/main`
+  `ef7fd32a573f2f03c0be24f50007ceed600406f2`. The branch diff against that base
+  contains no login, callback, session, identity, chooser, handoff, OAuth,
+  proxy, or database-owner file change.
+- Fresh `npm ci` — **PASS**, 460 packages and zero audit vulnerabilities.
+- `npm run test:unit` — **18/18 PASS**; `npm run typecheck`, `npm run lint`, and
+  `npm run build` — **PASS**.
+- Dedicated production browser acceptance — **10/10 PASS** across desktop and
+  mobile. Every public sign-in CTA uses `/login`; the canonical Entry login has
+  one credential form and defaults to `/workspaces`. The suite also passes
+  decision-example behavior, optional playback, keyboard dismissal, media
+  failure, reduced motion, data saving, mobile static hero, and overflow.
+- Clean production measurement identifies the hero heading as LCP at **0.532 s
+  desktop** and **1.024 s throttled mobile** (4× CPU slowdown, 1.6 Mbps, 100 ms
+  RTT). Initial video requests are zero and mobile scroll requests no hero
+  video. This resolves the reproducible local concern but is not a field or
+  physical-device result; deployed-preview and physical-phone checks remain a
+  production gate.
