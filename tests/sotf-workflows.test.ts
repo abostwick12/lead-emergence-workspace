@@ -278,9 +278,11 @@ it("completes the synthetic first-fellow opportunity-to-follow-up golden path", 
   h.accept("qualification", { dimension: "experience", score: 9 });
   h.accept("work", { dimension: "actual_work", score: 8 });
   h.run({ type: "resolve_requirement", opportunityId: "role", requirementId: "experience", status: "met", evidenceIds: ["qualification"] });
+  h.accept("authority-concern", { dimension: "environment", criterionId: "authority", direction: "conflicting", reliability: "medium", score: 4, statement: "An earlier practitioner described coordination with limited authority" });
   const initialAssessment = assessOpportunity(h.state, "role");
   expect(initialAssessment.eligibility).toBe("eligible");
-  expect(initialAssessment.vector.find((item) => item.dimension === "environment")?.score).toBeNull();
+  expect(initialAssessment.vector.find((item) => item.dimension === "environment")?.score).toBe(4);
+  expect(initialAssessment.vector.find((item) => item.dimension === "culture")?.score).toBeNull();
 
   h.run({ type: "decide_opportunity", opportunityId: "role", decision: "investigate", rationale: "The role merits one focused learning conversation", nextAction: "Ask how delivery decisions are made", revisitWhen: "After the practitioner conversation", due: "2026-09-09" });
   expect(resumeTransition(h.state).latestDecision?.opportunity.decision?.nextAction).toContain("delivery decisions");
@@ -309,6 +311,9 @@ it("completes the synthetic first-fellow opportunity-to-follow-up golden path", 
   h.run({ type: "debrief_meeting", meetingId: "conversation", said: "The team owns routine delivery decisions but escalates changes to portfolio scope", inferred: "The work has meaningful bounded ownership", unresolved: ["How frequently portfolio escalation occurs"], evidence: [{ id: "golden-path-evidence", statement: "The practitioner described routine team-level delivery authority", source: { kind: "practitioner", reference: "Fictional Morgan, synthetic meeting notes", observedAt: "2026-09-08", scope: "This fictional team only" }, direction: "supporting", dimension: "environment", criterionId: "authority", score: 8, reliability: "high" }], commitments: [{ ...promise, id: "golden-path-promise", due: "2026-09-09" }], introductions: ["Morgan offered a fictional manager introduction; completion is unverified"], nextTouch: "2026-09-10" }, "2026-09-08T16:00:00.000Z");
   h.run({ type: "review_evidence", evidenceId: "golden-path-evidence", decision: "accept", rationale: "The fellow confirmed the scoped meeting note" }, "2026-09-08T16:01:00.000Z");
   expect(hypothesisLearning(h.state, "direction").supporting.map((item) => item.id)).toContain("golden-path-evidence");
+  const learnedAssessment = assessOpportunity(h.state, "role");
+  expect(initialAssessment.recommendation).toBe("MAYBE");
+  expect(learnedAssessment.recommendation).toBe("GO");
   expect(h.state.commitments.map((item) => item.id)).toContain("golden-path-promise");
   expect(h.state.actions.some((item) => item.meetingId === "conversation" && item.state === "draft")).toBe(true);
   expect(h.state.people.find((item) => item.id === "person")?.nextTouch).toBe("2026-09-10");
