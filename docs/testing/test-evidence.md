@@ -595,9 +595,12 @@ unpublished PC, auth-test, R5, and experimental foundation history is not RC
 ancestry. No hosted migration, production deployment, live entitlement, real
 invite, external send, auth configuration, or route cutover was performed.
 
-- Fresh `npm ci` — **PASS**, 464 packages installed from the lockfile. npm
-  reported one moderate and one high dependency advisory; no automatic
-  dependency mutation was made during this scoped RC.
+- Final fresh `npm ci` — **PASS**, 464 packages installed from the lockfile and
+  **zero vulnerabilities**. The first install exposed a high-severity
+  `fast-uri` and moderate `qs` advisory through the pinned MCP SDK. npm's dry
+  run established compatible lockfile-only updates; commit `73247e62` resolves
+  them to `3.1.7` and `6.16.0`. Direct dependency ranges and application APIs
+  did not change. `npm audit --omit=dev` is now **0 vulnerabilities**.
 - Local `supabase db reset --local` — **PASS** after the final synthetic-fixture
   cleanup. The clean replay applies
   `20260902162536_bundle_entitlement_foundation.sql` followed by
@@ -613,15 +616,15 @@ invite, external send, auth configuration, or route cutover was performed.
   claim, idempotent retries, ordinary-user denial, invalid claim, entitlement
   revocation, and canonical resolution. The final database reset removed its
   fixed `.invalid` Auth fixtures.
-- `npm run check:boundaries` — **PASS**, 83 runtime files contain no Ministry or
+- Final post-remediation `npm run check:boundaries` — **PASS**, 83 runtime files contain no Ministry or
   Consulting runtime import and no service-role client.
-- `npm run test:schema` — **31/31 PASS**, including entitlement-aware native/MCP
+- Final post-remediation `npm run test:schema` — **31/31 PASS**, including entitlement-aware native/MCP
   presentation and explicit absence of protected PC and General P2.
-- `npm run test:unit` — **100/100 PASS** in 17 files. This includes exact-true
+- Final post-remediation `npm run test:unit` — **100/100 PASS** in 17 files. This includes exact-true
   MCP catalog admission, native/MCP bidirectional continuity, fresh-conversation
   recovery, duplicate/replay handling, uncertain-save identity, reviewed
   scheduling, and the sequential synthetic first-fellow golden path.
-- `npm run typecheck`, `npm run lint`, and `npm run build` — **PASS**. The
+- Final post-remediation `npm run typecheck`, `npm run lint`, and `npm run build` — **PASS**. The
   production build includes SOTF native/API routes and the existing Entry SSO,
   callback, OAuth, and MCP routes without a route conflict.
 - SOTF browser acceptance — **8/8 PASS** across desktop and mobile: six public
@@ -634,8 +637,8 @@ invite, external send, auth configuration, or route cutover was performed.
   was rejected by Next's development cross-origin protection. The corrected
   same-origin rerun passed; no product code was changed to bypass the check.
 - `git diff --check` — **PASS** after final documentation and source review.
-- `npm run scan:sensitive` — **PASS** for the final RC working tree, 78
-  release-lineage commits, and 505 unique reachable Git blobs;
+- `npm run scan:sensitive` — **PASS** for the final RC working tree, 80
+  release-lineage commits, and 508 unique reachable Git blobs;
   dependency/build/browser output is excluded by the scanner. Three exact,
   source-visible synthetic fixture sets are allowlisted. Real key, token,
   credential, connection-string, personal-identifier, and secret-like
