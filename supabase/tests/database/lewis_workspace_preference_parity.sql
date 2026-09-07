@@ -26,9 +26,17 @@ insert into workspace.personal_plans (workspace_id, user_id, plan_key) values
   ('9bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '92222222-2222-4222-8222-222222222222', 'personal');
 
 insert into workspace.mcp_authorizations (id, workspace_id, client_id, assistant_provider, status, granted_scopes, connected_at, created_by) values
-  ('9c111111-1111-4111-8111-111111111111', '9aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'preferences-chatgpt', 'chatgpt', 'connected', array['openid', 'email', 'profile'], now(), '91111111-1111-4111-8111-111111111111'),
-  ('9c222222-2222-4222-8222-222222222222', '9aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'preferences-claude', 'claude', 'connected', array['openid', 'email', 'profile'], now(), '91111111-1111-4111-8111-111111111111'),
-  ('9c333333-3333-4333-8333-333333333333', '9bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'preferences-bob-claude', 'claude', 'connected', array['openid', 'email', 'profile'], now(), '92222222-2222-4222-8222-222222222222');
+  ('9c111111-1111-4111-8111-111111111111', '9aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '9d111111-1111-4111-8111-111111111111', 'chatgpt', 'connected', array['openid', 'email', 'profile'], now(), '91111111-1111-4111-8111-111111111111'),
+  ('9c222222-2222-4222-8222-222222222222', '9aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '9d222222-2222-4222-8222-222222222222', 'claude', 'connected', array['openid', 'email', 'profile'], now(), '91111111-1111-4111-8111-111111111111'),
+  ('9c333333-3333-4333-8333-333333333333', '9bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '9d333333-3333-4333-8333-333333333333', 'claude', 'connected', array['openid', 'email', 'profile'], now(), '92222222-2222-4222-8222-222222222222');
+
+update workspace_private.product_settings
+set setting_value = 'true', updated_at = now()
+where setting_key = 'mcp_dynamic_admission_enabled';
+insert into workspace_private.mcp_oauth_resource_grants (user_id, client_id, resource_uri, granted_scopes) values
+  ('91111111-1111-4111-8111-111111111111', '9d111111-1111-4111-8111-111111111111', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']),
+  ('91111111-1111-4111-8111-111111111111', '9d222222-2222-4222-8222-222222222222', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']),
+  ('92222222-2222-4222-8222-222222222222', '9d333333-3333-4333-8333-333333333333', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']);
 
 select set_config(
   'request.test_mcp_resource_uri',
@@ -46,7 +54,7 @@ select set_config(
     'sub', '91111111-1111-4111-8111-111111111111',
     'role', 'authenticated',
     'aud', current_setting('request.test_mcp_resource_uri'),
-    'client_id', 'preferences-chatgpt',
+    'client_id', '9d111111-1111-4111-8111-111111111111',
     'workspace_mcp', 'true',
     'iat', 1700000000
   )::text,
@@ -135,23 +143,23 @@ select is(
 );
 select throws_ok(
   $sql$select workspace.mcp_get_clock_preferences()$sql$,
-  '42501', 'This AI assistant connection is disconnected or requires authorization.',
+  '42501', 'The MCP authorization is invalid or has the wrong audience.',
   'a disconnected assistant bearer cannot make further privileged Lewis calls'
 );
 
 reset role;
 select is(
-  (select status from workspace.mcp_authorizations where workspace_id = '9aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and client_id = 'preferences-chatgpt'),
+  (select status from workspace.mcp_authorizations where workspace_id = '9aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and client_id = '9d111111-1111-4111-8111-111111111111'),
   'disconnected',
   'self-disconnect updates only the current assistant authorization'
 );
 select is(
-  (select status from workspace.mcp_authorizations where workspace_id = '9aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and client_id = 'preferences-claude'),
+  (select status from workspace.mcp_authorizations where workspace_id = '9aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and client_id = '9d222222-2222-4222-8222-222222222222'),
   'disconnected',
   'confirmed cross-assistant disconnect revokes the separately authorized assistant'
 );
 select is(
-  (select status from workspace.mcp_authorizations where workspace_id = '9bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' and client_id = 'preferences-bob-claude'),
+  (select status from workspace.mcp_authorizations where workspace_id = '9bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' and client_id = '9d333333-3333-4333-8333-333333333333'),
   'connected',
   'cross-Workspace assistant authorization remains connected'
 );

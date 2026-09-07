@@ -38,8 +38,15 @@ insert into workspace.tasks (id, workspace_id, title, created_by) values
   ('6b100000-0000-4000-8000-000000000001', '6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Bob private task', '62222222-2222-4222-8222-222222222222');
 
 insert into workspace.mcp_authorizations (workspace_id, client_id, assistant_provider, status, connected_at, created_by) values
-  ('6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'alice-mcp-client', 'chatgpt', 'connected', now(), '61111111-1111-4111-8111-111111111111'),
-  ('6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'bob-mcp-client', 'claude', 'connected', now(), '62222222-2222-4222-8222-222222222222');
+  ('6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '6c111111-1111-4111-8111-111111111111', 'chatgpt', 'connected', now(), '61111111-1111-4111-8111-111111111111'),
+  ('6bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '6c222222-2222-4222-8222-222222222222', 'claude', 'connected', now(), '62222222-2222-4222-8222-222222222222');
+
+update workspace_private.product_settings
+set setting_value = 'true', updated_at = now()
+where setting_key = 'mcp_dynamic_admission_enabled';
+insert into workspace_private.mcp_oauth_resource_grants (user_id, client_id, resource_uri, granted_scopes) values
+  ('61111111-1111-4111-8111-111111111111', '6c111111-1111-4111-8111-111111111111', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']),
+  ('62222222-2222-4222-8222-222222222222', '6c222222-2222-4222-8222-222222222222', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']);
 
 select set_config(
   'request.test_mcp_resource_uri',
@@ -167,7 +174,7 @@ select throws_ok(
 );
 select is((select count(*) from workspace.tasks), 1::bigint, 'capability removal preserves existing task data');
 
-select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', '6c111111-1111-4111-8111-111111111111', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
 select is(
   pg_catalog.jsonb_array_length(workspace.mcp_get_leadership_state() -> 'open_tasks'),
   0,
@@ -182,7 +189,7 @@ select throws_ok(
 reset role;
 update workspace.plan_capabilities set enabled = false where plan_key = 'personal' and capability_key = 'workspace_mcp';
 set local role authenticated;
-select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', '6c111111-1111-4111-8111-111111111111', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
 select throws_ok(
   $sql$select workspace.mcp_get_onboarding_state()$sql$,
   '42501', 'The AI assistant connection is not included for this Workspace.',
@@ -201,7 +208,7 @@ select is((select count(*) from workspace.tasks), 2::bigint, 'enabled capability
 
 reset role;
 set local role authenticated;
-select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', '6c111111-1111-4111-8111-111111111111', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
 
 select is((select count(*) from workspace.tasks), 0::bigint, 'MCP OAuth token cannot traverse ordinary task RLS');
 select is((select count(*) from workspace.personal_configuration_items), 0::bigint, 'MCP OAuth token cannot traverse configuration RLS');
@@ -278,19 +285,19 @@ select is(
   'Lewis task deletion is safe to retry after a missing task'
 );
 
-select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'bob-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', '6c222222-2222-4222-8222-222222222222', 'workspace_mcp', 'true', 'iat', 1900000000)::text, true);
 select throws_ok(
   $sql$select workspace.mcp_get_workspace_setup()$sql$,
-  '42501', 'This AI assistant connection is disconnected or requires authorization.',
+  '42501', 'The MCP authorization is invalid or has the wrong audience.',
   'Alice cannot use Bob MCP client authorization'
 );
 select throws_ok(
   $sql$select workspace.mcp_create_task('Bob client task attempt', '61111111-1111-4111-8111-111111111103')$sql$,
-  '42501', 'This AI assistant connection is disconnected or requires authorization.',
+  '42501', 'The MCP authorization is invalid or has the wrong audience.',
   'an unauthorized MCP client cannot create Alice tasks'
 );
 
-select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://wrong.example/api/mcp","client_id":"alice-mcp-client","workspace_mcp":"true","iat":1900000000}', true);
+select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"https://wrong.example/api/mcp","client_id":"6c111111-1111-4111-8111-111111111111","workspace_mcp":"true","iat":1900000000}', true);
 select throws_ok(
   $sql$select workspace.mcp_get_workspace_setup()$sql$,
   '42501', 'The MCP authorization is invalid or has the wrong audience.',
@@ -300,16 +307,16 @@ select throws_ok(
 reset role;
 update workspace.mcp_authorizations set status = 'disconnected', disconnected_at = now() where workspace_id = '6aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 set local role authenticated;
-select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1700000000)::text, true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', '6c111111-1111-4111-8111-111111111111', 'workspace_mcp', 'true', 'iat', 1700000000)::text, true);
 select throws_ok(
   $sql$select workspace.mcp_get_onboarding_state()$sql$,
   '42501', 'This AI assistant connection is disconnected or requires authorization.',
   'disconnected MCP cannot make privileged calls'
 );
 
-select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1900000100)::text, true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', '6c111111-1111-4111-8111-111111111111', 'workspace_mcp', 'true', 'iat', 1900000100)::text, true);
 select is(workspace.mcp_register_connection() ->> 'status', 'connected', 'a newly issued authorization can reconnect the same MCP client');
-select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', 'alice-mcp-client', 'workspace_mcp', 'true', 'iat', 1700000000)::text, true);
+select set_config('request.jwt.claims', pg_catalog.jsonb_build_object('sub', '61111111-1111-4111-8111-111111111111', 'role', 'authenticated', 'aud', current_setting('request.test_mcp_resource_uri'), 'client_id', '6c111111-1111-4111-8111-111111111111', 'workspace_mcp', 'true', 'iat', 1700000000)::text, true);
 select throws_ok(
   $sql$select workspace.mcp_get_onboarding_state()$sql$,
   '42501', 'This AI assistant connection is disconnected or requires authorization.',
@@ -323,12 +330,12 @@ select is(
   'direct session audience is unchanged by the OAuth hook'
 );
 select is(
-  workspace_private.custom_access_token_hook('{"claims":{"sub":"61111111-1111-4111-8111-111111111111","client_id":"alice-mcp-client"}}'::jsonb) #>> '{claims,aud}',
+  workspace_private.custom_access_token_hook('{"claims":{"sub":"61111111-1111-4111-8111-111111111111","client_id":"6c111111-1111-4111-8111-111111111111"}}'::jsonb) #>> '{claims,aud}',
   current_setting('request.test_mcp_resource_uri'),
   'OAuth hook binds MCP token to the canonical resource'
 );
 select is(
-  workspace_private.custom_access_token_hook('{"claims":{"sub":"61111111-1111-4111-8111-111111111111","client_id":"alice-mcp-client"}}'::jsonb) #>> '{claims,workspace_mcp}',
+  workspace_private.custom_access_token_hook('{"claims":{"sub":"61111111-1111-4111-8111-111111111111","client_id":"6c111111-1111-4111-8111-111111111111"}}'::jsonb) #>> '{claims,workspace_mcp}',
   'true',
   'OAuth hook marks only OAuth client tokens as Workspace MCP tokens'
 );

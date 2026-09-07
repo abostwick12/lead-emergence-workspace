@@ -51,8 +51,15 @@ insert into workspace.integration_connections (id, workspace_id, provider, statu
   ('7b400000-0000-4000-8000-000000000001', '7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'google_calendar', 'connected', 'Bob calendar', array['calendar.readonly'], '72222222-2222-4222-8222-222222222222');
 
 insert into workspace.mcp_authorizations (workspace_id, client_id, assistant_provider, status, connected_at, created_by) values
-  ('7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'parity-alice-client', 'chatgpt', 'connected', now(), '71111111-1111-4111-8111-111111111111'),
-  ('7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'parity-bob-client', 'claude', 'connected', now(), '72222222-2222-4222-8222-222222222222');
+  ('7aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '7c111111-1111-4111-8111-111111111111', 'chatgpt', 'connected', now(), '71111111-1111-4111-8111-111111111111'),
+  ('7bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', '7c222222-2222-4222-8222-222222222222', 'claude', 'connected', now(), '72222222-2222-4222-8222-222222222222');
+
+update workspace_private.product_settings
+set setting_value = 'true', updated_at = now()
+where setting_key = 'mcp_dynamic_admission_enabled';
+insert into workspace_private.mcp_oauth_resource_grants (user_id, client_id, resource_uri, granted_scopes) values
+  ('71111111-1111-4111-8111-111111111111', '7c111111-1111-4111-8111-111111111111', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']),
+  ('72222222-2222-4222-8222-222222222222', '7c222222-2222-4222-8222-222222222222', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']);
 
 select set_config(
   'request.test_mcp_resource_uri',
@@ -73,7 +80,7 @@ select set_config(
     'sub', '71111111-1111-4111-8111-111111111111',
     'role', 'authenticated',
     'aud', current_setting('request.test_mcp_resource_uri'),
-    'client_id', 'parity-alice-client',
+    'client_id', '7c111111-1111-4111-8111-111111111111',
     'workspace_mcp', 'true',
     'iat', 1900000000
   )::text,
@@ -256,7 +263,7 @@ select set_config(
 );
 select throws_ok(
   $sql$select workspace.mcp_list_captures()$sql$,
-  '42501', 'This AI assistant connection is disconnected or requires authorization.',
+  '42501', 'The MCP authorization is invalid or has the wrong audience.',
   'an unrecognized OAuth client cannot use Alice Workspace actions'
 );
 

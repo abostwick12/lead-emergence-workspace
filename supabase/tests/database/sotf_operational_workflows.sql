@@ -77,6 +77,7 @@ update workspace.bundle_definitions set availability_status='active' where bundl
 insert into workspace.mcp_authorizations(workspace_id,client_id,assistant_provider,status,connected_at,created_by) values
 ('60aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','60cccccc-cccc-4ccc-8ccc-cccccccccccc','chatgpt','connected',now(),'60111111-1111-4111-8111-111111111111');
 update workspace_private.product_settings set setting_value='true' where setting_key='mcp_dynamic_admission_enabled';
+update workspace_private.product_settings set setting_value='https://workspace.leademergence.com/api/mcp' where setting_key='mcp_resource_uri';
 insert into workspace_private.mcp_oauth_resource_grants(user_id,client_id,resource_uri,granted_scopes)
 select '60111111-1111-4111-8111-111111111111','60cccccc-cccc-4ccc-8ccc-cccccccccccc',setting_value,array['openid','email','profile'] from workspace_private.product_settings where setting_key='mcp_resource_uri';
 select set_config('request.sotf_mcp_claims',jsonb_build_object('sub','60111111-1111-4111-8111-111111111111','role','authenticated','aud',(select setting_value from workspace_private.product_settings where setting_key='mcp_resource_uri'),'client_id','60cccccc-cccc-4ccc-8ccc-cccccccccccc','workspace_mcp','true','iat',floor(extract(epoch from clock_timestamp())))::text,true);
