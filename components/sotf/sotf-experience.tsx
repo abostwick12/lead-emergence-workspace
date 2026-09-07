@@ -1,0 +1,156 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { getWorkspaceClient } from "@/lib/supabase/client";
+import { applyCommand, resumeTransition } from "@/lib/sotf/engine";
+import { commandEnvelopeSchema, emptyPilotState, type Command, type CommandEnvelope, type Evidence, type PilotState } from "@/lib/sotf/contracts";
+import { assessOpportunity, dailyBrief, hypothesisLearning, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
+import { createPreviewState } from "@/lib/sotf/preview";
+import { InterviewPreparation, OfferComparison } from "./decision-preparation";
+import { invitationDraft } from "@/lib/sotf/scheduling";
+import { ScheduleConversation } from "./schedule-conversation";
+import { FirstValue } from "./first-value";
+import { WorkflowEditor, type Intent } from "./workflow-editor";
+import styles from "./sotf.module.css";
+
+type View = "Today" | "Direction" | "People" | "Opportunities";
+type Editor = { intent: Intent; recordId?: string };
+type Loaded = { state: PilotState; workspaceId: string };
+class SaveRejected extends Error {}
+const displayDate = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+export function SotfExperience({ mode }: { mode: "preview" | "connected" }) {
+  const preview = mode === "preview";
+  const [state, setState] = useState<PilotState>(() => preview ? createPreviewState() : emptyPilotState());
+  const [view, setView] = useState<View>("Today");
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const [schedulingPerson, setSchedulingPerson] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!preview);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState<CommandEnvelope | null>(null);
+  const [panel, setPanel] = useState<"coaching" | "weekly" | "stories" | "history" | null>(null);
+  const [query, setQuery] = useState("");
+  const [now, setNow] = useState("2026-09-06T12:00:00.000Z");
+  const edit = (intent: Intent, recordId?: string) => setEditor({ intent, recordId });
+
+  const request = useCallback(async (operation?: CommandEnvelope): Promise<Loaded> => {
+    const { data, error: authError } = await getWorkspaceClient().auth.getSession();
+    if (authError || !data.session) throw new SaveRejected("Your existing Workspace session needs attention. Use the shared platform sign-in to resume.");
+    const response = await fetch("/api/sotf", { method: operation ? "POST" : "GET", cache: "no-store", headers: { Authorization: "Bearer " + data.session.access_token, ...(operation ? { "Content-Type": "application/json" } : {}) }, body: operation ? JSON.stringify(operation) : undefined });
+    const result = await response.json();
+    if (!response.ok) throw result.saved === false ? new SaveRejected(result.message || "The step was not saved. Review and try again.") : new Error(result.message || "The saved result could not be verified.");
+    if (!result.state || typeof result.state.revision !== "number" || !result.workspaceId) throw new Error("The transition state did not load completely.");
+    return result as Loaded;
+  }, []);
+
+  const refresh = useCallback(async () => {
+    if (preview) return;
+    setLoading(true); setError("");
+    try { const result = await request(); setState(result.state); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load your transition."); }
+    finally { setLoading(false); }
+  }, [preview, request]);
+  useEffect(() => { setNow(new Date().toISOString()); void refresh(); }, [refresh]);
+
+  async function save(command: Command) {
+    if (busy) throw new Error("Wait for the current save to finish.");
+    if (pending) throw new Error("Resolve the previous uncertain save before making another change.");
+    const envelope = commandEnvelopeSchema.parse({ requestId: crypto.randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command });
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const updated = preview ? applyCommand(state, envelope) : (await request(envelope)).state;
+      setState(updated); if (command.type === "record_opportunity") { setView("Opportunities"); setSelected(command.opportunity.id); setPanel(null); } if (command.type === "save_person") { setView("People"); setPanel(null); } setMessage(updated.changes.at(-1)?.summary ?? "Saved and verified.");
+    } catch (caught) {
+      const text = caught instanceof Error ? caught.message : "The save could not be verified.";
+      if (!preview && !(caught instanceof SaveRejected)) setPending(envelope);
+      setError(text); throw new Error(text);
+    } finally { setBusy(false); }
+  }
+  function run(command: Command) { void save(command).catch(() => undefined); }
+  async function reconcile() {
+    if (!pending) return;
+    setBusy(true); setError("");
+    try {
+      const result = await request();
+      setState(result.state);
+      const receipt = result.state.receipts.find((item) => item.requestId === pending.requestId);
+      if (receipt) { setPending(null); setMessage("The previous step was saved. Its result has now been verified."); }
+      else if (result.state.revision !== pending.expectedRevision) { setPending(null); setMessage("Another session changed your transition. The previous step was not applied; review the current state and submit it again if still appropriate."); }
+      else {
+        let saved: Loaded;
+        try { saved = await request(pending); }
+        catch (caught) { if (caught instanceof SaveRejected) setPending(null); throw caught; }
+        setState(saved.state); setPending(null); setMessage("The same operation was retried and its saved result verified.");
+      }
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "The result remains uncertain. Keep the same operation for recovery."); }
+    finally { setBusy(false); }
+  }
+  function exportState() {
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), purpose: "SOTF Bundle operational archive; no protected context", state }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "sotf-bundle-operational-archive.json"; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const activeOpportunity = state.opportunities.find((item) => item.id === selected) ?? state.opportunities[0];
+  const assessment = activeOpportunity ? assessOpportunity(state, activeOpportunity.id) : null;
+  const coach = prepareCoaching(state);
+  const brief = dailyBrief(state, now);
+  const pendingEvidence = state.evidence.filter((item) => item.review === "pending");
+  const openActions = state.actions.filter((item) => !["manually_completed", "superseded"].includes(item.state));
+
+  return <section className={styles.experience} aria-label="SOTF Bundle">
+    <header className={styles.header}><a className={styles.brand} href="https://entry.leademergence.com">LEAD EMERGENCE<span>SOTF Bundle</span></a><div className={styles.headerTools}>{preview ? <span className={styles.previewLabel}>Fictional preview · changes last until reload</span> : <span className={styles.previewLabel}>Your transition, continued</span>}<button onClick={() => { setPanel("history"); setView("Today"); }}>What changed</button>{state.chapter ? <button onClick={exportState}>Export my work</button> : null}</div></header>
+    {preview ? <div className={styles.previewBar}><p>This is a working fictional example. Nothing is sent, and no account data is read or saved.</p><button onClick={() => { setState(emptyPilotState()); setSelected(null); setPanel(null); setView("Today"); setMessage(""); }}>Try a fresh start</button></div> : null}
+    {error ? <div className={styles.error} role="alert"><p>{error}</p>{pending ? <button disabled={busy} onClick={() => void reconcile()}>Verify and recover the same step</button> : <button disabled={loading} onClick={() => void refresh()}>Refresh existing session</button>}</div> : null}
+    {message ? <p className={styles.saveMessage} role="status">{preview ? "Preview updated · " : ""}{message}</p> : null}
+    {loading ? <p role="status" className={styles.empty}>Recovering the decision, the evidence, and what comes next…</p> : !state.chapter && !error ? <FirstValue onSave={save} preview={preview} /> : state.chapter ? <>
+      <div className={styles.introduction}><p className={styles.eyebrow}>{state.chapter.phase === "professional_work" ? "The next professional chapter" : "Your next move, with context"}</p><h1>{state.chapter.nextFocus ?? state.chapter.question}</h1><p>{state.chapter.timing} · {state.chapter.weeklyHours} hours a week to learn and move deliberately.</p><a className={styles.conversationLink} href="/sotf/connect">Continue this work in ChatGPT <span aria-hidden="true">↗</span></a></div>
+      <nav className={styles.navigation} aria-label="SOTF Bundle views">{(["Today", "Direction", "People", "Opportunities"] as View[]).map((item) => <button key={item} aria-current={view === item ? "page" : undefined} onClick={() => { setView(item); setPanel(null); }}>{item}</button>)}</nav>
+      <div aria-busy={busy} className={styles.body}>
+        {view === "Today" ? <>
+          <div className={styles.sectionHeading}><h2>{panel === "coaching" ? "Arrive ready for your SOTF session." : panel === "weekly" ? "What should change next week?" : panel === "stories" ? "The right example, when it matters." : panel === "history" ? "The decisions that brought you here." : "A few things deserve attention."}</h2><div className={styles.actions}><button onClick={() => setPanel(panel === "coaching" ? null : "coaching")}>Prepare my SOTF session</button><button onClick={() => setPanel(panel === "weekly" ? null : "weekly")}>Review my week</button><button onClick={() => setPanel(panel === "stories" ? null : "stories")}>Find an example</button></div></div>
+          {panel === "coaching" ? <div className={styles.twoColumns}><article className={styles.sheet}><p className={styles.eyebrow}>Since {displayDate(coach.since)}</p><h3>What needs your coach&apos;s judgment?</h3><List items={coach.agenda} /><h4>Completed commitments</h4><List items={coach.completed.map((item) => item.title + " — " + item.result)} /><h4>Stuck work</h4><List items={coach.stuck.map((item) => item.title + " — " + item.result)} /><h4>Meaningful developments</h4><List items={coach.changed.map((item) => item.summary)} /><button onClick={() => edit("meeting")}>Record the coaching meeting</button></article><article className={styles.sheet}><p className={styles.eyebrow}>Separate shareable draft</p><h3>{coach.shareable.summary}</h3><List items={[...coach.shareable.completed, ...coach.shareable.decisions, ...coach.shareable.nextExperiments]} /><p className={styles.help}>This selection excludes private working notes. Review the exact contents and recipient before sharing.</p><button disabled={busy} onClick={() => edit("coach-share")}>Prepare a reviewed share draft</button></article></div>
+          : panel === "weekly" ? <article className={styles.sheet}><List items={weeklyReview(state, new Date(new Date(now).valueOf() - 7 * 86400000).toISOString()).questions} /><h3>Learning from declined opportunities</h3><List items={state.opportunities.filter((item) => item.status === "decline").map((item) => item.company + " — " + item.decision?.rationale)} /><h3>Earlier changes</h3><List items={state.weeklyReviews.map((item) => item.learned + " Next: " + item.change)} /><button className={styles.primary} onClick={() => edit("weekly")}>Record what I will start, stop, and change</button></article>
+          : panel === "stories" ? <><label className={styles.search}>What do you need to demonstrate?<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Stakeholder alignment, ambiguity, delivery…" /></label><button onClick={() => edit("story")}>Preserve a reviewed accomplishment</button><div className={styles.records}>{(query ? recallStories(state, query).map((item) => item.story) : state.stories).map((story) => <article className={styles.sheet} key={story.id}><p className={styles.eyebrow}>{story.skills.join(" · ")}</p><h3>{story.title}</h3><p>{story.approvedLanguage}</p><details><summary>Contribution and proof</summary><p>{story.situation}</p><p>{story.contribution}</p><p>Scope: {story.scope}</p><p>{story.actions}</p><p>{story.outcome}</p><List items={story.uncertainNumbers.map((item) => "Unverified: " + item)} /></details></article>)}</div></>
+          : panel === "history" ? <div className={styles.timeline}>{[...state.changes].reverse().map((change) => <article key={change.id}><time>{displayDate(change.at)}</time><p>{change.summary}</p></article>)}<details><summary>How another conversation resumes</summary><p>{resumeTransition(state).latestDecision?.opportunity.decision?.nextAction ?? "Begin with the current question, criteria, and next experiments."}</p><p>ChatGPT&apos;s SOTF Bundle tools recover this same operational history. They do not assume access to your other chats or protected context.</p></details></div>
+          : <><div className={styles.brief}>{brief.length ? brief.map((item, index) => <article key={item.id}><span className={styles.ordinal}>0{index + 1}</span><div><p className={styles.eyebrow}>{item.whyNow}</p><h3>{item.title}</h3><p>{item.context}</p><p className={styles.help}>If you wait: {item.ifWait}</p><button onClick={() => { const [kind, ...rest] = item.id.split(":"); const id = rest.join(":"); if (kind === "commitment") edit("resolve-promise", id); else if (kind === "hypothesis") { setView("Direction"); } else if (kind === "deadline") { setView("Opportunities"); setSelected(id); } else { setView("People"); } }}>{item.action} <span aria-hidden="true">→</span></button></div></article>) : <p className={styles.empty}>There is no urgent transition action. Review a direction or bring an opportunity when it would help.</p>}</div><div className={styles.actions}><button className={styles.primary} onClick={() => edit("opportunity")}>Assess an opportunity</button><button onClick={() => edit("person")}>Prepare a useful conversation</button><button onClick={() => edit("promise")}>Keep a commitment</button></div></>}
+          <details className={styles.sheet}><summary>Open commitments and follow-through</summary>{state.commitments.filter((item) => ["open", "blocked"].includes(item.status)).map((item) => <article className={styles.row} key={item.id}><div><h4>{item.title}</h4><p>{item.owner}{item.due ? " · " + item.due : ""} · {item.status}</p><p>{item.definitionOfDone}</p></div><button onClick={() => edit("resolve-promise", item.id)}>Record the result</button></article>)}</details>
+        </> : null}
+        {view === "Direction" ? <><div className={styles.sectionHeading}><h2>Learn your way into the right work.</h2><button onClick={() => edit("hypothesis")}>Test another possibility</button></div><div className={styles.records}>{state.hypotheses.map((item) => { const learning = hypothesisLearning(state, item.id); return <article className={styles.sheet} key={item.id}><p className={styles.eyebrow}>{item.status} · {item.confidenceExplanation}</p><h3>{item.proposition}</h3><p>{item.whyPromising}</p><h4>Next experiment</h4><p>{item.nextExperiment}</p><p className={styles.help}>Revisit: {item.reviewTrigger}</p><details><summary>Evidence, assumptions, and learning</summary><h4>Supporting</h4><List items={learning.supporting.map((entry) => entry.statement)} /><h4>Conflicting</h4><List items={learning.conflicting.map((entry) => entry.statement)} /><h4>Assumptions</h4><List items={item.assumptions} /><h4>Gaps to test</h4><List items={item.gaps} /><h4>Conversations and roles</h4><List items={[...learning.conversations.map((entry) => entry.title + " · " + entry.status), ...learning.jobsReviewed.map((entry) => entry.company + " · " + entry.status)]} /></details><button onClick={() => edit("hypothesis", item.id)}>Review this direction</button></article>; })}</div><div className={styles.sectionHeading}><h2>The criteria behind the decision.</h2><button onClick={() => edit("criteria")}>Confirm a criterion</button></div>{state.criteria.map((item) => <article className={styles.row} key={item.id}><div><h3>{item.label}</h3><p>{item.desired}</p><span className={styles.help}>{item.nonNegotiable ? "Non-negotiable" : "Preference"} · importance {item.importance}/5</span></div><button onClick={() => edit("criteria", item.id)}>Revisit</button></article>)}</> : null}
+        {view === "Opportunities" ? <>
+          <div className={styles.sectionHeading}><h2>Is this worth your transition time?</h2><button className={styles.primary} onClick={() => edit("opportunity")}>Assess an opportunity</button></div>
+          {state.opportunities.length ? <label className={styles.search}>Choose an opportunity, including earlier decisions<select value={activeOpportunity?.id} onChange={(event) => setSelected(event.target.value)}>{state.opportunities.map((item) => <option key={item.id} value={item.id}>{item.company} · {item.role} · {item.status}</option>)}</select></label> : <p className={styles.empty}>Bring a real job URL or description. Unknowns will stay visible while you gather evidence.</p>}
+          {activeOpportunity && assessment ? <>
+            <article className={styles.assessment}><div><p className={styles.eyebrow}>{activeOpportunity.company}</p><h2>{activeOpportunity.role}</h2>{activeOpportunity.url ? <a href={activeOpportunity.url} target="_blank" rel="noreferrer">Open the job source ↗</a> : null}</div><div className={styles.recommendation} data-recommendation={assessment.recommendation}><strong>{assessment.recommendation}</strong><span>Eligibility: {assessment.eligibility}</span><small>{assessment.confidence} confidence · evidence judgment, not hiring odds</small></div></article>
+            <List items={assessment.reasons} /><div className={styles.contextImpact}><p className={styles.eyebrow}>How your context changes the answer</p><List items={assessment.contextImpact} /></div>
+            <div className={styles.vector}>{assessment.vector.map((row) => <details key={row.dimension}><summary><span>{row.label}</span><strong>{row.score === null ? "Unknown" : row.score + " / 10"}</strong></summary><p>{row.confidence} confidence · {row.coverage.known}/{row.coverage.expected} criteria covered</p><h4>Supporting</h4><List items={row.supporting.map((item) => item.statement + " — " + item.source.reference)} /><h4>Conflicting</h4><List items={row.conflicting.map((item) => item.statement + " — " + item.source.reference)} /><h4>Unknown</h4><List items={row.unknowns} /></details>)}</div>
+            <div className={styles.twoColumns}><article className={styles.sheet}><h3>The next useful investigation</h3><p>{assessment.nextInvestigation}</p><List items={assessment.questions} /><p className={styles.help}>Revisit when: {assessment.revisitWhen}</p></article><article className={styles.sheet}><h3>Qualification evidence</h3>{activeOpportunity.requirements.length ? <List items={activeOpportunity.requirements.map((item) => (item.mandatory ? "Mandatory" : "Preferred") + ": " + item.label + " · " + item.status)} /> : <p>Mandatory requirements have not been established.</p>}<button onClick={() => edit("requirement", activeOpportunity.id)}>Review a qualification</button><h4>Gaps to close or verify</h4><List items={assessment.gaps} /></article></div>
+            <div className={styles.actions}><button className={styles.primary} onClick={() => edit("decision", activeOpportunity.id)}>Record my decision and next move</button><button onClick={() => edit("evidence", activeOpportunity.id)}>Add source evidence</button><button onClick={() => edit("person", activeOpportunity.id)}>Find the useful conversation</button></div>
+            {activeOpportunity.decision ? <article className={styles.sheet}><p className={styles.eyebrow}>Your recorded decision · {activeOpportunity.status}</p><p>{activeOpportunity.decision.rationale}</p><p>Next: {activeOpportunity.decision.nextAction}</p><p>Reconsider when: {activeOpportunity.decision.revisitWhen}</p></article> : null}
+            <InterviewPreparation state={state} opportunityId={activeOpportunity.id} /><details className={styles.sheet}><summary>Positioning, applications, and interview learning</summary><h3>Relevant evidence from your history</h3>{assessment.positioning.length ? assessment.positioning.map(({ story }) => <p key={story.id}><strong>{story.title}</strong><br />{story.approvedLanguage}</p>) : <p>No matching reviewed story yet. Add evidence rather than inventing a claim.</p>}<div className={styles.actions}><button onClick={() => edit("story")}>Preserve an accomplishment</button><button onClick={() => edit("material", activeOpportunity.id)}>Save a material version</button><button onClick={() => edit("submission", activeOpportunity.id)}>Record actual submission</button><button onClick={() => edit("interview", activeOpportunity.id)}>Debrief an interview</button>{state.applications.some((item) => item.opportunityId === activeOpportunity.id) ? <button onClick={() => edit("application-outcome", activeOpportunity.id)}>Record an application result</button> : null}</div>{state.materials.filter((item) => item.opportunityId === activeOpportunity.id).map((item) => <details key={item.id}><summary>{item.title} · version {item.version}</summary><pre>{item.content}</pre></details>)}{state.applications.filter((item) => item.opportunityId === activeOpportunity.id).map((item) => <article key={item.submittedAt}><h4>Actual submission · {displayDate(item.submittedAt)}</h4><p>{item.receipt}</p>{item.outcome ? <p>{item.status}: {item.outcome.reason} — {item.outcome.source}<br />Next: {item.outcome.nextAction}</p> : null}{item.materials.map((material) => <details key={material.id}><summary>Submitted: {material.title} · version {material.version}</summary><pre>{material.content}</pre></details>)}</article>)}{state.interviews.filter((item) => item.opportunityId === activeOpportunity.id).map((item) => <article key={item.id}><h4>{item.round}</h4><List items={item.questionsAsked} /><p>Self-assessment: {item.selfAssessment}</p><p>Employer feedback: {item.employerFeedback || "Not received"} {item.employerFeedbackSource ? "— " + item.employerFeedbackSource : ""}</p><p>Prepare next: {item.nextPreparation}</p></article>)}</details>
+            <details className={styles.sheet}><summary>Offer, tradeoffs, and the first 90 days</summary><OfferComparison state={state} /><button onClick={() => edit("offer", activeOpportunity.id)}>Record offer terms</button>{state.offers.map((item) => <article key={item.id}><h3>{state.opportunities.find((opportunity) => opportunity.id === item.opportunityId)?.company}</h3><table><thead><tr><th>Term</th><th>Value</th><th>Evidence</th></tr></thead><tbody>{item.terms.map((term, index) => <tr key={index}><td>{term.label}</td><td>{term.value}</td><td>{term.certainty} · {term.source}</td></tr>)}</tbody></table><p>Tradeoffs: {item.tradeoffs}</p><h4>Resolve before deciding</h4><List items={item.unresolvedQuestions} /><h4>Negotiation priorities</h4><List items={item.negotiationPriorities} /><h4>Recruiting promises</h4><List items={item.recruitingPromises} />{item.accepted ? <p>Acceptance recorded: {item.accepted.rationale} · starts {item.accepted.startDate}</p> : <button onClick={() => edit("accept-offer", item.id)}>Record an actual acceptance and plan</button>}</article>)}<List items={state.checkpoints.map((item) => "Day " + item.day + ": " + item.successEvidence)} />{state.chapter.phase === "transitioning" ? <button onClick={() => edit("close-chapter")}>Continue into professional work</button> : null}</details>
+          </> : null}
+        </> : null}
+        {view === "People" ? <>
+          <div className={styles.sectionHeading}><h2>Remember why people matter.</h2><div className={styles.actions}><button className={styles.primary} onClick={() => edit("person")}>Prepare a useful relationship</button><button onClick={() => edit("meeting")}>Record an agreed meeting</button></div></div>
+          <div className={styles.records}>{state.people.map((person) => <article className={styles.sheet} key={person.id}><p className={styles.eyebrow}>{person.company} · {person.role}</p><h3>{person.name}</h3><p>{person.whyNow}</p><p><strong>Learn:</strong> {person.objective}</p><p className={styles.help}>{person.overlap || "No shared context recorded."} {person.nextTouch ? "Next touch: " + person.nextTouch : ""}</p><div className={styles.actions}><button onClick={() => edit("person", person.id)}>Review relationship</button><button disabled={busy} onClick={() => run({ type: "prepare_outreach", personId: person.id })}>Prepare outreach</button><button onClick={() => setSchedulingPerson(person.id)}>Find a time</button><button onClick={() => edit("meeting", person.id)}>Record meeting</button></div></article>)}</div>
+          <div className={styles.sectionHeading}><h2>Prepare. Listen. Carry it forward.</h2></div>{state.meetings.map((meeting) => { const prepared = prepareMeeting(state, meeting.id); return <article className={styles.sheet} key={meeting.id}><p className={styles.eyebrow}>{meeting.kind} · {meeting.status} · {displayDate(meeting.startsAt)}</p><h3>{meeting.title}</h3><p>{meeting.objective}</p>{meeting.status !== "cancelled" ? <details><summary>Preparation and earlier context</summary><p>{prepared.company} · {prepared.functionContext}</p><p>{prepared.introduction}</p><h4>Questions that advance the decision</h4><List items={prepared.questions} /><h4>Already known</h4><List items={prepared.alreadyKnown.map((item) => item.statement)} /><h4>Earlier interactions</h4><List items={prepared.priorInteractions.map((item) => item.title + ": " + item.said)} /><h4>What not to ask</h4><List items={prepared.avoid} /></details> : <p>Preparation reminders are cancelled. The original meeting remains in your history.</p>}{meeting.debrief ? <><h4>What was said</h4><p>{meeting.debrief.said}</p><h4>What you inferred</h4><p>{meeting.debrief.inferred || "No inference recorded."}</p><List items={meeting.debrief.unresolved} /><button onClick={() => edit("evidence", meeting.id)}>Turn learning into reviewed evidence</button></> : <div className={styles.actions}>{meeting.status !== "cancelled" ? <button onClick={() => edit("debrief", meeting.id)}>Debrief this conversation</button> : null}<button onClick={() => edit("meeting", meeting.id)}>Reschedule or correct status</button>{meeting.status === "accepted" && meeting.personId ? <button disabled={busy} onClick={() => run(invitationDraft(state, meeting.id))}>Prepare invitation draft</button> : null}</div>}</article>; })}
+        </> : null}
+        {pendingEvidence.length ? <section className={styles.reviewQueue}><h2>Review the evidence before it changes the answer.</h2>{pendingEvidence.map((item) => <EvidenceReview key={item.id} item={item} busy={busy || Boolean(pending)} onSave={save} />)}</section> : null}
+        {openActions.length ? <section className={styles.reviewQueue}><h2>Follow-through, with your approval.</h2><p className={styles.help}>Mail, sharing, and invitations are completed manually in this pilot. A draft or approval never means sent.</p>{openActions.map((action) => <article className={styles.sheet} key={action.id}><p className={styles.eyebrow}>{action.kind.replaceAll("_", " ")} · {action.state.replaceAll("_", " ")}</p><h3>{action.subject}</h3><p>To: {action.recipient}</p><pre>{action.body}</pre>{action.receipt ? <p>{action.receipt}</p> : null}<div className={styles.actions}>{["draft", "approved_for_manual_execution"].includes(action.state) ? <button onClick={() => edit("action", action.id)}>Review exact draft</button> : null}{action.state === "draft" ? <button disabled={busy || action.recipient === "Choose your coach before sharing"} onClick={() => run({ type: "approve_action", actionId: action.id, exactRevision: action.revision })}>Approve this exact draft for manual use</button> : null}{["approved_for_manual_execution", "uncertain"].includes(action.state) ? <button onClick={() => edit("action-result", action.id)}>Record a verified result</button> : null}{["failed", "uncertain"].includes(action.state) ? <button disabled={busy} onClick={() => { if (window.confirm("Confirm you checked the provider and this message or invitation was NOT executed. The same action will return to draft for fresh review.")) run({ type: "retry_action", actionId: action.id, confirmedNotExecuted: true }); }}>I verified non-execution; review again</button> : null}</div></article>)}</section> : null}
+      </div>
+    </> : null}
+    <footer className={styles.footer}><span>See → interpret → decide → act → learn.</span><span>SOTF Bundle · ordinary transition operations</span></footer>
+    {schedulingPerson && state.people.find((person) => person.id === schedulingPerson) ? <ScheduleConversation person={state.people.find((person) => person.id === schedulingPerson)!} onSave={save} onClose={() => setSchedulingPerson(null)} /> : null}
+    {editor ? <WorkflowEditor key={editor.intent + (editor.recordId ?? "")} intent={editor.intent} state={state} recordId={editor.recordId} onSave={save} onClose={() => setEditor(null)} /> : null}
+  </section>;
+}
+
+function List({ items }: { items: string[] }) { return items.length ? <ul className={styles.list}>{items.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p className={styles.help}>No evidence recorded yet.</p>; }
+function EvidenceReview({ item, busy, onSave }: { item: Evidence; busy: boolean; onSave: (command: Command) => Promise<void> }) {
+  const [rationale, setRationale] = useState("");
+  const [error, setError] = useState("");
+  async function review(decision: "accept" | "reject") { setError(""); try { await onSave({ type: "review_evidence", evidenceId: item.id, decision, rationale }); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not verify review."); } }
+  return <article className={styles.sheet}><p className={styles.eyebrow}>{item.source.kind.replaceAll("_", " ")} · {item.reliability} strength · {item.direction}</p><h3>{item.statement}</h3><p>{item.source.reference} · {item.source.observedAt} · applies to {item.source.scope}</p>{item.source.url ? <a href={item.source.url} target="_blank" rel="noreferrer">Inspect source ↗</a> : null}<p>{item.explanation}</p><label className={styles.search}>Why accept or reject this interpretation?<input required value={rationale} onChange={(event) => setRationale(event.target.value)} maxLength={5000} /></label>{error ? <p role="alert">{error}</p> : null}<div className={styles.actions}><button disabled={busy || !rationale.trim()} onClick={() => void review("accept")}>Accept as scoped evidence</button><button disabled={busy || !rationale.trim()} onClick={() => void review("reject")}>Reject interpretation</button></div></article>;
+}

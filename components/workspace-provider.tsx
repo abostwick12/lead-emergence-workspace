@@ -9,6 +9,7 @@ import {
   getLeaderModeEntitlement,
   getOnboarding,
   getPersonalPlan,
+  hasSotfAccess,
   listConfiguration,
   listPlanCapabilities,
   saveClockTimeZones
@@ -24,6 +25,7 @@ type WorkspaceContextValue = {
   onboarding: OnboardingRecord | null;
   plan: PersonalPlanRecord | null;
   capabilities: CapabilityResolution;
+  sotfAccess: boolean;
   configuration: ConfigurationItem[];
   error: string | null;
   clockTimeZones: ClockTimeZones;
@@ -35,31 +37,34 @@ type WorkspaceContextValue = {
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
-export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { children: React.ReactNode; sotfPilotEnabled?: boolean }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceRecord | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingRecord | null>(null);
   const [plan, setPlan] = useState<PersonalPlanRecord | null>(null);
   const [capabilities, setCapabilities] = useState<CapabilityResolution>({ ...EMPTY_CAPABILITIES });
+  const [sotfAccess, setSotfAccess] = useState(false);
   const [configuration, setConfiguration] = useState<ConfigurationItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [clockTimeZones, setClockTimeZones] = useState<ClockTimeZones>([...DEFAULT_CLOCK_TIMEZONES]);
   const [clockPreferencesError, setClockPreferencesError] = useState<string | null>(null);
 
   const loadProductState = useCallback(async (personalWorkspace: WorkspaceRecord) => {
-    const [personalOnboarding, personalPlan, configuredItems, leaderMode] = await Promise.all([
+    const [personalOnboarding, personalPlan, configuredItems, leaderMode, currentSotfAccess] = await Promise.all([
       getOnboarding(personalWorkspace.id),
       getPersonalPlan(personalWorkspace.id),
       listConfiguration(personalWorkspace.id),
-      getLeaderModeEntitlement(personalWorkspace.id)
+      getLeaderModeEntitlement(personalWorkspace.id),
+      sotfPilotEnabled ? hasSotfAccess() : Promise.resolve(false)
     ]);
     const planCapabilities = await listPlanCapabilities(personalPlan.plan_key);
     setOnboarding(personalOnboarding);
     setPlan(personalPlan);
     setCapabilities(resolveCapabilities(planCapabilities, leaderMode));
+    setSotfAccess(currentSotfAccess);
     setConfiguration(configuredItems);
-  }, []);
+  }, [sotfPilotEnabled]);
 
   useEffect(() => {
     let live = true;
@@ -94,6 +99,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         setOnboarding(null);
         setPlan(null);
         setCapabilities({ ...EMPTY_CAPABILITIES });
+        setSotfAccess(false);
         setConfiguration([]);
         setClockTimeZones([...DEFAULT_CLOCK_TIMEZONES]);
         setClockPreferencesError(null);
@@ -116,6 +122,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     onboarding,
     plan,
     capabilities,
+    sotfAccess,
     configuration,
     error,
     clockTimeZones,
@@ -145,11 +152,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setOnboarding(null);
       setPlan(null);
       setCapabilities({ ...EMPTY_CAPABILITIES });
+      setSotfAccess(false);
       setConfiguration([]);
       setClockTimeZones([...DEFAULT_CLOCK_TIMEZONES]);
       setClockPreferencesError(null);
     }
-  }), [ready, user, workspace, onboarding, plan, capabilities, configuration, error, clockTimeZones, clockPreferencesError, refreshProductState]);
+  }), [ready, user, workspace, onboarding, plan, capabilities, sotfAccess, configuration, error, clockTimeZones, clockPreferencesError, refreshProductState]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

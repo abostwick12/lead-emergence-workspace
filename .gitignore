@@ -16,3 +16,4 @@ supabase/.temp/
 supabase/.branches/
 *.tsbuildinfo
 .vercel
+.sotf-local/

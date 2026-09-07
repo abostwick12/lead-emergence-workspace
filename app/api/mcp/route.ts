@@ -37,6 +37,7 @@ async function handleMcpRequest(request: Request) {
 
   const registration = await authenticated.supabase.rpc("mcp_register_connection");
   if (registration.error) return withCors(request, mcpUnauthorized("This connection is disconnected, unavailable, or not included."));
+  const sotfEnabled = await resolveSotfMcpAccess(authenticated.supabase);
 
   try {
     // Vercel functions do not retain an in-memory transport between requests.
@@ -46,7 +47,7 @@ async function handleMcpRequest(request: Request) {
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
-    const server = createWorkspaceMcpServer(authenticated.supabase, authenticated.claims.client_id as string);
+    const server = createWorkspaceMcpServer(authenticated.supabase, authenticated.claims.client_id as string, { sotfEnabled });
     await server.connect(transport);
     if (requestMethods.has("initialize")) {
       await recordMcpEvent(authenticated.supabase, "connection_registered");
@@ -58,6 +59,16 @@ async function handleMcpRequest(request: Request) {
   } catch (caught) {
     console.error("Workspace MCP request failed", { error_type: caught instanceof Error ? caught.name : "UnknownError" });
     return withCors(request, Response.json({ jsonrpc: "2.0", error: { code: -32603, message: "Workspace MCP could not process the request safely." }, id: null }, { status: 500 }));
+  }
+}
+
+export async function resolveSotfMcpAccess(supabase: SupabaseClient<any, any, any, any, any>): Promise<boolean> {
+  if (process.env.SOTF_PILOT_ENABLED !== "true") return false;
+  try {
+    const { data, error } = await supabase.rpc("sotf_has_access");
+    return !error && data === true;
+  } catch {
+    return false;
   }
 }
 

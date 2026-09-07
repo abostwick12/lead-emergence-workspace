@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { getWorkspaceClient } from "@/lib/supabase/client";
+import { useWorkspace } from "@/components/workspace-provider";
 
 export function BundleInviteClaim({ token }: { token: string }) {
+  const { refreshProductState } = useWorkspace();
   const [state, setState] = useState<"ready" | "claiming" | "claimed" | "error">(token ? "ready" : "error");
   const [message, setMessage] = useState(token ? "" : "This bundle invite is invalid or unavailable.");
 
@@ -21,6 +23,7 @@ export function BundleInviteClaim({ token }: { token: string }) {
       });
       const payload = await response.json() as { message?: string };
       if (!response.ok) throw new Error(payload.message || "This bundle invite is invalid or unavailable.");
+      await refreshProductState();
       window.history.replaceState({}, "", "/workspace/bundles/invite");
       setState("claimed");
       setMessage("Your SOTF Bundle is active in this Workspace.");

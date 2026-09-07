@@ -41,6 +41,10 @@ const bundleAssignmentRoute = await readFile("app/api/operator/bundles/assign/ro
 const bundleInviteRoute = await readFile("app/api/operator/bundles/invites/route.ts", "utf8");
 const bundleClaimRoute = await readFile("app/api/bundles/invites/claim/route.ts", "utf8");
 const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
+const sotfOperationsSql = await readFile("supabase/migrations/20260906120000_sotf_operational_workflows.sql", "utf8");
+const sotfWorkspacePage = await readFile("app/workspace/sotf/page.tsx", "utf8");
+const sotfProfessionalContext = await readFile("lib/sotf/professional-context.ts", "utf8");
+const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -377,4 +381,29 @@ test("uses bounded hash-only single-claim bundle invites", () => {
   assert.match(bundleClaimRoute, /ensure_personal_workspace/i);
   assert.doesNotMatch(bundleInviteRoute + bundleClaimRoute, /token_hash/i);
   assert.match(envExample, /BUNDLE_INVITE_TOKEN_SECRET/);
+});
+
+test("gates native and MCP SOTF presentation with the same fail-closed entitlement", () => {
+  assert.match(sotfOperationsSql, /create function workspace_private\.resolve_sotf_workspace\(\)/i);
+  assert.match(sotfOperationsSql, /create function workspace\.sotf_has_access\(\)/i);
+  assert.match(sotfOperationsSql, /workspace_private\.require_mcp_workspace\(\)/i);
+  assert.match(sotfOperationsSql, /entitlement\.bundle_key = 'sotf_transition'/i);
+  assert.match(sotfOperationsSql, /entitlement\.starts_at <= now\(\)/i);
+  assert.match(sotfOperationsSql, /entitlement\.revoked_at is null/i);
+  assert.match(sotfWorkspacePage, /SOTF_PILOT_ENABLED/);
+  assert.match(sotfWorkspacePage, /auth\.getUser\(\)/);
+  assert.match(sotfWorkspacePage, /rpc\("sotf_has_access"\)/);
+  assert.match(sotfWorkspacePage, /if \(error \|\| allowed !== true\) notFound\(\)/);
+  assert.match(workspaceShell, /sotfPilotEnabled && sotfAccess/);
+  assert.match(workspaceProvider, /sotfPilotEnabled \? hasSotfAccess\(\) : Promise\.resolve\(false\)/);
+  assert.match(mcpRoute, /resolveSotfMcpAccess/);
+  assert.match(mcpRoute, /createWorkspaceMcpServer\([^;]+\{ sotfEnabled \}/);
+  assert.match(mcpServer, /options\.sotfEnabled === true/);
+});
+
+test("keeps protected Professional Context and General P2 outside the SOTF RC", () => {
+  assert.match(sotfProfessionalContext, /status: "unavailable"/);
+  assert.match(sotfProfessionalContext, /No protected read, write, grant, or local persistence is attempted/);
+  assert.doesNotMatch(sotfOperationsSql, /create table[^;]+professional_context/i);
+  assert.doesNotMatch(mcpServer, /registerTool\("(?:list_professional_context|list_context_candidates|propose_context_candidate|review_context_candidate|manage_professional_context)"/i);
 });

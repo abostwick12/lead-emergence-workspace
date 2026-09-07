@@ -3,20 +3,21 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Bell, BrainCircuit, BriefcaseBusiness, Compass, Crosshair, Menu, Moon, Plug, Radar, Settings, Target, X } from "lucide-react";
+import { Bell, BrainCircuit, BriefcaseBusiness, Compass, Crosshair, Menu, Moon, PackageOpen, Plug, Radar, Settings, Target, X } from "lucide-react";
 import { QuickCaptureDialog } from "@/components/quick-capture-dialog";
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider";
 import { WorkspaceClocks, WorkspaceHeaderDate } from "@/components/workspace-clocks";
 import { capabilityEnabled } from "@/lib/workspace/capabilities";
 import { workspaceLoginHref } from "@/lib/workspace/return-path";
 
-const links = [
+const operationalLinks = [
   ["/workspace", "Command Center", Compass], ["/workspace/tasks", "Daily Focus", Target], ["/workspace/career", "Pipeline", BriefcaseBusiness],
-  ["/workspace/capture", "Signals", Radar], ["/workspace/memory", "Memory", BrainCircuit], ["/workspace/integrations", "Connections", Plug]
+  ["/workspace/capture", "Signals", Radar]
 ] as const;
+const workspaceLinks = [["/workspace/memory", "Memory", BrainCircuit], ["/workspace/integrations", "Connections", Plug]] as const;
 
-function ProtectedShell({ children }: { children: React.ReactNode }) {
-  const { ready, user, workspace, onboarding, plan, capabilities, error, signOut } = useWorkspace();
+function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactNode; sotfPilotEnabled: boolean }) {
+  const { ready, user, workspace, onboarding, plan, capabilities, sotfAccess, error, signOut } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -66,7 +67,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
     <button className="mobile-menu-button icon-button" aria-label="Open navigation" aria-expanded={navOpen} onClick={() => setNavOpen(true)}><Menu size={19} /></button>
     <aside className="sidebar" data-open={navOpen}>
       <div className="sidebar-brand-row"><Link className="brand" href="/workspace" onClick={() => setNavOpen(false)}><span className="brand-mark"><Compass size={19} /></span><span>Lead Emergence<small>Workspace</small></span></Link><button className="mobile-nav-close icon-button" aria-label="Close navigation" onClick={() => setNavOpen(false)}><X size={18} /></button></div>
-      <nav className="nav-list" aria-label="Workspace navigation"><p className="nav-section-title">Operational</p>{links.slice(0, 4).map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link" data-active={pathname === href} onClick={() => setNavOpen(false)}><Icon size={18} /><span>{label}</span></Link>)}<p className="nav-section-title domains-label">Workspace</p>{links.slice(4).map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link" data-active={pathname === href} onClick={() => setNavOpen(false)}><Icon size={18} /><span>{label}</span></Link>)}</nav>
+      <nav className="nav-list" aria-label="Workspace navigation"><p className="nav-section-title">Operational</p>{operationalLinks.map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link" data-active={pathname === href} onClick={() => setNavOpen(false)}><Icon size={18} /><span>{label}</span></Link>)}{sotfPilotEnabled && sotfAccess ? <Link href="/workspace/sotf" className="nav-link" data-active={pathname === "/workspace/sotf"} onClick={() => setNavOpen(false)}><PackageOpen size={18} /><span>SOTF Bundle</span></Link> : null}<p className="nav-section-title domains-label">Workspace</p>{workspaceLinks.map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link" data-active={pathname === href} onClick={() => setNavOpen(false)}><Icon size={18} /><span>{label}</span></Link>)}</nav>
       <div className="sidebar-footer"><div className="signal-status"><p className="eyebrow">Workspace status</p><p><span className="status-dot" />Private Workspace ready</p></div><Link className="settings-link" href="/workspace/settings"><Settings size={17} />Settings</Link>{signOutError ? <p className="error" role="alert">{signOutError}</p> : null}<button className="sign-out" disabled={signingOut} onClick={() => void handleSignOut()}>{signingOut ? "Signing out…" : "Sign out"}</button></div>
     </aside>
     {navOpen ? <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setNavOpen(false)} /> : null}
@@ -75,6 +76,6 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   </div>;
 }
 
-export function WorkspaceShell({ children }: { children: React.ReactNode }) {
-  return <WorkspaceProvider><ProtectedShell>{children}</ProtectedShell></WorkspaceProvider>;
+export function WorkspaceShell({ children, sotfPilotEnabled = false }: { children: React.ReactNode; sotfPilotEnabled?: boolean }) {
+  return <WorkspaceProvider sotfPilotEnabled={sotfPilotEnabled}><ProtectedShell sotfPilotEnabled={sotfPilotEnabled}>{children}</ProtectedShell></WorkspaceProvider>;
 }

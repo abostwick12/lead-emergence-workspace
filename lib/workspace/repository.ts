@@ -393,6 +393,12 @@ export async function disconnectMcpAuthorization(clientId: string): Promise<void
   if (revoke.error) throw new Error("Workspace access is disabled, but the provider grant could not be revoked. Try again from Privacy & Data.");
 }
 
+/** Fail closed when the pilot migration, entitlement, plan, or session is unavailable. */
+export async function hasSotfAccess(): Promise<boolean> {
+  const { data, error } = await getWorkspaceClient().rpc("sotf_has_access");
+  return !error && data === true;
+}
+
 export async function trackProductEvent(
   workspaceId: string,
   userId: string,

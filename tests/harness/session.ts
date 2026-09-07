@@ -1,0 +1,1 @@
+export function getWorkspaceClient() { return { auth: { async getSession() { return { data: { session: { access_token: 'synthetic-local-session' } }, error: null }; } } }; }
