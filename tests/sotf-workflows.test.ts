@@ -4,6 +4,7 @@ import { commandEnvelopeSchema, emptyPilotState, type PilotState } from "@/lib/s
 import { applyCommand, resumeTransition, RevisionConflict } from "@/lib/sotf/engine";
 import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
 import { OperationNotApplied, replayEvents, SotfStore, type WorkflowEvent } from "@/lib/sotf/persistence";
+import { invitationDraft, proposeConversationTimes } from "@/lib/sotf/scheduling";
 
 // Fictional fellow and employer. These fixtures contain no personal or ministry data.
 const workspaceId = "70000000-0000-4000-8000-000000000001";
@@ -268,4 +269,53 @@ it("carries a real public opportunity through evidence, context-sensitive assess
   h.run({ type: "decide_opportunity", opportunityId: "public-role", decision: "decline", rationale: "The confirmed working-arrangement constraint makes further pursuit a poor use of time", nextAction: "Find a comparable role with a compatible working arrangement", revisitWhen: "The employer explicitly establishes a compatible arrangement" });
   expect(resumeTransition(h.state).latestDecision?.opportunity.decision?.nextAction).toContain("comparable role");
   expect(hypothesisLearning(h.state, "direction").conflicting.some((item) => item.id === "public-location")).toBe(true);
+});
+
+it("completes the synthetic first-fellow opportunity-to-follow-up golden path", () => {
+  const h = harness();
+
+  // The harness starts the transition and records the fictional opportunity.
+  h.accept("qualification", { dimension: "experience", score: 9 });
+  h.accept("work", { dimension: "actual_work", score: 8 });
+  h.run({ type: "resolve_requirement", opportunityId: "role", requirementId: "experience", status: "met", evidenceIds: ["qualification"] });
+  const initialAssessment = assessOpportunity(h.state, "role");
+  expect(initialAssessment.eligibility).toBe("eligible");
+  expect(initialAssessment.vector.find((item) => item.dimension === "environment")?.score).toBeNull();
+
+  h.run({ type: "decide_opportunity", opportunityId: "role", decision: "investigate", rationale: "The role merits one focused learning conversation", nextAction: "Ask how delivery decisions are made", revisitWhen: "After the practitioner conversation", due: "2026-09-09" });
+  expect(resumeTransition(h.state).latestDecision?.opportunity.decision?.nextAction).toContain("delivery decisions");
+
+  h.run({ type: "save_person", person: { ...contact, email: "morgan@example.invalid" } });
+  h.run({ type: "prepare_outreach", personId: "person" });
+  expect(h.state.actions.at(-1)).toMatchObject({ kind: "email", state: "draft", recipient: "morgan@example.invalid" });
+
+  const proposal = proposeConversationTimes({
+    offered: [{ start: "2026-09-08T09:00:00-05:00", end: "2026-09-08T12:00:00-05:00" }],
+    available: [{ start: "2026-09-08T09:00:00-05:00", end: "2026-09-08T12:00:00-05:00" }],
+    busy: [], calendarChecked: true, checkedAt: now, source: "Synthetic fellow and practitioner calendars explicitly checked",
+    timeZone: "America/Chicago", durationMinutes: 30, bufferMinutes: 15,
+  }, now);
+  expect(proposal).toMatchObject({ status: "proposal", requiresAgreement: true });
+  expect(proposal.slots.length).toBeGreaterThan(0);
+
+  const agreed = proposal.slots[0];
+  h.run({ type: "record_meeting", meeting: { ...meeting, startsAt: agreed.start, endsAt: agreed.end } });
+  h.run(invitationDraft(h.state, "conversation"));
+  expect(h.state.actions.at(-1)).toMatchObject({ kind: "calendar_invite", state: "draft" });
+  const prep = prepareMeeting(h.state, "conversation");
+  expect(prep.questions.join(" ")).toContain("decision");
+  expect(prep.objective).toContain("decision authority");
+
+  h.run({ type: "debrief_meeting", meetingId: "conversation", said: "The team owns routine delivery decisions but escalates changes to portfolio scope", inferred: "The work has meaningful bounded ownership", unresolved: ["How frequently portfolio escalation occurs"], evidence: [{ id: "golden-path-evidence", statement: "The practitioner described routine team-level delivery authority", source: { kind: "practitioner", reference: "Fictional Morgan, synthetic meeting notes", observedAt: "2026-09-08", scope: "This fictional team only" }, direction: "supporting", dimension: "environment", criterionId: "authority", score: 8, reliability: "high" }], commitments: [{ ...promise, id: "golden-path-promise", due: "2026-09-09" }], introductions: ["Morgan offered a fictional manager introduction; completion is unverified"], nextTouch: "2026-09-10" }, "2026-09-08T16:00:00.000Z");
+  h.run({ type: "review_evidence", evidenceId: "golden-path-evidence", decision: "accept", rationale: "The fellow confirmed the scoped meeting note" }, "2026-09-08T16:01:00.000Z");
+  expect(hypothesisLearning(h.state, "direction").supporting.map((item) => item.id)).toContain("golden-path-evidence");
+  expect(h.state.commitments.map((item) => item.id)).toContain("golden-path-promise");
+  expect(h.state.actions.some((item) => item.meetingId === "conversation" && item.state === "draft")).toBe(true);
+  expect(h.state.people.find((item) => item.id === "person")?.nextTouch).toBe("2026-09-10");
+  expect(prepareCoaching(h.state).agenda.length).toBeGreaterThan(0);
+
+  h.run({ type: "record_interview", interview: { id: "golden-path-interview", opportunityId: "role", round: "Practitioner", questionsAsked: ["How do you make a contested decision?"], missingExamples: ["A specific contested-decision example"], selfAssessment: "The first answer was too general", employerFeedback: "State the fellow's individual contribution", employerFeedbackSource: "Synthetic interviewer note", nextPreparation: "Practice the bounded-ownership story" } });
+  const laterPrep = prepareInterview(h.state, "role", { round: "Hiring manager", interviewerContext: "No additional verified context" });
+  expect(laterPrep.questionsToPractice[0]).toContain("contested-decision");
+  expect(laterPrep.nextPreparation).toContain("bounded-ownership");
 });
