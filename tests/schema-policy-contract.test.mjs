@@ -36,6 +36,11 @@ const integrationCredentialRoute = await readFile("app/api/integrations/[provide
 const setupPage = await readFile("components/workspace-setup.tsx", "utf8");
 const mcpRoute = await readFile("app/api/mcp/route.ts", "utf8");
 const mcpResourceAdmissionSql = await readFile("supabase/migrations/20260901150529_workspace_mcp_resource_admission.sql", "utf8");
+const bundleEntitlementSql = await readFile("supabase/migrations/20260902162536_bundle_entitlement_foundation.sql", "utf8");
+const bundleAssignmentRoute = await readFile("app/api/operator/bundles/assign/route.ts", "utf8");
+const bundleInviteRoute = await readFile("app/api/operator/bundles/invites/route.ts", "utf8");
+const bundleClaimRoute = await readFile("app/api/bundles/invites/claim/route.ts", "utf8");
+const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -338,4 +343,38 @@ test("keeps OAuth consent disclosure aligned with the controlled Lewis action se
   assert.match(consentPage, /task or memory deletion, capture discard, and configuration replacement require explicit confirmation/);
   assert.match(consentPage, /does not connect external services, reveal connector credentials, send messages, or create calendar events/);
   assert.match(consentPage, /registered connection, or disconnection state/);
+});
+
+test("models SOTF as generic catalog data with ordinary additive capabilities", () => {
+  assert.match(bundleEntitlementSql, /create table if not exists workspace\.bundle_definitions/i);
+  assert.match(bundleEntitlementSql, /create table if not exists workspace\.bundle_capabilities/i);
+  assert.match(bundleEntitlementSql, /create table if not exists workspace\.bundle_entitlements/i);
+  assert.match(bundleEntitlementSql, /'sotf_transition',\s*'SOTF Bundle'/i);
+  assert.match(bundleEntitlementSql, /'operator_assignment', 'invite', 'subscription', 'promotion', 'organization_license'/i);
+  assert.match(bundleEntitlementSql, /join workspace\.bundle_capabilities/i);
+  assert.match(bundleEntitlementSql, /create or replace function workspace_private\.has_personal_capability/i);
+  assert.doesNotMatch(bundleEntitlementSql, /'professional_context'/i);
+  assert.doesNotMatch(bundleEntitlementSql, /sotf_(?:cohort|member)|cohort_membership/i);
+});
+
+test("keeps bundle writes private and exposes only fail-closed authenticated bridges", () => {
+  assert.match(bundleEntitlementSql, /create table if not exists workspace_private\.bundle_invites/i);
+  assert.match(bundleEntitlementSql, /alter table workspace_private\.bundle_invites enable row level security/i);
+  assert.match(bundleEntitlementSql, /revoke all on workspace_private\.bundle_invites from public, anon, authenticated/i);
+  assert.match(bundleEntitlementSql, /create or replace function workspace\.issue_bundle_assignment[\s\S]*security definer[\s\S]*workspace_private\.issue_bundle_assignment/i);
+  assert.match(bundleEntitlementSql, /workspace_bundle_operator/i);
+  assert.match(bundleEntitlementSql, /workspace_private\.is_direct_session\(\)/i);
+  assert.doesNotMatch(bundleAssignmentRoute + bundleInviteRoute + bundleClaimRoute + bundleServer, /SUPABASE_SERVICE_ROLE_KEY|getSupabaseAdminClient|service_role/i);
+});
+
+test("uses bounded hash-only single-claim bundle invites", () => {
+  assert.match(bundleEntitlementSql, /token_hash text not null unique/i);
+  assert.match(bundleEntitlementSql, /extensions\.digest\(normalized_token, 'sha256'\)/i);
+  assert.match(bundleEntitlementSql, /claimed_entitlement_id uuid references workspace\.bundle_entitlements/i);
+  assert.match(bundleEntitlementSql, /idempotent_replay/i);
+  assert.match(bundleServer, /createHmac\("sha256"/i);
+  assert.match(bundleServer, /BUNDLE_INVITE_TOKEN_SECRET/i);
+  assert.match(bundleClaimRoute, /ensure_personal_workspace/i);
+  assert.doesNotMatch(bundleInviteRoute + bundleClaimRoute, /token_hash/i);
+  assert.match(envExample, /BUNDLE_INVITE_TOKEN_SECRET/);
 });
