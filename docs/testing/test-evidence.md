@@ -853,3 +853,69 @@ and the bundle repository's docs/release/client-readiness.md. Source publication
 is authorized only on the owned branches; no main merge or production deployment
 is included. Final sensitive-data scan and publication receipt are recorded in
 the checkpoint.
+
+## P4 Writer private recovery and evidence-led discovery — 2026-09-08
+
+Implemented on codex2/bundle-experience-integration. This is a local native
+checkpoint, not a six-bundle shipment or deployed/installed-host acceptance.
+See ../architecture/writer-recovery-and-discovery.md.
+
+Passed:
+
+- Clean isolated bundle-experience-p2 replay: all 22 migrations, then fictional
+  accounts recreated. No hosted project or another local stack was reset.
+- `npm run check:boundaries`: 124 runtime files.
+- `npm run test:schema`: 31 contracts.
+- `npm run typecheck`, `npm run lint`, `npm run test:unit`: 145 unit tests in
+  20 files (19 new draft/discovery cases).
+- Optimized local-public-config build: 30 static pages. Native routes exercised
+  through the actual optimized loopback app; no production MCP guard bypass.
+- Ten local pgTAP files: 312 assertions, including all nine existing local suites
+  and the 35 Writer hostile-access assertions.
+- `npm run test:writer:local`: nine real API/OAuth/PKCE/MCP groups. Discovery
+  equals native results; assistant cannot read/save/discard working drafts via
+  direct RPC; proposal-only write, approval denial and revocation still pass.
+- `npm run test:writer:revisions`: ten native API/direct-RPC groups, including
+  serialized approvals, immutable originals, stale conflicts and idempotency.
+- `npm run test:writer:library`: seven new native API/database groups for
+  exact candidate signals, tenant isolation, review-gated source-text search,
+  incomplete-draft persistence, changed-retry/conflict rejection, tombstones,
+  index updates after approval and private-table privilege denial.
+- Optimized browser: 16/16 desktop/mobile-emulated Chrome tests in 1.3 minutes.
+  New flows include reload, failed autosave, a lost successful import response
+  retried without duplication, competing tabs, explicit stale-base comparison,
+  source-text search and related metadata proposed before approval. Revocation
+  now also checks removal of private working-draft text.
+- Reusable bundle repo: typecheck, 20 tests, six official plugin validators and
+  six official skill validators. Writer skill explains candidate evidence and
+  private-draft limits; no installed plugin was changed or claimed tested.
+- Sensitive scan before commit: 85 release-lineage commits, 608 unique blobs and
+  the working tree, no findings. Fixture credentials/traces remain ignored.
+- Actual synthetic desktop/mobile connection images inspected. Candidate reasons,
+  source/revision, wrapping, proposal controls and approval disclaimer are visible.
+
+Investigated failures and limitations:
+
+- First real draft load failed with PostgreSQL 42702: unqualified resource_id
+  overlapped the private draft table column. Qualified function parameters fixed
+  it; the fresh replay and all draft tests pass.
+- Initial UI lint flagged unstable callback/ref render reads. Stable callbacks
+  and explicit rendered save-signature state fixed it; lint/typecheck pass.
+- Initial lost-response browser test matched Next's empty alert before the
+  request completed. It now waits for the real successful receipt and the
+  specific failed-fetch alert; desktop/mobile both pass.
+- A broad SQL-file invocation also included gate_a_hosted_preflight.sql. That
+  explicitly hosted-only, read-only script failed on the absent shared-project
+  public.guest_public_page_permissions table. No business table was fabricated.
+  The ten actual local pgTAP suites passed 312/312; the hosted preflight remains
+  for the approved owner/environment, not this isolated stack.
+- The first optimized-build helper invocation lacked local CLI telemetry/Docker
+  permission; rerunning through the approved isolated-stack permission path
+  succeeded. No elevated credential was injected into application runtime.
+- Draft autosave needs a connection; work left before a successful save may be
+  lost. This is not offline support. A copied on-screen draft is user-directed.
+- Candidate labels are exact recorded signals, not semantic/exegetical proof.
+  Candidate evidence can become stale; users review both sources before approval.
+- No production-scale library benchmark, physical-device test, representative
+  client pilot, measured time-saved study, installed ChatGPT/Codex connection,
+  hosted Entry/consent proof, external provider integration or deployment ran.

@@ -1,19 +1,20 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getWorkspaceClient } from "@/lib/supabase/client";
 import { useWorkspace } from "@/components/workspace-provider";
 export function useWritingAction() {
   const { user, refreshBundleExperience } = useWorkspace();
+  const subjectId = user?.id;
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const mounted = useRef(true), inFlight = useRef(false);
   const attempt = useRef({ payload: "", requestId: "" });
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  async function run<T>(path: string, input: object, idempotent = false): Promise<T | null> {
+  const run = useCallback(async <T,>(path: string, input: object, idempotent = false): Promise<T | null> => {
     if (inFlight.current) return null;
     inFlight.current = true; setBusy(true); setError(null);
     try {
       const { data, error: sessionError } = await getWorkspaceClient().auth.getSession();
-      if (sessionError || !data.session || data.session.user.id !== user?.id) throw new Error("Your sign-in changed. Refresh before saving.");
+      if (sessionError || !data.session || data.session.user.id !== subjectId) throw new Error("Your sign-in changed. Refresh before saving.");
       const payload = JSON.stringify({ path, input });
       if (attempt.current.payload !== payload) attempt.current = { payload, requestId: crypto.randomUUID() };
       const response = await fetch(path, {
@@ -30,6 +31,6 @@ export function useWritingAction() {
       if (mounted.current) setError(caught instanceof Error ? caught.message : "Couldn't save. You can safely retry.");
       return null;
     } finally { inFlight.current = false; if (mounted.current) setBusy(false); }
-  }
+  }, [subjectId, refreshBundleExperience]);
   return { run, busy, error };
 }

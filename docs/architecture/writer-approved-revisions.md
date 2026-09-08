@@ -60,8 +60,9 @@ checks the confirmation box. Stale comparisons cannot be approved. A rejected
 proposal never changes canonical content. Forms retain text on a failed save,
 disable inputs during submission and reuse retry IDs. Domain content and local
 editor components unmount when identity/access is no longer admitted. No private
-drafts are stored in browser localStorage. Unsaved edits are not autosaved and
-can be lost on navigation; durable draft recovery remains follow-up UX work.
+drafts are stored in browser localStorage. At the P3 checkpoint, unsaved edits
+could be lost on navigation. P4 supersedes that limitation with private durable
+recovery; see writer-recovery-and-discovery.md for its behavior and limits.
 
 The same immutable comparison covers assistant-generated and native proposals;
 origin, reason, basis, revision, status and decision history stay explicit.

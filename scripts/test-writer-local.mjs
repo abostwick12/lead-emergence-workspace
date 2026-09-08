@@ -123,6 +123,22 @@ try {
   const denied = await mcpA.callTool({ name: "writer_review_resource", arguments: { resource_id: fixtures.foreignResourceId } });
   assert.equal(denied.isError, true);
   pass("actual HTTP MCP tools/prompts and browser source parity, with cross-tenant denial");
+  const candidates=await mcpA.callTool({name:"writer_find_connections",arguments:{resourceId:fixtures.writerResourceId}});
+  assert.ok(!candidates.isError,JSON.stringify(candidates.content));
+  const nativeCandidates=await web("/api/writing/resources/"+fixtures.writerResourceId+"/connections",writer.token);
+  assert.deepEqual(candidates.structuredContent.candidates,nativeCandidates.body.candidates);
+  assert.equal(toolsA.tools.some(tool=>/working_draft|writer_.*draft/.test(tool.name)),false);
+  for(const [name,payload] of [
+    ["writer_get_working_draft",{resource_id:fixtures.writerResourceId}],
+    ["writer_get_working_draft",{resource_id:null}],
+    ["writer_save_working_draft",{resource_id:fixtures.writerResourceId,expected_version:0,base_revision:1,request_id:randomUUID(),draft_values:{title:"Assistant must not save this"}}],
+    ["writer_clear_working_draft",{resource_id:fixtures.writerResourceId,expected_version:0}]
+  ]) {
+    const blocked=await fetch(config.API_URL+"/rest/v1/rpc/"+name,{method:"POST",headers:{apikey:config.ANON_KEY,Authorization:"Bearer "+writerOAuth.token,"Content-Type":"application/json","Content-Profile":"workspace"},body:JSON.stringify(payload)});
+    assert.equal(blocked.status,403);
+    assert.equal((await blocked.json()).code,"42501");
+  }
+  pass("real OAuth discovery matches the native library; private working drafts cannot be read, saved or discarded even through direct RPC");
   const proposalTool = toolsA.tools.find((tool) => tool.name === "writer_propose_revision");
   assert.ok(proposalTool); assert.equal(proposalTool.annotations.readOnlyHint, false);
   assert.equal(toolsA.tools.some((tool) => /writer_.*(approve|decide|import)/.test(tool.name)), false);

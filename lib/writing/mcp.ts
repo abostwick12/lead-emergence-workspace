@@ -7,10 +7,17 @@ import { libraryResult, resourceResult, resourceSearch } from "./contracts";
 import { getWritingResource, listWritingResources } from "./server";
 import { proposeRevisionInput, proposalReceipt } from "./revision-contracts";
 import { proposeWritingRevision } from "./revisions-server";
+import { findWritingConnections } from "./library-server";
+import { connectionInput, writingConnections } from "./discovery-contracts";
 
 export function registerWriterTools(server: McpServer, client: SupabaseClient<any, any, any, any, any>, capabilities: string[]) {
   const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
   const _meta = { securitySchemes: [{ type: "oauth2", scopes: ["openid", "email", "profile"] }] };
+  if (capabilities.includes("writer.resource.library") && capabilities.includes("writer.resource.review")) server.registerTool("writer_find_connections",{
+    title:"Find related and duplicate Writing candidates",
+    description:"Compare a selected Writing resource with its authorized library. Returns explicit recorded-text, title, URL, topic and scripture-label signals. These are candidates, not verified semantic relationships or permission to merge/delete. Use an ID from writer_list_resources. Read both sources before proposing a relationship; this tool never changes records or verifies websites.",
+    inputSchema:connectionInput,outputSchema:writingConnections,annotations,_meta
+  },async(input)=>writerResult(()=>findWritingConnections(client,input)));
   if (capabilities.includes("writer.resource.metadata") && capabilities.includes("writer.resource.review")) server.registerTool("writer_propose_revision", {
     title: "Save a Writing revision proposal",
     description: "Save an immutable editorial or metadata proposal for the user's review in Workspace. This writes a proposal only: it never edits canonical content, approves, publishes, or verifies claims. Use the ID and revision returned by writer_review_resource. Include only changed fields, a reason and source evidence. Metadata replaces the whole metadata object, so preserve unchanged values. A requestId UUID makes identical retries safe; reread after revision conflicts. Direct the user to the resource's Revisions & proposals section to compare and approve.",
@@ -18,7 +25,7 @@ export function registerWriterTools(server: McpServer, client: SupabaseClient<an
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta
   }, async (input) => writerResult(() => proposeWritingRevision(client, input)));
   if (capabilities.includes("writer.resource.library")) server.registerTool("writer_list_resources", {
-    title: "Find Writing resources", description: "Find resources in the authenticated user's Writing library. Search title, author, or topics. Returns recorded source and publication status. No user or tenant identifier is accepted.",
+    title: "Find Writing resources", description: "Find resources in the authenticated user's Writing library. Search recorded metadata and, when review access is included, source text. Supports quoted phrases, OR and exclusions. Returns recorded source and publication status, not private working drafts. No user or tenant identifier is accepted.",
     inputSchema: resourceSearch, outputSchema: libraryResult, annotations, _meta
   }, async (input) => writerResult(() => listWritingResources(client, input)));
   if (capabilities.includes("writer.resource.review")) {

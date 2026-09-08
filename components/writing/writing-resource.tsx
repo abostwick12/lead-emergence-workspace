@@ -8,11 +8,13 @@ import { safeSourceUrl, type WritingResource } from "@/lib/writing/contracts";
 import type { ResourceReview } from "@/lib/writing/review";
 import styles from "./writing.module.css";
 import { WritingRevisions } from "./writing-revisions";
+import { WritingConnections } from "./writing-connections";
 
 type ReviewResult = { resource: WritingResource; review: ResourceReview; retrievedAt: string };
 export function WritingResourcePage({ resourceId }: { resourceId: string }) {
   const { enabled, data, loading, error, retry } = useWritingRead<ReviewResult>("/api/writing/resources/" + encodeURIComponent(resourceId), "writer.resource.review");
   const [copyState, setCopyState] = useState<"idle" | "done" | "failed">("idle");
+  const [proposalRefresh,setProposalRefresh] = useState(0);
   if (!enabled) return <WritingAccessState />;
   if (loading) return <div className={styles.empty} role="status">Opening the resource and its source details…</div>;
   if (error || !data) return <div className={styles.empty} role="alert"><h1>Resource unavailable</h1><p>{error}</p><button className={styles.secondary} onClick={retry}>Try again</button><Link href="/workspace/writing" className={styles.textLink}>Return to the library</Link></div>;
@@ -55,6 +57,7 @@ export function WritingResourcePage({ resourceId }: { resourceId: string }) {
         </section>
       </aside>
     </div>
-    <WritingRevisions resource={resource} onApplied={retry} />
+    <WritingConnections resource={resource} onProposalSaved={()=>setProposalRefresh(value=>value+1)} />
+    <WritingRevisions resource={resource} onApplied={retry} refreshKey={proposalRefresh} />
   </article>;
 }

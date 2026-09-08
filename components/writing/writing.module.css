@@ -57,6 +57,11 @@
 .editorForm input, .editorForm textarea, .editorForm select { width: 100%; box-sizing: border-box; min-height: 44px; border: 1px solid #475b58; border-radius: 7px; background: #111b20; color: #ecede8; font: inherit; padding: 11px; line-height: 1.6; }
 .editorForm textarea { resize: vertical; }
 .formFields { min-width: 0; display: grid; gap: 22px; padding: 0; margin: 0; border: 0; }
+.draftStatus { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px 20px; border: 1px solid #456257; border-radius: 9px; color: #cfddd6; font-size: 13px; line-height: 1.7; margin: 20px 0; background: #1b2a28; }
+.draftStatus .method { flex-basis: 100%; padding-top: 10px; margin: 0; }
+.connectionList { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; margin: 22px 0; }
+.connectionList li { font-size: 13px; color: #c3d2cb; line-height: 1.8; }.connectionList h3 { margin: 0; }.connectionList h3 a { font-size: 19px; }
+@media(max-width: 800px) { .connectionList { grid-template-columns: 1fr; } }
 .editorForm input:focus-visible, .editorForm textarea:focus-visible { outline: 2px solid #9dd3c1; outline-offset: 2px; }
 .actionRow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .revisions { margin-top: 36px; border-top: 1px solid #35464b; padding-top: 32px; }

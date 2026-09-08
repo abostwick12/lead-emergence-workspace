@@ -39,7 +39,7 @@ export function WritingLibraryPage() {
     <div className={styles.toolbar}>
       <form className={styles.search} onSubmit={(event) => { event.preventDefault(); setSearch(draftSearch.trim()); setOffset(0); }}>
         <Search size={18} aria-hidden="true" /><label className={styles.srOnly} htmlFor="resource-search">Search resources</label>
-        <input id="resource-search" type="search" value={draftSearch} maxLength={200} onChange={(event) => setDraftSearch(event.target.value)} placeholder="Search title, author, or topic" />
+        <input id="resource-search" type="search" value={draftSearch} maxLength={200} onChange={(event) => setDraftSearch(event.target.value)} placeholder={canReview?"Search title, topic, or source text":"Search title, author, or topic"} />
         <button type="submit">Search</button>
       </form>
       <label className={styles.filter}>Publication status

@@ -86,6 +86,9 @@ test.describe("Writer actual local account acceptance", () => {
     await expect(page.getByRole("heading", { name: "The practice of paying attention", exact: true })).toBeVisible();
     let revoked = false;
     try {
+      await page.getByRole("button",{name:"Propose an improvement"}).click();
+      await page.getByRole("textbox",{name:"Proposed text",exact:true}).fill("Synthetic private working draft for revocation.");
+      await expect(page.getByText(/^Working draft saved ·/)).toBeVisible();
       const result = await operator.rpc("revoke_bundle_entitlement", {
         target_entitlement_id: data.writer.entitlementId, revocation_reason: "Synthetic browser lifecycle check"
       });
@@ -94,6 +97,8 @@ test.describe("Writer actual local account acceptance", () => {
       await expect(page.getByRole("heading", { name: "Writing isn't included in your current access" })).toBeVisible();
       await expect(page.getByRole("link", { name: "Writing", exact: true })).toHaveCount(0);
       await expect(page.getByText("Synthetic acceptance manuscript", { exact: true })).toHaveCount(0);
+      await expect(page.getByRole("textbox",{name:"Proposed text",exact:true})).toHaveCount(0);
+      await expect(page.getByText("Synthetic private working draft for revocation.",{exact:true})).toHaveCount(0);
     } finally {
       if (revoked) {
         const restored = await operator.rpc("issue_bundle_assignment", {
@@ -103,6 +108,10 @@ test.describe("Writer actual local account acceptance", () => {
         expect(restored.error).toBeNull();
         data.writer.entitlementId = restored.data.entitlement_id;
         writeFileSync(".bundle-local/fixtures.json", JSON.stringify(data, null, 2));
+        const writer=await operatorSession(data.writer);
+        const draft=await writer.rpc("writer_get_working_draft",{resource_id:data.writerResourceId});
+        expect(draft.error).toBeNull();
+        expect((await writer.rpc("writer_clear_working_draft",{resource_id:data.writerResourceId,expected_version:draft.data.version})).error).toBeNull();
       }
     }
   });

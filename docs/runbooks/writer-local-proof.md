@@ -52,6 +52,7 @@ For a source checkpoint, rerun all checks listed in AGENTS.md.
 ## What these tests actually verify
 
 - Fresh migration replay and thirty-three PostgreSQL denial/authority assertions.
+- P4 additionally verifies direct-session-only drafts and bounded discovery.
 - Real local user sessions and web read endpoints.
 - Real local OAuth dynamic registration, approval, grant activation and PKCE.
 - Real MCP HTTP tool discovery and resource parity with web data.
@@ -105,3 +106,24 @@ flow but does not test the hosted consent page or installed AI host.
 P3 checks add two PostgreSQL denial assertions (35 total) and actual assistant
 proposal/approval separation. The browser revision flow uses fictional content
 and a deliberately injected failed-save response to verify retry behavior.
+
+## P4 recovery and discovery acceptance
+
+Prepare and cleanly replay the 22 migrations on only bundle-experience-p2, then
+recreate fictional fixtures. With the app preview running, run
+`npm run test:writer:library` for seven real database/native-API test groups.
+It removes only its own exact synthetic resource IDs and restores the review
+capability it temporarily disables. Do not run it concurrently with browser
+tests or other entitlement lifecycle tests.
+
+`npm run test:writer:local` now has nine groups, including actual OAuth discovery
+parity and draft read/save/discard denial via direct RPC. Use dev mode for this
+MCP suite; the optimized loopback host remains intentionally disallowed for MCP.
+
+In optimized native-browser mode, include
+`tests/e2e/writer-library-connected.spec.ts` alongside the two existing Writer
+files. The full suite has 16 tests across desktop and mobile-emulated Chrome.
+New cases cover failed autosave, reload recovery, lost successful import
+responses without duplicate imports, two-tab conflicts, explicit stale-base
+comparison, full-text search and approval-backed related-resource metadata.
+The existing revocation case now checks that working-draft text also disappears.
