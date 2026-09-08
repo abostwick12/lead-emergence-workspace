@@ -757,3 +757,13 @@ The deployed-consent/real-host gate is documented in
 The Workspace remote is public. The private-source export is retained in a local
 commit pending explicit source-publication approval or a private integration
 destination. No public branch push or PR is part of this checkpoint.
+
+### Subsequent source-publication approval — 2026-09-08
+
+After the local checkpoint, the user explicitly approved publishing the source
+export to the existing public Workspace repository. Publication is limited to
+the Codex2 integration branch, without merging main or deploying production.
+The reusable bundle repository remains private. This documentation-only update
+changes no tested runtime code. Whitespace and sensitive-data checks are rerun
+before publication; the full code-validation results above remain applicable.
+Installed-host, consent integration, and preview acceptance remain open.

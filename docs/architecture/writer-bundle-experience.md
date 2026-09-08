@@ -128,10 +128,13 @@ read parity, revocation, and cross-tenant checks in that host. Reinstall/update 
 private plugin through the approved marketplace flow only when that connection
 is available. No hosted migration or public plugin submission is part of P2 local validation.
 
-The existing Workspace repository is public. This checkpoint must not silently
-publish the private platform export there. Local commits are authorized; pushing
-that export requires an explicit source-publication decision or a private
-integration destination.
+The user explicitly authorized publishing this platform export in the existing
+public Workspace repository on 2026-09-08, after the local proof checkpoint.
+Only the Codex2 integration branch is in scope; main, production, and hosted
+migrations remain unchanged. The reusable bundle repository retains its private
+visibility. Making a repository private later cannot retract copies of already
+published code. Future paid access must be enforced by backend authentication,
+entitlements, and authorization; a paywall is not source-code protection.
 
 ## Quality gate for the next slice
 
