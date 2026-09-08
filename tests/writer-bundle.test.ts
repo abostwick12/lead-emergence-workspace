@@ -84,7 +84,7 @@ describe("Writer platform integration", () => {
   it("reports recorded gaps without converting inference into fact or approval", () => {
     const resource = resourceDetail.parse({
       id: "74000000-0000-4000-8000-000000000001", title: "Synthetic manuscript", author: null, resource_type: "article",
-      audience: null, topics: [], abstract: null, body_text: "A brief fictional source.",
+      audience: null, topics: [], abstract: null, body_text: "A brief fictional source.", revision: 1, metadata: {},
       source_url: null, source_label: "Synthetic fixture", source_date: null,
       retrieved_at: authority.resolvedAt, epistemic_state: "inferred", publication_state: "ready", updated_at: authority.resolvedAt
     });

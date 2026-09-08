@@ -50,3 +50,24 @@
 @media(max-width: 900px) { .reviewLayout { grid-template-columns: 1fr; }.pageHeader { flex-direction: column; gap: 18px; }.attention { flex-wrap: wrap; }.attention > .textLink { margin-left: 70px; }.rowEnd { min-width: 110px; }.resourceRow { gap: 15px; } }
 @media(max-width: 600px) { .pageHeader { padding: 18px 0 27px; }.pageHeader h1 { font-size: 30px; }.libraryHeading { align-items: flex-start; flex-direction: column; gap: 8px; }.libraryHeading p { margin: 0; }.toolbar { flex-direction: column; align-items: stretch; gap: 15px; }.resourceRow { flex-wrap: wrap; padding: 23px 4px; }.documentIcon { display: none; }.resourceCopy { flex-basis: 100%; }.rowEnd { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }.resourceCopy h3 { font-size: 22px; }.sourceText { padding: 20px; }.prose { font-size: 17px; }.nextMove { padding: 22px; }.nextMove h2 { font-size: 21px; }.reviewCard { padding: 20px; }.attention { padding: 20px; gap: 15px; }.attentionIcon { display: none; }.attentionCopy h2 { font-size: 22px; }.attention > .textLink { margin: 0; }.pagination { gap: 12px; font-size: 12px; } }
 @media(prefers-reduced-motion: reduce) { .resourceRow { transition: none; } }
+.editorForm { display: grid; gap: 22px; padding: 28px; background: #172128; border: 1px solid #35424a; border-radius: 12px; margin: 24px 0; }
+.formGrid, .diffGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.editorForm label { display: grid; gap: 9px; font-size: 14px; color: #d4dedb; }
+.editorForm label span { font-size: 12px; color: #a9b9b5; }
+.editorForm input, .editorForm textarea, .editorForm select { width: 100%; box-sizing: border-box; min-height: 44px; border: 1px solid #475b58; border-radius: 7px; background: #111b20; color: #ecede8; font: inherit; padding: 11px; line-height: 1.6; }
+.editorForm textarea { resize: vertical; }
+.formFields { min-width: 0; display: grid; gap: 22px; padding: 0; margin: 0; border: 0; }
+.editorForm input:focus-visible, .editorForm textarea:focus-visible { outline: 2px solid #9dd3c1; outline-offset: 2px; }
+.actionRow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.revisions { margin-top: 36px; border-top: 1px solid #35464b; padding-top: 32px; }
+.revisions > p, .proposalCard > p { line-height: 1.7; font-size: 14px; color: #c2cdc8; overflow-wrap: anywhere; }
+.proposalList { display: grid; gap: 24px; }.proposalCard { padding: 25px; border: 1px solid #435b50; border-radius: 12px; background: #19262a; min-width: 0; }
+.proposalCard h3 { margin: 0; font-size: 20px; font-weight: 500; overflow-wrap: anywhere; }
+.diffField { margin: 24px 0; }.diffField h4 { font-size: 14px; margin-bottom: 12px; }
+.diffGrid > div { min-width: 0; background: #131e23; padding: 15px; border: 1px solid #3c4b4e; border-radius: 8px; }
+.diffGrid > div:last-child { border-color: #577764; }.diffGrid span { color: #a6c6b7; font-size: 12px; }
+.diffValue { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 14px; line-height: 1.7; max-height: 520px; overflow-y: auto; }
+.confirm { display: flex; align-items: flex-start; gap: 12px; margin: 24px 0; font-size: 14px; line-height: 1.7; }.confirm input { width: 20px; height: 20px; margin: 3px 0; flex-shrink: 0; accent-color: #9dd3c1; }
+.history { border-top: 1px solid #384b4c; margin-top: 25px; padding-top: 20px; }.history details { margin: 20px 0; padding: 18px; border: 1px solid #384b4c; border-radius: 8px; }.history summary { cursor: pointer; min-height: 44px; line-height: 1.8; }
+.editorForm [role="alert"], .proposalCard [role="alert"] { color: #ffcfb8; line-height: 1.7; }
+@media(max-width: 700px) { .formGrid, .diffGrid { grid-template-columns: 1fr; }.editorForm, .proposalCard { padding: 18px; }.revisions > .sectionHeading { align-items: flex-start; flex-direction: column; }.diffValue { max-height: 360px; } }

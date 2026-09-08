@@ -5,10 +5,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { BundleApiError } from "@/lib/workspace/bundle-server";
 import { libraryResult, resourceResult, resourceSearch } from "./contracts";
 import { getWritingResource, listWritingResources } from "./server";
+import { proposeRevisionInput, proposalReceipt } from "./revision-contracts";
+import { proposeWritingRevision } from "./revisions-server";
 
 export function registerWriterTools(server: McpServer, client: SupabaseClient<any, any, any, any, any>, capabilities: string[]) {
   const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
   const _meta = { securitySchemes: [{ type: "oauth2", scopes: ["openid", "email", "profile"] }] };
+  if (capabilities.includes("writer.resource.metadata") && capabilities.includes("writer.resource.review")) server.registerTool("writer_propose_revision", {
+    title: "Save a Writing revision proposal",
+    description: "Save an immutable editorial or metadata proposal for the user's review in Workspace. This writes a proposal only: it never edits canonical content, approves, publishes, or verifies claims. Use the ID and revision returned by writer_review_resource. Include only changed fields, a reason and source evidence. Metadata replaces the whole metadata object, so preserve unchanged values. A requestId UUID makes identical retries safe; reread after revision conflicts. Direct the user to the resource's Revisions & proposals section to compare and approve.",
+    inputSchema: proposeRevisionInput, outputSchema: proposalReceipt,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }, _meta
+  }, async (input) => writerResult(() => proposeWritingRevision(client, input)));
   if (capabilities.includes("writer.resource.library")) server.registerTool("writer_list_resources", {
     title: "Find Writing resources", description: "Find resources in the authenticated user's Writing library. Search title, author, or topics. Returns recorded source and publication status. No user or tenant identifier is accepted.",
     inputSchema: resourceSearch, outputSchema: libraryResult, annotations, _meta
@@ -34,7 +42,7 @@ async function writerResult(operation: () => Promise<object>) {
     const result = await operation();
     return { content: [{ type: "text" as const, text: JSON.stringify(result) }], structuredContent: result as Record<string, unknown> };
   } catch (error) {
-    return { isError: true, content: [{ type: "text" as const, text: error instanceof BundleApiError && error.status === 404
-      ? "Resource unavailable." : "Writing access or source data could not be verified. Refresh your Workspace access before retrying." }] };
+    return { isError: true, content: [{ type: "text" as const, text: error instanceof BundleApiError
+      ? error.message : "Writing access or source data could not be verified. Refresh your Workspace access before retrying." }] };
   }
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { writingMetadata } from "./revision-contracts";
 export const publicationState = z.enum(["draft", "in_review", "ready", "published", "archived"]);
 export const resourceSearch = z.object({
   search: z.string().trim().max(200).default(""), state: publicationState.optional(),
@@ -11,7 +12,7 @@ export const resourceSummary = z.object({
   retrieved_at: z.string(), epistemic_state: z.enum(["observed","user_stated","inferred","suggested","hypothesized","confirmed","rejected","stale"]),
   publication_state: publicationState, updated_at: z.string()
 }).strict();
-export const resourceDetail = resourceSummary.extend({ body_text: z.string() });
+export const resourceDetail = resourceSummary.extend({ body_text: z.string(), revision: z.number().int().positive(), metadata: writingMetadata });
 export const libraryResult = z.object({
   workspaceId: z.string().uuid(), retrievedAt: z.string(),
   total: z.number().int().nonnegative(), awaitingPublication: z.number().int().nonnegative(),

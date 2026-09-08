@@ -21,6 +21,7 @@
     "seed:writer:local": "node scripts/seed-writer-local.mjs",
     "dev:writer:local": "node scripts/serve-writer-local.mjs",
     "test:writer:local": "node scripts/test-writer-local.mjs",
+    "test:writer:revisions": "node scripts/test-writer-revisions-local.mjs",
     "test:e2e": "playwright test",
     "scan:sensitive": "node scripts/scan-sensitive-data.mjs",
     "schema:checksum": "node scripts/check-workspace-schema.mjs",

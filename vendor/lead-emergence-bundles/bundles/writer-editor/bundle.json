@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "identity": {
     "key": "writer_editor",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "displayName": "Writer & Editor",
     "description": "Improves documents and turns resource libraries into accurate, publishable, findable collections.",
     "kind": "functional"
@@ -39,6 +39,14 @@
       "taskMetadataShareable": true
     },
     {
+      "id": "writer.resource.manage",
+      "version": "0.1.0",
+      "description": "Import private resources and explicitly approve immutable revision proposals in Workspace; never publish externally.",
+      "domain": "writing",
+      "operations": ["read", "execute"],
+      "taskMetadataShareable": true
+    },
+    {
       "id": "writer.resource.library",
       "version": "0.1.0",
       "description": "Inspect a permitted resource library for structure, duplicates, links, and publishing state.",
@@ -60,7 +68,7 @@
     {
       "id": "writer.workflow.resource_review",
       "version": "0.1.0",
-      "name": "Read-only resource review",
+      "name": "Source-led resource review and proposal",
       "capabilityIds": ["writer.resource.review", "writer.resource.metadata"],
       "providerRequirementIds": [],
       "inputScopes": ["writing.supplied_resource", "writing.confirmed_profile"],

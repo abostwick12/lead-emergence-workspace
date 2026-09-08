@@ -31,7 +31,7 @@ export function WritingLibraryPage() {
     <header className={styles.pageHeader}>
       <div><p className={styles.eyebrow}>Writer & Editor</p><h1>Give good work its next reader.</h1>
         <p>Find a resource, see what it needs, and make the next editorial decision with the source in view.</p></div>
-      <span className={styles.readOnly}><ShieldCheck size={15} />Read-only review</span>
+      {canReview && bundleExperience?.capabilityIds.includes("writer.resource.manage") ? <Link className={styles.secondary} href="/workspace/writing/new">Add a resource</Link> : <span className={styles.readOnly}><ShieldCheck size={15} />Read-only review</span>}
     </header>
     <div className={styles.libraryHeading}><h2>Resource library</h2>
       {data && <p><strong>{data.total}</strong> resources <span>·</span> <strong>{data.awaitingPublication}</strong> awaiting publication</p>}
@@ -52,7 +52,7 @@ export function WritingLibraryPage() {
     {loading ? <div className={styles.empty} role="status">Loading your resources…</div> :
       error ? <div className={styles.empty} role="alert"><h2>We couldn’t load your library</h2><p>{error}</p><button className={styles.secondary} onClick={retry}>Try again</button></div> :
       !data?.resources.length ? <div className={styles.empty}><BookOpen size={30} /><h2>{data?.total ? "No resources match this view" : "A home for your next piece"}</h2>
-        <p>{data?.total ? "Try another title, author, topic, or publication status." : "Resources added to your Workspace will appear here with their source details and editorial next steps. Source connections and importing are not available yet."}</p>
+        <p>{data?.total ? "Try another title, author, topic, or publication status." : "Add your first manuscript or article to keep its source in view and prepare improvements you can compare before approving. Website connections are not available yet."}</p>
         {data?.total ? <button className={styles.secondary} onClick={() => { setDraftSearch(""); setSearch(""); setFilter(""); setOffset(0); }}>Clear filters</button> : null}
       </div> :
       <ul className={styles.resourceList}>{data.resources.map((resource) => <li key={resource.id}>
@@ -71,7 +71,7 @@ export function WritingLibraryPage() {
       <span>{offset + 1}–{Math.min(offset + 25, data.matchingCount)} of {data.matchingCount}</span>
       <button className={styles.secondary} disabled={offset + 25 >= data.matchingCount} onClick={() => setOffset(offset + 25)}>Next</button>
     </nav>}
-    <footer className={styles.footer}>Source information stays visible. Your original work stays unchanged.</footer>
+    <footer className={styles.footer}>Source information stays visible. Original revisions are preserved; changes require your approval.</footer>
   </section>;
 }
 function FileType({ type }: { type: string }) { return <><BookOpen size={21} /><small>{type === "sermon" ? "SER" : type === "teaching" ? "TCH" : "DOC"}</small></>; }

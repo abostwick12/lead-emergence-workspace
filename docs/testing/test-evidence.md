@@ -767,3 +767,89 @@ The reusable bundle repository remains private. This documentation-only update
 changes no tested runtime code. Whitespace and sensitive-data checks are rerun
 before publication; the full code-validation results above remain applicable.
 Installed-host, consent integration, and preview acceptance remain open.
+
+## P3 native Writer import and approved revisions — 2026-09-08
+
+Status: implemented and locally validated; no hosted migration, production
+deployment, installed-host approval, Wix connection, or client-shipment claim.
+
+### Final checks
+
+| Check | Result |
+| --- | --- |
+| All migrations replayed from scratch on isolated bundle-experience-p2 | PASS, 21 migrations including approved revisions; fictional fixtures recreated |
+| npm run check:boundaries | PASS, 114 runtime files |
+| npm run test:schema | PASS, 31 |
+| npm run typecheck | PASS |
+| npm run lint | PASS |
+| npm run test:unit | PASS, 126 tests / 19 files |
+| npm run build | PASS, optimized build / 30 static pages |
+| Optimized build with isolated public Supabase configuration | PASS |
+| npm run test:writer:local | PASS, 35 PostgreSQL assertions + 8 real API/OAuth/MCP groups |
+| npm run test:writer:revisions | PASS, 10 real native API/direct-RPC groups |
+| Writer desktop/mobile browser acceptance | PASS, 10 tests; optimized loopback build |
+| Reusable bundles: typecheck + tests | PASS, 20 tests |
+| Official validators | PASS, all 6 plugins + all 6 skills |
+
+Native revision checks cover immutable original retention, bounded import and
+metadata, same-workspace relations, other-tenant denial, protected epistemic and
+published states, strict unknown-field rejection, no direct table privileges,
+identical-request replay, changed-payload conflict, stale and conflicting
+decisions, simultaneous approvals, original availability after 14 revisions,
+and the streamed JSON size limit. Cleanup removes only exact synthetic resources
+created by each API run.
+
+Actual OAuth/PKCE/MCP acceptance adds a saved assistant proposal, verifies that
+no approval/import tool is exposed, and proves direct RPC approval with that
+assistant token is denied. Entitlement revocation also denies import/proposal/
+approval calls. No fabricated signed token is used in the actual OAuth test;
+the SQL hostile tests intentionally simulate claims inside a rolled-back
+database transaction and are labeled separately.
+
+Both browser sizes exercised .md text loading, failed-import retry without
+losing text, real import, real saved before/after comparison, disabled approval
+before confirmation, explicit approval, reload and recovery of the original.
+They also repeated the P2 access/removal/search/review cases. Failed-save and
+temporary-authority HTTP responses are injected scenarios, not claimed service
+outages. Successful operations use the actual local database.
+
+The complete browser suite took 32.6 seconds. The synthetic import/retry/propose/
+approve/reload journey took 4.3 seconds desktop and 4.6 seconds mobile in this
+run. These are automated test timings, not measured client ROI or production
+latency promises.
+
+Visually inspected actual comparison screenshots:
+[desktop](writer-proof/comparison-desktop.png) and
+[mobile](writer-proof/comparison-mobile.png). Before/proposed content, provenance,
+disabled-until-confirmed approval, wrapping and mobile stacking were checked.
+
+### Failures investigated, not concealed
+
+The initial development browser run failed a 30-second navigation assertion
+while the cold resource route compiled for 33 seconds. A new textarea assertion
+also relied on exact nested-label text that included React's textarea content;
+it was changed to the textbox's accessible name. The complete optimized
+browser run then passed all ten tests without relaxing assertions or retries.
+
+The optimized local MCP attempt correctly encountered the existing production
+canonical-host guard (HTTP 421); Node's fetch surfaced a content-length retry
+error. A bounded native HTTP check confirmed 421 rather than a tool execution.
+No production guard was weakened. Real loopback OAuth/MCP was rerun successfully
+in development mode after the clean database replay. Approved canonical-host
+preview acceptance remains required; this is not a deployed MCP proof.
+
+### Still open
+
+Full existing non-Writer PostgreSQL suites were not rerun. All migrations,
+all unit/schema/boundary/build checks and the targeted hostile database suite
+were run. Installed ChatGPT/Codex tests, hosted Entry/consent integration,
+Wix and other external-provider authorization, Word/PDF ingestion, voice-profile
+and deeper library automation, durable editor draft recovery, and the other
+functional bundles remain open. Intermediate revision paging beyond the latest
+nine plus original is not implemented.
+
+See [the P3 architecture note](../architecture/writer-approved-revisions.md)
+and the bundle repository's docs/release/client-readiness.md. Source publication
+is authorized only on the owned branches; no main merge or production deployment
+is included. Final sensitive-data scan and publication receipt are recorded in
+the checkpoint.

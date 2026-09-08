@@ -19,5 +19,19 @@ with its evidence in view.
 
 [Mobile library](library-mobile.png) · [Mobile review](review-mobile.png)
 
-Full installed ChatGPT/Codex acceptance is still required. Import, live Wix
-verification, editing, and publishing are not implemented in this first slice.
+These P2 review/library images remain historical proof of the read-only slice.
+Full installed ChatGPT/Codex acceptance and live Wix publishing remain open.
+
+## P3 approved revisions
+
+Text import and approval-backed native editing are now locally validated.
+The real optimized local app keeps each saved proposal separate until the user
+compares it and explicitly approves a new private-library revision.
+
+![Desktop proposal comparison](comparison-desktop.png)
+
+[Mobile comparison](comparison-mobile.png)
+
+Both screenshots use fictional browser-test content, not a mockup or client data.
+The mobile navigation control remains available while the user scrolls.
+No website publishing or factual certification is performed by approval.

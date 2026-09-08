@@ -7,6 +7,7 @@ import { WritingAccessState } from "./writing-library";
 import { safeSourceUrl, type WritingResource } from "@/lib/writing/contracts";
 import type { ResourceReview } from "@/lib/writing/review";
 import styles from "./writing.module.css";
+import { WritingRevisions } from "./writing-revisions";
 
 type ReviewResult = { resource: WritingResource; review: ResourceReview; retrievedAt: string };
 export function WritingResourcePage({ resourceId }: { resourceId: string }) {
@@ -31,7 +32,7 @@ export function WritingResourcePage({ resourceId }: { resourceId: string }) {
     <Link href="/workspace/writing" className={styles.back}><ArrowLeft size={16} />Resource library</Link>
     <header className={styles.pageHeader}><div><p className={styles.eyebrow}>{resource.resource_type.replaceAll("_", " ")} · {resource.author || "Author not recorded"}</p>
       <h1>{resource.title}</h1><p>{resource.abstract || "No summary has been recorded yet."}</p></div>
-      <span className={styles.readOnly}><ShieldCheck size={15} />Original unchanged</span>
+      <span className={styles.readOnly}><ShieldCheck size={15} />Revision {resource.revision} · Original preserved</span>
     </header>
     <section className={styles.nextMove} aria-label="Next editorial step"><p className={styles.eyebrow}>The next useful move</p><h2>{review.nextAction}</h2>
       <p>{review.findings.length ? review.findings.length + (review.findings.length === 1 ? " detail needs" : " details need") + " attention in the recorded information." : "The basic metadata is present. An editor still needs to review the source."}</p></section>
@@ -54,5 +55,6 @@ export function WritingResourcePage({ resourceId }: { resourceId: string }) {
         </section>
       </aside>
     </div>
+    <WritingRevisions resource={resource} onApplied={retry} />
   </article>;
 }

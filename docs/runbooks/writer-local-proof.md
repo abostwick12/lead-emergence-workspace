@@ -74,3 +74,34 @@ Do not add `--no-backup`; preserving the local volume keeps fictional fixtures
 available. Do not use `--all`, reset the default stack, or target any other
 project's containers. Starting this same stack later allows the local fixture
 files to be reused.
+
+## P3 revision acceptance and optimized browser mode
+
+The same isolated stack now includes native Writer revisions. Prepare migrations
+before a fresh reset; resetting this local project destroys only its synthetic
+fixture database, so seed again afterward. Never reset another project.
+
+Run npm run test:writer:revisions with the preview running to exercise real
+native import, proposal and approval, retries, concurrency and original retention.
+It deletes only the exact synthetic resources it creates.
+
+For browser acceptance without development compilation, stop the dev preview,
+run node scripts/serve-writer-local.mjs build, then
+node scripts/serve-writer-local.mjs start in its own terminal. Both modes use
+only the isolated public Supabase configuration; the app listens on loopback.
+
+Set WRITER_LOCAL_ACCEPTANCE=true and E2E_BASE_URL=http://localhost:3125,
+then run npx playwright test tests/e2e/writer-connected.spec.ts
+tests/e2e/writer-revisions-connected.spec.ts. Do not run revocation suites
+concurrently against the same fixture entitlement.
+
+MCP tests must use development mode on loopback. The optimized server enforces
+the existing canonical-host requirement and intentionally rejects local MCP
+with 421; do not disable production protection to accommodate this test setup.
+Stop the optimized preview, start npm run dev:writer:local, then run
+npm run test:writer:local. The latter performs a real local authorization-code
+flow but does not test the hosted consent page or installed AI host.
+
+P3 checks add two PostgreSQL denial assertions (35 total) and actual assistant
+proposal/approval separation. The browser revision flow uses fictional content
+and a deliberately injected failed-save response to verify retry behavior.

@@ -123,11 +123,33 @@ try {
   const denied = await mcpA.callTool({ name: "writer_review_resource", arguments: { resource_id: fixtures.foreignResourceId } });
   assert.equal(denied.isError, true);
   pass("actual HTTP MCP tools/prompts and browser source parity, with cross-tenant denial");
+  const proposalTool = toolsA.tools.find((tool) => tool.name === "writer_propose_revision");
+  assert.ok(proposalTool); assert.equal(proposalTool.annotations.readOnlyHint, false);
+  assert.equal(toolsA.tools.some((tool) => /writer_.*(approve|decide|import)/.test(tool.name)), false);
+  const proposed = await mcpA.callTool({ name: "writer_propose_revision", arguments: {
+    resourceId: fixtures.writerResourceId, requestId: randomUUID(), baseRevision: own.body.resource.revision,
+    patch: { audience: "Synthetic proposed reader" }, reason: "Synthetic assistant proposal", evidence: "Synthetic source supplied for acceptance."
+  } });
+  assert.ok(!proposed.isError, JSON.stringify(proposed.content));
+  const proposalId = proposed.structuredContent.proposalId;
+  const deniedApproval = await fetch(config.API_URL + "/rest/v1/rpc/writer_decide_proposal", {
+    method: "POST", headers: { apikey: config.ANON_KEY, Authorization: "Bearer " + writerOAuth.token, "Content-Type": "application/json", "Content-Profile": "workspace" },
+    body: JSON.stringify({ proposal_id: proposalId, expected_revision: own.body.resource.revision, decision: "approve" })
+  });
+  assert.equal(deniedApproval.status, 403);
+  assert.deepEqual((await web("/api/writing/resources/" + fixtures.writerResourceId, writer.token)).body.resource, own.body.resource);
+  assert.equal((await writer.client.rpc("writer_decide_proposal", {
+    proposal_id: proposalId, expected_revision: own.body.resource.revision, decision: "reject"
+  })).error, null);
+  pass("real OAuth assistant can save a proposal, cannot approve even through direct RPC, and leaves the original unchanged");
   const revoke = await operator.client.rpc("revoke_bundle_entitlement", { target_entitlement_id: fixtures.writer.entitlementId, revocation_reason: "Synthetic P2 lifecycle verification" });
   assert.equal(revoke.error, null); revoked = true;
   const after = await web("/api/bundles/experience", writer.token);
   assert.equal(after.body.ui.primaryNavigation.length, 0); assert.notEqual(after.body.revision, a.body.revision);
   assert.equal((await web("/api/writing/resources", writer.token)).status, 403);
+  assert.equal((await writer.client.rpc("writer_import_resource", { request_id: randomUUID(), resource_input: {} })).error?.code, "42501");
+  assert.equal((await writer.client.rpc("writer_propose_revision", { resource_id: fixtures.writerResourceId, request_id: randomUUID(), base_revision: 1, proposed_patch: { audience: "Denied" }, proposal_reason: "Denied", source_evidence: "Denied" })).error?.code, "42501");
+  assert.equal((await writer.client.rpc("writer_decide_proposal", { proposal_id: proposalId, expected_revision: 1, decision: "approve" })).error?.code, "42501");
   assert.equal((await mcpA.listTools()).tools.some((tool) => tool.name.startsWith("writer_")), false);
   const cachedCall = await mcpA.callTool({ name: "writer_review_resource", arguments: { resource_id: fixtures.writerResourceId } });
   assert.equal(cachedCall.isError, true);
