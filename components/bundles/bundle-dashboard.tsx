@@ -1,0 +1,13 @@
+"use client";
+import { useWorkspace } from "@/components/workspace-provider";
+import { WritingAttention } from "@/components/writing/writing-attention";
+// The shell consumes declarative contributions. Feature implementations live
+// in this registry, never in identity- or client-specific navigation branches.
+const widgets = { "writer.widget.publication_queue": WritingAttention };
+export function BundleDashboard() {
+  const { bundleExperience } = useWorkspace();
+  return <>{bundleExperience?.ui.dashboardWidgets.map((item) => {
+    const Widget = widgets[item.id as keyof typeof widgets];
+    return Widget ? <Widget key={item.id} label={item.label} /> : null;
+  })}</>;
+}

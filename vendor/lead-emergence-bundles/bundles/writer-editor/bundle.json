@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "1.0",
+  "identity": {
+    "key": "writer_editor",
+    "version": "0.1.0",
+    "displayName": "Writer & Editor",
+    "description": "Improves documents and turns resource libraries into accurate, publishable, findable collections.",
+    "kind": "functional"
+  },
+  "experience": {
+    "promise": "Move from an unfinished resource to a voice-preserving, publication-ready recommendation in one focused review.",
+    "firstRunOutcome": "A read-only resource review with revision guidance, metadata, related-resource signals, and evidence for every claim.",
+    "timeToFirstValueMinutes": 10,
+    "successSignals": [
+      { "id": "writer.signal.review_completed", "description": "The user receives a complete review without manually assembling editorial, metadata, and publishing checks." },
+      { "id": "writer.signal.proposal_accepted", "description": "The user accepts or edits a proposed revision or metadata set." }
+    ],
+    "qualityGates": {
+      "evidenceRequired": true,
+      "provenanceRequired": true,
+      "mutationConfirmationRequired": true
+    }
+  },
+  "capabilities": [
+    {
+      "id": "writer.resource.review",
+      "version": "0.1.0",
+      "description": "Review a supplied resource while preserving voice and separating observations from proposals.",
+      "domain": "writing",
+      "operations": ["read", "propose"],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "writer.resource.metadata",
+      "version": "0.1.0",
+      "description": "Propose taxonomy, descriptions, related resources, and SEO metadata.",
+      "domain": "writing",
+      "operations": ["read", "propose"],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "writer.resource.library",
+      "version": "0.1.0",
+      "description": "Inspect a permitted resource library for structure, duplicates, links, and publishing state.",
+      "domain": "writing",
+      "operations": ["read", "propose"],
+      "taskMetadataShareable": true
+    }
+  ],
+  "skills": [
+    {
+      "id": "writer.skill.resource_review",
+      "path": "./plugins/lead-emergence-writer-editor/skills/writer-resource-review/",
+      "capabilityIds": ["writer.resource.review", "writer.resource.metadata"],
+      "triggers": ["edit this ministry resource", "review this document", "prepare this resource for the website", "generate metadata for this resource"],
+      "outcome": "A voice-preserving editorial proposal plus structured publication metadata, with changes kept separate from execution."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "writer.workflow.resource_review",
+      "version": "0.1.0",
+      "name": "Read-only resource review",
+      "capabilityIds": ["writer.resource.review", "writer.resource.metadata"],
+      "providerRequirementIds": [],
+      "inputScopes": ["writing.supplied_resource", "writing.confirmed_profile"],
+      "outputScopes": ["writing.review", "writing.metadata_proposal"],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 10
+    }
+  ],
+  "providerRequirements": [
+    {
+      "id": "writer.provider.wix",
+      "provider": "wix",
+      "required": false,
+      "authorization": { "required": true, "method": "managed_connection" },
+      "scopes": ["resources:read"],
+      "operations": ["read", "propose"],
+      "dataBoundary": "Only the connected site's explicitly permitted resource collection; writes remain disabled until a later approval-backed release."
+    }
+  ],
+  "appRequirements": [
+    {
+      "id": "writer.app.wix",
+      "required": false,
+      "purpose": "Read-only resource-center and CMS inspection when an official supported Wix connection is available.",
+      "status": "planned"
+    }
+  ],
+  "permissions": {
+    "dataScopes": ["writing.resources", "writing.taxonomy", "writing.publishing_queue"],
+    "contextScopes": ["writing.voice_profile", "writing.website_preferences"],
+    "crossDomainAccess": []
+  },
+  "automations": [],
+  "attentionTypes": [
+    {
+      "id": "writer.attention.awaiting_publication",
+      "description": "A reviewed resource is waiting for an approved publishing step.",
+      "defaultPriority": "normal",
+      "evidenceRequired": true
+    }
+  ],
+  "uiManifestPath": "./bundles/writer-editor/ui-manifest.json",
+  "distribution": {
+    "pluginName": "lead-emergence-writer-editor",
+    "marketplacePath": "./.agents/plugins/marketplace.json"
+  }
+}

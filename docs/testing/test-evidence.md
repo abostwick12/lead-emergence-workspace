@@ -665,3 +665,95 @@ invite, external send, auth configuration, or route cutover was performed.
   video. This resolves the reproducible local concern but is not a field or
   physical-device result; deployed-preview and physical-phone checks remain a
   production gate.
+
+## 2026-09-08 — P2 Writer / Workspace Experience local proof
+
+Scope: isolated Codex2 integration branch from published Workspace main
+`044382c856ca948c4c032c683446b29989dc30e1`; no production or hosted changes.
+
+### Final results
+
+| Check | Result |
+| --- | --- |
+| Full migration chain into a fresh isolated Supabase stack | PASS |
+| npm run check:boundaries | PASS — 103 runtime files |
+| npm run test:schema | PASS — 31 checks |
+| npm run typecheck | PASS |
+| npm run lint | PASS |
+| npm run test:unit | PASS — 107 tests in 18 files |
+| npm run build | PASS — optimized build and 29 generated static pages |
+| npm run scan:sensitive | PASS — working tree and existing release lineage |
+| npm run test:writer:local | PASS — 33 PostgreSQL assertions and seven connected acceptance groups |
+| Writer Playwright acceptance, desktop + mobile | PASS — 8 scenarios |
+| git diff --check | PASS |
+| Bundle repository typecheck and unit tests | PASS — 20 tests |
+| Official plugin and skill validators | PASS — six plugins and six skills |
+
+The sensitive scan is repeated after documentation/staging before the checkpoint
+commit. No fixture credentials or traces are included in the checkpoint.
+
+### Real connected acceptance
+
+The separate `bundle-experience-p2` Docker stack ran Supabase on 58421; the actual
+Next.js app ran on localhost:3125. Fictional Writer A has a bundle assignment,
+reader B does not, and an additional fictional owner has a separate resource.
+An operator fixture uses the real issue/revoke RPCs, not application bypasses.
+
+The API suite obtains real password sessions and performs discovery, dynamic
+OAuth registration, authorization, user approval, Workspace grant activation,
+and S256 PKCE token exchange for two users. It calls the running HTTP MCP server
+through the SDK, including tool/prompt discovery and actual resource reads.
+
+Verified: browser/MCP source equality; A/B entitlement parity; cross-tenant and
+unknown-ID denial; missing authentication; rejected tenant override; changed
+entitlement revision and removed tools after revocation; denial of cached tool
+calls; HTTP rejection after OAuth disconnect. The SQL suite also covers direct
+table denial, future/expired grants, disabled catalog/capabilities, plan
+suspension, invalid MCP audience, disconnected sessions and revoked grants.
+Every SQL test is rolled back. Lifecycle tests restore the fictional Writer grant.
+
+### Browser and visual acceptance
+
+Desktop Chrome and mobile-emulated Chrome each verified:
+
+1. Assigned navigation and accurate Home attention count; library search,
+   no-results/clear-filters, publication filter, source-first review, copy notes,
+   return navigation, and no page overflow.
+2. Unassigned account has no Writer navigation/widget and no direct resource access.
+3. Revocation clears an already-open source and navigation without a restart.
+4. A deliberately injected temporary authority-check failure hides stale content;
+   retry against the real service restores access.
+
+Saved and visually inspected: [desktop library](writer-proof/library-desktop.png),
+[desktop review](writer-proof/review-desktop.png),
+[mobile library](writer-proof/library-mobile.png), and
+[mobile review](writer-proof/review-mobile.png).
+These are real local app screenshots with synthetic records, not design mockups.
+The Next.js development indicator is visible because browser acceptance used the
+development server; the optimized production build was checked separately.
+
+Visual inspection found crowded inherited header columns at laptop widths. A
+small responsive-layout correction preserves the shell while preventing mode
+and clock overlap. The first cold desktop navigation test matched a library
+heading too early; the final test explicitly awaits the resource URL and level-1
+heading. A legacy SOTF source-pattern assertion was widened only to allow the
+additional Writer options; the SOTF gate remains asserted and its existing tests
+pass. No unresolved final test failure remains.
+
+### Explicitly not tested / not implemented
+
+- Installed Writer invocation in ChatGPT or Codex, GitHub marketplace refresh,
+  hosted OAuth consent UI, and production Entry sign-in/handoff.
+- Hosted migration, preview deployment, production operation, physical devices,
+  field performance, or measured time-savings/user-value claims.
+- Wix, resource import, editing, automatic source verification, and publishing.
+- Persisted layout preferences, full global search/notifications/command palette,
+  and the remaining functional bundles.
+- The entire pre-existing database test suite was not rerun; the new 33-assertion
+  hostile suite and complete migration replay were run on the isolated stack.
+
+The deployed-consent/real-host gate is documented in
+[the architecture handoff](../architecture/writer-bundle-experience.md).
+The Workspace remote is public. The private-source export is retained in a local
+commit pending explicit source-publication approval or a private integration
+destination. No public branch push or PR is part of this checkpoint.

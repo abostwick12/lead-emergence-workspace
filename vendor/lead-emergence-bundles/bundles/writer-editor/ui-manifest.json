@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "1.0",
+  "bundleKey": "writer_editor",
+  "workspaceRoute": { "route": "/workspace/writing", "label": "Writing" },
+  "primaryNavigation": [
+    { "id": "writer.nav.writing", "label": "Writing", "route": "/workspace/writing", "icon": "pen-line", "order": 20 }
+  ],
+  "secondaryNavigation": [
+    { "id": "writer.nav.library", "label": "Resource library", "route": "/workspace/writing/library", "icon": "library", "order": 20 }
+  ],
+  "dashboardWidgets": [
+    {
+      "id": "writer.widget.publication_queue",
+      "label": "Publication queue",
+      "order": 20,
+      "type": "attention_queue",
+      "capabilityId": "writer.resource.library",
+      "attentionTypes": ["writer.attention.awaiting_publication"],
+      "emptyStateId": "writer.empty.publication_queue"
+    }
+  ],
+  "quickActions": [
+    {
+      "id": "writer.action.review_resource",
+      "label": "Review a resource",
+      "order": 20,
+      "workflowId": "writer.workflow.resource_review",
+      "capabilityId": "writer.resource.review"
+    }
+  ],
+  "searchProviders": [
+    {
+      "id": "writer.search.resources",
+      "label": "Writing resources",
+      "order": 20,
+      "capabilityId": "writer.resource.library",
+      "resultTypes": ["writer.result.resource"]
+    }
+  ],
+  "commandPaletteActions": [
+    {
+      "id": "writer.command.review_resource",
+      "label": "Review a writing resource",
+      "order": 20,
+      "workflowId": "writer.workflow.resource_review",
+      "capabilityId": "writer.resource.review"
+    }
+  ],
+  "notificationTypes": [
+    {
+      "id": "writer.notification.publication_ready",
+      "label": "Resource ready for publication",
+      "order": 20,
+      "capabilityId": "writer.resource.library",
+      "defaultEnabled": true
+    }
+  ],
+  "emptyStates": [
+    {
+      "id": "writer.empty.publication_queue",
+      "title": "Nothing is waiting to publish",
+      "description": "Review a resource to create an evidence-backed editorial and metadata proposal.",
+      "actionId": "writer.action.review_resource"
+    }
+  ],
+  "bundleSettings": [
+    {
+      "id": "writer.setting.preserve_voice",
+      "label": "Preserve confirmed author voice",
+      "order": 20,
+      "type": "boolean",
+      "required": true
+    }
+  ]
+}

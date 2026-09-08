@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { getWorkspaceClient } from "@/lib/supabase/client";
+import { useBundleExperience } from "@/components/bundles/use-bundle-experience";
 import { resolvePersonalWorkspace } from "@/lib/workspace/provision";
 import {
   getClockTimeZones,
@@ -18,7 +19,7 @@ import { EMPTY_CAPABILITIES, resolveCapabilities, type CapabilityResolution } fr
 import { DEFAULT_CLOCK_TIMEZONES, normalizeClockTimeZones, type ClockTimeZones } from "@/lib/workspace/timezones";
 import type { ConfigurationItem, OnboardingRecord, PersonalPlanRecord, WorkspaceRecord } from "@/lib/workspace/types";
 
-type WorkspaceContextValue = {
+type WorkspaceContextValue = ReturnType<typeof useBundleExperience> & {
   ready: boolean;
   user: User | null;
   workspace: WorkspaceRecord | null;
@@ -49,6 +50,7 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
   const [error, setError] = useState<string | null>(null);
   const [clockTimeZones, setClockTimeZones] = useState<ClockTimeZones>([...DEFAULT_CLOCK_TIMEZONES]);
   const [clockPreferencesError, setClockPreferencesError] = useState<string | null>(null);
+  const bundleState = useBundleExperience(user?.id, workspace?.id);
 
   const loadProductState = useCallback(async (personalWorkspace: WorkspaceRecord) => {
     const [personalOnboarding, personalPlan, configuredItems, leaderMode, currentSotfAccess] = await Promise.all([
@@ -116,6 +118,7 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
   }, [workspace, loadProductState]);
 
   const value = useMemo<WorkspaceContextValue>(() => ({
+    ...bundleState,
     ready,
     user,
     workspace,
@@ -157,7 +160,7 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
       setClockTimeZones([...DEFAULT_CLOCK_TIMEZONES]);
       setClockPreferencesError(null);
     }
-  }), [ready, user, workspace, onboarding, plan, capabilities, sotfAccess, configuration, error, clockTimeZones, clockPreferencesError, refreshProductState]);
+  }), [bundleState, ready, user, workspace, onboarding, plan, capabilities, sotfAccess, configuration, error, clockTimeZones, clockPreferencesError, refreshProductState]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

@@ -1,0 +1,62 @@
+{
+  "repository": "abostwick12/lead-emergence-bundles",
+  "sourceRevision": "ff0f9d1f8264ca97acd7345f82e109e7f1ecfcca",
+  "contractVersion": "1.0",
+  "files": [
+    {
+      "sourcePath": "packages/bundle-contract/src/index.ts",
+      "outputPath": "bundle-contract/index.ts",
+      "sha256": "0b7cd4a2fe92132169b5ff7a055d41ee12884c5db941b800e13c94d78da1061d"
+    },
+    {
+      "sourcePath": "packages/bundle-registry/src/index.ts",
+      "outputPath": "bundle-registry/index.ts",
+      "sha256": "b3af6c6f627a6fd99941c57f3dfdffab4a3d0ba4550f7d2f919c31ba072b6605"
+    },
+    {
+      "sourcePath": "packages/capability-registry/src/index.ts",
+      "outputPath": "capability-registry/index.ts",
+      "sha256": "0e8b5d28c0c7934315e82824a08d08d44ef177781b783769c8633688dc080f82"
+    },
+    {
+      "sourcePath": "packages/policy/src/index.ts",
+      "outputPath": "policy/index.ts",
+      "sha256": "7d3a16ab6ca591dce7f4cb56320ec1fd4e3a8ed4692174a63293ea46fbf9d388"
+    },
+    {
+      "sourcePath": "packages/provenance/src/index.ts",
+      "outputPath": "provenance/index.ts",
+      "sha256": "849f92ea91fb9c78470f17508ec4063807e7beb2b03a07665fb0a5bf277c83b7"
+    },
+    {
+      "sourcePath": "packages/provider-contracts/src/index.ts",
+      "outputPath": "provider-contracts/index.ts",
+      "sha256": "720262dbc29580c08018eac64265aace9f420de61e3df0d9f91b6d2d327d88ad"
+    },
+    {
+      "sourcePath": "packages/ui-manifest/src/index.ts",
+      "outputPath": "ui-manifest/index.ts",
+      "sha256": "8e7a66242d89f8262868820f26df8a5e33fcf4f6486d167446d74add1b07b1bb"
+    },
+    {
+      "sourcePath": "packages/workflow-runtime/src/index.ts",
+      "outputPath": "workflow-runtime/index.ts",
+      "sha256": "53341470035be0af3bbf1f93f206a735c641ddfd62fcd04b2945551a93537759"
+    },
+    {
+      "sourcePath": "apps/lead-emergence-runtime/src/index.ts",
+      "outputPath": "runtime/index.ts",
+      "sha256": "8c7480da3d5daa16bdc2a20ef65c0f344515e3886930fa0165daed914306fa6a"
+    },
+    {
+      "sourcePath": "bundles/writer-editor/bundle.json",
+      "outputPath": "bundles/writer-editor/bundle.json",
+      "sha256": "ef5aa469440d750df5650841fc899ee9c50e28d0c032f28c175f4379645f0446"
+    },
+    {
+      "sourcePath": "bundles/writer-editor/ui-manifest.json",
+      "outputPath": "bundles/writer-editor/ui-manifest.json",
+      "sha256": "f58d70b8147332527c32b1fbf3894a2d7dbaa368a37ee65f065a70e01eeee58f"
+    }
+  ]
+}

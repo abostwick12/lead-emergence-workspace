@@ -5,6 +5,7 @@ import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import * as z from "zod/v4";
 import { registerSotfTools } from "@/lib/sotf/mcp";
+import { registerWriterTools } from "@/lib/writing/mcp";
 import { mcpWwwAuthenticateChallenge } from "@/lib/workspace/mcp-auth";
 
 const setupArea = z.enum([
@@ -69,7 +70,7 @@ type McpServerInternals = {
 export function createWorkspaceMcpServer(
   supabase: SupabaseClient<any, any, any, any, any>,
   currentClientId?: string,
-  options: { sotfEnabled?: boolean } = {}
+  options: { sotfEnabled?: boolean; bundleCapabilityIds?: string[] } = {}
 ) {
   const server = new McpServer({ name: "lewis", version: "1.4.0" });
 
@@ -387,6 +388,7 @@ export function createWorkspaceMcpServer(
   }, async () => ({ messages: [{ role: "user", content: { type: "text", text: "Continue my Lead Emergence Workspace setup. First check my onboarding state and existing setup. Ask one useful question at a time, adapt to my answers, allow me to skip or say I don't know, and confirm meaningful interpretations before storing them as configuration." } }] }));
 
   if (options.sotfEnabled === true) registerSotfTools(server, supabase);
+  registerWriterTools(server, supabase, options.bundleCapabilityIds ?? []);
   publishTopLevelOAuthSecuritySchemes(server);
   return server;
 }

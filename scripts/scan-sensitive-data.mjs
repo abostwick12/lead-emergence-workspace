@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const root = process.cwd();
-const skippedDirectories = new Set([".git", ".next", "artifacts", "coverage", "node_modules", "playwright-report", "test-results"]);
+const skippedDirectories = new Set([".git", ".next", ".bundle-local", "artifacts", "coverage", "node_modules", "playwright-report", "test-results"]);
 const findings = [];
 const patterns = [
   ["private key", /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],

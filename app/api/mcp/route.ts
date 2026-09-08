@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { authenticateMcpRequest, mcpUnauthorized, mcpWwwAuthenticateChallenge, workspaceMcpResourceUri } from "@/lib/workspace/mcp-auth";
 import { isMcpCorsOrigin, isMcpRequestOriginAllowed } from "@/lib/workspace/mcp-origin";
 import { createWorkspaceMcpServer } from "@/lib/workspace/mcp-server";
+import { resolveBundleExperience } from "@/lib/bundles/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,6 +39,9 @@ async function handleMcpRequest(request: Request) {
   const registration = await authenticated.supabase.rpc("mcp_register_connection");
   if (registration.error) return withCors(request, mcpUnauthorized("This connection is disconnected, unavailable, or not included."));
   const sotfEnabled = await resolveSotfMcpAccess(authenticated.supabase);
+  // Resolve for each stateless request. Revoked access cannot survive an old
+  // tools/list result, and every Writer RPC independently rechecks authority.
+  const experience = await resolveBundleExperience(authenticated.supabase, authenticated.user.id).catch(() => null);
 
   try {
     // Vercel functions do not retain an in-memory transport between requests.
@@ -47,7 +51,9 @@ async function handleMcpRequest(request: Request) {
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
-    const server = createWorkspaceMcpServer(authenticated.supabase, authenticated.claims.client_id as string, { sotfEnabled });
+    const server = createWorkspaceMcpServer(authenticated.supabase, authenticated.claims.client_id as string, {
+      sotfEnabled, bundleCapabilityIds: experience?.capabilityIds ?? []
+    });
     await server.connect(transport);
     if (requestMethods.has("initialize")) {
       await recordMcpEvent(authenticated.supabase, "connection_registered");

@@ -397,7 +397,7 @@ test("gates native and MCP SOTF presentation with the same fail-closed entitleme
   assert.match(workspaceShell, /sotfPilotEnabled && sotfAccess/);
   assert.match(workspaceProvider, /sotfPilotEnabled \? hasSotfAccess\(\) : Promise\.resolve\(false\)/);
   assert.match(mcpRoute, /resolveSotfMcpAccess/);
-  assert.match(mcpRoute, /createWorkspaceMcpServer\([^;]+\{ sotfEnabled \}/);
+  assert.match(mcpRoute, /createWorkspaceMcpServer\([^;]+\{\s*sotfEnabled\s*[,}]/);
   assert.match(mcpServer, /options\.sotfEnabled === true/);
 });
 

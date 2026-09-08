@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, BrainCircuit, BriefcaseBusiness, Compass, Crosshair, Menu, Moon, PackageOpen, Plug, Radar, Settings, Target, X } from "lucide-react";
 import { QuickCaptureDialog } from "@/components/quick-capture-dialog";
+import { BundleNavigation } from "@/components/bundles/bundle-navigation";
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider";
 import { WorkspaceClocks, WorkspaceHeaderDate } from "@/components/workspace-clocks";
 import { capabilityEnabled } from "@/lib/workspace/capabilities";
@@ -67,7 +68,14 @@ function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactN
     <button className="mobile-menu-button icon-button" aria-label="Open navigation" aria-expanded={navOpen} onClick={() => setNavOpen(true)}><Menu size={19} /></button>
     <aside className="sidebar" data-open={navOpen}>
       <div className="sidebar-brand-row"><Link className="brand" href="/workspace" onClick={() => setNavOpen(false)}><span className="brand-mark"><Compass size={19} /></span><span>Lead Emergence<small>Workspace</small></span></Link><button className="mobile-nav-close icon-button" aria-label="Close navigation" onClick={() => setNavOpen(false)}><X size={18} /></button></div>
-      <nav className="nav-list" aria-label="Workspace navigation"><p className="nav-section-title">Operational</p>{operationalLinks.map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link" data-active={pathname === href} onClick={() => setNavOpen(false)}><Icon size={18} /><span>{label}</span></Link>)}{sotfPilotEnabled && sotfAccess ? <Link href="/workspace/sotf" className="nav-link" data-active={pathname === "/workspace/sotf"} onClick={() => setNavOpen(false)}><PackageOpen size={18} /><span>SOTF Bundle</span></Link> : null}<p className="nav-section-title domains-label">Workspace</p>{workspaceLinks.map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link" data-active={pathname === href} onClick={() => setNavOpen(false)}><Icon size={18} /><span>{label}</span></Link>)}</nav>
+      <nav className="nav-list" aria-label="Workspace navigation">
+        <p className="nav-section-title">Operational</p>
+        {operationalLinks.map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link" data-active={pathname === href} onClick={() => setNavOpen(false)}><Icon size={18} /><span>{label}</span></Link>)}
+        <BundleNavigation pathname={pathname} onNavigate={() => setNavOpen(false)} />
+        {sotfPilotEnabled && sotfAccess ? <Link href="/workspace/sotf" className="nav-link" data-active={pathname === "/workspace/sotf"} onClick={() => setNavOpen(false)}><PackageOpen size={18} /><span>SOTF Bundle</span></Link> : null}
+        <p className="nav-section-title domains-label">Workspace</p>
+        {workspaceLinks.map(([href, label, Icon]) => <Link key={href} href={href} className="nav-link" data-active={pathname === href} onClick={() => setNavOpen(false)}><Icon size={18} /><span>{label}</span></Link>)}
+      </nav>
       <div className="sidebar-footer"><div className="signal-status"><p className="eyebrow">Workspace status</p><p><span className="status-dot" />Private Workspace ready</p></div><Link className="settings-link" href="/workspace/settings"><Settings size={17} />Settings</Link>{signOutError ? <p className="error" role="alert">{signOutError}</p> : null}<button className="sign-out" disabled={signingOut} onClick={() => void handleSignOut()}>{signingOut ? "Signing out…" : "Sign out"}</button></div>
     </aside>
     {navOpen ? <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setNavOpen(false)} /> : null}
