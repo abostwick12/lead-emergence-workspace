@@ -1,5 +1,147 @@
 # Test evidence
 
+## P9f resumable availability and connected catch-up — 2026-09-09
+
+**Implementation checkpoint, not client shipment. All six bundles remain NOT
+READY TO SHIP.** Executive 0.5.0 adds user-reviewed availability snapshots and
+conservative slot proposals. This checkpoint also executes the previously
+pending P9d exact-task navigation and P9e weekly-history work.
+
+### Implemented and boundaries
+
+Private meeting snapshots retain offered/free/busy windows, check/source,
+duration/buffer/zone and reviewed participants. Users explicitly apply a
+proposed time or keep reviewed availability, then confirm the exact record.
+Reopening never refreshes a historical check. Choosing rechecks age, context
+and fit, clears reported agreement and marks the unsaved proposal inferred.
+Edits invalidate checks/results. Manual-time and planner drafts independently
+block save until applied/discarded; closing the planner preserves those edits.
+Removing a snapshot requires a save and retains original revision history.
+
+The reusable engine merges adjacent/overlapping windows before buffers and
+subtracts conflicts. It handles submillisecond edges conservatively and offers
+at most three chronological five-minute-grid alternatives. Each offered window
+must work for all required attendees. Native entry handles repeated/gap hours
+and preserves untouched saved instant precision. There is no connected calendar,
+booking, invitation, independently verified availability or recurring worker.
+
+Authorized Executive meeting reads/proposals and saved downloads include the
+private snapshot; OAuth/native disclosures say so. Attention and weekly
+projections exclude it. Canonical save, permissions, approval and full history
+remain native-only. Skill-creation guidance kept assistant instructions aligned
+with explicit checks, resumable context and proposal-only authority.
+
+Connected testing exposed that Investor catalysts were unmounted behind the
+Overview section. A matched task-navigation signal now opens Catalysts before
+focus. Manual tab choices remain possible; a new hash or repeated same-page
+link reopens the requested task. Missing/denied links do not select other work.
+Unsaved questions survive these presentation changes; saved revisions do not change.
+
+### Verified results
+
+- PASS: source typecheck and 105 tests across 11 files; all six official plugin
+  validations and all six skill validations.
+- PASS: Workspace 281 unit tests in 29 files; 32 schema-policy checks; 251 runtime
+  boundaries; typecheck; lint; optimized production build with 51 static pages.
+- PASS: all 28 allowlisted transformed exports and SHA-256 hashes match pinned
+  source f9f4614afb947ada637ba170ceb7890ac91ad495.
+- PASS: restored the existing fictional 29-migration local database, then applied
+  migrations 30 and 31 without reset. All 16 auth identities were fictional;
+  non-fictional count was zero. This is upgrade proof, NOT fresh replay of all
+  31 migrations. Docker was already working on a read-only recheck; no engine
+  repair/restart, socket removal, factory reset or data reset was performed.
+- PASS: 588 real PostgreSQL assertions in 18 rollback-only suites, including
+  33 weekly and 13 availability assertions.
+- PASS: eight Executive foundation/native groups, seven task-consent/source
+  groups and five weekly-history groups. These exercise real schema parity,
+  invalid nested inputs, private historical snapshots/removal, retry semantics,
+  recorded/reported dates, correction/withdrawal classification, DST windows,
+  metadata omission, cross-client denial and live permission revocation.
+- PASS: thirteen actual Executive HTTP/OAuth/PKCE/MCP groups, including own
+  meeting availability, narrow weekly parity, bounded source discovery, live
+  revocation, native-only approval/history and disconnected credentials.
+- PASS: other connected regressions — Writer 11, revisions 10, library/recovery 7,
+  preparation 6, Ministry 10, Nonprofit 11, Investor 11 groups. With Executive:
+  79 groups. No live SEC, provider or personal-account request was made.
+- PASS: ten account-free desktop/mobile component-browser cases against actual
+  meeting components. There is no fake API or database; in-memory remount is not
+  persistence proof. The test runner owns/closes Vite cooperatively on Windows.
+  Its existing Vite 8.2.2 is now explicitly declared/locked as a dev dependency;
+  no application dependency version changed.
+- PASS: corrected exact-task navigation, all 28 desktop/mobile cases, zero retries.
+- PASS: all 116 optimized desktop/mobile all-bundle journeys, zero retries,
+  completed in 5.7 minutes. Then final mobile task-spacing refinement passed
+  all 28 affected navigation cases again in 1.0 minute, including explicit
+  clearance below the sticky header. The full 116 were not rerun after that
+  isolated spacing-only change. Final account-free component rerun: ten passes
+  in 21.4 seconds; its server closed successfully.
+- PASS: script syntax, whitespace, lockfile/dependency consistency and narrow
+  changed-source credential-pattern checks. This is not a full privacy,
+  dependency-vulnerability or all-history secret audit.
+
+### Corrected attempts and evidence limits
+
+Initial component attempt: six passes/four failures from test-clock drift and
+default-dismissed manual-time confirmation. Fixed-clock tests and explicit
+acceptance exercise the real UI. Initial Windows server cleanup hung; only its
+verified owned process was stopped, then the runner was changed to close its
+server cooperatively. Final component run: ten passes.
+
+Initial full connected browser run: 106 passes/eight failures in 7.4 minutes.
+Two failures used an ambiguous nonprofit summary selector that also matched
+nested dependency headings. Six were the real Investor hidden-Catalysts bug.
+The selector now targets the direct task heading; the native tab/navigation
+fix and additional repeated-link/unsaved-edit tests passed all 28 navigation
+cases in 1.2 minutes. The complete 116-case rerun passed in 5.7 minutes.
+Visual review then found linked titles partly under the mobile header. Native
+shell-aligned 210-pixel task clearance and stronger visibility assertions fixed
+this; all 28 affected cases passed again after the final optimized rebuild.
+
+The first Executive connected invocation completed but its terminal output was
+lost to context truncation. A read-only process check verified it had ended;
+the subsequent complete sequential connected run passed. No overlapping
+capability-changing suites were started. Database checks are independent of
+the account-free component harness and of synthetic UI response injections.
+
+Four final component screenshots were reviewed. Initial weekly screenshots
+exposed a loading-state capture; final browser capture now waits for actual
+events and includes a readable event card and retained availability windows.
+Images use fictional data only. Final weekly event/retained-window images were
+reviewed on both viewports, plus task cards and final mobile task positioning.
+A tall element screenshot can include the sticky header inside its capture;
+actual viewport images and clearance assertions establish task-title visibility.
+No representative user-value claim is made.
+
+Post-test aggregate checks: 16 fictional users, zero non-fictional users, 31
+migrations, zero disabled domain capabilities and zero Executive shared scopes.
+Four active grants created by older suite runners in this acceptance run were
+identified by timestamp, synthetic client name and exact fixture owner, then
+disconnected via each owner's native RPC. Four pre-existing fictional grants
+were left untouched; no new-run active grant remained. These older suites still
+need universal finally-disconnect hygiene. This is a local test-runner limitation,
+not evidence of a client connection or a production authorization bypass.
+Both owned preview ports were verified closed. The named bundle-experience-p2
+stack stopped successfully with backup=true; retained volumes/backups were not
+removed. Docker itself was not stopped or repaired.
+
+BundleContract 1.0, UIManifestContract 1.0, task-metadata-v1, attention response
+2.0 and weekly response 1.0 remain unchanged. Only the Executive catalog/domain
+contract moves to 0.5.0. Twenty scoped tools retain five proposal writes.
+
+### Release status and next work
+
+P9d/P9e environment-blocked notes below are historical, not a current repair
+request. No hosted migration, main merge, production deployment, marketplace
+submission, installed-host/provider/client connection or paywall activation
+occurred. Source publication remains limited to the owned branches.
+
+Next: implement shared
+Workspace Experience controls/consumers that improve every bundle: user-owned
+pin/hide/order/default choices, capability-scoped search/quick actions and clear
+connection/recovery states. Continue Executive's approved recurring/notification
+lifecycle and remaining rich ingestion, representative quality/utility,
+installed-host, deployed recovery/privacy/retention and commercial release gates.
+
 ## P9e recorded weekly outcomes — 2026-09-09
 
 **Source checkpoint only. All six bundles remain NOT READY TO SHIP.**

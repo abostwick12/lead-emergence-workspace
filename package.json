@@ -34,6 +34,7 @@
     "test:executive:local": "node scripts/test-executive-local.mjs",
     "test:executive:tasks": "node scripts/test-executive-tasks-local.mjs",
     "test:executive:weekly": "node scripts/test-executive-weekly-local.mjs",
+    "test:executive:component": "node tests/harness/availability/run.mjs",
     "test:executive:connected": "node scripts/test-executive-connected.mjs",
     "test:bundles:rls:local": "node scripts/test-bundle-rls-local.mjs",
     "test:e2e": "playwright test",
@@ -71,6 +72,7 @@
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.2",
     "typescript": "^5.5.3",
+    "vite": "8.2.2",
     "vitest": "4.1.11"
   }
 }

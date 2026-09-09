@@ -2,13 +2,15 @@
 
 Updated 2026-09-09. P9c established individually consented task metadata, paged
 attention and complete paged source discovery. **All six bundles remain
-NOT READY TO SHIP.** P9d navigation and P9e weekly outcomes are source progress;
-connected verification of both is still pending the local Docker startup repair.
+NOT READY TO SHIP.** P9d navigation, P9e weekly outcomes and P9f availability
+now have real isolated database and connected assistant proof. Docker was already
+working on recheck; no repair/reset occurred. All 116 optimized browser journeys
+pass; the final mobile spacing change also passes all 28 affected cases.
 
 ## Ownership and native work
 
 Workspace imports 28 allowlisted reusable files from source revision
-9776d8979ab8739b1a9d9ee10dfc981591c7f6e8. Executive 0.4.0 retains Bundle
+f9f4614afb947ada637ba170ceb7890ac91ad495. Executive 0.5.0 retains Bundle
 Contract 1.0 and UI Manifest Contract 1.0. The host registers entitlement-based
 Executive navigation, widgets and scoped tools; it does not import source-repo
 runtime paths.
@@ -23,7 +25,8 @@ Decisions need a selected alternative, rationale and actual decision date.
 Completed commitments need their completion date. Meeting-time entry uses an
 explicit instant and named zone, rejects nonexistent local times and requires a
 choice during repeated hours. Timing/participant changes clear reported agreement.
-A saved meeting does not check availability or book a calendar.
+A saved meeting does not check a connected calendar or book an event. P9f's
+native planner uses only explicitly reviewed availability entered by the user.
 
 ## Authority and persistence
 
@@ -109,7 +112,9 @@ can change page membership. This is not a frozen complete snapshot.
 
 Native attention has pagination and detailed coverage; the source picker pages
 beyond the first fifty cues. P9d links now target the exact on-screen task,
-opening/focusing only the authorized loaded editor. Its browser proof is pending.
+opening/focusing only the authorized loaded editor. A matched Investor catalyst link
+selects its Catalysts section before focus; manual tab changes remain user-owned,
+and another explicit navigation (including a repeated same-page link) reopens it.
 Malformed/missing targets never select history, proposals or automatically save.
 A parent and its task can both produce a cue;
 grouping redundant parent/task cues and signed-out fragment return remain pre-shipment
@@ -120,7 +125,7 @@ stores up to twenty exact references without copying task labels/owners/next
 actions into durable prose. Larger result sets disclose their partial coverage.
 Current-attention preparation remains explicitly separate from outcome history.
 
-## Recorded weekly outcomes — P9e source, runtime verification pending
+## Recorded weekly outcomes — P9e, native and connected verification passed
 
 Migration 30 adds one narrow read, not access to full revision bodies. It keeps
 the published migrations immutable and extends weekly records with an optional
@@ -157,17 +162,58 @@ buttons; a failed read retry cannot submit an already-confirmed form.
 
 The assistant exposes this same strict projection only with executive.review.
 OAuth consent discloses the bounded read; full native history remains denied.
-SQL classifier rules exactly match the reusable source in unit tests. DST,
-permission removal, metadata privacy and connected UI tests are written but
-have NOT RUN against migration 30.
+SQL classifier rules exactly match reusable source and actual database schemas. DST,
+permission removal and metadata privacy pass in native and actual HTTP/MCP tests;
+all 28 Executive desktop/mobile journeys pass in the complete regression.
+
+## Resumable availability planning — P9f
+
+An optional private meeting availability snapshot stores explicit offered/free/
+busy instant windows, a source and check time, duration, buffer, display zone
+and the participant snapshot it was reviewed for. Published migrations remain
+immutable; migration 31 extends the schema and validates nested boundaries.
+Old meetings remain valid. Historical checks may remain saved but never become
+fresh by reopening the record. Full snapshots stay in the admitted Executive
+meeting/proposal/history paths, not attention or weekly metadata projections.
+
+Native window entry handles missing dates, invalid gaps and repeated local
+hours, requiring the intended instant. Untouched saved seconds/submilliseconds
+are retained rather than rounded by minute-level fields. Available/offered
+windows are merged before buffers; known conflicts are subtracted conservatively.
+The deterministic engine returns at most three chronological, five-minute-grid
+alternatives. No overlap is an explicit result, not inferred availability.
+Each offered alternative must work for all required attendees; separate people's
+offers are not combined as collective availability.
+
+A new choice rechecks age, fit and the participant/duration/zone snapshot.
+Selecting a time marks the unsaved plan inferred and not agreed. Users may also
+retain reviewed availability without a choice. Edits clear the availability
+check and invalidate results. Unapplied availability and manual time edits
+independently block the record save until applied or discarded. Every planner
+button is non-submitting. Removal changes only the on-screen record until an
+exact save; old versions remain retained.
+
+Ten real desktop/mobile component-browser cases pass against actual RecordFields
+and planner components in an isolated Vite harness. It has no account, fake API,
+database persistence or provider. Tests cover buffered choices, in-memory
+remount, no overlap, stale/context changes, DST choices/gaps, independent pending
+inputs, no accidental form submits and no API requests. Four final synthetic
+screenshots were inspected; mobile guidance was shortened with disclosures.
+The runner owns/closes its Vite server cooperatively on Windows.
+
+Component results alone do not prove canonical save/reload, OAuth/MCP access,
+RLS or migration execution. Separate real native and connected assistant tests pass.
+Two optimized desktop/mobile persistence/history cases pass in the complete run.
+The final mobile task spacing also passed its full affected regression. No provider,
+installed-host or representative client-value claim is made.
 
 ## Verification and remaining work
 
-See P9e/P9d and historical P9c in docs/testing/test-evidence.md and the local proof runbook for
+See P9f and historical P9e/P9d/P9c in docs/testing/test-evidence.md and the local proof runbook for
 counts, corrected attempts and execution receipts. Fictional local database,
 HTTP/OAuth/MCP and browser acceptance is not installed-host or client-value proof.
 
-Remaining: connected P9d/P9e verification; explicit-availability scheduling UI;
+Remaining: real authorized scheduling providers;
 approved recurring lifecycle and meaningful-change notifications; grouped
 attention; crash/autosave recovery; shared search/quick actions/connections/
 preferences; representative utility, accessibility and deployed privacy,

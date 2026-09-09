@@ -2,7 +2,8 @@
 import {WeeklyOutcomes} from "./weekly-outcomes";
 import type {ExecutiveWeeklyReport} from "@/lib/executive-bundle/contracts";
 import {taskTargetId} from "@/lib/bundles/task-target";
-import {useState} from "react";
+import {useState,useRef} from "react";
+import {AvailabilityPlanner} from "./availability-planner";
 import type {ExecutiveData,ExecutiveAction} from "@/lib/executive-bundle/contracts";
 import {executiveReviewState} from "@/lib/executive-bundle/contracts";
 import {localTimeCandidates,localMeetingTime} from "@/lib/executive-bundle/presentation";
@@ -27,9 +28,11 @@ export function ActionFields({actions,onChange,max=10}:{actions:ExecutiveAction[
 type Meeting=Extract<ExecutiveData,{recordType:"meeting"}>;
 function MeetingTime({value,onChange,onPending}:{value:Meeting;onChange:(value:Meeting)=>void;onPending:(pending:boolean)=>void}) {
  const [local,setLocal]=useState(()=>localMeetingTime(value.startsAt,value.timeZone)),[selection,setSelection]=useState(value.startsAt??""),[pending,setPending]=useState(false);
+ const flags=useRef({manual:false,planner:false});
+ const manualPending=(next:boolean)=>{flags.current.manual=next;setPending(next);onPending(next||flags.current.planner);};
  const candidates=localTimeCandidates(local,value.timeZone);
- const edit=()=>{setPending(true);onPending(true);setSelection("");};
- const applyTime=(instant:string|null)=>{onChange({...value,startsAt:instant,agreement:"not_agreed"});setSelection(instant??"");setPending(false);onPending(false);};
+ const edit=()=>{manualPending(true);setSelection("");};
+ const applyTime=(instant:string|null)=>{onChange({...value,startsAt:instant,agreement:"not_agreed"});setSelection(instant??"");manualPending(false);};
  return <section className={styles.section}><h2>Meeting time and agreement</h2><p className={styles.muted}>Choose the local time and zone explicitly. A saved time is not a calendar booking.</p>
  <div className={styles.grid}><Field label="Meeting local date and time" type="datetime-local" value={local} onChange={v=>{setLocal(v);edit();}}/>
  <Choice label="Meeting time zone *" value={value.timeZone} values={["",...supportedTimeZoneOptions(["UTC",...(value.timeZone?[value.timeZone]:[])])]} labels={{"":"Choose a time zone"}} onChange={timeZone=>{onChange({...value,timeZone,startsAt:null,agreement:"not_agreed"});edit();}}/></div>
@@ -39,6 +42,10 @@ function MeetingTime({value,onChange,onPending}:{value:Meeting;onChange:(value:M
  <div className={styles.grid}><NumberField label="Duration in minutes" value={value.durationMinutes} min={5} max={480} onChange={durationMinutes=>onChange({...value,durationMinutes:durationMinutes??0,agreement:"not_agreed"})}/>
  <Choice label="Meeting agreement" value={value.agreement} values={["not_agreed","user_reported_agreed"]} onChange={agreement=>onChange({...value,agreement:agreement as Meeting["agreement"]})}/></div>
  <p className={styles.muted}>“User reported agreed” records your confirmation of an actual agreement. It does not send invitations or check anyone’s availability.</p>
+ <AvailabilityPlanner meeting={value} onPending={next=>{flags.current.planner=next;onPending(next||flags.current.manual);}}
+  onStage={availability=>onChange({...value,availability})} onRemove={()=>onChange({...value,availability:undefined})}
+  onChoose={next=>{if(pending&&!window.confirm("Replace your unapplied manual time with this proposed time?"))return false;
+   onChange(next);setLocal(localMeetingTime(next.startsAt,next.timeZone));setSelection(next.startsAt??"");manualPending(false);return true;}}/>
  </section>;
 }
 export function RecordFields({value,onChange,onTimePending,onPrepareWeekly}:{value:ExecutiveData;onChange:Change;onTimePending:(pending:boolean)=>void;onPrepareWeekly?:(report:ExecutiveWeeklyReport)=>void}) {

@@ -32,6 +32,11 @@ describe("Executive native integration boundaries",()=>{
    const zone=weekly.match(/\$zone\$([\s\S]*?)\$zone\$::jsonb/);expect(zone).not.toBeNull();
    latest.properties.timeZone=JSON.parse(zone![1]);
   }
+  if(kind==="meeting"){
+   const availability=await readFile("supabase/migrations/20260911170000_executive_availability_planning.sql","utf8");
+   const schema=availability.match(/\$availability\$([\s\S]*?)\$availability\$::jsonb/);expect(schema).not.toBeNull();
+   latest.properties.availability=JSON.parse(schema![1]);
+  }
   expect(latest).toEqual(z.toJSONSchema(executiveBaseSchemas[kind],{io:"input"}));
  });
  it("composes Executive without pulling unrelated private domains into authority",()=>{

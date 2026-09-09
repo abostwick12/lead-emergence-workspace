@@ -1,5 +1,6 @@
 "use client";
 import {taskTargetId} from "@/lib/bundles/task-target";
+import {useLinkedTask} from "@/components/bundles/task-link-navigation";
 import { useState } from "react";
 import type { Instrument, InvestorData, InvestorWatchlist, InvestorThesis, InvestorFiling, InvestorBrief, InvestorKind } from "@/lib/investor-bundle/contracts";
 import { filingForms, filingWarnings, researchGaps } from "@/lib/investor-bundle/contracts";
@@ -79,7 +80,16 @@ function BriefFields({ value, onChange }: { value: InvestorBrief; onChange: (v: 
   </section>;
 }
 export function RecordFields({ kind, value, onChange }: { kind: InvestorKind; value: InvestorData; onChange: (v: InvestorData) => void }) {
-  const [tab, setTab] = useState("Overview"), research = "sources" in value ? value : null;
+  const research = "sources" in value ? value : null, linkedTask = useLinkedTask();
+  const linkedCatalyst = !!research?.catalysts.some(c => taskTargetId("catalyst", c.id) === linkedTask?.id);
+  const [tab, setTab] = useState(linkedCatalyst ? "Catalysts" : "Overview");
+  const [lastLink, setLastLink] = useState(linkedTask?.requestKey);
+  // Adjust only on a new explicit task navigation, not when the user switches tabs.
+  // Render-time adjustment mounts the target before the parent focus effect runs.
+  if (lastLink !== linkedTask?.requestKey) {
+    setLastLink(linkedTask?.requestKey);
+    if (linkedCatalyst) setTab("Catalysts");
+  }
   const tabs = research ? ["Overview", "Evidence", "Catalysts", ...(kind === "thesis" ? ["Scenarios"] : [])] : ["Overview"];
   const gaps = researchGaps(value, value.asOfDate);
   return <><div className={styles.grid}><Field label="Record title" value={value.title} required max={240} onChange={title => onChange({ ...value, title })} />

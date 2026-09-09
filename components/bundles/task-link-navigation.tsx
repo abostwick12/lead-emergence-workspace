@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { taskTargetFromHash } from "@/lib/bundles/task-target";
 import styles from "./task-link-navigation.module.css";
 
@@ -14,10 +14,14 @@ function subscribe(callback: () => void) {
 }
 const snapshot = () => window.location.hash;
 const serverSnapshot = () => "";
+const LinkedTaskContext = createContext<{ id: string; requestKey: string } | null>(null);
+/** Presentation-only signal, restricted to a matched task in the loaded editor. */
+export const useLinkedTask = () => useContext(LinkedTaskContext);
 
 /** Mount only around an authorized, loaded editor, never around history or proposals. */
 export function TaskLinkNavigation({ targets, children }: { targets: string[]; children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null), notice = useRef<HTMLParagraphElement>(null);
+  const [repeatRequest, setRepeatRequest] = useState(0);
   const hash = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
   const targetId = taskTargetFromHash(hash);
   const found = targetId !== null && targets.includes(targetId);
@@ -50,7 +54,7 @@ export function TaskLinkNavigation({ targets, children }: { targets: string[]; c
       const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
       if (!(link instanceof HTMLAnchorElement) || link.target === "_blank" || link.hasAttribute("download")) return;
       const url = new URL(link.href);
-      if (url.origin === location.origin && url.pathname === location.pathname && url.search === location.search && url.hash === hash) reveal();
+      if (url.origin === location.origin && url.pathname === location.pathname && url.search === location.search && url.hash === hash) setRepeatRequest(n => n + 1);
     };
     window.addEventListener("click", repeat);
     return () => {
@@ -58,13 +62,13 @@ export function TaskLinkNavigation({ targets, children }: { targets: string[]; c
       window.removeEventListener("click", repeat);
       if (target) delete target.dataset.linkedTask;
     };
-  }, [hash, targetId, found, invalid]);
+  }, [hash, targetId, found, invalid, repeatRequest]);
 
-  return <div ref={root} className={styles.scope}>
+  return <LinkedTaskContext.Provider value={found && targetId ? { id: targetId, requestKey: hash + ":" + repeatRequest } : null}><div ref={root} className={styles.scope}>
     {(missing || invalid) && <p ref={notice} tabIndex={-1} role="status" className={styles.notice}>
       {invalid ? "This task link is not valid." : "The linked task is not in this on-screen record. It may have been removed or changed."}
       {" "}You can review this record and its earlier saved work. No other task was selected and nothing was saved.
     </p>}
     {children}
-  </div>;
+  </div></LinkedTaskContext.Provider>;
 }

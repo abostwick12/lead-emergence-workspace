@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "identity": {
     "key": "executive",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "displayName": "Executive",
     "description": "Turns commitments, priorities, decisions, and permitted cross-bundle signals into a concise operating view.",
     "kind": "functional"
@@ -30,7 +30,7 @@
   "capabilities": [
     {
       "id": "executive.brief",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "description": "Prepare an evidence-linked attention brief from authorized task metadata.",
       "domain": "executive",
       "operations": [
@@ -41,7 +41,7 @@
     },
     {
       "id": "executive.review",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "description": "Run a weekly review of priorities, commitments, decisions, and follow-up.",
       "domain": "executive",
       "operations": [
@@ -52,7 +52,7 @@
     },
     {
       "id": "executive.coordination",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "description": "Coordinate explicitly permitted task-level metadata across bundles.",
       "domain": "executive",
       "operations": [
@@ -82,7 +82,7 @@
   "workflows": [
     {
       "id": "executive.workflow.daily_brief",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "name": "Daily attention brief",
       "capabilityIds": [
         "executive.brief",
@@ -104,7 +104,7 @@
     },
     {
       "id": "executive.workflow.weekly_review",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "name": "Weekly review",
       "capabilityIds": [
         "executive.review"
@@ -124,7 +124,7 @@
     },
     {
       "id": "executive.workflow.commitment",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "name": "Record a commitment",
       "capabilityIds": [
         "executive.coordination"
@@ -142,7 +142,7 @@
     },
     {
       "id": "executive.workflow.decision",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "name": "Prepare a decision",
       "capabilityIds": [
         "executive.coordination"
@@ -160,7 +160,7 @@
     },
     {
       "id": "executive.workflow.meeting",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "name": "Prepare a meeting",
       "capabilityIds": [
         "executive.coordination"
@@ -178,7 +178,7 @@
     },
     {
       "id": "executive.workflow.meeting_times",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "name": "Compare explicit meeting availability",
       "capabilityIds": [
         "executive.coordination"

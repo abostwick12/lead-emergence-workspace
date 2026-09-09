@@ -110,6 +110,8 @@ test("reviews recorded outcomes, prepares an unsaved review and retains its time
   expect(saved.data).toMatchObject({timeZone:"UTC",periodStart:today,periodEnd:today,reviewState:"inferred",
    references:expect.arrayContaining([expect.objectContaining({documentId:d.id,revision:d.revision})])});
   await page.reload();await expect(page.getByLabel("Weekly history time zone",{exact:true})).toHaveValue("UTC");
+  await expect(panel.locator("article").first()).toBeVisible();
+  await panel.locator("article").first().screenshot({path:"test-results/executive-weekly-event-"+info.project.name+".png"});
   await panel.getByRole("heading",{name:"Outcomes recorded during this period"}).scrollIntoViewIfNeeded();
   await page.screenshot({path:"test-results/executive-weekly-outcomes-"+info.project.name+".png",fullPage:false});await noOverflow(page);
  });
@@ -148,6 +150,38 @@ test("reviews recorded outcomes, prepares an unsaved review and retains its time
   await confirm(page).check();await panel.getByRole("button",{name:"Try again",exact:true}).click();
   await expect(panel.getByText(/No outcome changes were recorded in the checked window/)).toBeVisible();
   expect(saves).toEqual([]);await expect(confirm(page)).toBeChecked();await noOverflow(page);
+ });
+test("saves reviewed meeting availability, reopens it and preserves history after removal",async({page},info)=>{
+  const client=await session(),future=new Date(Date.now()+86400000).toISOString().slice(0,10);
+  await signIn(page);await page.goto("/workspace/executive/meeting/new");
+  await page.getByLabel("Title *",{exact:true}).fill(title("Fictional reviewed availability"));
+  await page.getByLabel("Meeting objective *",{exact:true}).fill("Agree a fictional next step");
+  await page.getByLabel("Meeting time zone *",{exact:true}).selectOption("UTC");
+  await page.getByText("Find times from reviewed availability",{exact:true}).click();
+  await page.getByLabel("Availability entry time zone",{exact:true}).selectOption("UTC");
+  await page.getByLabel("offered window 1 start",{exact:true}).fill(future+"T14:00");
+  await page.getByLabel("offered window 1 end",{exact:true}).fill(future+"T18:00");
+  await page.getByRole("button",{name:"I am available throughout the offered windows",exact:true}).click();
+  await page.getByLabel("Where and with whom availability was checked *",{exact:true}).fill("Fictional calendar manually checked");
+  await page.getByRole("button",{name:"Confirm I rechecked these windows now",exact:true}).click();
+  await page.getByRole("button",{name:"Find proposed meeting times",exact:true}).click();
+  page.once("dialog",dialog=>dialog.accept());
+  await page.getByRole("button",{name:"Use proposed time 1",exact:true}).click();
+  await expect(saveButton(page,"meeting")).toBeDisabled();await confirm(page).check();await saveButton(page,"meeting").click();
+  const id=await savedId(page,"meeting"),saved=await get(client,"meeting",id);
+  expect(saved.data).toMatchObject({startsAt:future+"T14:15:00.000Z",agreement:"not_agreed",reviewState:"inferred",
+   availability:{input:{source:"Fictional calendar manually checked",confirmAvailabilityChecked:true}}});
+  await page.reload();await page.getByText("Find times from reviewed availability",{exact:true}).click();
+  await expect(page.getByLabel("offered window 1 start",{exact:true})).toHaveValue(future+"T14:00");
+  await page.getByRole("region",{name:"offered windows",exact:true}).screenshot({path:"test-results/executive-retained-availability-"+info.project.name+".png"});
+  page.once("dialog",dialog=>dialog.accept());
+  await page.getByRole("button",{name:"Remove retained availability from this meeting",exact:true}).click();
+  await confirm(page).check();await saveButton(page,"meeting").click();
+  await expect(page.getByRole("status").filter({hasText:"Saved revision 2"})).toBeVisible();
+  expect((await get(client,"meeting",id)).data).not.toHaveProperty("availability");
+  const history=await client.rpc("executive_document_history",{p_kind:"meeting",p_document_id:id});expect(history.error).toBeNull();
+  expect(history.data.revisions.find((r:ExecutiveDocument)=>r.revision===1).data.availability).toEqual((saved.data as Extract<ExecutiveData,{recordType:"meeting"}>).availability);
+  await noOverflow(page);
  });
  test("prepares and saves a daily brief and an honest weekly review",async({page})=>{
   const client=await session();await save(client,"commitment",{...executiveFixtures().commitment,title:title("A next move for the daily brief")});

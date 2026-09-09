@@ -21,6 +21,22 @@ export const executivePriority = z.enum(["high", "normal", "low"]);
 export const namedTimeZone = required(100).refine(value => {
   try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; }
 }, "Use a supported named time zone.");
+export const executiveTimeWindow = z.object({start:instant,end:instant}).strict().refine(
+ w=>Date.parse(w.end)>Date.parse(w.start)&&Date.parse(w.end)-Date.parse(w.start)<=31*86400000,
+ "Use a positive window no longer than 31 days.");
+export const executiveSchedulingInput = z.object({
+ offered:z.array(executiveTimeWindow).min(1).max(20),
+ available:z.array(executiveTimeWindow).min(1).max(20),
+ busy:z.array(executiveTimeWindow).max(200),
+ checkedAt:instant,source:required(240),confirmAvailabilityChecked:z.literal(true),
+ timeZone:namedTimeZone,durationMinutes:z.number().int().min(5).max(480),bufferMinutes:z.number().int().min(0).max(120)
+}).strict();
+export const executiveMeetingAvailability = z.object({
+ input:executiveSchedulingInput,
+ participants:z.array(z.object({name:required(240),role:text(240)}).strict()).max(30)
+}).strict();
+export type ExecutiveSchedulingInput=z.infer<typeof executiveSchedulingInput>;
+export type ExecutiveMeetingAvailability=z.infer<typeof executiveMeetingAvailability>;
 
 // The complete allowlist is an authorization input contract, not an authorization decision.
 // The host must also check native user consent and current source entitlements per request.
@@ -102,7 +118,7 @@ export const executiveBaseSchemas = {
     objective: required(4000), participants: z.array(z.object({ name: required(240), role: text(240) }).strict()).max(30),
     agenda: text(8000), startsAt: instant.nullable(), timeZone: required(100), durationMinutes: z.number().int().min(5).max(480),
     agreement: z.enum(["not_agreed", "user_reported_agreed"]), location: text(1000), outcome: text(8000),
-    actions: z.array(action).max(30)
+    actions: z.array(action).max(30), availability: executiveMeetingAvailability.optional()
   }).strict(),
   daily_brief: z.object({
     ...common, recordType: z.literal("daily_brief"), state: z.enum(["draft", "reviewed", "archived"]),

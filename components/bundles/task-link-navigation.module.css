@@ -2,3 +2,7 @@
 .scope [data-linked-task="true"] { outline: 2px solid var(--accent, #516e55); outline-offset: 4px; }
 .notice { padding: 1rem; border: 1px solid currentColor; border-radius: 0.75rem; scroll-margin-top: 6rem; }
 .notice:focus { outline: 2px solid var(--accent, #516e55); outline-offset: 3px; }
+/* Match the native shell’s mobile focus clearance, including its clock row. */
+@media (max-width: 900px) {
+  .scope [id^="task-"], .notice { scroll-margin-top: 210px; }
+}

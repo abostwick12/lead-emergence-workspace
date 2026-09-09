@@ -14,6 +14,9 @@ assert.notEqual(hostProbe.status,421,"Run connected MCP acceptance with the isol
 const own=await fixtureSession(config,f.executive),other=await fixtureSession(config,f.executiveOther),
  dual=await fixtureSession(config,f.executiveDual),unassigned=await fixtureSession(config,f.reader),operator=await fixtureSession(config,f.operator);
 const data=executiveFixtures(),date=new Date().toISOString().slice(0,10),connections=[],grants=[];
+data.meeting.availability={input:{offered:[{start:date+"T14:00:00Z",end:date+"T18:00:00Z"}],
+ available:[{start:date+"T14:00:00Z",end:date+"T18:00:00Z"}],busy:[],source:"CONNECTED_PRIVATE_AVAILABILITY_CANARY",
+ checkedAt:new Date().toISOString(),confirmAvailabilityChecked:true,timeZone:"UTC",durationMinutes:30,bufferMinutes:15},participants:[]};
 let groups=0,disabled=false;
 const pass=message=>{groups++;console.log("PASS "+message);};
 async function rpc(client,name,args={},code=null){const r=await client.rpc(name,args);assert.equal(r.error?.code??null,code,name+": "+r.error?.message);return r.data;}
@@ -57,6 +60,7 @@ try {
  const composition=JSON.stringify((await web("/api/bundles/experience",null,dual.token)).body);
  for(const area of ["executive","writing","ministry","nonprofit","investing"])assert.ok(composition.includes("/workspace/"+area));
  const cues=await web("/api/executive/attention?asOfDate="+date);assert.equal(cues.status,200,JSON.stringify(cues.body));
+ assert.doesNotMatch(JSON.stringify(cues.body),/CONNECTED_PRIVATE_AVAILABILITY_CANARY|confirmAvailabilityChecked/);
  assert.equal(cues.body.coverage.length,13);assert.equal(cues.body.total,cues.body.coverage.reduce((sum,c)=>sum+(c.total??0),0));
  assert.ok(cues.body.items.every(i=>i.source.capabilityId.startsWith("executive.")&&i.evidence&&i.reason));
  assert.ok(cues.body.coverage.filter(c=>!c.capabilityId.startsWith("executive.")).every(c=>c.state==="not_shared"&&c.total===null));
@@ -99,6 +103,7 @@ try {
   assert.equal(listed.isError??false,false,JSON.stringify(listed));assert.ok(listed.structuredContent.documents.some(x=>x.id===d.id));
   const current=await assistant.client.callTool({name:"executive_get_"+kind,arguments:{documentId:d.id}});
   assert.equal(current.isError??false,false);assert.deepEqual(current.structuredContent.document,d);
+  if(kind==="meeting")assert.deepEqual(current.structuredContent.document.data.availability,data.meeting.availability);
   const input={documentId:d.id,expectedRevision:d.revision,requestId:randomUUID(),data:{...d.data,notes:"Requested fictional clarification",reviewState:"confirmed"},
    reason:"Clarify the fictional next move",evidence:"Fictional acceptance evidence only",scope:"executive_coordination_only"};
   const proposed=await assistant.client.callTool({name:"executive_propose_"+kind,arguments:input});

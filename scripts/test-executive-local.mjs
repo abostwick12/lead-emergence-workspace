@@ -42,6 +42,28 @@ await denied(own.client, "executive_save_document", saveInput("meeting", { ...da
 await denied(own.client, "executive_save_document", saveInput("meeting", { ...data.meeting, timeZone: "Bad/Zone" }), "22023");
 await denied(own.client, "executive_save_document", saveInput("daily_brief", { ...data.daily_brief, periodEnd: "2026-09-20" }), "22023");
 pass("the database independently checks strict fields, confirmation, real dates, integers, zones and evidence rules");
+const availability={input:{offered:[{start:data.meeting.startsAt,end:data.meeting.startsAt.replace("15:00","18:00")}],
+ available:[{start:data.meeting.startsAt,end:data.meeting.startsAt.replace("15:00","18:00")}],busy:[],
+ checkedAt:"2020-01-01T12:00:00Z",source:"NATIVE_PRIVATE_AVAILABILITY_CANARY",confirmAvailabilityChecked:true,timeZone:"UTC",durationMinutes:30,bufferMinutes:15},participants:[]};
+const availabilityInput={...saveInput("meeting",{...data.meeting,availability}),p_document_id:records.meeting.id,p_expected_revision:1};
+const retained=await rpc(own.client,"executive_save_document",availabilityInput);
+assert.deepEqual(retained.document.data.availability,availability);
+assert.equal((await rpc(own.client,"executive_save_document",availabilityInput)).document.revision,2);
+assert.deepEqual((await rpc(own.client,"executive_document_history",{p_kind:"meeting",p_document_id:records.meeting.id})).revisions.find(v=>v.revision===2).data.availability,availability);
+for(const patch of [{bufferMinutes:121},{timeZone:"Bad/Zone"},{providerToken:"not-a-secret"},{confirmAvailabilityChecked:false},
+ {offered:[{start:"2026-09-09T15:00:00Z",end:"2026-09-09T14:00:00Z"}]}])
+ await denied(own.client,"executive_save_document",saveInput("meeting",{...data.meeting,availability:{...availability,input:{...availability.input,...patch}}}),"22023");
+await denied(other.client,"executive_get_document",{p_kind:"meeting",p_document_id:records.meeting.id},"P0002");
+const heldAvailability=await rpc(own.client,"executive_save_document",{...saveInput("meeting",{...retained.document.data,state:"held",outcome:"Fictional outcome only"}),
+ p_document_id:records.meeting.id,p_expected_revision:2});
+const checkedDate=new Date().toISOString().slice(0,10);
+const weekly=await rpc(own.client,"executive_weekly_outcomes",{p_period_start:checkedDate,p_period_end:checkedDate,p_time_zone:"UTC",p_limit:50});
+assert.ok(weekly.events.some(e=>e.source.documentId===records.meeting.id));
+assert.doesNotMatch(JSON.stringify(weekly),/NATIVE_PRIVATE_AVAILABILITY_CANARY|confirmAvailabilityChecked/);
+const removedAvailability={...heldAvailability.document.data};delete removedAvailability.availability;
+await rpc(own.client,"executive_save_document",{...saveInput("meeting",removedAvailability),p_document_id:records.meeting.id,p_expected_revision:3});
+assert.deepEqual((await rpc(own.client,"executive_document_history",{p_kind:"meeting",p_document_id:records.meeting.id})).revisions.find(v=>v.revision===2).data.availability,availability);
+pass("private availability is strict and recoverable, old checks remain historical, other clients are denied and weekly metadata excludes it");
 
 const changed = { ...data.commitment, nextAction: "An updated illustrative next move" };
 const update = { ...saveInput("commitment", changed), p_document_id: records.commitment.id, p_expected_revision: 1 };

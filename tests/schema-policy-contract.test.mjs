@@ -18,6 +18,7 @@ test("discloses assigned Writing, Ministry, Nonprofit, Investor and Executive ac
   assert.match(consent, /Executive can read assigned commitments, decisions, meeting plans and briefs/);
   assert.match(consent, /Source sharing starts off/);
   assert.match(consent, /bounded outcome-history projection/);
+  assert.match(consent, /availability you manually enter; this does not connect a calendar/);
   assert.match(consent, /source-permission changes, proposal decisions and full revision history remain native-only/);
   assert.match(consent, /No recurring automation is started by this connection/);
 });

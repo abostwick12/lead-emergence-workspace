@@ -115,6 +115,39 @@ test.describe("Exact task navigation in authorized native editors", () => {
     await expect(page.getByText("Fictional task 1", { exact: false })).toHaveCount(0);
     await expect(page.getByRole("status").filter({ hasText: "linked task" })).toHaveCount(0);
   });
+  test("opens a linked catalyst across tab changes and repeated links without saving", async ({ page }, info) => {
+    const client = await session(), ids = [randomUUID(), randomUUID()];
+    const data = dataFor("investor", "thesis", ids);
+    const saved = await save(client, "investor", "thesis", data);
+    const target = (id: string) => page.locator('[id="' + taskTargetId("catalyst", id) + '"]');
+    await signIn(page);
+    await page.goto("/workspace/investing/thesis/" + saved.id + "#" + taskTargetId("catalyst", ids[0]));
+    await expect(target(ids[0]).locator(":scope > summary")).toBeFocused();
+    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByLabel("Research question *", { exact: true }).fill("Unsaved question kept through task navigation");
+    await expect(target(ids[0])).toHaveCount(0);
+    await page.evaluate(hash => { location.hash = hash; }, taskTargetId("catalyst", ids[1]));
+    await expect(target(ids[1]).locator(":scope > summary")).toBeFocused();
+    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    // A presentation-only fixture link exercises an ordinary same-page anchor click.
+    // It does not replace an API, change saved data or grant record access.
+    await page.evaluate(() => {
+      const link = document.createElement("a");
+      link.href = location.href; link.textContent = "Reopen this fictional task";
+      document.body.append(link);
+    });
+    await page.getByRole("link", { name: "Reopen this fictional task", exact: true }).click();
+    await expect(target(ids[1]).locator(":scope > summary")).toBeFocused();
+    await target(ids[1]).screenshot({path:"test-results/task-navigation-investor-catalyst-" + info.project.name + ".png"});
+    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await expect(page.getByLabel("Research question *", { exact: true })).toHaveValue("Unsaved question kept through task navigation");
+    await page.evaluate(hash => { location.hash = hash; }, taskTargetId("catalyst", randomUUID()));
+    await expect(page.getByRole("status").filter({hasText:"The linked task is not in this on-screen record."})).toBeFocused();
+    await expect(page.getByRole("button", { name: "Overview", exact: true })).toHaveAttribute("aria-pressed", "true");
+    const current = await client.rpc("investor_get_document", {p_kind:"thesis", p_document_id:saved.id});
+    expect(current.error).toBeNull(); expect(current.data.document.revision).toBe(1);
+    expect(current.data.document.data).toEqual(data);
+  });
   for (const [domain, kind, capabilityId, itemKind] of cases) {
     test("opens and focuses only " + domain + "/" + kind + "/" + itemKind, async ({ page }, info) => {
       const client = await session(), ids = [randomUUID(), randomUUID()];
@@ -129,11 +162,16 @@ test.describe("Exact task navigation in authorized native editors", () => {
         await expect(selected.getByLabel("Next follow-up action", { exact: true })).toBeVisible();
       } else {
         await expect(selected).toHaveAttribute("open", "");
-        await expect(selected.locator("summary")).toBeFocused();
+        await expect(selected.locator(":scope > summary")).toBeFocused();
         await expect(page.locator('[id="' + taskTargetId(itemKind, ids[0]) + '"]')).not.toHaveAttribute("open", "");
       }
       expect((await selected.boundingBox())!.y).toBeGreaterThanOrEqual(0);
       expect((await selected.boundingBox())!.y).toBeLessThan(300);
+      const header = page.locator(".workspace-header");
+      if (await header.evaluate(el => getComputedStyle(el).position === "sticky")) {
+        const headerBox = (await header.boundingBox())!;
+        expect((await selected.boundingBox())!.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height + 8);
+      }
       await expect(page.getByRole("checkbox", { name: /I reviewed this exact record/ })).not.toBeChecked();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       if (["meeting", "plan", "watchlist"].includes(kind)) await page.screenshot({ path: "test-results/task-navigation-" + domain + "-" + kind + "-" + info.project.name + ".png" });
