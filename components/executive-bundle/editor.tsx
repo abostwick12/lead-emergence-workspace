@@ -9,6 +9,7 @@ import {executiveHandoff,describeExecutive,browserDate} from "@/lib/executive-bu
 import {useExecutiveRead,useExecutiveAction,useUnsavedExecutive} from "./use-executive";
 import {ExecutiveFrame,AccessState,ReadState,CoordinationNotice,Disclosure,Validation,styles} from "./common";
 import {RecordFields} from "./record-fields";
+import {prepareExecutiveWeeklyReview,type ExecutiveWeeklyReport} from "@/lib/executive-bundle/contracts";
 import {ReferenceFields} from "./references";
 export function ExecutiveEditorPage({kind,documentId}:{kind:ExecutiveKind;documentId:string}) {
  const {user,bundleExperience}=useWorkspace(),isNew=documentId==="new";
@@ -19,7 +20,7 @@ export function ExecutiveEditorPage({kind,documentId}:{kind:ExecutiveKind;docume
  return <Editor key={user.id+":"+bundleExperience.workspaceId+":"+bundleExperience.revision+":"+kind+":"+documentId+":"+(read.data?.document.revision??0)} kind={kind} document={isNew?null:read.data?.document??null} reload={read.retry}/>;
 }
 function Editor({kind,document,reload}:{kind:ExecutiveKind;document:ExecutiveDocument|null;reload:()=>void}) {
- const router=useRouter(),[initial]=useState(()=>emptyExecutiveData(kind,browserDate())),[base,setBase]=useState(document),[value,setValue]=useState<ExecutiveData>(document?.data??initial);
+ const router=useRouter(),[initial]=useState(()=>{const draft=emptyExecutiveData(kind,browserDate());if(draft.recordType==="weekly_review")draft.timeZone=Intl.DateTimeFormat().resolvedOptions().timeZone;return draft;}),[base,setBase]=useState(document),[value,setValue]=useState<ExecutiveData>(document?.data??initial);
  const [confirm,setConfirm]=useState(false),[validation,setValidation]=useState<string|null>(null),[notice,setNotice]=useState<string|null>(null),[formKey,setFormKey]=useState(0),[timePending,setTimePending]=useState(false);
  const action=useExecutiveAction(),dirty=timePending||JSON.stringify(value)!==JSON.stringify(base?.data??initial);
  useUnsavedExecutive(dirty);
@@ -39,6 +40,12 @@ function Editor({kind,document,reload}:{kind:ExecutiveKind;document:ExecutiveDoc
   const result=await action.run<{document:ExecutiveDocument}>("/api/executive/"+kind,input,true);
   if(result){setBase(result.document);setValue(result.document.data);setConfirm(false);setFormKey(n=>n+1);setNotice("Saved revision "+result.document.revision+". Earlier saved work is preserved.");if(!base)router.replace("/workspace/executive/"+kind+"/"+result.document.id);}
  };
+ const prepareWeekly=(report:ExecutiveWeeklyReport)=>{
+  if(value.recordType!=="weekly_review"||report.periodStart!==value.periodStart||report.periodEnd!==value.periodEnd)return;
+  if((dirty||base)&&!window.confirm("Replace the on-screen draft with a history-based weekly review? Saved revisions stay unchanged until you confirm and save."))return;
+  try {change(prepareExecutiveWeeklyReview(report));setFormKey(n=>n+1);setValidation(null);setNotice("Unsaved weekly review prepared from recorded outcome changes. Review all history pages and current work before saving.");}
+  catch {setValidation("The weekly history could not be verified. Refresh its first page before preparing the review.");}
+ };
  const prepare=async()=>{
   if(value.recordType!=="daily_brief"&&value.recordType!=="weekly_review")return;
   if((dirty||base)&&!window.confirm("Replace the on-screen draft with a new attention-based draft? Saved revisions will stay unchanged until you confirm and save."))return;
@@ -46,6 +53,7 @@ function Editor({kind,document,reload}:{kind:ExecutiveKind;document:ExecutiveDoc
   if(!result)return;
   try {
    const next=prepareExecutiveFocusBrief(value.recordType,value.periodEnd,result);
+   if(next.recordType==="weekly_review"&&value.recordType==="weekly_review"){next.periodStart=value.periodStart;if(value.timeZone)next.timeZone=value.timeZone;}
    change(next);setFormKey(n=>n+1);setValidation(null);setNotice("Unsaved brief prepared from current permitted attention. Review the linked work and choose your own next actions.");
   }catch{setValidation("The attention response could not be verified for this date. Refresh before preparing a brief.");}
  };
@@ -53,7 +61,7 @@ function Editor({kind,document,reload}:{kind:ExecutiveKind;document:ExecutiveDoc
  <div className={styles.actions}><span className={styles.tag}>{base?"Saved revision "+base.revision:"Not saved yet"}</span><span className={styles.muted}>{dirty?"Unsaved changes — save before leaving.":"No unsaved changes."}</span></div>
  {(kind==="daily_brief"||kind==="weekly_review")&&<section className={styles.section}><h2>A useful starting point</h2><p>Prepare an unsaved brief from current permitted attention. It links the source records without copying private source text. Then choose your next actions and add the evidence behind your conclusions.</p><button disabled={action.busy} onClick={()=>void prepare()}>Prepare from current attention</button></section>}
  <form noValidate onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={action.busy} key={formKey}><TaskLinkNavigation targets={("actions" in value?value.actions.map(a=>taskTargetId("action",a.id)):[])}>
- <RecordFields value={value} onChange={change} onTimePending={pending=>{setTimePending(pending);setConfirm(false);}}/>
+ <RecordFields value={value} onChange={change} onPrepareWeekly={prepareWeekly} onTimePending={pending=>{setTimePending(pending);setConfirm(false);}}/>
  <ReferenceFields references={value.references} onChange={referencesChanged}/>
  <CoordinationNotice/><label className={styles.check}><input type="checkbox" checked={confirm} onChange={e=>setConfirm(e.target.checked)}/><span>I reviewed this exact record and its source links. Saving preserves my stated review and agreement states; it does not verify facts, book meetings, send messages or start recurring work.</span></label>
  <Validation message={validation??action.error}/>{notice&&<p className={styles.notice} role="status">{notice}</p>}

@@ -1,5 +1,66 @@
 # Test evidence
 
+## P9e recorded weekly outcomes — 2026-09-09
+
+**Source checkpoint only. All six bundles remain NOT READY TO SHIP.**
+
+Executive 0.4.0 adds a bounded recorded-history projection, distinct from current
+attention. Completions, corrections, reversals and reopened/removed outcomes
+remain distinguishable. Inclusion uses recorded time in one to seven local days,
+not a possibly backdated reported date. The native review explains coverage,
+current versus historical state, partial pages and uncertainty; preparation is
+unsaved/inferred and links current parents without copying private event titles.
+Named zones persist. Earlier unzoned reviews remain valid and disclose fallback.
+A read-retry button cannot submit an already-confirmed surrounding form.
+
+- PASS: reusable source typecheck; 90 tests in 10 files (19 new weekly cases).
+- PASS: all six official plugin validations and all six skill validations.
+- PASS: host 275 unit tests in 28 files (8 new bridge cases); 32 schema-policy
+  checks; 249 runtime boundary checks; typecheck; lint.
+- PASS: optimized production build, with 51 generated static pages.
+- PASS: all 28 allowlisted transformed exports and SHA-256 hashes match pinned
+  source 9776d8979ab8739b1a9d9ee10dfc981591c7f6e8.
+- PASS: syntax checks on both new/extended native and connected scripts;
+  whitespace checks; narrow changed-source credential-pattern scan. This is
+  not a full privacy assessment or all-history secret audit.
+- COLLECTED ONLY: 52 desktop/mobile cases across Executive and task-navigation
+  specs. Six new weekly cases cover historical/current state, preparation,
+  persisted zones, paging, empty-versus-error states and retry without a save.
+  P9d's 26 navigation cases remain unexecuted. Test collection is not proof.
+- NOT RUN: migration 30 replay; five new weekly native groups; the new 33-
+  assertion rollback-only SQL suite; the extended thirteen-group actual
+  HTTP/OAuth/MCP suite; all affected connected/native/browser regressions.
+- ENVIRONMENT: read-only engine check still fails after P9d's inaccessible Docker
+  startup socket. No repair, restart, socket removal, factory reset, database
+  reset, migration application, hosted connection or provider change occurred
+  in this checkpoint. Data-preserving Docker repair approval remains separate.
+- Corrected during development: malformed SQL JSON dollar quoting; a
+  microsecond-parser escape; strict fixture fields; browser required-field
+  labels; stale consent assertion/tool counts. Final static checks pass.
+  Initial export audit passed all hashes but its second-repository Git lookup
+  failed; rerun with a command-local exact safe-directory setting passed.
+
+The new HTTP/MCP read uses current review admission and separately checks all
+three Executive capabilities. It returns fixed metadata only, never full audit
+bodies or foreign bundle history. Full native history remains denied to OAuth
+clients. There are twenty scoped Executive tools and still only five proposal
+writes. Tool annotations are descriptive, not permission. The source skill now
+requires bounded history reads, explicit dates/zones and honest coverage.
+
+BundleContract 1.0, UIManifestContract 1.0, task-metadata-v1 and attention response
+2.0 remain unchanged; weekly response 1.0 is new. SQL schema/rule parity is
+static evidence, not database execution. P9c's successful local connected tests
+are historical and do not prove P9d/P9e. No installed-host or client-value proof,
+main merge, hosted migration, production deployment, paywall activation,
+provider/client connection or marketplace submission is implied.
+
+Next: after approved data-preserving engine recovery, replay and verify all 30
+migrations on the isolated fictional stack, then run the new native/SQL/HTTP/MCP
+and desktop/mobile suites plus affected regressions. Continue the remaining
+availability, recurring-work, shared Workspace Experience, recovery, utility,
+privacy/retention, commercial and installed-host release gates.
+
+
 ## P9d navigation source checkpoint — 2026-09-09
 
 Exact task-source navigation is implemented in the native host for all ten

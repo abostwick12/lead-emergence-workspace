@@ -27,6 +27,11 @@ describe("Executive native integration boundaries",()=>{
   expect(extension).toContain("'{properties,references,items,properties,item}'");
   const task=extension.match(/\$item\$([\s\S]*?)\$item\$::jsonb/);expect(task).not.toBeNull();
   const latest=JSON.parse(match![1]);latest.properties.references.items.properties.item=JSON.parse(task![1]);
+  if(kind==="weekly_review"){
+   const weekly=await readFile("supabase/migrations/20260911160000_executive_weekly_outcomes.sql","utf8");
+   const zone=weekly.match(/\$zone\$([\s\S]*?)\$zone\$::jsonb/);expect(zone).not.toBeNull();
+   latest.properties.timeZone=JSON.parse(zone![1]);
+  }
   expect(latest).toEqual(z.toJSONSchema(executiveBaseSchemas[kind],{io:"input"}));
  });
  it("composes Executive without pulling unrelated private domains into authority",()=>{
@@ -104,14 +109,14 @@ describe("Executive native integration boundaries",()=>{
    expect(localTimeCandidates(local,zone)).toEqual(expected);
    for(const at of expected)expect(localMeetingTime(at,zone)).toBe(local);
  });
- it("advertises nineteen bounded tools, with five proposal-only writes",async()=>{
+ it("advertises twenty bounded tools, with five proposal-only writes",async()=>{
   const rpc=vi.fn(async()=>({data:null,error:{code:"42501"}}));
   const server=createWorkspaceMcpServer({rpc} as never,undefined,{bundleCapabilityIds:caps});
   const client=new Client({name:"executive-unit",version:"1"}),[c,s]=InMemoryTransport.createLinkedPair();
   try{
    await server.connect(s);await client.connect(c);
    const tools=(await client.listTools()).tools.filter(t=>t.name.startsWith("executive_"));
-   expect(tools).toHaveLength(19);expect(tools.filter(t=>!t.annotations?.readOnlyHint)).toHaveLength(5);
+   expect(tools).toHaveLength(20);expect(tools.filter(t=>!t.annotations?.readOnlyHint)).toHaveLength(5);
    expect(tools.map(t=>t.name)).toEqual(expect.arrayContaining(["executive_attention","executive_review_attention","executive_find_sources"]));
    expect(tools.some(t=>t.annotations?.openWorldHint)).toBe(false);
    expect(tools.some(t=>/save|approve|sharing|permissions|send|book|schedule/.test(t.name))).toBe(false);

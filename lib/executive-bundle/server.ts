@@ -6,6 +6,19 @@ import {executiveKind,executiveResult,executiveSave,executiveSearch,executiveSea
 type Client=SupabaseClient<any,any,any,any,any>;
 import {executiveAttentionQuery,executiveAttentionV2,executiveSharingV2,executiveSharingV2Input,
  executiveSourceSearchInput,executiveSourceSearchResult,sourceCursorKey} from "./contracts";
+import {executiveWeeklyQuery,executiveWeeklyReport,weeklyInstantMicros} from "./contracts";
+export async function weeklyOutcomes(client:Client,raw:unknown) {
+ const input=executiveWeeklyQuery.parse(raw);
+ const result=await executiveRpc(client,"executive_weekly_outcomes",{
+  p_period_start:input.periodStart,p_period_end:input.periodEnd,p_time_zone:input.timeZone,
+  ...(input.recordedThrough?{p_recorded_through:input.recordedThrough}:{}),p_offset:input.offset,p_limit:input.limit
+ },executiveWeeklyReport);
+ if(result.periodStart!==input.periodStart||result.periodEnd!==input.periodEnd||result.timeZone!==input.timeZone
+  ||result.offset!==input.offset||result.limit!==input.limit
+  ||(input.recordedThrough&&weeklyInstantMicros(result.recordedThrough)!==weeklyInstantMicros(input.recordedThrough)))
+  throw new BundleApiError("Weekly outcomes did not match the requested period or page. Refresh before using them.",503);
+ return result;
+}
 const presentDocument=executiveResult.refine(result=>result.document!==null,"Expected a saved Executive record.");
 export async function executiveRpc<T>(client:Client,name:string,params:Record<string,unknown>,schema:z.ZodType<T>):Promise<T>{
  const {data,error}=await client.rpc(name,params);

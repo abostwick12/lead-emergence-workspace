@@ -23,7 +23,7 @@ export function AccessState() {
 }
 export function ReadState({ loading, error, retry }: { loading: boolean; error: string | null; retry: () => void }) {
   return <div className={styles.empty} role={error ? "alert" : "status"}>{loading ? "Opening your saved work…" : error}
-    {error && <p><button onClick={retry}>Try again</button></p>}</div>;
+    {error && <p><button type="button" onClick={retry}>Try again</button></p>}</div>;
 }
 export function Field({ label, value, onChange, max = 4000, multiline = false, type = "text", hint, required = false }:
   { label: string; value: string; onChange: (v: string) => void; max?: number; multiline?: boolean; type?: string; hint?: string; required?: boolean }) {

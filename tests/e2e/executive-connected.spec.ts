@@ -83,6 +83,72 @@ test.describe("Executive native client workflow",()=>{
   expect((await get(client,"meeting",await savedId(page,"meeting"))).data).toMatchObject({startsAt:"2026-11-01T06:30:00.000Z",agreement:"user_reported_agreed",timeZone:"America/New_York"});
   await expect(page.getByText(/A saved time is not a calendar booking/)).toBeVisible();await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:"test-results/executive-meeting-"+info.project.name+".png",fullPage:false});await noOverflow(page);
  });
+test("reviews recorded outcomes, prepares an unsaved review and retains its time zone",async({page},info)=>{
+  const client=await session(),today=new Date().toISOString().slice(0,10),name=title("Weekly completed then reopened work");
+  let d=await save(client,"commitment",{...executiveFixtures(today).commitment,title:name,state:"completed",completedOn:"2020-01-01",outcome:"WEEKLY_BROWSER_PRIVATE_BODY_CANARY"});
+  d=await save(client,"commitment",{...d.data,state:"open",completedOn:null} as ExecutiveData,d);
+  await signIn(page);await page.goto("/workspace/executive/weekly_review/new");
+  await page.getByLabel("Period start *",{exact:true}).fill(today);await page.getByLabel("Period end *",{exact:true}).fill(today);
+  await page.getByLabel("Weekly history time zone",{exact:true}).selectOption("UTC");
+  const panel=page.getByRole("region",{name:"Recorded weekly outcomes"});
+  await expect(panel.getByRole("heading",{name,exact:true})).toHaveCount(2);
+  await expect(panel.getByText("Earlier completed state withdrawn",{exact:true}).first()).toBeVisible();
+  await expect(panel.getByText(/User-recorded completion\/decision date: 2020-01-01/).first()).toBeVisible();
+  await expect(panel.getByText(/WEEKLY_BROWSER_PRIVATE_BODY_CANARY/)).toHaveCount(0);
+  await confirm(page).check();await page.getByLabel("Weekly history time zone",{exact:true}).selectOption("America/New_York");
+  await expect(confirm(page)).not.toBeChecked();await page.getByLabel("Weekly history time zone",{exact:true}).selectOption("UTC");
+  await expect(panel.getByRole("heading",{name,exact:true})).toHaveCount(2);
+  page.once("dialog",dialog=>dialog.accept());
+  await panel.getByRole("button",{name:"Prepare review from saved outcomes",exact:true}).click();
+  await expect(page.getByRole("status").filter({hasText:"Unsaved weekly review prepared"})).toBeVisible();
+  expect(await page.getByLabel("Brief summary",{exact:true}).inputValue()).toContain("not independently verified accomplishments");
+  expect(await page.getByLabel("Brief summary",{exact:true}).inputValue()).not.toContain(name);
+  await expect(confirm(page)).not.toBeChecked();
+  await expect(page.getByLabel("Record review state",{exact:true})).toHaveValue("inferred");
+  await confirm(page).check();await saveButton(page,"weekly_review").click();
+  const id=await savedId(page,"weekly_review"),saved=await get(client,"weekly_review",id);
+  expect(saved.data).toMatchObject({timeZone:"UTC",periodStart:today,periodEnd:today,reviewState:"inferred",
+   references:expect.arrayContaining([expect.objectContaining({documentId:d.id,revision:d.revision})])});
+  await page.reload();await expect(page.getByLabel("Weekly history time zone",{exact:true})).toHaveValue("UTC");
+  await panel.getByRole("heading",{name:"Outcomes recorded during this period"}).scrollIntoViewIfNeeded();
+  await page.screenshot({path:"test-results/executive-weekly-outcomes-"+info.project.name+".png",fullPage:false});await noOverflow(page);
+ });
+ test("pages weekly outcomes without pretending the first page is complete",async({page})=>{
+  const client=await session(),today=new Date().toISOString().slice(0,10),prefix=title("Weekly paged action");
+  const actions=Array.from({length:26},(_,index)=>({id:randomUUID(),title:prefix+" "+index,owner:"Fictional owner",dueDate:today,
+   state:"completed" as const,nextAction:"",evidence:"WEEKLY_BROWSER_PAGE_EVIDENCE_CANARY",reviewState:"user_stated" as const}));
+  await save(client,"meeting",{...executiveFixtures(today).meeting,actions});
+  await signIn(page);await page.goto("/workspace/executive/weekly_review/new");
+  await page.getByLabel("Period start *",{exact:true}).fill(today);await page.getByLabel("Period end *",{exact:true}).fill(today);
+  await page.getByLabel("Weekly history time zone",{exact:true}).selectOption("UTC");
+  const panel=page.getByRole("region",{name:"Recorded weekly outcomes"});
+  await expect(panel.getByRole("button",{name:"Next outcome page",exact:true})).toBeEnabled();
+  await expect(panel.locator("article")).toHaveCount(25);
+  await panel.getByRole("button",{name:"Next outcome page",exact:true}).click();
+  await expect(panel.getByRole("button",{name:"Previous outcome page",exact:true})).toBeEnabled();
+  await expect(panel.getByRole("button",{name:"Prepare review from saved outcomes",exact:true})).toBeDisabled();
+  await expect(panel.getByText(/WEEKLY_BROWSER_PAGE_EVIDENCE_CANARY/)).toHaveCount(0);
+  await panel.getByRole("button",{name:"Refresh full period",exact:true}).click();
+  await expect(panel.getByRole("button",{name:"Previous outcome page",exact:true})).toBeDisabled();
+  await expect(panel.getByRole("button",{name:"Prepare review from saved outcomes",exact:true})).toBeEnabled();await noOverflow(page);
+ });
+ test("distinguishes an empty checked week from a failed weekly read",async({page})=>{
+  await signIn(page);await page.goto("/workspace/executive/weekly_review/new");
+  await page.getByLabel("Period start *",{exact:true}).fill("1990-01-01");await page.getByLabel("Period end *",{exact:true}).fill("1990-01-07");
+  await page.getByLabel("Weekly history time zone",{exact:true}).selectOption("UTC");
+  const panel=page.getByRole("region",{name:"Recorded weekly outcomes"});
+  await expect(panel.getByText(/No outcome changes were recorded in the checked window/)).toBeVisible();
+  await page.route("**/api/executive/weekly-outcomes?**",route=>route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Synthetic weekly read unavailable."})}));
+  await panel.getByRole("button",{name:"Refresh full period",exact:true}).click();
+  await expect(panel.getByRole("alert").filter({hasText:"Synthetic weekly read unavailable."})).toBeVisible();
+  await expect(panel.getByText(/No outcome changes were recorded in the checked window/)).toHaveCount(0);
+  await expect(panel.getByRole("button",{name:"Prepare review from saved outcomes",exact:true})).toHaveCount(0);
+  await page.unroute("**/api/executive/weekly-outcomes?**");
+  const saves:string[]=[];page.on("request",request=>{if(request.method()==="POST"&&request.url().endsWith("/api/executive/weekly_review"))saves.push(request.url());});
+  await confirm(page).check();await panel.getByRole("button",{name:"Try again",exact:true}).click();
+  await expect(panel.getByText(/No outcome changes were recorded in the checked window/)).toBeVisible();
+  expect(saves).toEqual([]);await expect(confirm(page)).toBeChecked();await noOverflow(page);
+ });
  test("prepares and saves a daily brief and an honest weekly review",async({page})=>{
   const client=await session();await save(client,"commitment",{...executiveFixtures().commitment,title:title("A next move for the daily brief")});
   await signIn(page);

@@ -91,7 +91,7 @@ try {
  const assistant=await connect(f.executive,own.client);
  console.log("Connected synthetic Executive MCP session.");
  const tools=(await assistant.client.listTools()).tools.filter(t=>t.name.startsWith("executive_"));
- assert.equal(tools.length,19);assert.equal(tools.filter(t=>!t.annotations.readOnlyHint).length,5);
+ assert.equal(tools.length,20);assert.equal(tools.filter(t=>!t.annotations.readOnlyHint).length,5);
  assert.ok(tools.every(t=>!t.annotations.openWorldHint&&!t.annotations.destructiveHint));
  for(const[kind,d]of Object.entries(records)){
   console.log("Checking connected "+kind+" tools.");
@@ -110,7 +110,7 @@ try {
   assert.equal(approved.body.document.data.reviewState,"inferred");records[kind]=approved.body.document;
  }
  assert.equal((await assistant.client.callTool({name:"executive_attention",arguments:{asOfDate:date}})).isError??false,false);
- pass("actual OAuth consent/PKCE, nineteen HTTP MCP tools and five proposal-only assistant writes");
+ pass("actual OAuth consent/PKCE, twenty HTTP MCP tools and five proposal-only assistant writes");
 
  await rpc(assistant.db,"executive_save_document",{p_kind:"commitment",p_document_id:null,p_expected_revision:0,p_request_id:randomUUID(),p_data:data.commitment,p_confirm_exact_record:true},"42501");
  await rpc(assistant.db,"executive_document_history",{p_kind:"commitment",p_document_id:records.commitment.id},"42501");
@@ -118,6 +118,27 @@ try {
  await rpc(assistant.db,"executive_set_source_permissions",{p_capabilities:[],p_expected_revision:0,p_request_id:randomUUID(),p_confirm_task_metadata_only:true},"42501");
  assert.equal((await web("/api/executive/commitment",saveInput("commitment",data.commitment),assistant.token)).status,403);
  pass("OAuth clients cannot use native canonical save, permission, proposal-list or history operations");
+ const weeklyQuery={periodStart:date,periodEnd:date,timeZone:"UTC",limit:50,offset:0};
+ const weeklyPath="/api/executive/weekly-outcomes?"+new URLSearchParams({...weeklyQuery,limit:"50",offset:"0"});
+ const completed=await web("/api/executive/commitment",saveInput("commitment",{...records.commitment.data,state:"completed",completedOn:"2020-01-01",
+  outcome:"CONNECTED_PRIVATE_WEEKLY_OUTCOME_CANARY"},records.commitment));assert.equal(completed.status,200,JSON.stringify(completed.body));
+ const reopened=await web("/api/executive/commitment",saveInput("commitment",{...completed.body.document.data,state:"open",completedOn:null},completed.body.document));
+ assert.equal(reopened.status,200);records.commitment=reopened.body.document;
+ const weekly=await web(weeklyPath);assert.equal(weekly.status,200,JSON.stringify(weekly.body));assert.match(weekly.headers.get("cache-control"),/no-store/);
+ const ownChanges=weekly.body.events.filter(e=>e.source.documentId===records.commitment.id);
+ assert.deepEqual(ownChanges.map(e=>[e.change,e.outcome]),[["withdrawn","completed"],["recorded","completed"]]);
+ assert.equal(ownChanges[1].reportedDate,"2020-01-01");
+ const weeklyMcp=await assistant.client.callTool({name:"executive_weekly_outcomes",arguments:{...weeklyQuery,recordedThrough:weekly.body.recordedThrough}});
+ assert.equal(weeklyMcp.isError??false,false,JSON.stringify(weeklyMcp));assert.deepEqual(weeklyMcp.structuredContent.events,weekly.body.events);
+ assert.doesNotMatch(JSON.stringify([weekly.body,weeklyMcp]),/CONNECTED_PRIVATE_WEEKLY_OUTCOME_CANARY|privateHistory|body_text/);
+ const secondWeekly=await assistant.client.callTool({name:"executive_weekly_outcomes",arguments:{...weeklyQuery,recordedThrough:weekly.body.recordedThrough,offset:1,limit:1}});
+ assert.equal(secondWeekly.isError??false,false,JSON.stringify(secondWeekly));assert.deepEqual(secondWeekly.structuredContent.events,[weekly.body.events[1]]);
+ for(const suffix of ["&workspaceId=x","&limit=1","&periodStart=2026-09-01","&recordedThrough=bad"])
+  assert.equal((await web(weeklyPath+suffix)).status,400,suffix);
+ assert.equal((await web(weeklyPath,null,null)).status,401);assert.equal((await web(weeklyPath,null,unassigned.token)).status,403);
+ const foreignWeekly=await web(weeklyPath,null,other.token);
+ assert.equal(foreignWeekly.status,200);assert.ok(foreignWeekly.body.events.every(e=>e.source.documentId!==records.commitment.id));
+ pass("actual HTTP and OAuth MCP weekly history agree, preserve recorded versus reported dates, page by cutoff and exclude private bodies or other clients");
 
  const sourceRecords=[];
  const writing=await rpc(dual.client,"writer_import_resource",{request_id:randomUUID(),resource_input:{title:"Fictional shared Writing cue",source_label:"Synthetic acceptance",body_text:"CONNECTED_PRIVATE_MANUSCRIPT_CANARY"}});
@@ -249,6 +270,10 @@ try {
  assert.equal((await web("/api/executive/commitment/"+records.commitment.id)).status,403);
  assert.equal((await assistant.client.callTool({name:"executive_get_commitment",arguments:{documentId:records.commitment.id}})).isError,true);
  assert.equal((await web("/api/executive/daily_brief/"+records.daily_brief.id)).status,200);
+ const revokedWeekly=await assistant.client.callTool({name:"executive_weekly_outcomes",arguments:weeklyQuery});
+ assert.equal(revokedWeekly.isError??false,false,JSON.stringify(revokedWeekly));
+ assert.deepEqual(revokedWeekly.structuredContent.coverage.find(c=>c.capabilityId==="executive.coordination"),{capabilityId:"executive.coordination",state:"unavailable",total:null});
+ assert.ok(revokedWeekly.structuredContent.events.every(e=>e.source.capabilityId!=="executive.coordination"));
  const after=JSON.stringify((await web("/api/bundles/experience")).body);
  assert.ok(after.includes('"route":"/workspace/executive"'));assert.equal(after.includes('"route":"/workspace/executive/commitment"'),false);
  localSql("update workspace.bundle_capabilities set enabled=true where bundle_key='executive' and capability_key='executive_coordination';");disabled=false;

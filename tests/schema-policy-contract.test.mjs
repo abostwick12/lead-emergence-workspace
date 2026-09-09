@@ -17,7 +17,8 @@ test("discloses assigned Writing, Ministry, Nonprofit, Investor and Executive ac
   assert.match(consent, /public SEC lookup sends only an explicit public filer CIK and form filter/);
   assert.match(consent, /Executive can read assigned commitments, decisions, meeting plans and briefs/);
   assert.match(consent, /Source sharing starts off/);
-  assert.match(consent, /source-permission changes, proposal decisions and history remain native-only/);
+  assert.match(consent, /bounded outcome-history projection/);
+  assert.match(consent, /source-permission changes, proposal decisions and full revision history remain native-only/);
   assert.match(consent, /No recurring automation is started by this connection/);
 });
 

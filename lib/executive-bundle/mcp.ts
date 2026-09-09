@@ -6,10 +6,17 @@ import { BundleApiError } from "@/lib/workspace/bundle-server";
 import { executiveKinds, executiveCapabilities, executiveLabels, executiveResult, executiveSearch, executiveSearchResult,
  executiveSchemas, executiveProposal, executiveAttention, executiveAttentionInput, executiveResolveInput, executiveResolutionResult } from "./contracts";
 import {executiveAttentionQuery,executiveAttentionV2,executiveSourceSearchInput,executiveSourceSearchResult} from "./contracts";
+import {executiveWeeklyQuery,executiveWeeklyReport} from "./contracts";
+import {weeklyOutcomes} from "./server";
 import { getDocument, searchDocuments, proposeDocument, attention, resolveReferences,reviewAttention,findSources } from "./server";
 export function registerExecutiveTools(server:McpServer,client:SupabaseClient<any,any,any,any,any>,capabilities:string[]) {
  const annotations={readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false};
  const _meta={securitySchemes:[{type:"oauth2",scopes:["openid","email","profile"]}]};
+ if(capabilities.includes("executive.review"))server.registerTool("executive_weekly_outcomes",{
+  title:"Review recorded weekly outcome changes",
+  description:"Read a fixed projection of retained Executive revisions recorded during one to seven inclusive local dates in an explicit named time zone. Requires current weekly-review access and rechecks each Executive source capability. Inspect all pages; reuse returned recordedThrough when paging. The cutoff is not a frozen snapshot. Count recorded changes, not unique accomplishments: corrections, reversals and withdrawn outcomes are included. recordedAt is save time; reportedDate is a user-recorded completion or decision date, not independently verified occurrence. Meeting times are not actual occurrence evidence. currentState/currentTargetPresent may differ from historical state. Deleted actions remain historical, not current tasks. No full audit bodies, other bundles' history, calendars, inboxes, monitoring, source-permission changes or external execution. Fetch current source revisions before proposing edits.",
+  inputSchema:executiveWeeklyQuery,outputSchema:executiveWeeklyReport,annotations,_meta
+ },input=>result(()=>weeklyOutcomes(client,input)));
  for(const kind of executiveKinds) {
   if(!capabilities.includes(executiveCapabilities[kind]))continue;
   server.registerTool("executive_list_"+kind+"s",{

@@ -1,4 +1,6 @@
 "use client";
+import {WeeklyOutcomes} from "./weekly-outcomes";
+import type {ExecutiveWeeklyReport} from "@/lib/executive-bundle/contracts";
 import {taskTargetId} from "@/lib/bundles/task-target";
 import {useState} from "react";
 import type {ExecutiveData,ExecutiveAction} from "@/lib/executive-bundle/contracts";
@@ -39,7 +41,7 @@ function MeetingTime({value,onChange,onPending}:{value:Meeting;onChange:(value:M
  <p className={styles.muted}>“User reported agreed” records your confirmation of an actual agreement. It does not send invitations or check anyone’s availability.</p>
  </section>;
 }
-export function RecordFields({value,onChange,onTimePending}:{value:ExecutiveData;onChange:Change;onTimePending:(pending:boolean)=>void}) {
+export function RecordFields({value,onChange,onTimePending,onPrepareWeekly}:{value:ExecutiveData;onChange:Change;onTimePending:(pending:boolean)=>void;onPrepareWeekly?:(report:ExecutiveWeeklyReport)=>void}) {
  return <>
  <section className={styles.section}><h2>{value.recordType==="commitment"?"What needs to happen?":value.recordType==="decision"?"What needs to be decided?":value.recordType==="meeting"?"What should this meeting achieve?":"Make the next move clear"}</h2>
  <Field label="Title" value={value.title} max={240} required onChange={title=>onChange({...value,title})}/>
@@ -63,6 +65,7 @@ export function RecordFields({value,onChange,onTimePending}:{value:ExecutiveData
  <Field label="Brief summary" value={value.summary} max={8000} multiline onChange={summary=>onChange({...value,summary})}/>
  <Choice label="Brief state" value={value.state} values={["draft","reviewed","archived"]} onChange={state=>onChange({...value,state:state as typeof value.state})}/></>}
  </section>
+ {value.recordType==="weekly_review"&&onPrepareWeekly&&<WeeklyOutcomes periodStart={value.periodStart} periodEnd={value.periodEnd} timeZone={value.timeZone} onTimeZone={timeZone=>onChange({...value,timeZone})} onPrepare={onPrepareWeekly}/>}
  {value.recordType==="decision"&&<section className={styles.section}><h2>Options and tradeoffs</h2>{value.options.map((o,i)=>{
  const update=(patch:Partial<typeof o>)=>onChange({...value,options:value.options.map((old,index)=>index===i?{...old,...patch}:old)});
  return <Disclosure key={o.id} initialOpen={!o.title} summary={o.title||"New option"}><Field label="Option" value={o.title} max={240} required onChange={title=>update({title})}/>

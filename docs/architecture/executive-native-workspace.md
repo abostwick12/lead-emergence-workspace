@@ -1,13 +1,14 @@
 # Executive native coordination
 
-Updated 2026-09-09. P9c adds individually consented task metadata, paged
+Updated 2026-09-09. P9c established individually consented task metadata, paged
 attention and complete paged source discovery. **All six bundles remain
-NOT READY TO SHIP.**
+NOT READY TO SHIP.** P9d navigation and P9e weekly outcomes are source progress;
+connected verification of both is still pending the local Docker startup repair.
 
 ## Ownership and native work
 
-Workspace imports 27 allowlisted reusable files from source revision
-28d6b4cb876a37709e899526f7087a596b3aec67. Executive 0.3.0 retains Bundle
+Workspace imports 28 allowlisted reusable files from source revision
+9776d8979ab8739b1a9d9ee10dfc981591c7f6e8. Executive 0.4.0 retains Bundle
 Contract 1.0 and UI Manifest Contract 1.0. The host registers entitlement-based
 Executive navigation, widgets and scoped tools; it does not import source-repo
 runtime paths.
@@ -33,10 +34,11 @@ denied. Serialized expected-revision writes reject silent overwrites; exact
 request IDs support identical retries and reject changed/superseded requests.
 
 Native HTTP validates inputs and responses with private no-store caching.
-With all three capabilities, 19 Executive MCP tools are registered: five sets
+With all three capabilities, 20 Executive MCP tools are registered: five sets
 of list/get/propose, legacy record attention, enhanced record/task attention,
-paged source discovery and live reference resolution. Only five proposal tools
-write. Canonical save, approval, history and permission changes remain native-only.
+paged source discovery, live reference resolution and bounded recorded weekly
+outcomes. Only five proposal tools
+write. Canonical save, approval, full history and permission changes remain native-only.
 No tool books, messages, schedules or notifies. Every invocation rechecks access.
 
 Assistant proposals preserve inference labels through native approval. Changed
@@ -106,25 +108,68 @@ boundary, never permission. Every page rechecks current access; concurrent edits
 can change page membership. This is not a frozen complete snapshot.
 
 Native attention has pagination and detailed coverage; the source picker pages
-beyond the first fifty cues. Links currently open the parent source workspace,
-not an auto-expanded exact child. A parent and its task can both produce a cue;
-grouping redundant parent/task cues and exact-child navigation remain pre-shipment
+beyond the first fifty cues. P9d links now target the exact on-screen task,
+opening/focusing only the authorized loaded editor. Its browser proof is pending.
+Malformed/missing targets never select history, proposals or automatically save.
+A parent and its task can both produce a cue;
+grouping redundant parent/task cues and signed-out fragment return remain pre-shipment
 usability refinements.
 
 Brief preparation uses the first current page, marks the draft inferred and
 stores up to twenty exact references without copying task labels/owners/next
 actions into durable prose. Larger result sets disclose their partial coverage.
-Weekly preparation is current attention, not a full-period outcome history.
+Current-attention preparation remains explicitly separate from outcome history.
+
+## Recorded weekly outcomes — P9e source, runtime verification pending
+
+Migration 30 adds one narrow read, not access to full revision bodies. It keeps
+the published migrations immutable and extends weekly records with an optional
+named time zone, so older records remain valid. New native reviews retain their
+browser zone; older unzoned reviews disclose the fallback and invite a choice
+for the next exact save. New default periods cover seven inclusive days.
+
+The projection scans retained Executive revisions in a one-to-seven-local-day
+recorded-time window. It classifies completions, decisions/reversals, held
+meetings, reviewed briefs and completed actions as recorded, corrected or
+withdrawn changes. Ordinary notes are omitted; removing a completed action
+produces a historical withdrawal. Explicit completion/decision dates are labeled
+separately and may be backdated. Scheduled meeting time is not actual occurrence
+evidence. Counts are changes, never unique verified accomplishments.
+
+Identity/review admission is server-derived. Each read also checks current
+coordination, brief and review capabilities. Three-scope coverage uses null for
+unavailable totals. Fixed event metadata includes historical state, reported
+dates, provenance and current revision/state/presence. It excludes private notes,
+evidence/outcome bodies, other bundles' histories, proposals and providers.
+
+Pages have exact matching totals and 1–50 events, ordered by recorded microsecond
+then stable event identity. A reused recorded-time cutoff does not freeze live
+access, current status or late commits. Native source links open current work;
+removed actions point to the parent and its saved history. The native panel
+distinguishes empty evidence from unavailable reads and does not leave stale
+results visible after an error.
+
+Preparation is explicit: an unsaved inferred draft, generic coverage prose and
+up to twenty current parent links from the first page, without copied outcome
+titles/private bodies. Users inspect every page and add interpretation before
+confirming an exact save. Retry/pagination/preparation controls are non-submitting
+buttons; a failed read retry cannot submit an already-confirmed form.
+
+The assistant exposes this same strict projection only with executive.review.
+OAuth consent discloses the bounded read; full native history remains denied.
+SQL classifier rules exactly match the reusable source in unit tests. DST,
+permission removal, metadata privacy and connected UI tests are written but
+have NOT RUN against migration 30.
 
 ## Verification and remaining work
 
-See P9c in docs/testing/test-evidence.md and the local proof runbook for final
+See P9e/P9d and historical P9c in docs/testing/test-evidence.md and the local proof runbook for
 counts, corrected attempts and execution receipts. Fictional local database,
 HTTP/OAuth/MCP and browser acceptance is not installed-host or client-value proof.
 
-Remaining: full-period weekly outcomes; explicit-availability scheduling UI;
-approved recurring lifecycle and meaningful-change notifications; exact-child
-navigation; crash/autosave recovery; shared search/quick actions/connections/
+Remaining: connected P9d/P9e verification; explicit-availability scheduling UI;
+approved recurring lifecycle and meaningful-change notifications; grouped
+attention; crash/autosave recovery; shared search/quick actions/connections/
 preferences; representative utility, accessibility and deployed privacy,
 retention, commercial and installed-host acceptance.
 No hosted migration, deployment, provider/client connection, installed-plugin

@@ -112,7 +112,7 @@ export const executiveBaseSchemas = {
     actions: z.array(action).max(10), reflection: text(8000)
   }).strict(),
   weekly_review: z.object({
-    ...common, recordType: z.literal("weekly_review"), state: z.enum(["draft", "reviewed", "archived"]),
+    ...common, recordType: z.literal("weekly_review"), state: z.enum(["draft", "reviewed", "archived"]), timeZone: required(100).optional(),
     periodStart: z.iso.date(), periodEnd: z.iso.date(), focus: required(2000), summary: text(8000),
     observations: z.array(z.object({ id, text: required(3000), classification: z.enum(["observation", "interpretation", "suggestion"]),
       evidence: required(2000), reviewState: executiveReviewState }).strict()).max(20),
@@ -142,6 +142,7 @@ export function checkExecutiveData(data: ExecutiveData, ctx: z.RefinementCtx) {
     if (data.agreement === "user_reported_agreed" && !data.startsAt) issue("An agreed time needs an explicit instant.", ["startsAt"]);
     if (data.state === "held" && (!data.startsAt || !data.outcome.trim())) issue("A held meeting needs its time and recorded outcome.");
   } else {
+    if (data.recordType === "weekly_review" && data.timeZone !== undefined && !namedTimeZone.safeParse(data.timeZone).success) issue("Use a supported weekly-review time zone.", ["timeZone"]);
     const days = (Date.parse(data.periodEnd + "T00:00:00Z") - Date.parse(data.periodStart + "T00:00:00Z")) / 86400000;
     if (data.recordType === "daily_brief" ? days !== 0 : days < 0 || days > 6) issue("Daily briefs cover one date; weekly reviews cover at most seven inclusive dates.");
   }
@@ -226,5 +227,6 @@ export function emptyExecutiveData(kind: ExecutiveKind, today: string): Executiv
   if (kind === "decision") return { ...common, recordType: kind, state: "open", question: "", owner: "", dueDate: null, nextAction: "", options: [], selectedOptionId: null, decidedOn: null, rationale: "", revisitTrigger: "" };
   if (kind === "meeting") return { ...common, recordType: kind, state: "planned", objective: "", participants: [], agenda: "", startsAt: null,
     timeZone: "", durationMinutes: 30, agreement: "not_agreed", location: "", outcome: "", actions: [] };
-  return { ...common, recordType: kind, state: "draft", periodStart: today, periodEnd: today, focus: "", summary: "", observations: [], actions: [], reflection: "" };
+  const start = kind === "weekly_review" ? new Date(Date.parse(today + "T00:00:00Z") - 6 * 86400000).toISOString().slice(0, 10) : today;
+  return { ...common, recordType: kind, state: "draft", periodStart: start, periodEnd: today, focus: "", summary: "", observations: [], actions: [], reflection: "" };
 }
