@@ -42,7 +42,7 @@ test.describe("native user-owned Workspace layout",()=>{
   await page.getByRole("button",{name:"Preview layout",exact:true}).click();
   const preview=page.getByLabel("Layout preview",{exact:true});
   await expect(preview).toContainText("Navigation: Home → Investing → Executive → Nonprofit → Ministry");
-  await expect(preview).toContainText("Home attention cards: Executive attention brief → Founder next moves → Upcoming teaching");
+  await expect(preview).toContainText("Home attention cards: What deserves attention → Executive attention brief → Founder next moves → Upcoming teaching");
   expect((await client.rpc("get_workspace_layout")).data.preferences).toEqual(empty);
   await confirmation(page).check();await page.getByRole("button",{name:"Confirm and save layout",exact:true}).click();
   await expect(page.getByRole("status").filter({hasText:"Layout saved."})).toBeVisible();
@@ -124,7 +124,8 @@ test.describe("native user-owned Workspace layout",()=>{
   await expect(page.getByRole("button",{name:"Preview layout",exact:true})).toHaveCount(0);
   await page.context().clearCookies();await page.evaluate(()=>localStorage.clear());
   await reset("layout");await signIn(page,"layout");
-  await expect(page.getByText("No assigned contributions in this section yet.",{exact:true})).toHaveCount(2);
+  await expect(page.getByText("No assigned contributions in this section yet.",{exact:true})).toHaveCount(1);
+  await expect(page.getByRole("checkbox",{name:"Show What deserves attention",exact:true})).toBeVisible();
   await previewSave(page);await expect(page.getByRole("status").filter({hasText:"Layout saved."})).toBeVisible();await noOverflow(page);
  });
 });

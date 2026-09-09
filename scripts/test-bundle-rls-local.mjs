@@ -4,7 +4,7 @@ import { localConfiguration, localSql } from "./bundle-local-runtime.mjs";
 // Explicit local suites only. Hosted shared-project preflight is not applicable.
 await localConfiguration();
 localSql("create extension if not exists pgtap with schema extensions;");
-const suites = ["hostile_workspace_access", "workspace_clock_preferences", "workspace_productization", "workspace_product_events", "lewis_workspace_parity", "lewis_connector_capability_gates", "lewis_workspace_preference_parity", "bundle_entitlement_foundation", "sotf_operational_workflows", "writer_bundle_experience", "ministry_native_workspace", "nonprofit_native_workspace", "investor_native_workspace", "executive_native_workspace", "executive_attention", "executive_task_attention", "executive_weekly_outcomes", "executive_availability_planning", "workspace_layout_preferences", "workspace_saved_search"];
+const suites = ["hostile_workspace_access", "workspace_clock_preferences", "workspace_productization", "workspace_product_events", "lewis_workspace_parity", "lewis_connector_capability_gates", "lewis_workspace_preference_parity", "bundle_entitlement_foundation", "sotf_operational_workflows", "writer_bundle_experience", "ministry_native_workspace", "nonprofit_native_workspace", "investor_native_workspace", "executive_native_workspace", "executive_attention", "executive_task_attention", "executive_weekly_outcomes", "executive_availability_planning", "workspace_layout_preferences", "workspace_saved_search", "workspace_native_attention"];
 let total = 0;
 for (const name of suites) {
   const output = localSql("set search_path=workspace,extensions,public;\n" + await readFile("supabase/tests/database/" + name + ".sql", "utf8"));

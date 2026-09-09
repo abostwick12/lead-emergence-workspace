@@ -14,8 +14,8 @@ select is(has_function_privilege(role,signature,'execute'),false,role||' cannot 
  'workspace_private.layout_item_choice(jsonb,text)','workspace_private.validate_layout(jsonb,jsonb,uuid)']) signature;
 select is(has_function_privilege('anon',signature,'execute'),false,'anonymous cannot invoke '||signature)
  from unnest(array['workspace.get_workspace_layout()','workspace.save_workspace_layout(jsonb,integer,text,uuid,boolean)']) signature;
-select is((select count(*)::integer from workspace_private.layout_contributions),10,'only ten implemented customizable contributions');
+select is((select count(*)::integer from workspace_private.layout_contributions),11,'eleven implemented customizable contributions');
 select is((select count(*)::integer from workspace_private.layout_contributions where route='/workspace'),0,'Home is an escape, not a hideable contribution');
-select is((select count(*)::integer from workspace_private.bundle_capability_bindings where bundle_key='workspace_experience'),3,'only implemented Experience capabilities registered');
+select is((select count(*)::integer from workspace_private.bundle_capability_bindings where bundle_key='workspace_experience'),4,'only implemented Experience capabilities registered');
 select * from finish();
 rollback;

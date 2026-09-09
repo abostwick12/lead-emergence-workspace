@@ -33,6 +33,8 @@
     "seed:search:local": "node scripts/seed-search-local.mjs",
     "test:search:local": "node scripts/test-search-local.mjs",
     "test:search:connected": "node scripts/test-search-connected.mjs",
+    "test:attention:local": "node scripts/test-attention-local.mjs",
+    "test:attention:connected": "node scripts/test-attention-connected.mjs",
     "test:search:fresh": "node scripts/test-search-fresh-local.mjs",
     "seed:search:scale": "node scripts/seed-search-scale-local.mjs",
     "test:search:scale": "node scripts/test-search-scale-local.mjs",

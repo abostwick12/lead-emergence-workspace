@@ -1,5 +1,16 @@
 # Test evidence
 
+## P12 native shared attention — 2026-09-09
+
+See [the P12 acceptance ledger](workspace-attention-acceptance.md) and
+[the native authority boundary](../architecture/workspace-native-attention.md).
+Workspace Experience 0.4.0 brings 22 admitted record/task scopes into a source-
+linked native attention page and a confirmed user-owned Home widget. Actual
+OAuth credentials cannot access the native cross-bundle view. Full counts,
+filters, deep pages and exact task navigation have real isolated proof.
+All six bundles remain **NOT READY TO SHIP**; the ledger separates local proof
+from remaining representative, installed-host and deployed release gates.
+
 ## P11a large-library saved-work search — 2026-09-09
 
 See [the P11a scale acceptance ledger](workspace-search-scale-acceptance.md).

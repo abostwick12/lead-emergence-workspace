@@ -33,12 +33,14 @@ entries.push(["bundles/executive/bundle.json", "catalog/executive-bundle.json"],
 entries.push(["bundles/workspace-experience/bundle.json", "catalog/workspace-experience-bundle.json"],
   ["bundles/workspace-experience/ui-manifest.json", "catalog/workspace-experience-ui.json"],
   ["bundles/workspace-experience/layout.ts", "domain-contracts/workspace-layout.ts"],
-  ["bundles/workspace-experience/discovery.ts", "domain-contracts/workspace-discovery.ts"]);
+  ["bundles/workspace-experience/discovery.ts", "domain-contracts/workspace-discovery.ts"],
+  ["bundles/workspace-experience/attention.ts", "domain-contracts/workspace-attention.ts"]);
 execFileSync("git", [...gitArgs, "diff", "--exit-code", "HEAD", "--", ...entries.map(([path]) => path)], { cwd: source });
 const files = [];
 for (const [sourcePath, outputPath] of entries) {
   const original = await readFile(resolve(source, sourcePath), "utf8");
   let content = original.replaceAll("\r\n", "\n").replace(/@lead-emergence\/([a-z-]+)/g, "../$1/index");
+  if (sourcePath === "bundles/workspace-experience/attention.ts") content = content.replaceAll('from "./discovery"', 'from "./workspace-discovery"');
   if (sourcePath === "bundles/investor/analysis.ts") content = content.replace('from "./contracts"', 'from "./investor"');
   if (sourcePath.startsWith("bundles/executive/") && sourcePath.endsWith(".ts")) content = content.replaceAll('from "./contracts"', 'from "./executive"');
   const target = resolve(destination, outputPath);

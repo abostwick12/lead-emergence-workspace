@@ -15,6 +15,7 @@ export function BundleNavigation({ pathname, onNavigate }: { pathname: string; o
     {bundleExperience?.layout?.status==="unavailable" ? <button className="sign-out" onClick={refreshBundleExperience}>Retry saved layout</button> : null}
     {bundleExperience?.capabilityIds.includes("workspace.personalize") ? <Link className="nav-link" href="/workspace/layout" onClick={onNavigate} data-active={pathname==="/workspace/layout"}>Workspace layout</Link> : null}
     {bundleExperience?.capabilityIds.includes("workspace.search") ? <Link className="nav-link" href="/workspace/search" onClick={onNavigate} data-active={pathname==="/workspace/search"}>Search saved work</Link> : null}
+    {bundleExperience?.capabilityIds.includes("workspace.attention") ? <Link className="nav-link" href="/workspace/attention" onClick={onNavigate} data-active={pathname==="/workspace/attention"}>Attention</Link> : null}
     {bundleError ? <button className="sign-out" onClick={refreshBundleExperience}>Retry bundle access</button> : null}
   </>;
 }

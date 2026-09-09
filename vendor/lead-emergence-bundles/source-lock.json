@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "afb0e0386c446f51e3e8a70b641e2c5c69b9240b",
+  "sourceRevision": "b7c52e1f9f2a75beb3e701c5b303d95c7b7bc8fa",
   "contractVersion": "1.0",
   "files": [
     {
@@ -146,12 +146,12 @@
     {
       "sourcePath": "bundles/workspace-experience/bundle.json",
       "outputPath": "catalog/workspace-experience-bundle.json",
-      "sha256": "a59e1790d0be53f332c6a534fd3df97cb07c634d37fd365d7d83e1eac6706f9f"
+      "sha256": "045c1d7376c73d40bbea4afc6aa909fdea5fafb157201d39bd4474dc5e5d2bb0"
     },
     {
       "sourcePath": "bundles/workspace-experience/ui-manifest.json",
       "outputPath": "catalog/workspace-experience-ui.json",
-      "sha256": "936d2b17ed4b92a50552cd7abcfeea9fb3c30ef0aca3674c7456ac1b4ab2cd4c"
+      "sha256": "0e2f4ca9a4f24f92b9e85118dcdef1c1860724a55340859406b23114b1a64b78"
     },
     {
       "sourcePath": "bundles/workspace-experience/layout.ts",
@@ -162,6 +162,11 @@
       "sourcePath": "bundles/workspace-experience/discovery.ts",
       "outputPath": "domain-contracts/workspace-discovery.ts",
       "sha256": "734815a8504f97c2fcac23474c508f276969d339e3175bba4e665e0ae45d5010"
+    },
+    {
+      "sourcePath": "bundles/workspace-experience/attention.ts",
+      "outputPath": "domain-contracts/workspace-attention.ts",
+      "sha256": "d307554063e40d192d9bb18a011349303f87cfb8f29c45f3b241f4b1829012a6"
     }
   ]
 }
