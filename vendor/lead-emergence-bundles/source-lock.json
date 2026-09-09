@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "606c9ebcb22704306b77d9afdc76c9f50c2783d3",
+  "sourceRevision": "ff7d7c29a1e856818d828f6fa821718642463c20",
   "contractVersion": "1.0",
   "files": [
     {
@@ -107,6 +107,31 @@
       "sourcePath": "bundles/investor/analysis.ts",
       "outputPath": "domain-contracts/investor-analysis.ts",
       "sha256": "3572ccdf582c353336ecd5057d69843e523a7df05c533fe7f03deed11be412f5"
+    },
+    {
+      "sourcePath": "bundles/executive/bundle.json",
+      "outputPath": "catalog/executive-bundle.json",
+      "sha256": "933141173cba79e7f581bf09b46466b2b7ecf7e8a2159758f1c17c3ad1870817"
+    },
+    {
+      "sourcePath": "bundles/executive/ui-manifest.json",
+      "outputPath": "catalog/executive-ui.json",
+      "sha256": "b6aa2ca378e322c9bdcbae87cb52e7af9d54a922156736a3a3ef89a910228c2a"
+    },
+    {
+      "sourcePath": "bundles/executive/contracts.ts",
+      "outputPath": "domain-contracts/executive.ts",
+      "sha256": "4f2b9eed13544b16d3ffb83bb63b01e8f02536785bca790a80d8865c723baba5"
+    },
+    {
+      "sourcePath": "bundles/executive/analysis.ts",
+      "outputPath": "domain-contracts/executive-analysis.ts",
+      "sha256": "735366434f08904add1c7d0d35bde062fb64e7e41ace2c14b7f145f7d4199c00"
+    },
+    {
+      "sourcePath": "bundles/executive/scheduling.ts",
+      "outputPath": "domain-contracts/executive-scheduling.ts",
+      "sha256": "e1fd4b76cd6bbbd84b3256b45064aa58dc81a31b71fab55678c9e5cc6277fdc3"
     }
   ]
 }

@@ -1,37 +1,53 @@
-# Executive local foundation proof
+# Executive local proof
 
-P9a tests native database behavior only, not the finished Executive UI or MCP
-connection. Use only the isolated bundle-experience-p2 project and its fictional
-example.invalid accounts. No hosted migration or client data is authorized.
+Use only isolated project bundle-experience-p2 and fictional example.invalid
+accounts. No hosted migration, client data or provider connection is authorized.
 
-1. Run `npm run prepare:writer:local` to copy the reviewed migrations into
-   `.bundle-local/supabase`. Verify project_id bundle-experience-p2 and API port
-   58421 before starting the installed Supabase CLI with that work directory.
-2. For fresh replay, first verify all local auth identities are fictional.
-   `supabase db reset --local --workdir .bundle-local` replaces only this
-   disposable test database. Never use a linked/hosted target.
-3. Regenerate fixtures in order with the local Writer, Ministry, Nonprofit,
-   Investor and Executive seed scripts. These create only synthetic users,
-   native source records and operator-issued local bundle assignments.
-   Private fixture credentials stay in ignored .bundle-local/fixtures.json.
-4. Run `npm run test:executive:local`. It tests real local sessions and guarded
-   database operations, including native source creation across four domains,
-   stale/concurrent saves and operator source-entitlement revocation/regrant.
-   Source sharing is reset to empty when the final revocation test finishes.
-5. Run `npm run test:bundles:rls:local` for all fourteen rolled-back database
-   suites. The hosted Gate A preflight is deliberately not applicable.
-6. Run the normal Workspace checks and source-repository typecheck/tests plus
-   all six official plugin/skill validators. Keep exact source-schema parity
-   evidence when adding the Executive export to the host.
+1. Run npm run prepare:writer:local. Verify the copied configuration names
+   bundle-experience-p2, API port 58421 and the expected 58420–58427 local ports.
+2. Before a fresh replay, stop the owned preview and verify every auth identity
+   is fictional. The explicit local reset replaces only this disposable database:
+   supabase db reset --local --workdir .bundle-local. Never use a linked target.
+3. Seed Writer, Ministry, Nonprofit, Investor and Executive, in that order.
+   Credentials remain in ignored .bundle-local/fixtures.json. Do not print
+   fixture files or local status keys. Recheck the applied migration count.
+4. Run npm run test:executive:local for seven native foundation groups and
+   npm run test:bundles:rls:local for fifteen rolled-back database suites.
+   The hosted-only Gate A preflight is not applicable to this isolated stack.
+5. Start node scripts/serve-writer-local.mjs dev on loopback port 3125.
+   Run npm run test:executive:connected for ten actual HTTP/OAuth/MCP groups.
+   The optimized production host guard intentionally rejects localhost MCP
+   with 421; do not weaken it or substitute a forged host header. The test
+   preflight reports this clearly. Its fictional OAuth grants are disconnected.
+6. Run existing Writer native/revision/library/preparation, Ministry, Nonprofit
+   and Investor connected regressions sequentially; their synthetic capability
+   changes must not race. Investor's test does not read live SEC or accounts.
+7. Stop the dev preview. Run boundary, schema, type, lint and unit checks, then
+   node scripts/serve-writer-local.mjs build. This uses public local app settings;
+   admin credentials never reach the application runtime.
+8. Start the optimized preview with node scripts/serve-writer-local.mjs start.
+   Set E2E_BASE_URL=http://localhost:3125 and EXECUTIVE_LOCAL_ACCEPTANCE=true.
+   Run tests/e2e/executive-connected.spec.ts in both desktop and mobile projects.
+   Set the other four bundle acceptance flags when running their explicit specs.
+   Review the synthetic screenshots, not only the pass count.
+9. Check source type/tests, six official plugin/skill validations, export hashes,
+   whitespace and narrow sensitive-data scans before source-only publication.
+10. Stop only the owned preview and named isolated stack, preserving backups.
+    Never use a no-backup option or remove its retained volumes.
 
-Docker must be available to the local runner. It checks project identity and
-the exact loopback URL, privately reads local credentials and runs SQL only in
-supabase_db_bundle-experience-p2. Never print local status keys or fixture files.
+Docker and the installed Supabase CLI must be available. The runtime helper
+checks project identity and the exact loopback URL, reads credentials privately
+and addresses only supabase_db_bundle-experience-p2. CLI telemetry may need the
+normal local sandbox approval; do not print keys to work around that restriction.
 
-The final P9a run used 27 fresh migrations, seven native RPC groups and
-488 database assertions (67 Executive). Source: 64 tests. Workspace: 217 existing
-unit tests, 32 schema/policy tests and a 41-page optimized build.
+Tests cover five native record flows, strict input and tenant/kind isolation,
+metadata-only default-off source coverage, actual pagination above fifty records,
+seventeen scoped tools, five assistant proposals, native-only approval, private
+canaries from four domains, source withdrawal, operator revocation/regrant,
+selective Executive access and disconnection. Browser journeys cover errors,
+exact confirmation, time ambiguity, brief preparation, evidence states, proposal
+conflicts, original recovery and saved-only handoffs.
 
-No browser, Executive app HTTP, actual Executive OAuth/MCP invocation, provider,
-scheduler, notification, installed host or client-value acceptance is implied.
-After testing, stop only this named stack with backup preservation enabled.
+Read exact current outcomes and limitations in docs/testing/test-evidence.md.
+No installed host, scheduling workflow, notification worker, complete weekly
+history, external provider or representative client-value acceptance is implied.

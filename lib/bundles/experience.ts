@@ -10,6 +10,8 @@ import nonprofitBundle from "@/vendor/lead-emergence-bundles/catalog/nonprofit-b
 import nonprofitUi from "@/vendor/lead-emergence-bundles/catalog/nonprofit-ui.json";
 import investorBundle from "@/vendor/lead-emergence-bundles/catalog/investor-bundle.json";
 import investorUi from "@/vendor/lead-emergence-bundles/catalog/investor-ui.json";
+import executiveBundle from "@/vendor/lead-emergence-bundles/catalog/executive-bundle.json";
+import executiveUi from "@/vendor/lead-emergence-bundles/catalog/executive-ui.json";
 
 const assignment = z.object({
   bundleKey: z.string(), status: z.enum(["active", "revoked", "expired", "unavailable"]),
@@ -28,7 +30,8 @@ const artifacts = [
   { manifest: parseBundleManifest(writerBundle), uiManifest: uiManifestSchema.parse(writerUi), entryCapabilityId: "writer.resource.library" },
   { manifest: parseBundleManifest(ministryBundle), uiManifest: uiManifestSchema.parse(ministryUi), entryCapabilityId: "ministry.research" },
   { manifest: parseBundleManifest(nonprofitBundle), uiManifest: uiManifestSchema.parse(nonprofitUi), entryCapabilityId: "nonprofit.roadmap" },
-  { manifest: parseBundleManifest(investorBundle), uiManifest: uiManifestSchema.parse(investorUi), entryCapabilityId: "investor.company_research", alternateEntryCapabilityIds: ["investor.thesis", "investor.filings"] }
+  { manifest: parseBundleManifest(investorBundle), uiManifest: uiManifestSchema.parse(investorUi), entryCapabilityId: "investor.company_research", alternateEntryCapabilityIds: ["investor.thesis", "investor.filings"] },
+  { manifest: parseBundleManifest(executiveBundle), uiManifest: uiManifestSchema.parse(executiveUi), entryCapabilityId: "executive.coordination", alternateEntryCapabilityIds: ["executive.brief", "executive.review"] }
 ];
 
 export function composeBundleExperience(raw: unknown) {

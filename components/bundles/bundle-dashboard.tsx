@@ -4,9 +4,10 @@ import { WritingAttention } from "@/components/writing/writing-attention";
 import { MinistryAttention } from "@/components/ministry-bundle/attention";
 import { NonprofitAttention } from "@/components/nonprofit-bundle/attention";
 import { InvestorAttention } from "@/components/investor-bundle/attention";
+import { ExecutiveAttention } from "@/components/executive-bundle/attention";
 // The shell consumes declarative contributions. Feature implementations live
 // in this registry, never in identity- or client-specific navigation branches.
-const widgets = { "writer.widget.publication_queue": WritingAttention, "ministry.widget.upcoming_teaching": MinistryAttention, "nonprofit.widget.followups": NonprofitAttention, "investor.widget.thesis_changes": InvestorAttention };
+const widgets = { "writer.widget.publication_queue": WritingAttention, "ministry.widget.upcoming_teaching": MinistryAttention, "nonprofit.widget.followups": NonprofitAttention, "investor.widget.thesis_changes": InvestorAttention, "executive.widget.attention_brief": ExecutiveAttention };
 export function BundleDashboard() {
   const { bundleExperience } = useWorkspace();
   return <>{bundleExperience?.ui.dashboardWidgets.map((item) => {

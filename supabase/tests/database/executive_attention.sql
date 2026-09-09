@@ -1,0 +1,13 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set search_path=workspace,extensions,public;
+select no_plan();
+select is(has_function_privilege('anon','workspace.executive_attention(date)','execute'),false,'anonymous attention denied');
+select is(has_function_privilege('authenticated','workspace.executive_attention(date)','execute'),true,'authenticated attention bridge exposed');
+select is(has_function_privilege('anon','workspace_private.executive_attention_metadata(text)','execute'),false,'anonymous metadata helper denied');
+select is(has_function_privilege('authenticated','workspace_private.executive_attention_metadata(text)','execute'),false,'authenticated direct metadata helper denied');
+select ok((select prosecdef from pg_proc where oid='workspace.executive_attention(date)'::regprocedure),'attention uses guarded owner rights');
+select is((select provolatile::text from pg_proc where oid='workspace.executive_attention(date)'::regprocedure),'s','attention is read only stable');
+select throws_ok($$select workspace.executive_attention(current_date)$$,'42501',null,'attention without a verified identity denied');
+select * from finish();
+rollback;

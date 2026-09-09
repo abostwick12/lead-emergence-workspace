@@ -1,106 +1,105 @@
-# Executive native coordination foundation
+# Executive native coordination
 
-Updated 2026-09-09. P9a is a backend/contract checkpoint, not the finished
-Executive experience. **All six bundles remain NOT READY TO SHIP.**
+Updated 2026-09-09. P9b implements native pages, HTTP/MCP bridges and record-level
+attention. **All six bundles remain NOT READY TO SHIP.**
 
-## Ownership and records
+## Ownership and native work
 
-Reusable Executive 0.2.0 contracts, analysis and explicit-availability scheduling
-remain in lead-emergence-bundles. Bundle Contract 1.0 and UI Manifest Contract 1.0
-are unchanged. Workspace owns this migration and native persistence. The host's
-active twenty-one-file export is still pinned to the P8 source revision
-606c9ebcb22704306b77d9afdc76c9f50c2783d3; Executive is not yet registered in its UI
-composer or MCP tool registry. Declared source routes are not live pages.
+Workspace imports 26 allowlisted reusable files from source revision
+ff7d7c29a1e856818d828f6fa821718642463c20. Executive 0.2.0 uses Bundle Contract 1.0
+and UI Manifest Contract 1.0. The host now registers Executive navigation, its
+attention widget and scoped tools. No runtime import reaches the source repo.
 
-Five kinds are independent: commitment, decision, meeting, daily_brief and
-weekly_review. They have per-kind capability checks, strict generated base
-schemas and independent database cross-field validation. Commitments preserve
-outcome, owner, dates, next move and completion/blocker evidence. Decisions keep
-alternatives, tradeoffs, a chosen option, rationale and decision date. Meetings
-preserve explicit instants, a named display zone, agreement state and outcomes;
-a saved plan is never a calendar booking. Briefs keep bounded observations,
-actions, reflection and an explicit inclusive period.
+Five independent kinds have focused editors: commitments, decisions, meetings,
+daily briefs and weekly reviews. Libraries expose search, paging and proposals.
+Editors preserve owners, next moves, evidence, dates and explicit review states.
+Native exact-record confirmation resets after edits. Failed or stale saves keep
+the draft in the current editor; this is not crash/autosave recovery. History
+retains the original plus nine recent versions; restoring one prepares a copy
+for explicit confirmation. Downloads contain the saved revision, not unsaved
+edits or live source metadata.
 
-Private documents, immutable versions and proposals are separate from every
-other bundle. Current server-derived Workspace identity is the only tenant
-authority. Direct anonymous/authenticated table operations are denied. Native
-saves and decisions require a direct session and exact-record confirmation.
-Assistant-oriented proposals cannot approve themselves. Real MCP invocation
-of Executive remains untested and is not yet wired into the host.
+Decisions require a chosen alternative, rationale and decision date when decided.
+Completed commitments require the actual completion date. Meeting entry uses a
+local date/time and named zone, rejects nonexistent daylight-saving times and
+requires the intended instant during a repeated hour. Changes to timing,
+duration or participants clear reported agreement. A saved meeting neither
+checks availability nor books a calendar event.
 
-Concurrent writes serialize per Workspace; expected revisions prevent silent
-overwrites. Request IDs support identical retries and reject changed/superseded
-requests. History retains all revisions and returns the original plus nine
-latest revisions. There is no permanent-delete route in this slice.
+Brief preparation makes an unsaved, inferred draft from current attention, with
+bounded references and source coverage. Observations distinguish evidence from
+interpretation and suggestion. Weekly preparation explicitly does not claim a
+complete historical account of the chosen period. The user supplies outcomes
+and reflection; no activity history is fabricated.
 
-Assistant normalization marks changed records inferred, demotes changed
-observations/actions and those affected by changed references, returns edited
-reviewed briefs to draft, and removes claimed agreement when meeting timing or
-participants change. Native approval preserves inference labels.
+## Authority, persistence and connected assistant
 
-## Explicit source permissions
+Private documents, immutable versions, proposals and source permissions remain
+independent of other bundles. Identity and entitlements are derived server-side,
+never from a submitted Workspace ID. Direct private-table operations are denied.
+Expected revisions and serialized writes reject silent overwrites; request IDs
+allow identical retries and reject changed or superseded requests.
 
-Two more private tables store source-permission selections and their revision
-audit. Selection starts empty. Only native users with Executive coordination
-may change it, with exact current revision and explicit task-metadata consent.
-Each selected source capability must currently be entitled.
+Native HTTP has strict inputs, bounded bodies and private no-store responses.
+There are 17 Executive MCP tools with all three capabilities: list/get/propose
+for each of five kinds, attention and explicit reference resolution. Five are
+proposal-only writes. No tool grants canonical save, approval, history access,
+source-sharing changes, booking, messaging or recurring execution. Every handler
+rechecks live authorization; annotations are descriptive, not authority.
 
-The allowlist covers Writing resource status, Ministry research/archive status,
-Nonprofit roadmap/partner/meeting/research metadata and Investor research-review
-metadata. It excludes the theological profile, clinical content, personal
-accounts and all full-content domain operations. Titles can themselves be
-sensitive: the future native consent UI must say exactly what metadata is shared.
+Assistant proposals preserve inference labels through native approval. Changed
+reference evidence demotes affected record/action/observation confirmation.
+Native source edits and approval are separate explicit decisions.
 
-Each reference contains capability, kind, document ID and recorded revision.
-The reader checks both current source sharing and current source entitlement,
-then selects only title, state, review state where applicable, current revision,
-due/review date and updated timestamp. It does not call full-content domain RPCs
-or return bodies, research findings, financial theses, clinical notes or source
-excerpts. Real four-domain canary tests exercise this projection.
+## Explicit source sharing
 
-Resolution returns current, changed or unavailable. Removed sharing, revoked
-source access, a wrong Workspace, an unknown ID or an impossible future revision
-cannot return source metadata. Previously saved Executive briefs remain readable
-as the user's own work; source labels are resolved live, not copied into a
-durable cross-domain snapshot. Saving a record with unavailable references is
-rejected until the user removes them or restores authorized access.
+Sharing starts empty. A direct user with Executive coordination chooses each
+currently entitled source capability and confirms the exact current selection.
+The native page discloses that titles themselves may be sensitive and that
+authorized Executive assistants may read the selected metadata.
 
-## Implemented native database operations
+The ten-source allowlist covers Writing resource status, Ministry research and
+archive status, Nonprofit roadmap/partner/meeting/research status, and Investor
+research-review status. It excludes theological profiles, clinical records,
+personal accounts and full-content domain operations.
 
-- Get/search/save an Executive record; search is bounded to fifty results.
-- Propose new records or revisions; list twenty-five native-review proposals.
-- Approve/reject an exact proposal and retrieve bounded private history.
-- Get/set source-permission selections.
-- Resolve up to twenty explicitly supplied source references.
+Each reference stores capability, kind, ID and recorded revision only. A guarded
+reader selects six fields: title, state, review state where applicable, revision,
+due/review date and update time. It does not call full-content RPCs or return
+manuscripts, research findings, investment theses or source excerpts. Resolution
+returns current, changed or unavailable and is refreshed on focus or request.
+Changed references can be updated explicitly; unavailable ones can be removed.
 
-These ten authenticated database operations are not ten installed MCP tools.
-No Executive app HTTP routes, native pages, attention aggregation, notification
-worker or scheduler are implemented in P9a.
+Withdrawn sharing and revoked source entitlement close subsequent reads. Already
+saved Executive work remains readable as the user's own record. Saving with
+unavailable links is refused until those links are removed or access restored.
+Previously read or downloaded information cannot be retroactively withdrawn.
 
-## Local proof and limitations
+## Attention scope and limits
 
-All 27 migrations replayed from a fresh isolated database. The actual migration
-count was rechecked. Seven real native authenticated RPC groups pass, including
-five record kinds, exact retries, concurrency, original preservation, proposal
-decisions, source permissions, metadata-only projection across four domains,
-cross-client/kind denial and live source revocation. Source records in the final
-run are created through their real native guarded operations.
+Migration 28 adds a read-only aggregate over guarded scalar record metadata,
+never underlying bodies. It reports all 13 capability coverage states with exact
+matching totals; unshared/unavailable counts are null. At most 50 cues are ordered
+by priority, due date and stable ID. Each explains its saved-state rule, source
+revision and next action. Terminal records, including held meetings, are omitted.
+The native view offers a date comparison, not a historical snapshot.
 
-All 488 PostgreSQL assertions across fourteen suites pass, including 67 Executive
-table/RLS/helper/RPC privilege checks. Source has 64 tests, including seventeen
-Executive contract/analysis/scheduling cases. Five generated base schemas and
-ten source definitions exactly match the reusable source. Workspace's 217
-existing unit tests, 32 schema/policy tests, typecheck, lint, boundary scan and
-41-page optimized build pass. Those are regressions, not Executive UI proof.
+This is **parent-record attention**, not nested task/catalyst extraction. Nested
+roadmap milestones, meeting actions and investment catalysts still need a
+purpose-built consent/projection contract. The reference picker currently draws
+from the first attention page, not a complete cross-bundle source search.
 
-An ambiguous SQL variable was found by real source resolution and corrected.
-The final fresh replay includes that fix. Earlier fixture attempts used a
-malformed revocation update and an incorrect Nonprofit RPC parameter; the final
-test uses the actual guarded source creation/revocation operations. Fresh replay
-removed those earlier disposable fictional fixtures; no client data was present.
+## Verification and remaining work
 
-Remaining: task-level attention aggregation and coverage; typed HTTP/MCP bridges;
-native editors, source controls and source-change presentation; daily/weekly
-first-value flow and full review coverage; scheduling UI; approved automation
-and meaningful-change notification lifecycle; cross-bundle recovery; installed
-host, representative utility, accessibility, deployment and commercial gates.
+See the P9b section in docs/testing/test-evidence.md and the local proof runbook
+for exact final counts, corrected attempts and execution receipts. Local tests
+use only fictional accounts and real guarded database/HTTP/OAuth/MCP operations.
+They do not constitute installed ChatGPT/Codex or client acceptance.
+
+Remaining: nested task attention; useful full-period weekly outcomes; explicit-
+availability scheduling UI; approved recurring lifecycle and meaningful-change
+notification delivery; complete source discovery; crash/autosave recovery;
+shared search/quick-action/connection/preferences experiences; representative
+utility, accessibility and deployed privacy/retention/commercial acceptance.
+No hosted migration, deployment, provider/client connection, installed-plugin
+change or marketplace submission is included.

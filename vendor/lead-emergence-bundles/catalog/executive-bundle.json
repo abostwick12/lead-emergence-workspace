@@ -1,0 +1,257 @@
+{
+  "schemaVersion": "1.0",
+  "identity": {
+    "key": "executive",
+    "version": "0.2.0",
+    "displayName": "Executive",
+    "description": "Turns commitments, priorities, decisions, and permitted cross-bundle signals into a concise operating view.",
+    "kind": "functional"
+  },
+  "experience": {
+    "promise": "Know what deserves attention and leave with a small, defensible next-action list.",
+    "firstRunOutcome": "A source-linked brief that identifies the highest-value next moves without exposing unrelated private content.",
+    "timeToFirstValueMinutes": 8,
+    "successSignals": [
+      {
+        "id": "executive.signal.brief_accepted",
+        "description": "The user accepts, edits, or acts on at least one brief recommendation."
+      },
+      {
+        "id": "executive.signal.followup_recovered",
+        "description": "The workflow surfaces a commitment or follow-up the user would otherwise have revisited manually."
+      }
+    ],
+    "qualityGates": {
+      "evidenceRequired": true,
+      "provenanceRequired": true,
+      "mutationConfirmationRequired": true
+    }
+  },
+  "capabilities": [
+    {
+      "id": "executive.brief",
+      "version": "0.2.0",
+      "description": "Prepare an evidence-linked attention brief from authorized task metadata.",
+      "domain": "executive",
+      "operations": [
+        "read",
+        "propose"
+      ],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "executive.review",
+      "version": "0.2.0",
+      "description": "Run a weekly review of priorities, commitments, decisions, and follow-up.",
+      "domain": "executive",
+      "operations": [
+        "read",
+        "propose"
+      ],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "executive.coordination",
+      "version": "0.2.0",
+      "description": "Coordinate explicitly permitted task-level metadata across bundles.",
+      "domain": "executive",
+      "operations": [
+        "read",
+        "propose"
+      ],
+      "taskMetadataShareable": true
+    }
+  ],
+  "skills": [
+    {
+      "id": "executive.skill.daily_brief",
+      "path": "./plugins/lead-emergence-executive/skills/executive-daily-brief/",
+      "capabilityIds": [
+        "executive.brief",
+        "executive.review",
+        "executive.coordination"
+      ],
+      "triggers": [
+        "prepare my daily brief",
+        "what deserves my attention",
+        "review my commitments"
+      ],
+      "outcome": "A concise, evidence-linked brief with reasons, due dates when known, and user-controlled next actions."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "executive.workflow.daily_brief",
+      "version": "0.2.0",
+      "name": "Daily attention brief",
+      "capabilityIds": [
+        "executive.brief",
+        "executive.coordination"
+      ],
+      "providerRequirementIds": [],
+      "inputScopes": [
+        "executive.commitments",
+        "executive.decisions",
+        "executive.meetings",
+        "cross_bundle.task_metadata"
+      ],
+      "outputScopes": [
+        "executive.attention_items"
+      ],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 5
+    },
+    {
+      "id": "executive.workflow.weekly_review",
+      "version": "0.2.0",
+      "name": "Weekly review",
+      "capabilityIds": [
+        "executive.review"
+      ],
+      "providerRequirementIds": [],
+      "inputScopes": [
+        "executive.priorities",
+        "executive.commitments",
+        "executive.decisions"
+      ],
+      "outputScopes": [
+        "executive.weekly_reviews"
+      ],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 10
+    },
+    {
+      "id": "executive.workflow.commitment",
+      "version": "0.2.0",
+      "name": "Record a commitment",
+      "capabilityIds": [
+        "executive.coordination"
+      ],
+      "providerRequirementIds": [],
+      "inputScopes": [
+        "executive.user_input"
+      ],
+      "outputScopes": [
+        "executive.commitments"
+      ],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 3
+    },
+    {
+      "id": "executive.workflow.decision",
+      "version": "0.2.0",
+      "name": "Prepare a decision",
+      "capabilityIds": [
+        "executive.coordination"
+      ],
+      "providerRequirementIds": [],
+      "inputScopes": [
+        "executive.user_input"
+      ],
+      "outputScopes": [
+        "executive.decisions"
+      ],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 5
+    },
+    {
+      "id": "executive.workflow.meeting",
+      "version": "0.2.0",
+      "name": "Prepare a meeting",
+      "capabilityIds": [
+        "executive.coordination"
+      ],
+      "providerRequirementIds": [],
+      "inputScopes": [
+        "executive.user_input"
+      ],
+      "outputScopes": [
+        "executive.meetings"
+      ],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 5
+    },
+    {
+      "id": "executive.workflow.meeting_times",
+      "version": "0.2.0",
+      "name": "Compare explicit meeting availability",
+      "capabilityIds": [
+        "executive.coordination"
+      ],
+      "providerRequirementIds": [],
+      "inputScopes": [
+        "executive.explicit_availability"
+      ],
+      "outputScopes": [
+        "executive.proposed_times"
+      ],
+      "mode": "read",
+      "evidenceRequired": true,
+      "targetUserMinutes": 3
+    }
+  ],
+  "providerRequirements": [],
+  "appRequirements": [],
+  "permissions": {
+    "dataScopes": [
+      "executive.priorities",
+      "executive.commitments",
+      "executive.decisions",
+      "executive.meetings",
+      "executive.daily_briefs",
+      "executive.weekly_reviews",
+      "executive.source_permissions"
+    ],
+    "contextScopes": [
+      "executive.profile",
+      "executive.review_preferences"
+    ],
+    "crossDomainAccess": [
+      {
+        "targetDomain": "writing",
+        "dataClass": "task_metadata",
+        "operation": "read"
+      },
+      {
+        "targetDomain": "ministry",
+        "dataClass": "task_metadata",
+        "operation": "read"
+      },
+      {
+        "targetDomain": "nonprofit",
+        "dataClass": "task_metadata",
+        "operation": "read"
+      },
+      {
+        "targetDomain": "investing",
+        "dataClass": "task_metadata",
+        "operation": "read"
+      }
+    ]
+  },
+  "automations": [],
+  "attentionTypes": [
+    {
+      "id": "executive.attention.commitment_due",
+      "description": "A confirmed commitment is due or overdue.",
+      "defaultPriority": "high",
+      "evidenceRequired": true
+    },
+    {
+      "id": "executive.attention.decision_due",
+      "description": "A recorded decision needs a next move or review.",
+      "defaultPriority": "normal",
+      "evidenceRequired": true
+    }
+  ],
+  "uiManifestPath": "./bundles/executive/ui-manifest.json",
+  "distribution": {
+    "pluginName": "lead-emergence-executive",
+    "marketplacePath": "./.agents/plugins/marketplace.json"
+  }
+}

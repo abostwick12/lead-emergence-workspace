@@ -1,0 +1,206 @@
+{
+  "schemaVersion": "1.0",
+  "bundleKey": "executive",
+  "dashboardWidgets": [
+    {
+      "id": "executive.widget.attention_brief",
+      "label": "Executive attention brief",
+      "order": 10,
+      "type": "attention_brief",
+      "capabilityId": "executive.brief",
+      "attentionTypes": [
+        "executive.attention.commitment_due",
+        "executive.attention.decision_due"
+      ],
+      "emptyStateId": "executive.empty.brief"
+    }
+  ],
+  "primaryNavigation": [
+    {
+      "id": "executive.nav.home",
+      "label": "Executive",
+      "route": "/workspace/executive",
+      "order": 10,
+      "icon": "compass"
+    }
+  ],
+  "secondaryNavigation": [
+    {
+      "id": "executive.nav.commitment",
+      "label": "Commitments",
+      "route": "/workspace/executive/commitment",
+      "order": 10,
+      "capabilityId": "executive.coordination"
+    },
+    {
+      "id": "executive.nav.decision",
+      "label": "Decisions",
+      "route": "/workspace/executive/decision",
+      "order": 20,
+      "capabilityId": "executive.coordination"
+    },
+    {
+      "id": "executive.nav.meeting",
+      "label": "Meetings",
+      "route": "/workspace/executive/meeting",
+      "order": 30,
+      "capabilityId": "executive.coordination"
+    },
+    {
+      "id": "executive.nav.daily_brief",
+      "label": "Daily briefs",
+      "route": "/workspace/executive/daily_brief",
+      "order": 40,
+      "capabilityId": "executive.brief"
+    },
+    {
+      "id": "executive.nav.weekly_review",
+      "label": "Weekly reviews",
+      "route": "/workspace/executive/weekly_review",
+      "order": 50,
+      "capabilityId": "executive.review"
+    },
+    {
+      "id": "executive.nav.sources",
+      "label": "Attention sources",
+      "route": "/workspace/executive/sources",
+      "order": 60,
+      "capabilityId": "executive.coordination"
+    }
+  ],
+  "quickActions": [
+    {
+      "id": "executive.action.daily_brief",
+      "label": "Prepare daily brief",
+      "order": 10,
+      "workflowId": "executive.workflow.daily_brief",
+      "capabilityId": "executive.brief"
+    },
+    {
+      "id": "executive.action.commitment",
+      "label": "New commitment",
+      "order": 20,
+      "workflowId": "executive.workflow.commitment",
+      "capabilityId": "executive.coordination"
+    },
+    {
+      "id": "executive.action.decision",
+      "label": "New decision",
+      "order": 30,
+      "workflowId": "executive.workflow.decision",
+      "capabilityId": "executive.coordination"
+    },
+    {
+      "id": "executive.action.meeting",
+      "label": "New meeting",
+      "order": 40,
+      "workflowId": "executive.workflow.meeting",
+      "capabilityId": "executive.coordination"
+    },
+    {
+      "id": "executive.action.weekly_review",
+      "label": "Prepare weekly review",
+      "order": 50,
+      "workflowId": "executive.workflow.weekly_review",
+      "capabilityId": "executive.review"
+    }
+  ],
+  "searchProviders": [
+    {
+      "id": "executive.search.commitment",
+      "label": "Commitments",
+      "order": 10,
+      "capabilityId": "executive.coordination",
+      "resultTypes": [
+        "executive.commitment"
+      ]
+    },
+    {
+      "id": "executive.search.decision",
+      "label": "Decisions",
+      "order": 20,
+      "capabilityId": "executive.coordination",
+      "resultTypes": [
+        "executive.decision"
+      ]
+    },
+    {
+      "id": "executive.search.meeting",
+      "label": "Meetings",
+      "order": 30,
+      "capabilityId": "executive.coordination",
+      "resultTypes": [
+        "executive.meeting"
+      ]
+    },
+    {
+      "id": "executive.search.daily_brief",
+      "label": "Daily briefs",
+      "order": 40,
+      "capabilityId": "executive.brief",
+      "resultTypes": [
+        "executive.daily_brief"
+      ]
+    },
+    {
+      "id": "executive.search.weekly_review",
+      "label": "Weekly reviews",
+      "order": 50,
+      "capabilityId": "executive.review",
+      "resultTypes": [
+        "executive.weekly_review"
+      ]
+    }
+  ],
+  "commandPaletteActions": [
+    {
+      "id": "executive.command.daily_brief",
+      "label": "Prepare daily brief",
+      "order": 10,
+      "workflowId": "executive.workflow.daily_brief",
+      "capabilityId": "executive.brief"
+    },
+    {
+      "id": "executive.command.commitment",
+      "label": "New commitment",
+      "order": 20,
+      "workflowId": "executive.workflow.commitment",
+      "capabilityId": "executive.coordination"
+    },
+    {
+      "id": "executive.command.decision",
+      "label": "New decision",
+      "order": 30,
+      "workflowId": "executive.workflow.decision",
+      "capabilityId": "executive.coordination"
+    },
+    {
+      "id": "executive.command.meeting",
+      "label": "New meeting",
+      "order": 40,
+      "workflowId": "executive.workflow.meeting",
+      "capabilityId": "executive.coordination"
+    },
+    {
+      "id": "executive.command.weekly_review",
+      "label": "Prepare weekly review",
+      "order": 50,
+      "workflowId": "executive.workflow.weekly_review",
+      "capabilityId": "executive.review"
+    }
+  ],
+  "notificationTypes": [],
+  "emptyStates": [
+    {
+      "id": "executive.empty.brief",
+      "title": "Your brief is ready to learn from real work",
+      "description": "Add a priority or commitment, or permit task-level signals from another bundle.",
+      "actionId": "executive.action.daily_brief"
+    }
+  ],
+  "bundleSettings": [],
+  "workspaceRoute": {
+    "route": "/workspace/executive",
+    "label": "Executive"
+  }
+}

@@ -1301,3 +1301,92 @@ HTTP/MCP flow, followed by the remaining Workspace Experience and shipment gates
 
 See [Executive foundation](../architecture/executive-native-workspace.md),
 [local proof](../runbooks/executive-local-proof.md) and the P9a checkpoint.
+
+## P9b — Executive native experience and connected coordination — 2026-09-09
+
+This is a source-only implementation checkpoint. **All six bundles remain
+NOT READY TO SHIP**, and the full goal remains active. Executive's pages, typed
+HTTP/MCP bridges, native source controls and record-level attention are now
+implemented. This supersedes P9a's unwired-host status, not its historical facts.
+
+Passed on the final source and isolated fictional stack:
+
+- All 28 migrations replayed freshly on bundle-experience-p2; the applied count
+  was independently checked. The pre-reset 16 identities were all fictional
+  example.invalid accounts. Ordered seeding recreated only synthetic clients.
+- Seven Executive native RPC groups and ten actual HTTP/OAuth/PKCE/MCP groups.
+  These cover all five records; strict queries, kind/client boundaries and
+  no-store output; exact retries; original preservation; default-off sharing;
+  thirteen honest coverage entries; more than fifty real records with exact
+  totals and a fifty-item page; held-meeting exclusion; seventeen focused tools;
+  native-only canonical/permission/history decisions; four-domain private-body
+  canaries; source withdrawal; operator source revocation/regrant; selective
+  Executive entitlement removal; and assistant disconnection.
+- All 495 PostgreSQL assertions in fifteen rolled-back suites, including
+  67 Executive foundation and seven Executive attention privilege assertions.
+- Full existing connected regression: eleven Writer API/OAuth/MCP groups,
+  ten revision groups, seven draft/discovery groups, six profile/publication
+  groups, ten Ministry groups, eleven Nonprofit groups and eleven Investor
+  groups. Investor tests did not fetch live SEC or personal accounts.
+- All 76 optimized Chrome journeys, without retries: sixteen Executive,
+  fourteen Investor, twelve Nonprofit, ten Ministry and 24 Writer, split equally
+  between desktop and mobile emulation. Executive covers failed-save retention,
+  confirmation reset, decision/completion evidence, nonexistent/repeated local
+  hours, coverage-aware brief preparation, source withdrawal, proposal conflicts,
+  original restoration and saved-only downloads.
+- Four final synthetic screenshots visually reviewed and preserved:
+  [attention desktop](executive-proof/attention-desktop.png),
+  [attention mobile](executive-proof/attention-mobile.png),
+  [explicit repeated-hour choice desktop](executive-proof/time-choice-desktop.png),
+  [explicit repeated-hour choice mobile](executive-proof/time-choice-mobile.png).
+  Readability and bounded controls were checked; these are not a full
+  accessibility, real-device or unaided-client acceptance audit.
+- Workspace boundary scan: 242 runtime files; 32 schema/policy tests; typecheck;
+  lint; 250 unit tests in 25 files, including 33 Executive cases; optimized
+  Next.js build with 47 static pages. Final post-build typecheck/lint also pass.
+- Source typecheck and 64 tests in eight files; six official plugin validations
+  and six official skill validations. No package identity/install changed.
+- All 26 export hashes and exact approved source transformations match
+  ff7d7c29a1e856818d828f6fa821718642463c20. Trusted base schemas and source
+  definitions retain parity. No runtime cross-repo import is used.
+- Pre-publication whitespace and narrow sensitive-data checks pass. Working
+  source and preserved release-lineage history are scanned; this is not a
+  comprehensive privacy/legal audit. Final commit/scan/publication receipts
+  are recorded in the P9b checkpoint.
+
+Corrected attempts and findings:
+
+- Initial lint caught JSX apostrophes and a non-hook callback named useTime;
+  corrected before final checks.
+- Early browser tests exposed ambiguous decision/select labeling. Controls now
+  use explicit labels, including the named-zone picker. The repeated-hour radio
+  is explicitly sized and asserted; final desktop/mobile tests pass.
+- Code review found held meetings could remain pending attention. The final
+  fresh migration excludes them, with an actual connected regression.
+- Initial optimized localhost MCP acceptance hit the intentional production
+  canonical-host guard (421, surfaced by the SDK as a transport error). The
+  protection is unchanged. Connected tests use the isolated development preview
+  and now fail preflight clearly on the wrong host mode; final browser tests use
+  the optimized app.
+- One default-sandbox build preflight could not write CLI telemetry. The approved
+  local runtime rerun passed without exposing private credentials to the app.
+  One package-validation invocation used a nonexistent shortened directory;
+  all six actual package paths then passed. A cross-repo hash audit needed a
+  command-scoped safe-directory setting; no global Git policy was changed.
+
+Still absent or not claimable:
+
+- Nested roadmap/meeting tasks and Investor catalysts in Executive attention;
+  complete linked-source discovery beyond the first attention page; historical
+  full-period weekly outcomes; availability scheduling UI; recurring execution
+  and meaningful-change notification lifecycle; crash/autosave recovery outside
+  Writer; and remaining shared Workspace Experience consumers/preferences.
+- Installed ChatGPT/Codex invocation/update/removal/reconnect, representative
+  source quality and unaided time-saved acceptance, large-library ergonomics,
+  final shared mobile header/toolbar polish, deployed privacy/retention,
+  payment/support, hosted migration/deployment and authorized provider proof.
+- No external account, client data, calendar booking, outgoing message,
+  marketplace submission, main merge or production change occurred.
+
+See [Executive implementation](../architecture/executive-native-workspace.md)
+and [the reproducible local proof](../runbooks/executive-local-proof.md).
