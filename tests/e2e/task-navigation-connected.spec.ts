@@ -16,7 +16,7 @@ type Saved = { id: string; revision: number; data: RecordData };
 function fixtures() { return JSON.parse(readFileSync(".bundle-local/fixtures.json", "utf8")); }
 async function session() {
   const c = JSON.parse(readFileSync(".bundle-local/public-config.json", "utf8"));
-  expect(c.url).toBe("http://127.0.0.1:58421");
+  expect(c.url).toBe("http://127.0.0.1:58521");
   const f = fixtures().executiveDual;
   expect(f.email).toMatch(/@example\.invalid$/);
   const client = createClient(c.url, c.anonKey, { db: { schema: "workspace" }, auth: { persistSession: false, autoRefreshToken: false } });

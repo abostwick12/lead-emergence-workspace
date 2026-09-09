@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, BrainCircuit, BriefcaseBusiness, Compass, Crosshair, Menu, Moon, PackageOpen, Plug, Radar, Settings, Target, X } from "lucide-react";
 import { QuickCaptureDialog } from "@/components/quick-capture-dialog";
+import { QuickActions } from "@/components/bundles/quick-actions";
 import { BundleNavigation } from "@/components/bundles/bundle-navigation";
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider";
 import { WorkspaceClocks, WorkspaceHeaderDate } from "@/components/workspace-clocks";
@@ -37,7 +38,7 @@ function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactN
   }, [ready, user, workspace, onboarding, onboardingComplete, setupRoute, router]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (captureEnabled && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      if (captureEnabled && !event.shiftKey && !event.altKey && !document.querySelector('dialog[open]') && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setCaptureOpen(true);
       }
@@ -79,7 +80,7 @@ function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactN
       <div className="sidebar-footer"><div className="signal-status"><p className="eyebrow">Workspace status</p><p><span className="status-dot" />Private Workspace ready</p></div><Link className="settings-link" href="/workspace/settings"><Settings size={17} />Settings</Link>{signOutError ? <p className="error" role="alert">{signOutError}</p> : null}<button className="sign-out" disabled={signingOut} onClick={() => void handleSignOut()}>{signingOut ? "Signing out…" : "Sign out"}</button></div>
     </aside>
     {navOpen ? <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setNavOpen(false)} /> : null}
-    <div className="workspace-stage"><header className="workspace-header"><div className="workspace-context"><div><p className="greeting">Welcome back, <em>{displayName}</em>.</p><WorkspaceHeaderDate /></div><div className="header-rule" /><div className="header-telemetry"><span className="eyebrow">Mode</span><strong>{capabilities.leader_mode ? "Leader" : "Personal"}</strong></div></div><WorkspaceClocks /><div className="header-actions"><button className="quick-capture-trigger" disabled={!captureEnabled} title={captureEnabled ? "Quick capture" : "Quick Capture is unavailable for the current plan"} onClick={() => setCaptureOpen(true)}><Crosshair size={17} /><span>Quick capture</span><kbd>⌘K</kbd></button><button className="icon-button" aria-label="Theme is fixed to the Workspace command-center theme" title="Dark command-center theme"><Moon size={18} /></button><button className="icon-button" aria-label="Notifications are not available yet" title="Notifications are not available yet" disabled><Bell size={18} /></button><span className="avatar" aria-label={`Signed in as ${displayName}`}>{displayName.slice(0, 2).toUpperCase()}</span></div></header><main className="main">{children}</main></div>
+    <div className="workspace-stage"><header className="workspace-header"><div className="workspace-context"><div><p className="greeting">Welcome back, <em>{displayName}</em>.</p><WorkspaceHeaderDate /></div><div className="header-rule" /><div className="header-telemetry"><span className="eyebrow">Mode</span><strong>{capabilities.leader_mode ? "Leader" : "Personal"}</strong></div></div><WorkspaceClocks /><div className="header-actions"><QuickActions key={user.id+":"+workspace.id+":"+pathname} blocked={captureOpen}/><button className="quick-capture-trigger" disabled={!captureEnabled} title={captureEnabled ? "Quick capture" : "Quick Capture is unavailable for the current plan"} onClick={() => setCaptureOpen(true)}><Crosshair size={17} /><span>Quick capture</span><kbd>⌘K</kbd></button><button className="icon-button" aria-label="Theme is fixed to the Workspace command-center theme" title="Dark command-center theme"><Moon size={18} /></button><button className="icon-button" aria-label="Notifications are not available yet" title="Notifications are not available yet" disabled><Bell size={18} /></button><span className="avatar" aria-label={`Signed in as ${displayName}`}>{displayName.slice(0, 2).toUpperCase()}</span></div></header><main className="main">{children}</main></div>
     <QuickCaptureDialog open={captureOpen} onClose={() => setCaptureOpen(false)} />
   </div>;
 }

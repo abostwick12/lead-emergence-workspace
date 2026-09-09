@@ -1,5 +1,14 @@
 # Test evidence
 
+## P11 native saved-work search and quick actions — 2026-09-09
+
+See [the P11 acceptance ledger](workspace-search-acceptance.md) and
+[the native search boundary](../architecture/workspace-saved-search.md).
+Sixteen saved-work scopes and ten navigation shortcuts are implemented.
+Shared search remains native-only, with actual OAuth denial proof.
+All six bundles remain **NOT READY TO SHIP**. The detailed ledger separates
+verified outcomes, pending checks and remaining release gates.
+
 ## P10 user-owned Workspace layout — 2026-09-09
 
 See [Workspace Experience layout acceptance](workspace-layout-acceptance.md)

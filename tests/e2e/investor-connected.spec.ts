@@ -6,7 +6,7 @@ import type { InvestorDocument } from "../../lib/investor-bundle/contracts";
 import { investorFixtures } from "../../scripts/investor-fixtures.mjs";
 function fixtures() { return JSON.parse(readFileSync(".bundle-local/fixtures.json", "utf8")); }
 async function session(role = "investor") {
-  const c = JSON.parse(readFileSync(".bundle-local/public-config.json", "utf8")); expect(c.url).toBe("http://127.0.0.1:58421");
+  const c = JSON.parse(readFileSync(".bundle-local/public-config.json", "utf8")); expect(c.url).toBe("http://127.0.0.1:58521");
   const client = createClient(c.url, c.anonKey, { db: { schema: "workspace" }, auth: { persistSession: false, autoRefreshToken: false } }), f = fixtures()[role];
   expect((await client.auth.signInWithPassword({ email: f.email, password: f.password })).error).toBeNull(); return client;
 }

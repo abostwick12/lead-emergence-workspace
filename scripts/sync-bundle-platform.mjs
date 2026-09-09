@@ -32,7 +32,8 @@ entries.push(["bundles/executive/bundle.json", "catalog/executive-bundle.json"],
   ["bundles/executive/weekly.ts", "domain-contracts/executive-weekly.ts"]);
 entries.push(["bundles/workspace-experience/bundle.json", "catalog/workspace-experience-bundle.json"],
   ["bundles/workspace-experience/ui-manifest.json", "catalog/workspace-experience-ui.json"],
-  ["bundles/workspace-experience/layout.ts", "domain-contracts/workspace-layout.ts"]);
+  ["bundles/workspace-experience/layout.ts", "domain-contracts/workspace-layout.ts"],
+  ["bundles/workspace-experience/discovery.ts", "domain-contracts/workspace-discovery.ts"]);
 execFileSync("git", [...gitArgs, "diff", "--exit-code", "HEAD", "--", ...entries.map(([path]) => path)], { cwd: source });
 const files = [];
 for (const [sourcePath, outputPath] of entries) {

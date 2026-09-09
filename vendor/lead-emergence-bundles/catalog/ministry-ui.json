@@ -1,12 +1,27 @@
 {
   "schemaVersion": "1.0",
   "bundleKey": "ministry",
-  "workspaceRoute": { "route": "/workspace/ministry", "label": "Ministry" },
+  "workspaceRoute": {
+    "route": "/workspace/ministry",
+    "label": "Ministry"
+  },
   "primaryNavigation": [
-    { "id": "ministry.nav.home", "label": "Ministry", "route": "/workspace/ministry", "icon": "book-open", "order": 30 }
+    {
+      "id": "ministry.nav.home",
+      "label": "Ministry",
+      "route": "/workspace/ministry",
+      "icon": "book-open",
+      "order": 30
+    }
   ],
   "secondaryNavigation": [
-    { "id": "ministry.nav.archive", "label": "Sermon & teaching archive", "route": "/workspace/ministry/archive", "icon": "library", "order": 30 }
+    {
+      "id": "ministry.nav.archive",
+      "label": "Sermon & teaching archive",
+      "route": "/workspace/ministry/archive",
+      "icon": "library",
+      "order": 30
+    }
   ],
   "dashboardWidgets": [
     {
@@ -15,7 +30,9 @@
       "order": 30,
       "type": "attention_queue",
       "capabilityId": "ministry.research",
-      "attentionTypes": ["ministry.attention.teaching_due"],
+      "attentionTypes": [
+        "ministry.attention.teaching_due"
+      ],
       "emptyStateId": "ministry.empty.teaching"
     }
   ],
@@ -30,11 +47,22 @@
   ],
   "searchProviders": [
     {
+      "id": "ministry.search.research",
+      "label": "Research projects",
+      "order": 10,
+      "capabilityId": "ministry.research",
+      "resultTypes": [
+        "ministry.result.research"
+      ]
+    },
+    {
       "id": "ministry.search.archive",
-      "label": "Ministry archive",
-      "order": 30,
+      "label": "Teaching archive",
+      "order": 20,
       "capabilityId": "ministry.archive",
-      "resultTypes": ["ministry.result.sermon", "ministry.result.teaching"]
+      "resultTypes": [
+        "ministry.result.archive"
+      ]
     }
   ],
   "commandPaletteActions": [

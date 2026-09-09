@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "identity": {
     "key": "workspace_experience",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "displayName": "Workspace Experience",
     "description": "Composes entitled bundle contributions into a focused, user-controlled Lead Emergence workspace.",
     "kind": "experience"
@@ -24,7 +24,7 @@
   "capabilities": [
     {
       "id": "workspace.compose",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "description": "Compose navigation, routes, widgets, actions, settings, and empty states from entitled UI manifests.",
       "domain": "workspace",
       "operations": ["read"],
@@ -32,7 +32,7 @@
     },
     {
       "id": "workspace.attention",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "description": "Rank authorized attention items by priority, due date, reason, and evidence.",
       "domain": "workspace",
       "operations": ["read", "propose"],
@@ -40,7 +40,7 @@
     },
     {
       "id": "workspace.search",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "description": "Federate search only across providers contributed by entitled bundles.",
       "domain": "workspace",
       "operations": ["read"],
@@ -48,7 +48,7 @@
     },
     {
       "id": "workspace.personalize",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "description": "Preview and explicitly confirm user-owned pins, hidden items, order, and default workspace; retain recovery history without changing access.",
       "domain": "workspace",
       "operations": ["read", "propose"],
@@ -67,7 +67,7 @@
   "workflows": [
     {
       "id": "workspace.workflow.recommend_layout",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "name": "Workspace layout recommendation",
       "capabilityIds": ["workspace.compose", "workspace.attention", "workspace.personalize"],
       "providerRequirementIds": [],

@@ -73,14 +73,39 @@
   ],
   "searchProviders": [
     {
-      "id": "investor.search.research",
-      "label": "Investment research",
-      "order": 50,
+      "id": "investor.search.watchlist",
+      "label": "Watchlists",
+      "order": 10,
       "capabilityId": "investor.company_research",
       "resultTypes": [
-        "investor.result.company",
-        "investor.result.filing",
+        "investor.result.watchlist"
+      ]
+    },
+    {
+      "id": "investor.search.thesis",
+      "label": "Investment theses",
+      "order": 20,
+      "capabilityId": "investor.thesis",
+      "resultTypes": [
         "investor.result.thesis"
+      ]
+    },
+    {
+      "id": "investor.search.filing",
+      "label": "Filing reviews",
+      "order": 30,
+      "capabilityId": "investor.filings",
+      "resultTypes": [
+        "investor.result.filing"
+      ]
+    },
+    {
+      "id": "investor.search.brief",
+      "label": "Market briefs",
+      "order": 40,
+      "capabilityId": "investor.company_research",
+      "resultTypes": [
+        "investor.result.brief"
       ]
     }
   ],

@@ -6,13 +6,13 @@ export const appUrl = "http://localhost:3125";
 export const containerName = "supabase_db_bundle-experience-p2";
 export async function localConfiguration() {
   const source = await readFile(".bundle-local/supabase/config.toml", "utf8");
-  if (!source.includes('project_id = "bundle-experience-p2"') || !source.includes("port = 58421")) {
+  if (!source.includes('project_id = "bundle-experience-p2"') || !source.includes("port = 58521")) {
     throw new Error("Only the isolated P2 stack is allowed.");
   }
   const text = execFileSync(process.platform === "win32" ? "supabase.exe" : "supabase",
     ["status", "--workdir", ".bundle-local", "-o", "json"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   const config = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
-  if (config.API_URL !== "http://127.0.0.1:58421") throw new Error("Refusing a non-P2 database.");
+  if (config.API_URL !== "http://127.0.0.1:58521") throw new Error("Refusing a non-P2 database.");
   return config;
 }
 export function localSql(sql) {

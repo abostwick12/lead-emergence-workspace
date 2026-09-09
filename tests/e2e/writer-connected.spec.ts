@@ -21,7 +21,7 @@ async function openWriting(page: Page) {
 }
 async function operatorSession(fixture: Fixture) {
   const publicConfig = JSON.parse(readFileSync(".bundle-local/public-config.json", "utf8"));
-  if (publicConfig.url !== "http://127.0.0.1:58421") throw new Error("Only the isolated P2 stack is allowed.");
+  if (publicConfig.url !== "http://127.0.0.1:58521") throw new Error("Only the isolated P2 stack is allowed.");
   const client = createClient(publicConfig.url, publicConfig.anonKey, {
     db: { schema: "workspace" }, auth: { persistSession: false, autoRefreshToken: false }
   });
