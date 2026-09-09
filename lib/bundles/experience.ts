@@ -8,6 +8,8 @@ import ministryBundle from "@/vendor/lead-emergence-bundles/catalog/ministry-bun
 import ministryUi from "@/vendor/lead-emergence-bundles/catalog/ministry-ui.json";
 import nonprofitBundle from "@/vendor/lead-emergence-bundles/catalog/nonprofit-bundle.json";
 import nonprofitUi from "@/vendor/lead-emergence-bundles/catalog/nonprofit-ui.json";
+import investorBundle from "@/vendor/lead-emergence-bundles/catalog/investor-bundle.json";
+import investorUi from "@/vendor/lead-emergence-bundles/catalog/investor-ui.json";
 
 const assignment = z.object({
   bundleKey: z.string(), status: z.enum(["active", "revoked", "expired", "unavailable"]),
@@ -25,7 +27,8 @@ export type BundleAuthority = z.infer<typeof bundleAuthoritySchema>;
 const artifacts = [
   { manifest: parseBundleManifest(writerBundle), uiManifest: uiManifestSchema.parse(writerUi), entryCapabilityId: "writer.resource.library" },
   { manifest: parseBundleManifest(ministryBundle), uiManifest: uiManifestSchema.parse(ministryUi), entryCapabilityId: "ministry.research" },
-  { manifest: parseBundleManifest(nonprofitBundle), uiManifest: uiManifestSchema.parse(nonprofitUi), entryCapabilityId: "nonprofit.roadmap" }
+  { manifest: parseBundleManifest(nonprofitBundle), uiManifest: uiManifestSchema.parse(nonprofitUi), entryCapabilityId: "nonprofit.roadmap" },
+  { manifest: parseBundleManifest(investorBundle), uiManifest: uiManifestSchema.parse(investorUi), entryCapabilityId: "investor.company_research", alternateEntryCapabilityIds: ["investor.thesis", "investor.filings"] }
 ];
 
 export function composeBundleExperience(raw: unknown) {
@@ -43,7 +46,7 @@ export function composeBundleExperience(raw: unknown) {
   const capabilities = composed.capabilities.filter((item) => admitted.has(item.bundleKey + ":" + item.id));
   const allowed = new Set(capabilities.map((item) => item.id));
   const admittedBundles = new Set(capabilities.map((item) => item.bundleKey));
-  const navigableBundles = new Set(artifacts.filter((item) => allowed.has(item.entryCapabilityId)).map((item) => item.manifest.identity.key));
+  const navigableBundles = new Set(artifacts.filter((item) => allowed.has(item.entryCapabilityId) || item.alternateEntryCapabilityIds?.some(id => allowed.has(id))).map((item) => item.manifest.identity.key));
   const ui = composed.ui;
   return {
     workspaceId: authority.workspaceId, revision: authority.revision, resolvedAt: authority.resolvedAt,

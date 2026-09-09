@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "ead26bb30bf7ccd733e186255e7f0d52163345e9",
+  "sourceRevision": "606c9ebcb22704306b77d9afdc76c9f50c2783d3",
   "contractVersion": "1.0",
   "files": [
     {
@@ -87,6 +87,26 @@
       "sourcePath": "bundles/nonprofit-founder/contracts.ts",
       "outputPath": "domain-contracts/nonprofit.ts",
       "sha256": "c282fcd526ae44ee8e184ff9c6122dd818cd4a436e8442bc3c50dd96b813df2c"
+    },
+    {
+      "sourcePath": "bundles/investor/bundle.json",
+      "outputPath": "catalog/investor-bundle.json",
+      "sha256": "ad44c03cade1c2571868ff496f80eadea8248a088c76386c16095937b1c4f26a"
+    },
+    {
+      "sourcePath": "bundles/investor/ui-manifest.json",
+      "outputPath": "catalog/investor-ui.json",
+      "sha256": "5fe545e88a1c146d53cd742fd95611bf4254ee33a2d0966c46d514d3e1acd085"
+    },
+    {
+      "sourcePath": "bundles/investor/contracts.ts",
+      "outputPath": "domain-contracts/investor.ts",
+      "sha256": "775149d0023b7b45f4b09c4c29022ffb6e98635aa28737874096d5db330e0fa3"
+    },
+    {
+      "sourcePath": "bundles/investor/analysis.ts",
+      "outputPath": "domain-contracts/investor-analysis.ts",
+      "sha256": "3572ccdf582c353336ecd5057d69843e523a7df05c533fe7f03deed11be412f5"
     }
   ]
 }

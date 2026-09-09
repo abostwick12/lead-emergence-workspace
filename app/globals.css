@@ -74,6 +74,11 @@ kbd { padding: 5px 7px; color: var(--muted); border-radius: 6px; background: rgb
 .icon-button:disabled { color: #596171; opacity: .65; }
 .avatar { display: grid; width: 45px; height: 45px; place-items: center; color: #172033; border-radius: 50%; background: linear-gradient(135deg, var(--brass), var(--teal)); font-weight: 800; }
 .mobile-menu-button, .mobile-nav-close, .nav-backdrop { display: none; }
+/* Keep the fixed mobile navigation button above a dedicated header, not fields. */
+@media (max-width: 900px) {
+  .workspace-header { position: sticky; top: 0; z-index: 3; background: #0b1119; }
+  .main :is(input, textarea, select, button, summary, [tabindex]) { scroll-margin-top: 210px; }
+}
 
 /* Keep the existing shell legible around bundle workspaces at laptop widths. */
 @media (max-width: 1600px) {

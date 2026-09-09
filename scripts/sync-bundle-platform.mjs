@@ -19,11 +19,16 @@ entries.push(["bundles/ministry/bundle.json", "catalog/ministry-bundle.json"],
 entries.push(["bundles/nonprofit-founder/bundle.json", "catalog/nonprofit-bundle.json"],
   ["bundles/nonprofit-founder/ui-manifest.json", "catalog/nonprofit-ui.json"],
   ["bundles/nonprofit-founder/contracts.ts", "domain-contracts/nonprofit.ts"]);
+entries.push(["bundles/investor/bundle.json", "catalog/investor-bundle.json"],
+  ["bundles/investor/ui-manifest.json", "catalog/investor-ui.json"],
+  ["bundles/investor/contracts.ts", "domain-contracts/investor.ts"],
+  ["bundles/investor/analysis.ts", "domain-contracts/investor-analysis.ts"]);
 execFileSync("git", [...gitArgs, "diff", "--exit-code", "HEAD", "--", ...entries.map(([path]) => path)], { cwd: source });
 const files = [];
 for (const [sourcePath, outputPath] of entries) {
   const original = await readFile(resolve(source, sourcePath), "utf8");
-  const content = original.replaceAll("\r\n", "\n").replace(/@lead-emergence\/([a-z-]+)/g, "../$1/index");
+  let content = original.replaceAll("\r\n", "\n").replace(/@lead-emergence\/([a-z-]+)/g, "../$1/index");
+  if (sourcePath === "bundles/investor/analysis.ts") content = content.replace('from "./contracts"', 'from "./investor"');
   const target = resolve(destination, outputPath);
   await mkdir(dirname(target), { recursive: true });
   await writeFile(target, content);

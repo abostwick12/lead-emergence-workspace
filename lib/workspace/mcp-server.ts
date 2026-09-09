@@ -8,6 +8,7 @@ import { registerSotfTools } from "@/lib/sotf/mcp";
 import { registerWriterTools } from "@/lib/writing/mcp";
 import { registerMinistryTools } from "@/lib/ministry-bundle/mcp";
 import { registerNonprofitTools } from "@/lib/nonprofit-bundle/mcp";
+import { registerInvestorTools } from "@/lib/investor-bundle/mcp";
 import { mcpWwwAuthenticateChallenge } from "@/lib/workspace/mcp-auth";
 
 const setupArea = z.enum([
@@ -393,6 +394,7 @@ export function createWorkspaceMcpServer(
   registerWriterTools(server, supabase, options.bundleCapabilityIds ?? []);
   registerMinistryTools(server, supabase, options.bundleCapabilityIds ?? []);
   registerNonprofitTools(server, supabase, options.bundleCapabilityIds ?? []);
+  registerInvestorTools(server, supabase, options.bundleCapabilityIds ?? []);
   publishTopLevelOAuthSecuritySchemes(server);
   return server;
 }

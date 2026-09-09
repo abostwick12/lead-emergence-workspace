@@ -1135,3 +1135,99 @@ Investigated failures and honest limits:
   retention/recovery or payment enforcement ran. The twelve-minute first-value
   estimate remains a design target. No private fixtures, test traces or credentials
   belong in source publication.
+## P8 Investor native research workspace — 2026-09-09
+
+Implementation evidence only. All six bundles remain NOT READY TO SHIP.
+No main merge, hosted migration, deployment, marketplace submission, installed
+plugin update, personal-account connection or client information was used.
+
+Passed:
+
+- Fresh replay of all 26 migrations on isolated bundle-experience-p2; the applied
+  count was rechecked directly. This is not hosted migration proof.
+- 421 PostgreSQL assertions across thirteen local suites, including 64 Investor
+  private-table, RLS, anonymous/helper and guarded-RPC permission checks. The
+  hosted-only Gate A preflight remains intentionally excluded.
+- 217 unit tests across 24 files, including 32 Investor cases; 32 schema/policy
+  cases; typecheck, lint and boundaries. The boundary scan covers 215 runtime files.
+- Exact generated base-schema parity between the reusable Zod contracts and SQL,
+  in addition to real database checks for cross-field evidence/scenario rules.
+- Standard and guarded isolated optimized builds, each generating 41 static pages.
+- Eleven actual Investor API/OAuth/MCP acceptance groups: four research kinds and
+  full-text search; cross-client/kind and same-user Writer/Ministry/Nonprofit ID
+  denial; independent capability composition; private no-store HTTP; strict
+  account/trade/tenant fields, dates, types, sources, citation references and
+  scenario constraints; confirmation; exact retries; concurrent/stale writes;
+  retained originals; pending/approved/rejected proposals; native-only approval
+  and history; dated attention; selective revocation and connection disconnect.
+- Actual local registration, consent, PKCE and fourteen MCP tools. Four proposal
+  tools write private proposals; thirteen tools are private-domain operations,
+  and one read-only open-world tool is the bounded public metadata lookup.
+  Assistant edits to sources demote dependent confirmed claims to inferred and
+  sources to unverified. Approval preserves that distinction; retries use the
+  immutable original base, including after a proposal has been approved.
+- The public-source gate denies unassigned callers and enforces its per-workspace
+  request budget without needing an external fetch. Unit tests cover fixed SEC
+  destinations, safe paths, identity/date/column checks, coverage, size bounds,
+  denied access, post-fetch revocation and upstream failures without retries.
+- The complete existing connected regression: eleven Nonprofit and ten Ministry
+  groups; eleven Writer API/OAuth/MCP, ten revision, seven discovery/recovery and
+  six preparation groups. All successful operations use fictional local accounts.
+- All 60 optimized browser cases passed in one run with one worker and no retries
+  (11.7 minutes): fourteen Investor, twelve Nonprofit, ten Ministry and 24 Writer,
+  split equally across desktop and mobile-emulated Chrome. Investor covers first
+  watchlist creation, confirmation reset and failed-save retention; a source-linked
+  thesis with challenging evidence, invalidation, catalyst and explicit scenarios;
+  compared proposal approval, history copy and saved-only download; 13F validation
+  and a bounded brief; explicit metadata-only draft import; stale rejection;
+  cross-client denial and consent scope. No horizontal overflow was observed.
+- Two watchlist recapture cases passed in 1.1 minutes after adding an explicit
+  completed-save heading wait. A final fourteen-case Investor-only optimized run
+  passed in 4.3 minutes on both projects after the readability refinement. The
+  HTML report records fourteen expected, zero failed/flaky/skipped cases; its
+  persisted
+  `.bundle-local/investor-final-readability/.last-run.json` reports `passed` with
+  no failed tests. Confirmation labels are measured at least 15 pixels, and
+  collapsed claim summaries expose their review state. Both optimized builds,
+  typecheck, lint and all unit/schema/boundary checks were repeated after this
+  refinement. Four final synthetic screenshots were visually inspected and are
+  documented in [Investor visual proof](investor-proof/README.md).
+
+Honest limitations and corrected attempts:
+
+- A single actual public SEC request for a public company CIK was declined with
+  upstream 403. The app returned a descriptive 503, with no findings or save.
+  No alternate identity, retry or evasion was attempted. **Live SEC success is
+  not proven.** Operator identity/traffic review and successful authorized public
+  reads are required before client enablement. The labeled metadata browser
+  fixture tests UI behavior only, not SEC availability or filing-text analysis.
+- Initial unit verification had one assertion-label mismatch (zero confidence
+  was correctly rendered); the assertion was corrected. Initial browser work
+  exposed a route-announcer selector collision and a ten-second development-load
+  wait, not a false successful save. The selector was narrowed; all sixty final
+  optimized cases passed without raising the normal assertion timeout or retries.
+- A first watchlist screenshot captured its post-save loading transition even
+  though the saved record had been checked through the real database. Capture
+  now additionally waits for the completed saved title; only inspected success
+  screenshots belong in docs/testing/investor-proof. Traces/videos stay ignored.
+- The Windows Supabase CLI could not resolve the spaced SQL path. The durable
+  local runner now initializes pgTAP and runs each rolled-back suite through the
+  exact isolated container. An initial missing testing extension was corrected;
+  no product migration or permission check was waived.
+- Source contracts have 47 tests; all six official plugin and six skill validators
+  pass. The host's twenty-one-file export is checksum-verified at source revision
+  606c9ebcb22704306b77d9afdc76c9f50c2783d3. Later source documentation does not
+  change that runtime export. Official authoring guidance supplied the missing
+  build-chatgpt-app skill fallback; no app ID or installed integration was invented.
+- Finances was inspected for listing/dependency metadata only. Its runtime fields,
+  scopes and personal-account integration are unverified and were not accessed.
+
+Open client gates: Investor crash/autosave recovery; representative filing/thesis
+quality, source coverage and correction evaluation; measured unaided first value
+and time saved; large-library and physical-device/accessibility acceptance;
+installed ChatGPT/Codex behavior; live public-provider proof; deployed privacy,
+retention, recovery, payment and support. Shared Experience must also audit
+secondary sticky controls with the mobile header. Investor compact claim review
+states are now exposed; the broader cross-bundle UX audit remains open.
+Executive and remaining Experience implementation
+are next. See architecture/investor-native-workspace.md and the P8 checkpoint.

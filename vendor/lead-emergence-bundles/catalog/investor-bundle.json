@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "1.0",
+  "identity": {
+    "key": "investor",
+    "version": "0.2.0",
+    "displayName": "Investor",
+    "description": "Builds evidence-balanced market, company, filing, catalyst, and thesis intelligence from lawful public information.",
+    "kind": "functional"
+  },
+  "experience": {
+    "promise": "Understand what changed, why it matters to a thesis, and what evidence would invalidate the current view.",
+    "firstRunOutcome": "A source-linked thesis review separating facts, interpretation, thesis, scenarios, and predictions.",
+    "timeToFirstValueMinutes": 12,
+    "successSignals": [
+      {
+        "id": "investor.signal.thesis_updated",
+        "description": "The user records a supported thesis update or explicit no-change conclusion."
+      },
+      {
+        "id": "investor.signal.challenge_found",
+        "description": "The workflow surfaces credible thesis-challenging evidence or an invalidation condition."
+      }
+    ],
+    "qualityGates": {
+      "evidenceRequired": true,
+      "provenanceRequired": true,
+      "mutationConfirmationRequired": true
+    }
+  },
+  "capabilities": [
+    {
+      "id": "investor.company_research",
+      "version": "0.2.0",
+      "description": "Maintain public-research watchlists, market briefs, earnings and macro catalysts without a personal financial account.",
+      "domain": "investing",
+      "operations": [
+        "read",
+        "propose",
+        "execute"
+      ],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "investor.filings",
+      "version": "0.2.0",
+      "description": "Record and review public SEC disclosures with dated provenance, amendments, transaction context and holdings-lag warnings.",
+      "domain": "investing",
+      "operations": [
+        "read",
+        "propose",
+        "execute"
+      ],
+      "taskMetadataShareable": false
+    },
+    {
+      "id": "investor.thesis",
+      "version": "0.2.0",
+      "description": "Maintain company theses, supporting and challenging evidence, explicit scenarios, confidence and observable invalidation.",
+      "domain": "investing",
+      "operations": [
+        "read",
+        "propose",
+        "execute"
+      ],
+      "taskMetadataShareable": true
+    }
+  ],
+  "skills": [
+    {
+      "id": "investor.skill.thesis_review",
+      "path": "./plugins/lead-emergence-investor/skills/investor-thesis-review/",
+      "capabilityIds": [
+        "investor.company_research",
+        "investor.filings",
+        "investor.thesis"
+      ],
+      "triggers": [
+        "review my investment thesis",
+        "what changed for this company",
+        "analyze this SEC filing",
+        "prepare a market brief"
+      ],
+      "outcome": "A source-linked, balanced review that labels facts, interpretations, thesis statements, scenarios, and predictions separately."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "investor.workflow.thesis_review",
+      "version": "0.2.0",
+      "name": "Evidence-balanced thesis review",
+      "capabilityIds": [
+        "investor.company_research",
+        "investor.filings",
+        "investor.thesis"
+      ],
+      "providerRequirementIds": [
+        "investor.provider.public_markets"
+      ],
+      "inputScopes": [
+        "investor.watchlist",
+        "investor.thesis",
+        "investor.research_question"
+      ],
+      "outputScopes": [
+        "investor.thesis_review",
+        "investor.scenarios"
+      ],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 12
+    }
+  ],
+  "providerRequirements": [
+    {
+      "id": "investor.provider.public_markets",
+      "provider": "public_markets",
+      "required": false,
+      "authorization": {
+        "required": false,
+        "method": "public"
+      },
+      "scopes": [],
+      "operations": [
+        "read",
+        "propose"
+      ],
+      "dataBoundary": "Lawful public market information only; no material nonpublic information and no automatic trade execution."
+    }
+  ],
+  "appRequirements": [
+    {
+      "id": "investor.app.finances",
+      "required": false,
+      "purpose": "Optional personal-portfolio context if the current OpenAI Finances plugin is later authorized and its scopes satisfy the use case.",
+      "status": "planned"
+    }
+  ],
+  "permissions": {
+    "dataScopes": [
+      "investor.watchlists",
+      "investor.theses",
+      "investor.research"
+    ],
+    "contextScopes": [
+      "investor.preferences",
+      "investor.risk_posture"
+    ],
+    "crossDomainAccess": []
+  },
+  "automations": [],
+  "attentionTypes": [
+    {
+      "id": "investor.attention.thesis_change",
+      "description": "New evidence materially supports, challenges, or invalidates a tracked thesis.",
+      "defaultPriority": "normal",
+      "evidenceRequired": true
+    },
+    {
+      "id": "investor.attention.research_review",
+      "description": "Saved research, evidence freshness, catalysts or watchlist questions need a deliberate review.",
+      "defaultPriority": "normal",
+      "evidenceRequired": true
+    }
+  ],
+  "uiManifestPath": "./bundles/investor/ui-manifest.json",
+  "distribution": {
+    "pluginName": "lead-emergence-investor",
+    "marketplacePath": "./.agents/plugins/marketplace.json"
+  }
+}
