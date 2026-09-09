@@ -289,3 +289,17 @@ select { min-height: 44px; }
   .settings-section { padding: 19px 15px; }
   .settings-editor .button { width: 100%; }
 }
+
+.layout-editor { display: grid; gap: 1.25rem; max-width: 1100px; }
+.layout-group { border: 1px solid #344252; border-radius: 14px; padding: 1rem; min-width: 0; }
+.layout-group legend { font-size: 1.15rem; font-weight: 650; padding: 0 .4rem; }
+.layout-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 0; border-bottom: 1px solid #263340; }
+.layout-row:last-child { border-bottom: 0; }
+.layout-row-controls, .layout-actions { display: flex; gap: .65rem; flex-wrap: wrap; align-items: center; }
+.layout-row-controls label, .layout-preview label { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; font-size: 15px; }
+.layout-row-controls button { min-width: 44px; min-height: 44px; }
+.layout-group, .layout-preview { scroll-margin-top: 210px; }
+.layout-row-controls input, .layout-preview input { width: auto; min-width: 18px; height: 18px; }
+.layout-preview { display: grid; gap: .8rem; border-top: 1px solid #263340; margin-top: 1.2rem; padding-top: 1.2rem; }
+.layout-preview p { overflow-wrap: anywhere; }
+@media (max-width: 700px) { .layout-row { align-items: flex-start; flex-direction: column; } .layout-row-controls { width: 100%; } .layout-actions { align-items: stretch; flex-direction: column; } }

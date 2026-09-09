@@ -201,9 +201,10 @@ test("signs out the current browser session before returning to login", () => {
   assert.match(globalCss, /\.sidebar \{[^}]*position: sticky;[^}]*height: 100vh;[^}]*overflow-y: auto;/);
 });
 
-test("preserves only an allowlisted Workspace pathname across login", () => {
+test("preserves only an allowlisted Workspace pathname across login", async () => {
   assert.match(workspaceShell, /workspaceLoginHref\(pathname\)/);
-  assert.match(loginPage, /normalizeWorkspaceReturnPath\(next\)/);
+  assert.match(loginPage, /workspaceSignInDestination\(next\)/);
+  assert.match(await readFile("lib/workspace/return-path.ts","utf8"), /normalizeWorkspaceReturnPath\(candidate\)/);
   assert.match(workspaceShell, /window\.location\.replace\("\/login"\)/);
 });
 

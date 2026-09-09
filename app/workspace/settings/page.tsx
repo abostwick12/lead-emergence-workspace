@@ -19,7 +19,7 @@ const editableAreas: Array<{ area: ConfigurationArea; label: string; description
 ];
 
 export default function SettingsPage() {
-  const { user, workspace, plan, capabilities, configuration, refreshProductState } = useWorkspace();
+  const { user, workspace, plan, capabilities, configuration, refreshProductState, bundleExperience } = useWorkspace();
   const [values, setValues] = useState<Record<string, string>>({});
   const [connections, setConnections] = useState<McpAuthorizationRecord[]>([]);
   const [pendingArea, setPendingArea] = useState<ConfigurationArea | null>(null);
@@ -67,7 +67,8 @@ export default function SettingsPage() {
     } finally { setDisconnecting(null); }
   }
 
-  return <section className="settings-page"><p className="eyebrow workflow-kicker">Workspace</p><h1 className="page-title">Settings</h1><p className="page-lede">Manage the Personal configuration, assistant access, plan capabilities, and privacy boundaries that shape your Workspace.</p>
+  return <section className="settings-page"><p className="eyebrow workflow-kicker">Workspace</p><h1 className="page-title">Settings</h1>
+      {bundleExperience?.capabilityIds.includes("workspace.personalize") ? <Link className="button secondary" href="/workspace/layout">Customize workspace layout</Link> : null}<p className="page-lede">Manage the Personal configuration, assistant access, plan capabilities, and privacy boundaries that shape your Workspace.</p>
     {message ? <p className="notice" role="status">{message}</p> : null}{error ? <p className="error" role="alert">{error}</p> : null}
     <nav className="settings-index" aria-label="Settings sections"><a href="#workspace"><SlidersHorizontal size={16} />Workspace</a><a href="#profile"><UserRound size={16} />Personal profile</a><a href="#assistant"><Bot size={16} />AI / Assistant</a><a href="#plan"><PackageCheck size={16} />Plan &amp; capabilities</a><a href="#privacy"><ShieldCheck size={16} />Privacy / Data</a></nav>
 

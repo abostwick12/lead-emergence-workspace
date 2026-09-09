@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ENTRY_RETURN_COOKIE, ENTRY_SIGN_IN_COOKIE, entryCookieOptions, requireEntryProviderIdentifier } from "@/lib/auth/entry-identity";
 import { trustedWorkspaceOrigin } from "@/lib/http/origin";
 import { createWorkspaceServerClient } from "@/lib/supabase/server";
-import { normalizeWorkspaceReturnPath } from "@/lib/workspace/return-path";
+import { workspaceSignInDestination } from "@/lib/workspace/return-path";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     origin = trustedWorkspaceOrigin(request.nextUrl.origin);
     const callback = new URL("/auth/callback/sign-in", origin);
-    const returnPath = normalizeWorkspaceReturnPath(request.nextUrl.searchParams.get("next"));
+    const returnPath = workspaceSignInDestination(request.nextUrl.searchParams.get("next"));
     const supabase = await createWorkspaceServerClient();
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: requireEntryProviderIdentifier() as Provider,

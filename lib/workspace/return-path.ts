@@ -21,6 +21,11 @@ export function normalizeWorkspaceReturnPath(candidate: string | null | undefine
   }
 }
 
+/** Only a missing destination uses the user's saved starting workspace.
+ * Malformed or explicit paths retain the existing safe Home fallback. */
+export function workspaceSignInDestination(candidate:string|null|undefined):string {
+ return candidate==null||candidate===""?"/workspace/start":normalizeWorkspaceReturnPath(candidate);
+}
 export function workspaceLoginHref(currentPath: string | null | undefined): string {
   return `/login?next=${encodeURIComponent(normalizeWorkspaceReturnPath(currentPath))}`;
 }

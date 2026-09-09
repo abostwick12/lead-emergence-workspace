@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "f9f4614afb947ada637ba170ceb7890ac91ad495",
+  "sourceRevision": "ad6c41da1d3b822b459ebb27e55113cc3e10ee80",
   "contractVersion": "1.0",
   "files": [
     {
@@ -142,6 +142,21 @@
       "sourcePath": "bundles/executive/weekly.ts",
       "outputPath": "domain-contracts/executive-weekly.ts",
       "sha256": "25a9a8b4edb94a5e38b7967ab96910bf9704a661bb6ccf3a16dade1b80df551a"
+    },
+    {
+      "sourcePath": "bundles/workspace-experience/bundle.json",
+      "outputPath": "catalog/workspace-experience-bundle.json",
+      "sha256": "2530288f670031755f9b5e9335282d76e012d2f37aaac207d9b3ef41da7d0338"
+    },
+    {
+      "sourcePath": "bundles/workspace-experience/ui-manifest.json",
+      "outputPath": "catalog/workspace-experience-ui.json",
+      "sha256": "936d2b17ed4b92a50552cd7abcfeea9fb3c30ef0aca3674c7456ac1b4ab2cd4c"
+    },
+    {
+      "sourcePath": "bundles/workspace-experience/layout.ts",
+      "outputPath": "domain-contracts/workspace-layout.ts",
+      "sha256": "eafd775cf2a9ae2828a4ff4a037ee414bf3bd0d5873a19c6d7012b844b7401b6"
     }
   ]
 }

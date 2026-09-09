@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "1.0",
+  "identity": {
+    "key": "workspace_experience",
+    "version": "0.2.0",
+    "displayName": "Workspace Experience",
+    "description": "Composes entitled bundle contributions into a focused, user-controlled Lead Emergence workspace.",
+    "kind": "experience"
+  },
+  "experience": {
+    "promise": "Open one workspace and immediately see the work that deserves attention across every authorized bundle.",
+    "firstRunOutcome": "A deterministic, entitlement-derived workspace with useful empty states and no navigation for unassigned bundles.",
+    "timeToFirstValueMinutes": 5,
+    "successSignals": [
+      { "id": "workspace.signal.attention_actioned", "description": "The user acts on or deliberately dismisses a prioritized attention item." },
+      { "id": "workspace.signal.layout_confirmed", "description": "The user explicitly confirms a useful default workspace or layout preference." }
+    ],
+    "qualityGates": {
+      "evidenceRequired": true,
+      "provenanceRequired": true,
+      "mutationConfirmationRequired": true
+    }
+  },
+  "capabilities": [
+    {
+      "id": "workspace.compose",
+      "version": "0.2.0",
+      "description": "Compose navigation, routes, widgets, actions, settings, and empty states from entitled UI manifests.",
+      "domain": "workspace",
+      "operations": ["read"],
+      "taskMetadataShareable": false
+    },
+    {
+      "id": "workspace.attention",
+      "version": "0.2.0",
+      "description": "Rank authorized attention items by priority, due date, reason, and evidence.",
+      "domain": "workspace",
+      "operations": ["read", "propose"],
+      "taskMetadataShareable": false
+    },
+    {
+      "id": "workspace.search",
+      "version": "0.2.0",
+      "description": "Federate search only across providers contributed by entitled bundles.",
+      "domain": "workspace",
+      "operations": ["read"],
+      "taskMetadataShareable": false
+    },
+    {
+      "id": "workspace.personalize",
+      "version": "0.2.0",
+      "description": "Preview and explicitly confirm user-owned pins, hidden items, order, and default workspace; retain recovery history without changing access.",
+      "domain": "workspace",
+      "operations": ["read", "propose"],
+      "taskMetadataShareable": false
+    }
+  ],
+  "skills": [
+    {
+      "id": "workspace.skill.design_experience",
+      "path": "./plugins/lead-emergence-workspace-experience/skills/workspace-experience-designer/",
+      "capabilityIds": ["workspace.compose", "workspace.attention", "workspace.personalize"],
+      "triggers": ["help organize my workspace", "what deserves attention", "recommend a better workspace layout"],
+      "outcome": "A transparent layout recommendation that the user may accept, edit, or ignore; persistent navigation never changes silently."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "workspace.workflow.recommend_layout",
+      "version": "0.2.0",
+      "name": "Workspace layout recommendation",
+      "capabilityIds": ["workspace.compose", "workspace.attention", "workspace.personalize"],
+      "providerRequirementIds": [],
+      "inputScopes": ["workspace.entitlements", "workspace.layout_preferences", "cross_bundle.attention_metadata"],
+      "outputScopes": ["workspace.layout_recommendation"],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 5
+    }
+  ],
+  "providerRequirements": [],
+  "appRequirements": [],
+  "permissions": {
+    "dataScopes": ["workspace.ui_manifests", "workspace.attention_metadata"],
+    "contextScopes": ["workspace.layout_preferences", "workspace.notification_preferences"],
+    "crossDomainAccess": []
+  },
+  "automations": [],
+  "attentionTypes": [
+    {
+      "id": "workspace.attention.connection_required",
+      "description": "An entitled workflow needs a provider connection or reauthorization before it can run.",
+      "defaultPriority": "normal",
+      "evidenceRequired": true
+    }
+  ],
+  "uiManifestPath": "./bundles/workspace-experience/ui-manifest.json",
+  "distribution": {
+    "pluginName": "lead-emergence-workspace-experience",
+    "marketplacePath": "./.agents/plugins/marketplace.json"
+  }
+}

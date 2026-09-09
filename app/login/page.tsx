@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, KeyRound, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getWorkspaceClient } from "@/lib/supabase/client";
-import { normalizeWorkspaceReturnPath } from "@/lib/workspace/return-path";
+import { workspaceSignInDestination } from "@/lib/workspace/return-path";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,11 +14,11 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [legacy, setLegacy] = useState(false);
-  const [entryHref, setEntryHref] = useState("/auth/entry?next=%2Fworkspace");
+  const [entryHref, setEntryHref] = useState("/auth/entry?next=%2Fworkspace%2Fstart");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const next = normalizeWorkspaceReturnPath(params.get("next"));
+    const next = workspaceSignInDestination(params.get("next"));
     setEntryHref(`/auth/entry?next=${encodeURIComponent(next)}`);
     setLegacy(params.get("legacy") === "1");
     const code = params.get("error");
@@ -34,7 +34,7 @@ export default function LoginPage() {
     setPending(false);
     if (result.error) { setError(result.error.message); return; }
     const next = new URLSearchParams(window.location.search).get("next");
-    router.replace(normalizeWorkspaceReturnPath(next));
+    router.replace(workspaceSignInDestination(next));
   }
 
   return <main className="auth-page"><section className="auth-card">

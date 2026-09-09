@@ -24,6 +24,18 @@ async function web(path,body,token=own.token){
  const r=await fetch(appUrl+path,{method:body?"POST":"GET",headers:{"Content-Type":"application/json",...(token?{Authorization:"Bearer "+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
  return {status:r.status,headers:r.headers,body:await r.json()};
 }
+// Repeated local runs accumulate real fictional work. A bounded first page is
+// not a promise that this run's newly-created record must appear on that page.
+async function findAttentionPages(client,references) {
+ const pages=[];let items=[];
+ for(let offset=0;offset<10000;offset+=50){
+  const response=await client.callTool({name:"executive_review_attention",arguments:{asOfDate:date,limit:50,offset}});
+  assert.equal(response.isError??false,false,JSON.stringify(response));pages.push(response);items.push(...response.structuredContent.items);
+  if(references.every(ref=>items.some(i=>i.source.documentId===ref.documentId&&(!ref.item||i.source.item?.id===ref.item.id))))return pages;
+  if(offset+50>=response.structuredContent.total)break;
+ }
+ assert.fail("Expected this run's exact records/tasks across all bounded attention pages.");
+}
 const saveInput=(kind,value,base=null)=>({kind,documentId:base?.id??null,expectedRevision:base?.revision??0,requestId:randomUUID(),data:value,confirmExactRecord:true});
 async function connect(fixture,native){
  const auth=await localOAuth(config,fixture),client=new Client({name:"synthetic-executive-acceptance",version:"1"});
@@ -164,7 +176,9 @@ try {
  assert.ok(resolved.structuredContent.references.every(x=>x.state==="current"&&x.metadata));
  const sharedAttention=await connectedDual.client.callTool({name:"executive_attention",arguments:{asOfDate:date}});
  assert.equal(sharedAttention.isError??false,false,JSON.stringify(sharedAttention));
- for(const ref of sourceRecords)assert.ok(sharedAttention.structuredContent.items.some(i=>i.source.documentId===ref.documentId));
+ assert.equal(sharedAttention.structuredContent.items.length,Math.min(50,sharedAttention.structuredContent.total));
+ const sharedPages=await findAttentionPages(connectedDual.client,sourceRecords);
+ assert.doesNotMatch(JSON.stringify(sharedPages),/CONNECTED_PRIVATE_|body_text|theologicalProfile/);
  assert.doesNotMatch(JSON.stringify([resolved,sharedAttention]),/CONNECTED_PRIVATE_|body_text|theologicalProfile/);
  const ownDenied=await assistant.client.callTool({name:"executive_resolve_references",arguments:{references:sourceRecords}});
  assert.ok(ownDenied.structuredContent.references.every(x=>x.metadata===null));
@@ -197,7 +211,8 @@ try {
  const enhanced=await connectedDual.client.callTool({name:"executive_review_attention",arguments:{asOfDate:date,limit:50,offset:0}});
  assert.equal(enhanced.isError??false,false,JSON.stringify(enhanced));
  assert.equal(enhanced.structuredContent.coverage.length,22);
- assert.ok(enhanced.structuredContent.items.some(i=>i.source.documentId===taskRef.documentId&&i.source.item?.id===itemId));
+ const enhancedPages=await findAttentionPages(connectedDual.client,[taskRef]);
+ assert.doesNotMatch(JSON.stringify(enhancedPages),/CONNECTED_PRIVATE_/);
  assert.doesNotMatch(JSON.stringify([taskResult,enhanced]),/CONNECTED_PRIVATE_/);
  const enhancedHttp=await web("/api/executive/attention/v2?asOfDate="+date+"&limit=2&offset=1",null,dual.token);
  assert.equal(enhancedHttp.status,200,JSON.stringify(enhancedHttp.body));

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0",
+  "bundleKey": "workspace_experience",
+  "workspaceRoute": { "route": "/workspace", "label": "Home" },
+  "primaryNavigation": [
+    { "id": "workspace.nav.home", "label": "Home", "route": "/workspace", "icon": "home", "order": 0, "capabilityId": "workspace.compose" }
+  ],
+  "secondaryNavigation": [
+    { "id": "workspace.nav.search", "label": "Search", "route": "/workspace/search", "icon": "search", "order": 900, "capabilityId": "workspace.search" },
+    { "id": "workspace.nav.automations", "label": "Automations", "route": "/workspace/automations", "icon": "clock", "order": 910, "capabilityId": "workspace.attention" },
+    { "id": "workspace.nav.connections", "label": "Connections", "route": "/workspace/integrations", "icon": "plug", "order": 920, "capabilityId": "workspace.compose" },
+    { "id": "workspace.nav.settings", "label": "Workspace layout", "route": "/workspace/layout", "icon": "settings", "order": 930, "capabilityId": "workspace.personalize" }
+  ],
+  "dashboardWidgets": [
+    {
+      "id": "workspace.widget.attention",
+      "label": "What deserves attention",
+      "order": 0,
+      "type": "attention_composer",
+      "capabilityId": "workspace.attention",
+      "attentionTypes": ["workspace.attention.connection_required"],
+      "emptyStateId": "workspace.empty.attention"
+    }
+  ],
+  "quickActions": [
+    {
+      "id": "workspace.action.design",
+      "label": "Recommend my workspace",
+      "order": 90,
+      "workflowId": "workspace.workflow.recommend_layout",
+      "capabilityId": "workspace.personalize"
+    }
+  ],
+  "searchProviders": [
+    {
+      "id": "workspace.search.global",
+      "label": "All entitled workspaces",
+      "order": 0,
+      "capabilityId": "workspace.search",
+      "resultTypes": ["workspace.result.navigation", "workspace.result.action"]
+    }
+  ],
+  "commandPaletteActions": [
+    {
+      "id": "workspace.command.design",
+      "label": "Recommend a workspace layout",
+      "order": 90,
+      "workflowId": "workspace.workflow.recommend_layout",
+      "capabilityId": "workspace.personalize"
+    }
+  ],
+  "notificationTypes": [
+    {
+      "id": "workspace.notification.connection_required",
+      "label": "Connection needs attention",
+      "order": 90,
+      "capabilityId": "workspace.attention",
+      "defaultEnabled": true
+    }
+  ],
+  "emptyStates": [
+    {
+      "id": "workspace.empty.attention",
+      "title": "Nothing urgent is supported by current evidence",
+      "description": "Choose a workspace or start a quick action. The dashboard will prioritize new, source-linked attention items as they appear.",
+      "actionId": "workspace.action.design"
+    }
+  ],
+  "bundleSettings": [
+    {
+      "id": "workspace.setting.ai_layout_recommendations",
+      "label": "Allow AI layout recommendations",
+      "order": 90,
+      "type": "boolean",
+      "required": false
+    }
+  ]
+}

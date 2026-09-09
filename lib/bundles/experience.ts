@@ -12,6 +12,8 @@ import investorBundle from "@/vendor/lead-emergence-bundles/catalog/investor-bun
 import investorUi from "@/vendor/lead-emergence-bundles/catalog/investor-ui.json";
 import executiveBundle from "@/vendor/lead-emergence-bundles/catalog/executive-bundle.json";
 import executiveUi from "@/vendor/lead-emergence-bundles/catalog/executive-ui.json";
+import experienceBundle from "@/vendor/lead-emergence-bundles/catalog/workspace-experience-bundle.json";
+import experienceUi from "@/vendor/lead-emergence-bundles/catalog/workspace-experience-ui.json";
 
 const assignment = z.object({
   bundleKey: z.string(), status: z.enum(["active", "revoked", "expired", "unavailable"]),
@@ -31,7 +33,8 @@ const artifacts = [
   { manifest: parseBundleManifest(ministryBundle), uiManifest: uiManifestSchema.parse(ministryUi), entryCapabilityId: "ministry.research" },
   { manifest: parseBundleManifest(nonprofitBundle), uiManifest: uiManifestSchema.parse(nonprofitUi), entryCapabilityId: "nonprofit.roadmap" },
   { manifest: parseBundleManifest(investorBundle), uiManifest: uiManifestSchema.parse(investorUi), entryCapabilityId: "investor.company_research", alternateEntryCapabilityIds: ["investor.thesis", "investor.filings"] },
-  { manifest: parseBundleManifest(executiveBundle), uiManifest: uiManifestSchema.parse(executiveUi), entryCapabilityId: "executive.coordination", alternateEntryCapabilityIds: ["executive.brief", "executive.review"] }
+  { manifest: parseBundleManifest(executiveBundle), uiManifest: uiManifestSchema.parse(executiveUi), entryCapabilityId: "executive.coordination", alternateEntryCapabilityIds: ["executive.brief", "executive.review"] },
+  { manifest: parseBundleManifest(experienceBundle), uiManifest: uiManifestSchema.parse(experienceUi), entryCapabilityId: "workspace.compose" }
 ];
 
 export function composeBundleExperience(raw: unknown) {
@@ -72,4 +75,5 @@ export function composeBundleExperience(raw: unknown) {
     }
   };
 }
-export type BundleExperience = ReturnType<typeof composeBundleExperience>;
+export type BaseBundleExperience = ReturnType<typeof composeBundleExperience>;
+export type BundleExperience = BaseBundleExperience & { layout?: { status: "ready" | "unavailable"; revision: number | null; defaultUnavailable?: boolean } };

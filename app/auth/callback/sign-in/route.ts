@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ENTRY_RETURN_COOKIE, ENTRY_SIGN_IN_COOKIE, entryCookieOptions, verifyEntryProviderIdentity } from "@/lib/auth/entry-identity";
 import { trustedWorkspaceOrigin } from "@/lib/http/origin";
 import { createWorkspaceServerClient } from "@/lib/supabase/server";
-import { normalizeWorkspaceReturnPath } from "@/lib/workspace/return-path";
+import { workspaceSignInDestination } from "@/lib/workspace/return-path";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
   let origin = "https://workspace.leademergence.com";
   const mode = cookieStore.get(ENTRY_SIGN_IN_COOKIE)?.value;
-  const returnPath = normalizeWorkspaceReturnPath(cookieStore.get(ENTRY_RETURN_COOKIE)?.value);
+  const returnPath = workspaceSignInDestination(cookieStore.get(ENTRY_RETURN_COOKIE)?.value);
   cookieStore.set(ENTRY_SIGN_IN_COOKIE, "", { ...entryCookieOptions("/auth/callback/sign-in"), maxAge: 0 });
   cookieStore.set(ENTRY_RETURN_COOKIE, "", { ...entryCookieOptions("/"), maxAge: 0 });
   const supabase = await createWorkspaceServerClient();

@@ -1,5 +1,15 @@
 # Test evidence
 
+## P10 user-owned Workspace layout — 2026-09-09
+
+See [Workspace Experience layout acceptance](workspace-layout-acceptance.md)
+and [the native layout boundary](../architecture/workspace-layout.md) for
+the current sixth-bundle implementation, failure/recovery behavior, actual
+HTTP/OAuth tests and final all-bundle browser ledger. Layout preferences are
+separate from authority and open editor state. All six bundles remain
+**NOT READY TO SHIP**; source publication is not a client release.
+
+
 ## P9f resumable availability and connected catch-up — 2026-09-09
 
 **Implementation checkpoint, not client shipment. All six bundles remain NOT
