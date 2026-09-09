@@ -1231,3 +1231,73 @@ secondary sticky controls with the mobile header. Investor compact claim review
 states are now exposed; the broader cross-bundle UX audit remains open.
 Executive and remaining Experience implementation
 are next. See architecture/investor-native-workspace.md and the P8 checkpoint.
+
+## P9a Executive persistence and source-permission foundation — 2026-09-09
+
+Concrete backend/contract progress; Executive itself is not complete. All six
+bundles remain NOT READY TO SHIP. No production/main/hosted/provider changes.
+
+Passed:
+
+- Fresh replay of all 27 migrations on bundle-experience-p2, then independent
+  verification of the actual applied count. Before reset, every local identity
+  was verified to use example.invalid. All fixtures were regenerated afterward.
+- Seven real native authenticated RPC groups: all five Executive kinds; exact
+  retries; strict schemas, real dates, integer durations and named zones;
+  completion/decision evidence; cross-client/kind and absent-entitlement denial;
+  concurrent saves with one winner; retained original versions; actual
+  pending/approved/rejected proposals and stale-decision refusal.
+- Source sharing starts empty, requires exact native confirmation and a current
+  source entitlement, detects stale settings and keeps permission revisions.
+  Four-domain source records were created through their actual guarded native
+  operations. Resolution returns the fixed metadata allowlist only; manuscript,
+  theological, operating and research canary text is absent. Other-client IDs,
+  wrong domains and future source revisions do not return metadata.
+- Removing sharing or revoking the actual local source entitlement immediately
+  closes source resolution. The test regrants the fictional source entitlement
+  through the operator operation, then leaves source sharing empty. The user's
+  own previously saved Executive brief remains accessible.
+- 488 PostgreSQL assertions across fourteen suites, including 67 Executive
+  table/RLS/helper/RPC privilege checks; every suite rolls back its fixtures.
+  Hosted-only Gate A remains excluded, not waived.
+- Exact parity of five generated base schemas and ten metadata source definitions
+  against the reusable source.
+- Reusable source: 64 tests in eight files, including seventeen Executive
+  contract/analysis/scheduling cases; typecheck; all six official plugin and
+  six skill validations. The meeting-slot test uses explicit instants through
+  a daylight-saving repeated hour and never claims a calendar booking.
+- Workspace regression: 217 existing unit tests across 24 files; 32 schema/policy
+  tests; typecheck, lint and a boundary scan of 215 runtime files; optimized build
+  with 41 static pages. No Executive page or connected tool is registered yet.
+
+Corrected attempts:
+
+- Real source resolution exposed a PL/pgSQL variable/column ambiguity. It was
+  corrected in source and the isolated helper, then verified by the full fresh
+  replay and final seven native RPC groups.
+- An early test-only revocation update omitted required audit metadata. The
+  test now uses the actual operator revocation/regrant operations. An incorrect
+  Nonprofit fixture parameter was also corrected. Final source fixtures are
+  created through real guarded operations; the fresh replay removed the earlier
+  disposable malformed fixtures.
+- Reusable manifest updates initially encountered patch-context formatting
+  mismatches; no file was changed by those failed patches. The actual source
+  text was used for the successful edits.
+
+Not run or not implemented in this checkpoint:
+
+- Executive attention aggregation/coverage, app HTTP routes, native source
+  controls/editors, live source-change UI, MCP registration/actual OAuth tool
+  invocation, browser accessibility/first-value flow, scheduling UI, background
+  automation and meaningful-change notifications.
+- Installed ChatGPT/Codex, live provider, hosted migration/deployment, client data,
+  representative unaided/time-saved acceptance, deployed recovery/retention and
+  payment/support proof. Prior P8 browser results are not presented as P9a proof.
+
+The active host export remains at P8 source revision
+606c9ebcb22704306b77d9afdc76c9f50c2783d3. Executive's declared source navigation is
+not active UI. The next step is its scoped attention engine and complete native/
+HTTP/MCP flow, followed by the remaining Workspace Experience and shipment gates.
+
+See [Executive foundation](../architecture/executive-native-workspace.md),
+[local proof](../runbooks/executive-local-proof.md) and the P9a checkpoint.
