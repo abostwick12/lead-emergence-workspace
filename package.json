@@ -24,6 +24,8 @@
     "test:writer:revisions": "node scripts/test-writer-revisions-local.mjs",
     "test:writer:library": "node scripts/test-writer-library-local.mjs",
     "test:writer:preparation": "node scripts/test-writer-preparation-local.mjs",
+    "seed:ministry:local": "node scripts/seed-ministry-local.mjs",
+    "test:ministry:local": "node scripts/test-ministry-local.mjs",
     "test:e2e": "playwright test",
     "scan:sensitive": "node scripts/scan-sensitive-data.mjs",
     "schema:checksum": "node scripts/check-workspace-schema.mjs",

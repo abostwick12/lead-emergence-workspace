@@ -13,6 +13,9 @@ const packages = ["bundle-contract", "bundle-registry", "capability-registry", "
 const entries = packages.map((name) => [`packages/${name}/src/index.ts`, `${name}/index.ts`]);
 entries.push(["apps/lead-emergence-runtime/src/index.ts", "runtime/index.ts"]);
 for (const file of ["bundle.json", "ui-manifest.json"]) entries.push([`bundles/writer-editor/${file}`, `bundles/writer-editor/${file}`]);
+entries.push(["bundles/ministry/bundle.json", "catalog/ministry-bundle.json"],
+  ["bundles/ministry/ui-manifest.json", "catalog/ministry-ui.json"],
+  ["bundles/ministry/contracts.ts", "domain-contracts/ministry.ts"]);
 execFileSync("git", [...gitArgs, "diff", "--exit-code", "HEAD", "--", ...entries.map(([path]) => path)], { cwd: source });
 const files = [];
 for (const [sourcePath, outputPath] of entries) {

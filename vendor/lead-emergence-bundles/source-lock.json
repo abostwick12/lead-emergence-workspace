@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "f61211a5dfe02a308bb5cca083d51444eb5630b9",
+  "sourceRevision": "59031bfd4203c4d1367ccd58311b4d60afe4390e",
   "contractVersion": "1.0",
   "files": [
     {
@@ -57,6 +57,21 @@
       "sourcePath": "bundles/writer-editor/ui-manifest.json",
       "outputPath": "bundles/writer-editor/ui-manifest.json",
       "sha256": "f58d70b8147332527c32b1fbf3894a2d7dbaa368a37ee65f065a70e01eeee58f"
+    },
+    {
+      "sourcePath": "bundles/ministry/bundle.json",
+      "outputPath": "catalog/ministry-bundle.json",
+      "sha256": "5669a35ee8631ce60536ccde0f526e6c336041614d56e9ffce985144a7166d9f"
+    },
+    {
+      "sourcePath": "bundles/ministry/ui-manifest.json",
+      "outputPath": "catalog/ministry-ui.json",
+      "sha256": "c954a8710e4941a9af19ddc1c1e30dcc0ce39c9c46f7e2bfa4568a75e56c7f86"
+    },
+    {
+      "sourcePath": "bundles/ministry/contracts.ts",
+      "outputPath": "domain-contracts/ministry.ts",
+      "sha256": "04d844ade33548a43eb0a1961b864df5c3beb4b6b52792f6c106f79b304ef854"
     }
   ]
 }

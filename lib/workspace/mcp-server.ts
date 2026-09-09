@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import * as z from "zod/v4";
 import { registerSotfTools } from "@/lib/sotf/mcp";
 import { registerWriterTools } from "@/lib/writing/mcp";
+import { registerMinistryTools } from "@/lib/ministry-bundle/mcp";
 import { mcpWwwAuthenticateChallenge } from "@/lib/workspace/mcp-auth";
 
 const setupArea = z.enum([
@@ -389,6 +390,7 @@ export function createWorkspaceMcpServer(
 
   if (options.sotfEnabled === true) registerSotfTools(server, supabase);
   registerWriterTools(server, supabase, options.bundleCapabilityIds ?? []);
+  registerMinistryTools(server, supabase, options.bundleCapabilityIds ?? []);
   publishTopLevelOAuthSecuritySchemes(server);
   return server;
 }

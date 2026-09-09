@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "1.0",
+  "identity": {
+    "key": "ministry",
+    "version": "0.2.0",
+    "displayName": "Ministry",
+    "description": "Supports source-aware biblical, theological, sermon, and teaching research without assigning beliefs to the user.",
+    "kind": "functional"
+  },
+  "experience": {
+    "promise": "Reach a teachable, source-layered research brief without losing the distinction between text, tradition, prior writing, and synthesis.",
+    "firstRunOutcome": "An evidence-linked research brief that visibly separates biblical text, academic interpretation, tradition, prior user work, and AI synthesis.",
+    "timeToFirstValueMinutes": 12,
+    "successSignals": [
+      { "id": "ministry.signal.research_brief_used", "description": "The user uses or refines a source-layered research brief for teaching or preaching." },
+      { "id": "ministry.signal.prior_work_recovered", "description": "The workflow helps the user recover relevant prior work without treating it as current belief." }
+    ],
+    "qualityGates": {
+      "evidenceRequired": true,
+      "provenanceRequired": true,
+      "mutationConfirmationRequired": true
+    }
+  },
+  "capabilities": [
+    {
+      "id": "ministry.profile",
+      "version": "0.1.0",
+      "description": "Read client-owned theological preferences and let only the client confirm their configuration without promoting inferred positions.",
+      "domain": "ministry",
+      "operations": ["read", "execute"],
+      "taskMetadataShareable": false
+    },
+    {
+      "id": "ministry.research",
+      "version": "0.1.0",
+      "description": "Research biblical, textual, academic, historical, and denominational sources in explicit layers.",
+      "domain": "ministry",
+      "operations": ["read", "propose"],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "ministry.teaching",
+      "version": "0.1.0",
+      "description": "Prepare sermon and teaching material, save client-authored research and explicitly approve assistant proposals.",
+      "domain": "ministry",
+      "operations": ["read", "propose", "execute"],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "ministry.archive",
+      "version": "0.1.0",
+      "description": "Search and organize the client's private sermon and teaching archive, preserving prior revisions.",
+      "domain": "ministry",
+      "operations": ["read", "propose", "execute"],
+      "taskMetadataShareable": true
+    }
+  ],
+  "skills": [
+    {
+      "id": "ministry.skill.source_layered_research",
+      "path": "./plugins/lead-emergence-ministry/skills/ministry-source-layered-research/",
+      "capabilityIds": ["ministry.research", "ministry.teaching"],
+      "triggers": ["research this biblical passage", "help prepare a sermon", "compare theological sources", "prepare a teaching outline"],
+      "outcome": "A source-layered research brief whose synthesis never silently becomes the user's theological position."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "ministry.workflow.research_brief",
+      "version": "0.1.0",
+      "name": "Source-layered ministry research",
+      "capabilityIds": ["ministry.research", "ministry.teaching"],
+      "providerRequirementIds": [],
+      "inputScopes": ["ministry.research_question", "ministry.confirmed_theological_profile", "ministry.permitted_sources"],
+      "outputScopes": ["ministry.research_brief", "ministry.bibliography"],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 12
+    }
+  ],
+  "providerRequirements": [
+    {
+      "id": "ministry.provider.logos",
+      "provider": "logos",
+      "required": false,
+      "authorization": { "required": true, "method": "managed_connection" },
+      "scopes": ["library:read"],
+      "operations": ["read"],
+      "dataBoundary": "Only operations verified as supported by an explicitly authorized optional Logos companion."
+    }
+  ],
+  "appRequirements": [
+    {
+      "id": "ministry.app.logos_companion",
+      "required": false,
+      "purpose": "Optional Windows bridge for verified Logos Desktop operations only.",
+      "status": "planned"
+    }
+  ],
+  "permissions": {
+    "dataScopes": ["ministry.research", "ministry.sermons", "ministry.teaching_archive"],
+    "contextScopes": ["ministry.theological_profile", "ministry.preferred_translations", "ministry.prior_writings"],
+    "crossDomainAccess": []
+  },
+  "automations": [],
+  "attentionTypes": [
+    {
+      "id": "ministry.attention.teaching_due",
+      "description": "A sermon or teaching commitment has an approaching due date.",
+      "defaultPriority": "high",
+      "evidenceRequired": true
+    }
+  ],
+  "uiManifestPath": "./bundles/ministry/ui-manifest.json",
+  "distribution": {
+    "pluginName": "lead-emergence-ministry",
+    "marketplacePath": "./.agents/plugins/marketplace.json"
+  }
+}

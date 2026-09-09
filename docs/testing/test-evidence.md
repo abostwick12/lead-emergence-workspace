@@ -986,3 +986,70 @@ Investigated failures and limits:
   Logos access, physical-device test, representative-client pilot, measured
   user-value study, deployed recovery/retention or payment enforcement ran.
 - Final source scan and branch publication receipts are in the P5 checkpoint.
+
+## P6 Ministry native workspace — 2026-09-08
+
+Local implementation evidence only. All six bundles remain NOT READY TO SHIP.
+No hosted migration, production deployment, installed-plugin update, external
+provider access, client data import or marketplace submission occurred.
+
+Passed:
+
+- Fresh replay of all 24 migrations on the isolated bundle-experience-p2 stack.
+- 330 PostgreSQL assertions across eleven local suites, including eighteen new
+  private Ministry table/RLS/helper/anonymous-access checks.
+- 174 unit tests across 22 files; 32 schema/policy tests; typecheck, lint and
+  boundary checks. The boundary scan covers 162 runtime files with no legacy
+  Ministry/Consulting imports or service-role application client.
+- Standard and isolated optimized builds, each generating 34 static pages.
+- Ten actual Ministry API/OAuth/MCP groups: blank client profile, explicit
+  confirmation, inferred-state preservation, source/archive text search,
+  tenant/kind/Writer-ID denial, invalid citations and dates, private no-store
+  APIs, dual-bundle composition, real PKCE/consent/tool parity, proposal-only
+  assistant access, direct-user approval, retry safety, stale proposals,
+  original-plus-latest-nine history, and current capability revocation.
+- Writer regression: eleven real API/OAuth/MCP groups, ten revision groups,
+  seven draft/discovery groups and six preference/publication groups.
+- Final optimized Chrome: 34/34 desktop/mobile-emulated cases in 3.5 minutes,
+  no retries. Ten Ministry cases cover consent disclosure/incomplete-request
+  denial, independent theological preferences, failed-save recovery, source
+  and note citations, actual bibliography download, proposal comparison and
+  approval, historical recovery, plain-text import/search and stale tabs.
+  The existing 24 Writer cases also pass. Timing is not a client benchmark.
+- Four inspected synthetic success screenshots in docs/testing/ministry-proof.
+- Reusable source: 28 tests; all six plugin and all six skill validators pass.
+  The host's fourteen-file allowlist is pinned to
+  59031bfd4203c4d1367ccd58311b4d60afe4390e.
+- Sensitive-data scan and diff checks pass before publication; final branch
+  receipts and post-commit scan counts are recorded in the P6 checkpoint.
+
+Investigated failures and honest limits:
+
+- The first fresh replay found a CASE-expression syntax error in proposal
+  approval. It was corrected, then the entire migration chain replayed cleanly.
+- The first lifecycle test used a nonexistent catalog status column. It now
+  disables/restores the real bundle-capability mapping and passes denial checks.
+- Initial browser runs exposed helper text folded into field names and fragile
+  exact-label/alert selectors. Inputs now have separate labels/descriptions;
+  tests select semantic controls and specific outcome messages. A waiting test
+  runner was stopped before the corrected rerun. No success was mocked.
+- Proposal retry normalization now uses its immutable base, not changing
+  canonical content. Stale proposals are not presented as a valid fresh merge.
+- The scanner flagged a dummy refresh-token literal in a local test. The test
+  now uses the real bearer-bound bridge shape without inventing a refresh token
+  or adding a scanner exception. The existing local YAML dependency was used
+  to run unmodified official plugin/skill validators.
+- The source consent page now explicitly describes assigned Writing/Ministry
+  reading and proposal access, including theology and recorded position status.
+  This is not deployed Entry consent or installed-host acceptance.
+- Unconfirmed Ministry edits remain on screen only; navigation warns before
+  discarding them. New Ministry requests have a bounded timeout and preserve
+  failed edits, but crash/autosave recovery is not implemented for this domain.
+- Handoffs are labelled saved snapshots, not publication or independent source
+  verification. User text is not privacy-redacted; review it before sharing.
+  Downloaded copies cannot be retroactively revoked. Unsetting a profile is
+  not permanent erasure; prior versions remain recoverable.
+- Large-library ergonomics, richer ingestion, representative theological/source
+  evaluation, unaided first-use value, physical-device testing, actual installed
+  ChatGPT/Codex operation, authorized Logos proof, deployed retention/recovery,
+  payment enforcement and the remaining native bundles are open release gates.

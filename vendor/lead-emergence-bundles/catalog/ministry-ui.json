@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "1.0",
+  "bundleKey": "ministry",
+  "workspaceRoute": { "route": "/workspace/ministry", "label": "Ministry" },
+  "primaryNavigation": [
+    { "id": "ministry.nav.home", "label": "Ministry", "route": "/workspace/ministry", "icon": "book-open", "order": 30 }
+  ],
+  "secondaryNavigation": [
+    { "id": "ministry.nav.archive", "label": "Sermon & teaching archive", "route": "/workspace/ministry/archive", "icon": "library", "order": 30 }
+  ],
+  "dashboardWidgets": [
+    {
+      "id": "ministry.widget.upcoming_teaching",
+      "label": "Upcoming teaching",
+      "order": 30,
+      "type": "attention_queue",
+      "capabilityId": "ministry.research",
+      "attentionTypes": ["ministry.attention.teaching_due"],
+      "emptyStateId": "ministry.empty.teaching"
+    }
+  ],
+  "quickActions": [
+    {
+      "id": "ministry.action.research_passage",
+      "label": "Research a passage",
+      "order": 30,
+      "workflowId": "ministry.workflow.research_brief",
+      "capabilityId": "ministry.research"
+    }
+  ],
+  "searchProviders": [
+    {
+      "id": "ministry.search.archive",
+      "label": "Ministry archive",
+      "order": 30,
+      "capabilityId": "ministry.archive",
+      "resultTypes": ["ministry.result.sermon", "ministry.result.teaching"]
+    }
+  ],
+  "commandPaletteActions": [
+    {
+      "id": "ministry.command.research_passage",
+      "label": "Start ministry research",
+      "order": 30,
+      "workflowId": "ministry.workflow.research_brief",
+      "capabilityId": "ministry.research"
+    }
+  ],
+  "notificationTypes": [
+    {
+      "id": "ministry.notification.teaching_due",
+      "label": "Teaching commitment approaching",
+      "order": 30,
+      "capabilityId": "ministry.teaching",
+      "defaultEnabled": true
+    }
+  ],
+  "emptyStates": [
+    {
+      "id": "ministry.empty.teaching",
+      "title": "No teaching commitment needs attention",
+      "description": "Start a source-layered research project whenever a sermon, class, or study takes shape.",
+      "actionId": "ministry.action.research_passage"
+    }
+  ],
+  "bundleSettings": [
+    {
+      "id": "ministry.setting.theological_profile",
+      "label": "Theological profile review required",
+      "order": 30,
+      "type": "boolean",
+      "required": true
+    }
+  ]
+}

@@ -4,6 +4,8 @@ import { parseBundleManifest } from "@/vendor/lead-emergence-bundles/bundle-cont
 import { uiManifestSchema } from "@/vendor/lead-emergence-bundles/ui-manifest";
 import writerBundle from "@/vendor/lead-emergence-bundles/bundles/writer-editor/bundle.json";
 import writerUi from "@/vendor/lead-emergence-bundles/bundles/writer-editor/ui-manifest.json";
+import ministryBundle from "@/vendor/lead-emergence-bundles/catalog/ministry-bundle.json";
+import ministryUi from "@/vendor/lead-emergence-bundles/catalog/ministry-ui.json";
 
 const assignment = z.object({
   bundleKey: z.string(), status: z.enum(["active", "revoked", "expired", "unavailable"]),
@@ -18,7 +20,10 @@ export const bundleAuthoritySchema = z.object({
 export type BundleAuthority = z.infer<typeof bundleAuthoritySchema>;
 // Host registration declares the capability needed to enter each implemented
 // workspace. It is product configuration, never a user-specific conditional.
-const artifacts = [{ manifest: parseBundleManifest(writerBundle), uiManifest: uiManifestSchema.parse(writerUi), entryCapabilityId: "writer.resource.library" }];
+const artifacts = [
+  { manifest: parseBundleManifest(writerBundle), uiManifest: uiManifestSchema.parse(writerUi), entryCapabilityId: "writer.resource.library" },
+  { manifest: parseBundleManifest(ministryBundle), uiManifest: uiManifestSchema.parse(ministryUi), entryCapabilityId: "ministry.research" }
+];
 
 export function composeBundleExperience(raw: unknown) {
   const authority = bundleAuthoritySchema.parse(raw);
