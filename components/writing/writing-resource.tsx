@@ -9,6 +9,8 @@ import type { ResourceReview } from "@/lib/writing/review";
 import styles from "./writing.module.css";
 import { WritingRevisions } from "./writing-revisions";
 import { WritingConnections } from "./writing-connections";
+import { WritingProfileGuide } from "./writing-profile-guide";
+import { WritingPublication } from "./writing-publication";
 
 type ReviewResult = { resource: WritingResource; review: ResourceReview; retrievedAt: string };
 export function WritingResourcePage({ resourceId }: { resourceId: string }) {
@@ -57,7 +59,9 @@ export function WritingResourcePage({ resourceId }: { resourceId: string }) {
         </section>
       </aside>
     </div>
+    <WritingProfileGuide resource={resource} onProposalSaved={()=>setProposalRefresh(value=>value+1)} />
     <WritingConnections resource={resource} onProposalSaved={()=>setProposalRefresh(value=>value+1)} />
     <WritingRevisions resource={resource} onApplied={retry} refreshKey={proposalRefresh} />
+    <WritingPublication key={resource.id+":"+resource.revision} resourceId={resource.id} revision={resource.revision}/>
   </article>;
 }

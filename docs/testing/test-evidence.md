@@ -919,3 +919,70 @@ Investigated failures and limitations:
 - No production-scale library benchmark, physical-device test, representative
   client pilot, measured time-saved study, installed ChatGPT/Codex connection,
   hosted Entry/consent proof, external provider integration or deployment ran.
+
+## P5 Writer confirmed preferences and publication handoff — 2026-09-08
+
+Implemented on codex2/bundle-experience-integration; this is a native source
+checkpoint, not a six-bundle shipment. Architecture, authority and limitations:
+../architecture/writer-preferences-and-publication.md.
+
+Passed:
+
+- All 23 migrations replayed from scratch on isolated bundle-experience-p2;
+  fictional fixtures recreated. No hosted migration or other stack was touched.
+- Product boundaries: 137 runtime files. Schema contracts: 31.
+- Typecheck, lint and 161 unit tests across 21 files, including 16 new preparation
+  cases. Normal and isolated-public-config optimized builds generated 31 static
+  pages. The final normal build followed the final runtime edits.
+- Ten applicable local PostgreSQL suites: 312 assertions. The explicitly
+  hosted-only Gate A preflight was not included or represented as tested.
+- Eleven actual API/OAuth/PKCE/MCP groups: current confirmed-profile/native
+  parity; assistant confirmation/history denial even via direct RPC;
+  publication parity and no canonical mutation; foreign and revoked access;
+  existing proposal-only and private-draft boundaries remain passing.
+- Ten revision and seven draft/discovery native API/direct-RPC groups rerun.
+- Six new preparation groups: user confirmation; revision/request idempotency;
+  stale/changed retries; invalid fields, belief and tenant overrides; separate
+  users; active-profile clearing and private history; independent profile
+  capability removal; canonical-only publication payload; missing/foreign/stale
+  revisions; repeated query fields; direct-table and anonymous denial.
+- Final optimized Chrome run: 24/24 tests, desktop and mobile emulation, no
+  retries. New flows cover actual save failure and lost successful responses,
+  recovery-history review requiring confirmation, stale tabs, navigation warning,
+  approved preferred topics/themes, real TXT/JSON downloads, copy summary,
+  stale packet rejection and removal of the open private profile editor on
+  revocation. The runner reads actual download contents; success is not mocked.
+- Reusable source: typecheck, 20 tests, six official plugin validators and six
+  official skill validators. Workspace's eleven-file source export is pinned
+  to f61211a5dfe02a308bb5cca083d51444eb5630b9. No installed plugin changed.
+- Actual successful desktop/mobile preference and handoff images inspected.
+  Text wraps, explicit confirmation and revision/approval disclaimers remain
+  visible. Canonical text is not privacy-redacted; private fields are excluded
+  from the packet, not from user-authored source text.
+
+Investigated failures and limits:
+
+- Initial browser assertions matched both a save/error message and another
+  status (history loading or the framework route announcer). Selectors now
+  identify the specific outcome, without weakening success assertions.
+- A decorative back arrow was included in the preferences link's accessible
+  name. It is now aria-hidden; the real dirty-navigation warning and reload
+  flows pass on desktop/mobile.
+- The library acceptance initially assumed an older fixture was on page one.
+  It now searches explicitly and separately checks that clearing filters resets
+  the search. Pagination and search are not bypassed by fabricated responses.
+- Some development and optimized attempts exceeded local loading deadlines,
+  including one lost-response import case. A subsequent complete optimized run
+  passed without timeout increases or retries. The final run took 9.8 minutes,
+  with large local timing variation; this is not a responsiveness benchmark.
+  Slow-network/loading-timeout recovery and representative performance remain
+  explicit release-hardening work, not a resolved production claim.
+- Local screenshot/runner startup occasionally timed out; later read-only image
+  inspection succeeded. Only successful synthetic images are retained as proof.
+- Profile history is recovery, not permanent erasure; only the latest ten
+  snapshots are exposed in the native history. Unconfirmed profile edits are
+  on-screen only and can be lost if the user leaves without saving.
+- No installed host, hosted Entry/consent/canonical-host proof, external Wix or
+  Logos access, physical-device test, representative-client pilot, measured
+  user-value study, deployed recovery/retention or payment enforcement ran.
+- Final source scan and branch publication receipts are in the P5 checkpoint.

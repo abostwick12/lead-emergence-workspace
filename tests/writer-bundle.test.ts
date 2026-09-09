@@ -67,7 +67,7 @@ describe("Writer platform integration", () => {
     const client = new Client({ name: "writer-protocol-unit", version: "1" });
     await server.connect(s); await client.connect(c); closers.push(client, server);
     const tools = (await client.listTools()).tools.filter((tool) => tool.name.startsWith("writer_"));
-    expect(tools.map((tool) => tool.name)).toEqual(["writer_find_connections", "writer_list_resources", "writer_review_resource"]);
+    expect(tools.map((tool) => tool.name).sort()).toEqual(["writer_find_connections", "writer_list_resources", "writer_prepare_publication", "writer_review_resource"]);
     expect(tools.every((tool) => tool.annotations?.readOnlyHint)).toBe(true);
     expect((await client.listPrompts()).prompts.map((prompt) => prompt.name)).toContain("writer_resource_review");
     const denied = await client.callTool({ name: "writer_review_resource", arguments: { resource_id: "74000000-0000-4000-8000-000000000001" } });

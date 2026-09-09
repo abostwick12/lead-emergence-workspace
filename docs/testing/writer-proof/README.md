@@ -50,3 +50,21 @@ its text and requires the user to choose its comparison base.
 
 The recovery image shows the warning before the user explicitly changes the
 comparison base; that action does not alter canonical content.
+
+## P5 confirmed preferences and publication handoff
+
+These successful screens come from the optimized local app with fictional
+accounts. Preferences require the user's explicit confirmation; loading an
+earlier version is not approval. Preferred labels become ordinary proposals
+before the user applies them. The packet shows a saved revision, excludes
+pending suggestions and keeps human review separate from metadata presence.
+
+![Desktop confirmed preferences](preferences-desktop.png)
+
+[Mobile preferences](preferences-mobile.png) · [Desktop handoff](publication-desktop.png)
+· [Mobile handoff](publication-mobile.png)
+
+The browser tests read actual TXT/JSON downloads and reject a stale export after
+a different saved revision wins. Screens are not proof of a published website,
+automatic verification or a representative client-value result. The mobile
+handoff crop includes the existing floating navigation control while scrolled.

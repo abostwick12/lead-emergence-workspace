@@ -9,10 +9,24 @@ import { proposeRevisionInput, proposalReceipt } from "./revision-contracts";
 import { proposeWritingRevision } from "./revisions-server";
 import { findWritingConnections } from "./library-server";
 import { connectionInput, writingConnections } from "./discovery-contracts";
+import { getWritingProfile } from "./profile-server";
+import { profileResult } from "./profile-contracts";
+import { getPublicationPacket } from "./publication-server";
+import { publicationInput, publicationPacket } from "./publication";
 
 export function registerWriterTools(server: McpServer, client: SupabaseClient<any, any, any, any, any>, capabilities: string[]) {
   const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
   const _meta = { securitySchemes: [{ type: "oauth2", scopes: ["openid", "email", "profile"] }] };
+  if(capabilities.includes("writer.profile")) server.registerTool("writer_get_profile",{
+    title:"Read confirmed Writing preferences",
+    description:"Read the current client-confirmed writing voice, editorial boundaries and taxonomy. Unset means no preferences have been confirmed. This is writing context only, never another user's preferences or a theological profile. It does not read old profile versions or unfinished drafts, and cannot save, infer, confirm or change preferences.",
+    inputSchema:z.object({}).strict(),outputSchema:profileResult,annotations,_meta
+  },async()=>writerResult(()=>getWritingProfile(client)));
+  if(capabilities.includes("writer.resource.review")) server.registerTool("writer_prepare_publication",{
+    title:"Prepare a saved-revision publication handoff",
+    description:"Prepare copy, metadata, recorded source details and unresolved review checks from an authorized saved resource revision. Use its ID and revision from writer_review_resource. Excludes pending proposals, private drafts, writing-profile notes, file paths and provider identifiers. This read-only operation never publishes, changes library state, fetches links, verifies accuracy or creates a local file. Metadata presence is not publication approval; user review and separate external authorization remain required.",
+    inputSchema:publicationInput,outputSchema:publicationPacket,annotations,_meta
+  },async input=>writerResult(()=>getPublicationPacket(client,input)));
   if (capabilities.includes("writer.resource.library") && capabilities.includes("writer.resource.review")) server.registerTool("writer_find_connections",{
     title:"Find related and duplicate Writing candidates",
     description:"Compare a selected Writing resource with its authorized library. Returns explicit recorded-text, title, URL, topic and scripture-label signals. These are candidates, not verified semantic relationships or permission to merge/delete. Use an ID from writer_list_resources. Read both sources before proposing a relationship; this tool never changes records or verifies websites.",

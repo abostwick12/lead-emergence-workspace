@@ -33,6 +33,7 @@ export function WritingLibraryPage() {
         <p>Find a resource, see what it needs, and make the next editorial decision with the source in view.</p></div>
       {canReview && bundleExperience?.capabilityIds.includes("writer.resource.manage") ? <Link className={styles.secondary} href="/workspace/writing/new">Add a resource</Link> : <span className={styles.readOnly}><ShieldCheck size={15} />Read-only review</span>}
     </header>
+    {bundleExperience?.capabilityIds.includes("writer.profile")&&<Link className={styles.textLink} href="/workspace/writing/preferences">Writing preferences & taxonomy</Link>}
     <div className={styles.libraryHeading}><h2>Resource library</h2>
       {data && <p><strong>{data.total}</strong> resources <span>·</span> <strong>{data.awaitingPublication}</strong> awaiting publication</p>}
     </div>

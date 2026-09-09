@@ -85,7 +85,7 @@ async function connect(token) {
   clients.push(client);
   return client;
 }
-let revoked = false;
+let revoked = false, originalProfile;
 try {
   const sql = await readFile("supabase/tests/database/writer_bundle_experience.sql", "utf8");
   const result = localSql(sql);
@@ -123,6 +123,36 @@ try {
   const denied = await mcpA.callTool({ name: "writer_review_resource", arguments: { resource_id: fixtures.foreignResourceId } });
   assert.equal(denied.isError, true);
   pass("actual HTTP MCP tools/prompts and browser source parity, with cross-tenant denial");
+  originalProfile=(await writer.client.rpc("writer_get_profile")).data;
+  assert.ok(originalProfile);
+  const confirmed=await writer.client.rpc("writer_save_profile",{expected_revision:originalProfile.revision,request_id:randomUUID(),
+    profile_input:{voice_notes:"Synthetic client-confirmed conversational voice",topics:["Faith, hope"]},confirm_preferences:true});
+  assert.equal(confirmed.error,null);
+  const profileTool=toolsA.tools.find(tool=>tool.name==="writer_get_profile");
+  assert.equal(profileTool?.annotations.readOnlyHint,true);
+  assert.equal(toolsA.tools.some(tool=>/writer_.*(save_profile|confirm|profile_history)/.test(tool.name)),false);
+  const profile=await mcpA.callTool({name:"writer_get_profile",arguments:{}});
+  assert.ok(!profile.isError,JSON.stringify(profile.content));
+  assert.deepEqual(profile.structuredContent,(await web("/api/writing/profile",writer.token)).body);
+  for(const [name,payload] of [
+    ["writer_save_profile",{expected_revision:confirmed.data.revision,request_id:randomUUID(),profile_input:{voice_notes:"Assistant must not confirm this"},confirm_preferences:true}],
+    ["writer_get_profile_history",{}]
+  ]){
+    const blocked=await fetch(config.API_URL+"/rest/v1/rpc/"+name,{method:"POST",headers:{apikey:config.ANON_KEY,Authorization:"Bearer "+writerOAuth.token,"Content-Type":"application/json","Content-Profile":"workspace"},body:JSON.stringify(payload)});
+    assert.equal(blocked.status,403);assert.equal((await blocked.json()).code,"42501");
+  }
+  assert.deepEqual((await writer.client.rpc("writer_get_profile")).data,confirmed.data);
+  pass("real OAuth assistant reads only the current client-confirmed profile and cannot confirm preferences or read private recovery history");
+  const packetTool=toolsA.tools.find(tool=>tool.name==="writer_prepare_publication");
+  assert.equal(packetTool?.annotations.readOnlyHint,true);assert.equal(packetTool?.annotations.openWorldHint,false);
+  const packet=await mcpA.callTool({name:"writer_prepare_publication",arguments:{resourceId:fixtures.writerResourceId,expectedRevision:own.body.resource.revision}});
+  assert.ok(!packet.isError,JSON.stringify(packet.content));
+  const nativePacket=(await web("/api/writing/resources/"+fixtures.writerResourceId+"/publication?revision="+own.body.resource.revision,writer.token)).body;
+  const withoutTime=({preparedAt,...rest})=>rest;
+  assert.deepEqual(withoutTime(packet.structuredContent),withoutTime(nativePacket));
+  assert.deepEqual((await web("/api/writing/resources/"+fixtures.writerResourceId,writer.token)).body.resource,own.body.resource);
+  assert.equal((await mcpA.callTool({name:"writer_prepare_publication",arguments:{resourceId:fixtures.foreignResourceId,expectedRevision:1}})).isError,true);
+  pass("real OAuth and native publication packets have identical saved content and review checks, with no canonical mutation or foreign access");
   const candidates=await mcpA.callTool({name:"writer_find_connections",arguments:{resourceId:fixtures.writerResourceId}});
   assert.ok(!candidates.isError,JSON.stringify(candidates.content));
   const nativeCandidates=await web("/api/writing/resources/"+fixtures.writerResourceId+"/connections",writer.token);
@@ -169,6 +199,8 @@ try {
   assert.equal((await mcpA.listTools()).tools.some((tool) => tool.name.startsWith("writer_")), false);
   const cachedCall = await mcpA.callTool({ name: "writer_review_resource", arguments: { resource_id: fixtures.writerResourceId } });
   assert.equal(cachedCall.isError, true);
+  assert.equal((await mcpA.callTool({name:"writer_get_profile",arguments:{}})).isError,true);
+  assert.equal((await mcpA.callTool({name:"writer_prepare_publication",arguments:{resourceId:fixtures.writerResourceId,expectedRevision:own.body.resource.revision}})).isError,true);
   pass("revocation removes browser and MCP access without restarting or deploying");
   const disconnect = await writer.client.rpc("disconnect_personal_mcp", { target_client_id: writerOAuth.clientId });
   assert.equal(disconnect.error, null);
@@ -186,5 +218,10 @@ try {
     await writeFile(".bundle-local/fixtures.json", JSON.stringify(fixtures, null, 2));
   }
   await Promise.allSettled(clients.map((client) => client.close()));
+  if(originalProfile){
+    const current=await writer.client.rpc("writer_get_profile");assert.equal(current.error,null);
+    const restored=await writer.client.rpc("writer_save_profile",{expected_revision:current.data.revision,request_id:randomUUID(),profile_input:originalProfile.profile,confirm_preferences:true});
+    assert.equal(restored.error,null,"Restore the synthetic writing preferences.");
+  }
 }
 await writeFile(".bundle-local/api-evidence.json", JSON.stringify({ testedAt: new Date().toISOString(), environment: "loopback Supabase + Next.js", evidence }, null, 2));

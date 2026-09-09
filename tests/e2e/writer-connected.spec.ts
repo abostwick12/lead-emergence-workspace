@@ -42,6 +42,9 @@ test.describe("Writer actual local account acceptance", () => {
     await signIn(page, data.writer);
     await expect(page.getByRole("article", { name: "Writing publication queue" })).toContainText("2 resources are waiting");
     await openWriting(page);
+    // Repeated acceptance runs may put the original fixture on a later page.
+    await page.getByLabel("Search resources", { exact: true }).fill("attention");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByRole("link", { name: /The practice of paying attention/ })).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: "test-results/writer-library-" + testInfo.project.name + ".png", fullPage: true });
@@ -49,7 +52,7 @@ test.describe("Writer actual local account acceptance", () => {
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByRole("heading", { name: "No resources match this view" })).toBeVisible();
     await page.getByRole("button", { name: "Clear filters" }).click();
-    await expect(page.getByRole("link", { name: /The practice of paying attention/ })).toBeVisible();
+    await expect(page.getByLabel("Search resources", { exact: true })).toHaveValue("");
     await page.getByLabel("Search resources", { exact: true }).fill("attention");
     await page.getByRole("button", { name: "Search", exact: true }).click();
     await expect(page.getByRole("link", { name: /A guide to welcoming new neighbors/ })).toHaveCount(0);

@@ -127,3 +127,27 @@ New cases cover failed autosave, reload recovery, lost successful import
 responses without duplicate imports, two-tab conflicts, explicit stale-base
 comparison, full-text search and approval-backed related-resource metadata.
 The existing revocation case now checks that working-draft text also disappears.
+
+## P5 confirmed preferences and publication preparation
+
+The isolated stack now replays 23 migrations. Run
+`npm run test:writer:preparation` against the preview for six actual profile and
+publication groups. The script restores the fictional users' original active
+profiles (as a new confirmation revision), restores a temporarily disabled
+profile capability, and removes only its own exact synthetic resource IDs.
+Do not run lifecycle tests concurrently.
+
+`npm run test:writer:local` now has eleven groups. New real OAuth checks compare
+confirmed profile/publication output with native output, deny assistant profile
+confirmation and private history via direct RPC, and recheck revoked access.
+
+Include `tests/e2e/writer-preparation-connected.spec.ts` in optimized acceptance
+alongside all three earlier Writer files. New flows test explicit confirmation,
+failed/lost save responses, earlier-profile review, two-tab conflicts, revocation,
+taxonomy proposals before approval, real TXT/JSON downloads and stale exports.
+Browser fixtures remain synthetic; successful exports are read and asserted by
+the test runner, not mocked. Failure traces can contain test credentials: inspect
+only needed error details locally and never publish traces or fixture files.
+
+The Supabase CLI may print local keys when starting or showing stack status.
+Keep that output private; never paste it into evidence or publication logs.

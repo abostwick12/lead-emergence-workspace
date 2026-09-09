@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "d8df00b532ad57377e774f0ecb3d6949973208e7",
+  "sourceRevision": "f61211a5dfe02a308bb5cca083d51444eb5630b9",
   "contractVersion": "1.0",
   "files": [
     {
@@ -51,7 +51,7 @@
     {
       "sourcePath": "bundles/writer-editor/bundle.json",
       "outputPath": "bundles/writer-editor/bundle.json",
-      "sha256": "4c1ee54803c7ff645ca0ff4a5a499ff98197fa572c8da124299112b708518b21"
+      "sha256": "0d27453e33cb8fcad71f79baaedcd0e0b61265bf917df715391bd9e36ec8e782"
     },
     {
       "sourcePath": "bundles/writer-editor/ui-manifest.json",

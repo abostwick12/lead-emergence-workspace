@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "identity": {
     "key": "writer_editor",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "displayName": "Writer & Editor",
     "description": "Improves documents and turns resource libraries into accurate, publishable, findable collections.",
     "kind": "functional"
@@ -22,6 +22,14 @@
     }
   },
   "capabilities": [
+    {
+      "id": "writer.profile",
+      "version": "0.1.0",
+      "description": "Read client-confirmed writing preferences and taxonomy; only the user may confirm changes in Workspace.",
+      "domain": "writing",
+      "operations": ["read", "execute"],
+      "taskMetadataShareable": false
+    },
     {
       "id": "writer.resource.review",
       "version": "0.1.0",
@@ -76,6 +84,18 @@
       "mode": "propose",
       "evidenceRequired": true,
       "targetUserMinutes": 10
+    },
+    {
+      "id": "writer.workflow.publication_preparation",
+      "version": "0.1.0",
+      "name": "Prepare a revision-bound publication handoff",
+      "capabilityIds": ["writer.resource.review"],
+      "providerRequirementIds": [],
+      "inputScopes": ["writing.resources"],
+      "outputScopes": ["writing.publication_packet"],
+      "mode": "read",
+      "evidenceRequired": true,
+      "targetUserMinutes": 5
     }
   ],
   "providerRequirements": [
