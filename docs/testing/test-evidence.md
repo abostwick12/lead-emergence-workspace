@@ -1,5 +1,38 @@
 # Test evidence
 
+## P9d navigation source checkpoint — 2026-09-09
+
+Exact task-source navigation is implemented in the native host for all ten
+Executive, Nonprofit and Investor task mappings. This is **partial source
+progress, not a client-ready release**. P9c's connected evidence remains
+historical and does not prove the new navigation behavior.
+
+- PASS: 267 unit checks in 27 files (13 new mapping/fragment safeguards).
+- PASS: 32 schema-policy checks; 247 runtime boundary checks; typecheck; lint.
+- PASS: optimized build, including all 50 static pages.
+- COLLECTED ONLY, NOT EXECUTED: 26 desktop/mobile task-navigation cases,
+  including a saved source-link click, task focus/opening, hash changes/reload,
+  missing/deleted tasks, unchanged saved revisions and denied access.
+- NOT RERUN: connected HTTP/MCP, native database, RLS and existing browser
+  regression suites. No database/API/permission/contract changes were made.
+- ENVIRONMENT FAILURE: the isolated local stack could not start. Docker's
+  backend reported an inaccessible local `sailor-ingest.sock` startup socket.
+  Docker was started hidden for testing; no factory reset, socket removal,
+  database reset, hosted access or provider connection was performed.
+  Data-preserving repair approval was requested separately.
+- Remaining UX limitations: signed-out return paths deliberately discard
+  fragments; exact-task navigation currently targets an already authenticated
+  editor. Historical weekly outcomes and grouped attention remain next work,
+  not implemented by this checkpoint.
+
+The added fragment is presentation only. The existing server authorization
+still controls the source record; the helper validates capability/kind/item
+combinations and scopes DOM focus to the loaded editor, never earlier history
+or proposals. No automatically saved work or new assistant authority is added.
+Reusable exports, BundleContract 1.0, UIManifestContract 1.0, Executive bundle
+0.3.0, attention response 2.0 and task-metadata-v1 consent remain unchanged.
+All six bundles remain NOT READY TO SHIP.
+
 ## Lewis Entry incremental-package tooling — 2026-08-28
 
 This is source and read-only-target evidence only. It does not authorize or

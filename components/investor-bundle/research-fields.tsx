@@ -1,4 +1,5 @@
 "use client";
+import {taskTargetId} from "@/lib/bundles/task-target";
 import type { InvestorSource, EvidenceClaim, Catalyst, InvestorThesis, Scenario } from "@/lib/investor-bundle/contracts";
 import { claimKinds, sourceWarnings, sourceUrl, emptyScenario, scenarioSummary } from "@/lib/investor-bundle/contracts";
 import { Field, Choice, NumberField, Disclosure, styles } from "./common";
@@ -51,7 +52,7 @@ export function ClaimFields({ claims, sources, onChange }: { claims: EvidenceCla
 export function CatalystFields({ catalysts, sources, onChange }: { catalysts: Catalyst[]; sources: InvestorSource[]; onChange: (catalysts: Catalyst[]) => void }) {
   const update = (id: string, patch: Partial<Catalyst>) => onChange(catalysts.map(c => c.id === id ? { ...c, ...patch } : c));
   return <section className={styles.section}><h2>What could change the picture?</h2><p className={styles.muted}>A recorded catalyst is a review cue, not a scheduled alert. Distinguish estimated dates from announced events.</p>
-    {catalysts.map((c, i) => <Disclosure key={c.id} initialOpen={!c.title} summary={<>Catalyst {i + 1} · {c.title || "New catalyst"} · {c.eventDate ?? "Date unknown"}</>}>
+    {catalysts.map((c, i) => <Disclosure key={c.id} id={taskTargetId("catalyst",c.id)} initialOpen={!c.title} summary={<>Catalyst {i + 1} · {c.title || "New catalyst"} · {c.eventDate ?? "Date unknown"}</>}>
       <Field label="Catalyst title" value={c.title} required max={240} onChange={title => update(c.id, { title })} />
       <div className={styles.grid}><Choice label="Catalyst type" value={c.type} values={["earnings", "filing", "company", "macro", "other"]} onChange={type => update(c.id, { type: type as Catalyst["type"] })} />
         <Choice label="Catalyst status" value={c.status} values={["open", "reviewed", "cancelled"]} onChange={status => update(c.id, { status: status as Catalyst["status"] })} />

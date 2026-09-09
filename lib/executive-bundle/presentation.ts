@@ -1,5 +1,6 @@
 import type { ExecutiveData, ExecutiveDocument, ExecutiveReference } from "./contracts";
-import { executiveSources } from "./contracts";
+import { taskTargetId } from "@/lib/bundles/task-target";
+import { executiveSources, executiveReference } from "./contracts";
 const words=(key:string)=>key.replace(/([A-Z])/g," $1").replaceAll("_"," ").toLowerCase();
 export function describeExecutive(data:ExecutiveData):string {
  // Traverse every saved field rather than silently omitting newer contract fields.
@@ -28,11 +29,13 @@ export function sourceLabel(capability:string):string {
  return Object.hasOwn(executiveSources,capability)?executiveSources[capability as keyof typeof executiveSources].label:"Unavailable source";
 }
 export function sourceRoute(ref:ExecutiveReference):string|null {
- if(ref.capabilityId.startsWith("executive."))return "/workspace/executive/"+ref.kind+"/"+ref.documentId;
+ if(!executiveReference.safeParse(ref).success)return null;
+ const fragment=ref.item?"#"+taskTargetId(ref.item.kind,ref.item.id):"";
+ if(ref.capabilityId.startsWith("executive."))return "/workspace/executive/"+ref.kind+"/"+ref.documentId+fragment;
  if(ref.capabilityId==="writer.resource.library")return "/workspace/writing/"+ref.documentId;
  const area=ref.capabilityId.startsWith("ministry.")?"ministry":ref.capabilityId.startsWith("nonprofit.")?"nonprofit":
   ref.capabilityId.startsWith("investor.")?"investing":null;
- return area?"/workspace/"+area+"/"+ref.kind+"/"+ref.documentId:null;
+ return area?"/workspace/"+area+"/"+ref.kind+"/"+ref.documentId+fragment:null;
 }
 export function browserDate(now=new Date()):string {
  return [now.getFullYear(),String(now.getMonth()+1).padStart(2,"0"),String(now.getDate()).padStart(2,"0")].join("-");

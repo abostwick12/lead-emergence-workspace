@@ -1,4 +1,6 @@
 "use client";
+import {TaskLinkNavigation} from "@/components/bundles/task-link-navigation";
+import {taskTargetId} from "@/lib/bundles/task-target";
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {useWorkspace} from "@/components/workspace-provider";
@@ -33,11 +35,11 @@ function Editor({kind,document,reload}:{kind:NonprofitKind;document:NonprofitDoc
  };
  return <NonprofitFrame title={base?base.data.title:"Start a "+(kind==="plan"?"founder roadmap":kind==="partner"?"useful relationship":kind==="meeting"?"meeting plan":"research question")} description={nonprofitLabels[kind]+" · Keep the next action, its context and the evidence together."}>
  <div className={styles.actions}><span className={styles.tag}>{base?"Saved revision "+base.revision:"Not saved yet"}</span><span className={styles.muted}>{dirty?"Unsaved changes — save before leaving.":"No unsaved changes."}</span></div><AdministrativeNotice/>
- <form noValidate onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={action.busy} key={formKey}>
- {kind==="plan"?<PlanFields value={value as FounderPlan} onChange={change}/>:kind==="partner"?<PartnerFields value={value as PartnerRecord} onChange={change}/>:kind==="meeting"?<MeetingFields value={value as MeetingRecord} onChange={change}/>:<ResearchFields value={value as NonprofitResearch} onChange={change}/>}
+ <form noValidate onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={action.busy} key={formKey}><TaskLinkNavigation targets={("milestones" in value?value.milestones.map(a=>taskTargetId("milestone",a.id)):"actions" in value?value.actions.map(a=>taskTargetId("action",a.id)):kind==="partner"&&base?[taskTargetId("followup",base.id)]:[])}>
+ {kind==="plan"?<PlanFields value={value as FounderPlan} onChange={change}/>:kind==="partner"?<PartnerFields documentId={base?.id} value={value as PartnerRecord} onChange={change}/>:kind==="meeting"?<MeetingFields value={value as MeetingRecord} onChange={change}/>:<ResearchFields value={value as NonprofitResearch} onChange={change}/>}
  <label className={styles.check}><input type="checkbox" checked={confirm} onChange={e=>setConfirm(e.target.checked)}/><span>I reviewed this exact record. It contains administrative information only, not patient or clinical information. Saving does not send outreach, book a calendar or certify compliance.</span></label>
  <Validation message={validation??action.error}/>{notice&&<p className={styles.notice} role="status">{notice}</p>}
- <div className={styles.sticky}><span>Save a recoverable revision.</span><button type="submit" disabled={!confirm||action.busy}>{action.busy?"Saving…":"Confirm and save "+kind}</button></div></fieldset></form>
+ <div className={styles.sticky}><span>Save a recoverable revision.</span><button type="submit" disabled={!confirm||action.busy}>{action.busy?"Saving…":"Confirm and save "+kind}</button></div></TaskLinkNavigation></fieldset></form>
  {action.error&&<button onClick={()=>{if(!dirty||window.confirm("Discard unsaved edits and open the latest saved revision?"))reload();}}>Open latest saved revision</button>}
  {base&&<><section className={styles.section}><h2>Take the saved work with you</h2><p className={styles.muted}>Download saved revision {base.revision}, including its context and research cautions. Unsaved edits and pending proposals are excluded.</p><button onClick={()=>{
   const url=URL.createObjectURL(new Blob([nonprofitHandoff(base)],{type:"text/plain;charset=utf-8"})),anchor=window.document.createElement("a");anchor.href=url;anchor.download="nonprofit-"+kind+"-revision-"+base.revision+".txt";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);

@@ -1,4 +1,5 @@
 "use client";
+import {taskTargetId} from "@/lib/bundles/task-target";
 import { useState } from "react";
 import type { Instrument, InvestorData, InvestorWatchlist, InvestorThesis, InvestorFiling, InvestorBrief, InvestorKind } from "@/lib/investor-bundle/contracts";
 import { filingForms, filingWarnings, researchGaps } from "@/lib/investor-bundle/contracts";
@@ -15,7 +16,7 @@ export function InstrumentFields({ value, onChange, label = "Company or instrume
 function WatchlistFields({ value, onChange }: { value: InvestorWatchlist; onChange: (v: InvestorWatchlist) => void }) {
   return <section className={styles.section}><h2>Keep a reason for watching</h2><Field label="Watchlist purpose" value={value.purpose} multiline onChange={purpose => onChange({ ...value, purpose })} />
     {value.entries.map((entry, i) => { const update = (patch: Partial<typeof entry>) => onChange({ ...value, entries: value.entries.map(e => e.id === entry.id ? { ...e, ...patch } : e) });
-      return <Disclosure key={entry.id} initialOpen={!entry.instrument.name} summary={<>Instrument {i + 1} · {entry.instrument.name || "New instrument"} · {entry.status}</>}>
+      return <Disclosure key={entry.id} id={taskTargetId("watch_item",entry.id)} initialOpen={!entry.instrument.name} summary={<>Instrument {i + 1} · {entry.instrument.name || "New instrument"} · {entry.status}</>}>
         <InstrumentFields value={entry.instrument} onChange={instrument => update({ instrument })} />
         <Field label="Why watch this?" value={entry.rationale} max={2000} multiline required onChange={rationale => update({ rationale })} />
         <Field label="Next research question" value={entry.nextQuestion} max={2000} onChange={nextQuestion => update({ nextQuestion })} />

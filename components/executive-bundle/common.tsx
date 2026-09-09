@@ -42,9 +42,9 @@ export function NumberField({ label, value, onChange, min = 0, max = 100, hint }
     aria-describedby={hint ? id + "-hint" : undefined} value={value ?? ""} onChange={e => onChange(e.target.value === "" ? null : Number(e.target.value))} />
     {hint && <small id={id + "-hint"}>{hint}</small>}</div>;
 }
-export function Disclosure({ summary, children, initialOpen = false }: { summary: ReactNode; children: ReactNode; initialOpen?: boolean }) {
+export function Disclosure({ summary, children, initialOpen = false, id }: { summary: ReactNode; children: ReactNode; initialOpen?: boolean; id?: string }) {
   const [open, setOpen] = useState(initialOpen);
-  return <details className={styles.detail} open={open} onToggle={e => setOpen(e.currentTarget.open)}><summary>{summary}</summary>{open&&children}</details>;
+  return <details id={id} className={styles.detail} open={open} onToggle={e => setOpen(e.currentTarget.open)}><summary>{summary}</summary>{open&&children}</details>;
 }
 export function Validation({ message }: { message: string | null }) { return message ? <p className={styles.error} role="alert">{message}</p> : null; }
 export function CoordinationNotice() {

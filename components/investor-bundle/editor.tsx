@@ -1,4 +1,6 @@
 "use client";
+import {TaskLinkNavigation} from "@/components/bundles/task-link-navigation";
+import {taskTargetId} from "@/lib/bundles/task-target";
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {useWorkspace} from "@/components/workspace-provider";
@@ -31,11 +33,11 @@ function Editor({kind,document,reload}:{kind:InvestorKind;document:InvestorDocum
  };
  return <InvestorFrame title={base?base.data.title:"Start "+(kind==="watchlist"?"a watchlist":kind==="thesis"?"a company thesis":kind==="filing"?"a filing review":"a market brief")} description={investorLabels[kind]+" · Keep the question, its evidence and what would change your mind together."}>
  <div className={styles.actions}><span className={styles.tag}>{base?"Saved revision "+base.revision:"Not saved yet"}</span><span className={styles.muted}>{dirty?"Unsaved changes — save before leaving.":"No unsaved changes."}</span></div><ResearchNotice/>
- <form noValidate onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={action.busy} key={formKey}>
+ <form noValidate onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={action.busy} key={formKey}><TaskLinkNavigation targets={("entries" in value?value.entries.map(a=>taskTargetId("watch_item",a.id)):"catalysts" in value?value.catalysts.map(a=>taskTargetId("catalyst",a.id)):[])}>
  <RecordFields kind={kind} value={value} onChange={change}/>
  <label className={styles.check}><input type="checkbox" checked={confirm} onChange={e=>setConfirm(e.target.checked)}/><span>I reviewed this exact record. It contains public-research-only content, not personal account details or material nonpublic information. Saving does not verify claims, monitor markets or place a trade.</span></label>
  <Validation message={validation??action.error}/>{notice&&<p className={styles.notice} role="status">{notice}</p>}
- <div className={styles.saveBar}><span>Save a recoverable revision.</span><button type="submit" disabled={!confirm||action.busy}>{action.busy?"Saving…":"Confirm and save "+kind}</button></div></fieldset></form>
+ <div className={styles.saveBar}><span>Save a recoverable revision.</span><button type="submit" disabled={!confirm||action.busy}>{action.busy?"Saving…":"Confirm and save "+kind}</button></div></TaskLinkNavigation></fieldset></form>
  {action.error&&<button onClick={()=>{if(!dirty||window.confirm("Discard unsaved edits and open the latest saved revision?"))reload();}}>Open latest saved revision</button>}
  {base&&<><section className={styles.section}><h2>Take the saved work with you</h2><p className={styles.muted}>Download saved revision {base.revision}, including its sources, uncertainty and research cautions. Unsaved edits and pending proposals are excluded.</p><button onClick={()=>{
   const url=URL.createObjectURL(new Blob([investorHandoff(base)],{type:"text/plain;charset=utf-8"})),anchor=window.document.createElement("a");anchor.href=url;anchor.download="investor-"+kind+"-revision-"+base.revision+".txt";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);

@@ -1,4 +1,5 @@
 "use client";
+import {taskTargetId} from "@/lib/bundles/task-target";
 import {useState} from "react";
 import type {ExecutiveData,ExecutiveAction} from "@/lib/executive-bundle/contracts";
 import {executiveReviewState} from "@/lib/executive-bundle/contracts";
@@ -9,7 +10,7 @@ type Change=(value:ExecutiveData)=>void;
 export function ActionFields({actions,onChange,max=10}:{actions:ExecutiveAction[];onChange:(actions:ExecutiveAction[])=>void;max?:number}) {
  const update=(index:number,patch:Partial<ExecutiveAction>)=>onChange(actions.map((a,i)=>i===index?{...a,...patch}:a));
  return <section className={styles.section}><h2>Actions with an owner and a next move</h2>
- {actions.map((a,i)=><Disclosure key={a.id} initialOpen={!a.title} summary={<>{a.title||"New action"} · {a.state} · {a.reviewState.replaceAll("_"," ")}</>}>
+ {actions.map((a,i)=><Disclosure key={a.id} id={taskTargetId("action",a.id)} initialOpen={!a.title} summary={<>{a.title||"New action"} · {a.state} · {a.reviewState.replaceAll("_"," ")}</>}>
   <Field label="Action" value={a.title} max={240} required onChange={title=>update(i,{title})}/>
   <div className={styles.grid}><Field label="Action owner" value={a.owner} max={240} onChange={owner=>update(i,{owner})}/>
    <Field label="Action due date" type="date" value={a.dueDate??""} onChange={dueDate=>update(i,{dueDate:dueDate||null})}/></div>

@@ -1,4 +1,5 @@
 "use client";
+import {taskTargetId} from "@/lib/bundles/task-target";
 import {newFounderAction,type FounderPlan,type Milestone} from "@/lib/nonprofit-bundle/contracts";
 import {Field,Choice,Disclosure,styles} from "./common";
 import {ActionFields} from "./action-fields";
@@ -23,7 +24,7 @@ export function PlanFields({value,onChange}:{value:FounderPlan;onChange:(value:F
  <Choice label="Roadmap status" value={value.status} values={["active","paused","archived"]} onChange={v=>put("status",v)}/></section>
  <section className={styles.section}><h2>Make the next moves manageable</h2><p className={styles.muted}>Keep a short, owned sequence. Suggested checklist items are not legal requirements. {value.milestones.filter(m=>m.status==="done").length} of {value.milestones.length} marked done.</p>
  {!value.milestones.length&&<div className={styles.empty}><h3>Begin with a practical starting checklist</h3><p>Seven editable planning prompts cover mission, formation, governance, people, funding, policies and launch. No owners or deadlines are invented.</p><button type="button" onClick={starter}>Use the suggested starting checklist</button></div>}
- {value.milestones.map((m,i)=><Disclosure key={m.id} initialOpen={!m.title} summary={<><span className={styles.pill}>{i+1}</span><strong>{m.title||"Name this milestone"}</strong><span className={styles.tag}>{m.status.replaceAll("_"," ")}</span>{m.dueDate&&<span>{m.dueDate}</span>}</>}>
+ {value.milestones.map((m,i)=><Disclosure key={m.id} id={taskTargetId("milestone",m.id)} initialOpen={!m.title} summary={<><span className={styles.pill}>{i+1}</span><strong>{m.title||"Name this milestone"}</strong><span className={styles.tag}>{m.status.replaceAll("_"," ")}</span>{m.dueDate&&<span>{m.dueDate}</span>}</>}>
  <ActionFields value={m} milestones={value.milestones} onChange={next=>put("milestones",value.milestones.map(x=>x.id===m.id?next:x))}/>
  <button type="button" onClick={()=>{if(!m.title||window.confirm("Remove this milestone and remove it from other milestones' dependencies? Earlier saved revisions remain recoverable."))put("milestones",value.milestones.filter(x=>x.id!==m.id).map(x=>({...x,dependsOn:x.dependsOn.filter(id=>id!==m.id)})));}}>Remove milestone {i+1}</button></Disclosure>)}
  <div className={styles.actions}><button type="button" disabled={value.milestones.length>=50} onClick={()=>put("milestones",[...value.milestones,{...newFounderAction(crypto.randomUUID()),category:"other",dependsOn:[]}])}>Add a milestone</button></div></section></>;

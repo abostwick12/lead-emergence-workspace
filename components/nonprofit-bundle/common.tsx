@@ -29,7 +29,7 @@ export function Lines({label,values,onChange,max=4000,hint="One entry per line. 
 }
 export function Validation({message}:{message:string|null}){return message?<p className={styles.error} role="alert">{message}</p>:null;}
 export function AdministrativeNotice(){return <p className={styles.notice}>For administration only. Keep patient information, therapy notes, diagnoses and treatment plans out of this workspace. Free text is not automatically screened for health information.</p>;}
-export function Disclosure({summary,children,initialOpen=false}:{summary:ReactNode;children:ReactNode;initialOpen?:boolean}){
+export function Disclosure({summary,children,initialOpen=false,id}:{summary:ReactNode;children:ReactNode;initialOpen?:boolean;id?:string}){
  const [open,setOpen]=useState(initialOpen);
- return <details className={styles.step} open={open} onToggle={e=>setOpen(e.currentTarget.open)}><summary>{summary}</summary>{children}</details>;
+ return <details id={id} className={styles.step} open={open} onToggle={e=>setOpen(e.currentTarget.open)}><summary>{summary}</summary>{children}</details>;
 }

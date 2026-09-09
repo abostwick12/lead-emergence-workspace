@@ -1,4 +1,6 @@
 "use client";
+import {TaskLinkNavigation} from "@/components/bundles/task-link-navigation";
+import {taskTargetId} from "@/lib/bundles/task-target";
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {useWorkspace} from "@/components/workspace-provider";
@@ -50,12 +52,12 @@ function Editor({kind,document,reload}:{kind:ExecutiveKind;document:ExecutiveDoc
  return <ExecutiveFrame title={base?base.data.title:"Start a "+kind.replaceAll("_"," ")} description={executiveLabels[kind]+" · Keep the intended outcome, evidence and next move together."}>
  <div className={styles.actions}><span className={styles.tag}>{base?"Saved revision "+base.revision:"Not saved yet"}</span><span className={styles.muted}>{dirty?"Unsaved changes — save before leaving.":"No unsaved changes."}</span></div>
  {(kind==="daily_brief"||kind==="weekly_review")&&<section className={styles.section}><h2>A useful starting point</h2><p>Prepare an unsaved brief from current permitted attention. It links the source records without copying private source text. Then choose your next actions and add the evidence behind your conclusions.</p><button disabled={action.busy} onClick={()=>void prepare()}>Prepare from current attention</button></section>}
- <form noValidate onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={action.busy} key={formKey}>
+ <form noValidate onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={action.busy} key={formKey}><TaskLinkNavigation targets={("actions" in value?value.actions.map(a=>taskTargetId("action",a.id)):[])}>
  <RecordFields value={value} onChange={change} onTimePending={pending=>{setTimePending(pending);setConfirm(false);}}/>
  <ReferenceFields references={value.references} onChange={referencesChanged}/>
  <CoordinationNotice/><label className={styles.check}><input type="checkbox" checked={confirm} onChange={e=>setConfirm(e.target.checked)}/><span>I reviewed this exact record and its source links. Saving preserves my stated review and agreement states; it does not verify facts, book meetings, send messages or start recurring work.</span></label>
  <Validation message={validation??action.error}/>{notice&&<p className={styles.notice} role="status">{notice}</p>}
- <div className={styles.saveBar}><span>Save a recoverable revision.</span><button type="submit" disabled={!confirm||action.busy||timePending}>{action.busy?"Saving…":"Confirm and save "+kind.replaceAll("_"," ")}</button></div></fieldset></form>
+ <div className={styles.saveBar}><span>Save a recoverable revision.</span><button type="submit" disabled={!confirm||action.busy||timePending}>{action.busy?"Saving…":"Confirm and save "+kind.replaceAll("_"," ")}</button></div></TaskLinkNavigation></fieldset></form>
  {action.error&&<button onClick={()=>{if(!dirty||window.confirm("Discard unsaved edits and open the latest saved revision?"))reload();}}>Open latest saved revision</button>}
  {base&&<><section className={styles.section}><h2>Take the saved work with you</h2><p className={styles.muted}>Download saved revision {base.revision}. Unsaved changes, pending proposals and live linked-source metadata are excluded. User-authored notes are not redacted.</p>
  <button onClick={()=>{const url=URL.createObjectURL(new Blob([executiveHandoff(base)],{type:"text/plain;charset=utf-8"})),anchor=window.document.createElement("a");anchor.href=url;anchor.download="executive-"+kind+"-revision-"+base.revision+".txt";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}}>Download saved record</button></section>

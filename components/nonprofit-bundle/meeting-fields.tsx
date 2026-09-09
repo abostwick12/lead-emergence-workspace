@@ -1,4 +1,5 @@
 "use client";
+import {taskTargetId} from "@/lib/bundles/task-target";
 import {newFounderAction,type MeetingRecord} from "@/lib/nonprofit-bundle/contracts";
 import {Field,Choice,Lines,Disclosure,styles} from "./common";
 import {ActionFields} from "./action-fields";
@@ -15,7 +16,7 @@ export function MeetingFields({value,onChange}:{value:MeetingRecord;onChange:(va
  <section className={styles.section}><h2>What was decided, and who follows through</h2>
  <Field label="Administrative meeting notes" value={value.notes} multiline max={20000} onChange={v=>put("notes",v)}/>
  <Lines label="Recorded decisions" values={value.decisions} onChange={v=>put("decisions",v)} max={60030} hint="One decision per line. Keep proposed decisions distinct from what participants actually agreed."/>
- {value.actions.map((a,i)=><Disclosure key={a.id} initialOpen={!a.title} summary={<><strong>{a.title||"Name this meeting action"}</strong><span className={styles.tag}>{a.status.replaceAll("_"," ")}</span></>}>
+ {value.actions.map((a,i)=><Disclosure key={a.id} id={taskTargetId("action",a.id)} initialOpen={!a.title} summary={<><strong>{a.title||"Name this meeting action"}</strong><span className={styles.tag}>{a.status.replaceAll("_"," ")}</span></>}>
  <ActionFields value={a} onChange={next=>put("actions",value.actions.map(x=>x.id===a.id?next:x))}/>
  <button type="button" onClick={()=>{if(!a.title||window.confirm("Remove this meeting action from the draft?"))put("actions",value.actions.filter(x=>x.id!==a.id));}}>Remove meeting action {i+1}</button></Disclosure>)}
  <div className={styles.actions}><button type="button" disabled={value.actions.length>=40} onClick={()=>put("actions",[...value.actions,newFounderAction(crypto.randomUUID())])}>Add a meeting action</button></div></section></>;
