@@ -1053,3 +1053,85 @@ Investigated failures and honest limits:
   evaluation, unaided first-use value, physical-device testing, actual installed
   ChatGPT/Codex operation, authorized Logos proof, deployed retention/recovery,
   payment enforcement and the remaining native bundles are open release gates.
+
+## P7 Nonprofit Founder native workspace — 2026-09-08
+
+Local implementation evidence only. All six bundles remain NOT READY TO SHIP.
+No hosted migration, production deployment, installed-plugin update, provider
+access, client data import or marketplace submission occurred.
+
+Passed:
+
+- Fresh replay of all 25 migrations on the isolated bundle-experience-p2 stack.
+- 357 PostgreSQL assertions across twelve local suites, including 27 new
+  Nonprofit private-table, RLS, helper-privilege and anonymous-access checks.
+  The hosted-only Gate A preflight is excluded because its shared legacy tables
+  are intentionally absent; this is not deployed migration proof.
+- 185 unit tests across 23 files; 32 schema/policy tests; typecheck, lint and
+  boundary checks. The boundary scan covers 188 runtime files with no legacy
+  business-runtime imports or service-role application client.
+- Standard and guarded isolated optimized builds, each generating 37 static pages.
+- Eleven actual Nonprofit API/OAuth/MCP groups: all four record kinds and search,
+  cross-client/kind/Writer-ID denial, independent multi-bundle composition,
+  current capability removal, private no-store APIs, unknown clinical fields,
+  malformed dates/URLs/email and dependency-cycle rejection, administrative
+  confirmation, exact retries, concurrent/stale writes, retained history,
+  noncanonical new/revised proposals, native approval/rejection, stale approval
+  denial, capability-filtered attention and disconnect. Real registration,
+  consent, grant activation and PKCE exercise all thirteen advertised tools.
+  Assistant calls cannot bypass native-only save, decision or history rules.
+- Ten Ministry connected groups and the complete Writer regression: eleven
+  API/OAuth/MCP, ten revision, seven draft/discovery and six preparation groups.
+  All successful operations use fictional accounts and the real isolated backend.
+- Final optimized Chrome: 46/46 desktop/mobile-emulated cases in 7.5 minutes,
+  no retries: twelve Nonprofit, ten Ministry and 24 Writer. Nonprofit covers
+  consent denial, an editable starter roadmap, reset confirmation, failed-save
+  recovery, partnership proposals and comparison, explicit approval, original
+  recovery, actual saved TXT downloads, meeting zone/decisions/actions, source
+  findings separate from interpretation, stale proposal rejection and tenant
+  denial. The earlier corrected development run also passed all twelve
+  Nonprofit cases. Runtime is not a client responsiveness/value benchmark.
+- Four inspected synthetic optimized-preview views in docs/testing/nonprofit-proof.
+- Reusable source: 36 tests across six files and typecheck; all six official
+  plugin and all six official skill validators. The host's seventeen-file
+  SHA-256-checked export is pinned to ead26bb30bf7ccd733e186255e7f0d52163345e9.
+  Later source documentation changes do not change that exported contract.
+- Working-tree sensitive-data and diff checks pass before publication. Final
+  post-commit scan counts and verified branch receipts are in the P7 checkpoint.
+
+Investigated failures and honest limits:
+
+- The first live roadmap save exposed an ambiguous PL/pgSQL variable/CTE name
+  despite a successful migration replay. The local variable was renamed; the
+  final entire 25-migration replay and real save/concurrency regression pass.
+- Adding a blank research source initially threw from URL refinement during
+  safeParse. Both reusable Nonprofit and Ministry URL refinements now return
+  false for incomplete/malformed input instead of throwing. Regression tests
+  include blank values, incomplete URLs and invalid ports; browser flows pass.
+- One roadmap browser selector matched hidden dependency labels as well as the
+  intended summary. It now selects the actual summary without loosening the
+  saved-data assertion. Test-only RPC names were aligned with verified contracts.
+- Visual inspection found a floating Nonprofit save bar covering form content.
+  It now stays in normal flow; final focused desktop/mobile views were inspected.
+- SQL contact-email validation was aligned with the reusable schema and negative
+  tests. Rejection no longer requires affirming potentially inappropriate
+  proposal content; approval still does. Revoked capabilities independently
+  remove navigation, API/MCP access and attention items.
+- Clinical-scope schemas, skill instructions and explicit confirmation are not
+  PHI detection or redaction. Free text and exported copies require user review.
+  No real patient/clinical content was used. History/proposals are retained,
+  not permanently erased; downloads cannot be retroactively revoked.
+- Saved sources are recorded evidence, not fetched or independently verified
+  authorities. Reviewed research does not certify compliance or grant eligibility.
+  Meetings do not book calendars, resolve DST instants or send invitations.
+  Outreach is an unsent draft; next moves do not send reminders.
+- Unsaved Nonprofit forms survive an on-screen failed request and warn before
+  navigation, but browser-crash/autosave recovery is not implemented. The native
+  history exposes the original plus latest nine versions. Large datasets,
+  long-form editing and shared mobile navigation clearance need further UX work.
+- No installed ChatGPT/Codex, hosted Entry/consent/canonical-host proof, live
+  public-authority research evaluation, physical devices, representative client
+  pilot, measured first-value/time savings, external providers, deployed
+  retention/recovery or payment enforcement ran. The twelve-minute first-value
+  estimate remains a design target. No private fixtures, test traces or credentials
+  belong in source publication.

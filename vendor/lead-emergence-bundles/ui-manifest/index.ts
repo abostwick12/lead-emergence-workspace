@@ -13,6 +13,7 @@ const rankedItem = {
 export const navigationItemSchema = z.object({
   ...rankedItem,
   route: routeSchema,
+  capabilityId: contributionIdSchema.optional(),
   icon: z.string().trim().min(1).max(80).optional()
 }).strict();
 

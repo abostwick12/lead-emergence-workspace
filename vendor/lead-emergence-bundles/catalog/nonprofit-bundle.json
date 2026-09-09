@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "1.0",
+  "identity": {
+    "key": "nonprofit_founder",
+    "version": "0.2.0",
+    "displayName": "Nonprofit Founder",
+    "description": "Turns an early nonprofit idea into governed, source-aware formation, partnership, outreach, and funding work.",
+    "kind": "functional"
+  },
+  "experience": {
+    "promise": "See the next consequential founder moves, their owners, and the authoritative evidence behind regulatory questions.",
+    "firstRunOutcome": "A founder roadmap with immediate milestones, partner follow-ups, and clearly labeled research questions.",
+    "timeToFirstValueMinutes": 12,
+    "successSignals": [
+      {
+        "id": "nonprofit.signal.roadmap_adopted",
+        "description": "The user adopts or edits a sequenced founder roadmap."
+      },
+      {
+        "id": "nonprofit.signal.followup_advanced",
+        "description": "The workflow advances a partner, volunteer, donor, or governance follow-up."
+      }
+    ],
+    "qualityGates": {
+      "evidenceRequired": true,
+      "provenanceRequired": true,
+      "mutationConfirmationRequired": true
+    }
+  },
+  "capabilities": [
+    {
+      "id": "nonprofit.roadmap",
+      "version": "0.2.0",
+      "description": "Prepare formation, governance, launch, funding, and compliance milestones.",
+      "domain": "nonprofit",
+      "operations": [
+        "read",
+        "propose",
+        "execute"
+      ],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "nonprofit.partners",
+      "version": "0.2.0",
+      "description": "Manage administrative partner, volunteer, donor, and outreach follow-up.",
+      "domain": "nonprofit",
+      "operations": [
+        "read",
+        "propose",
+        "execute"
+      ],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "nonprofit.meetings",
+      "version": "0.2.0",
+      "description": "Record administrative meetings, scheduling details, decisions and owned follow-up actions; no invitations or clinical records.",
+      "domain": "nonprofit",
+      "operations": [
+        "read",
+        "propose",
+        "execute"
+      ],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "nonprofit.regulatory_research",
+      "version": "0.2.0",
+      "description": "Research formation, fundraising, licensing-boundary, and policy questions from authoritative sources.",
+      "domain": "nonprofit",
+      "operations": [
+        "read",
+        "propose",
+        "execute"
+      ],
+      "taskMetadataShareable": false
+    }
+  ],
+  "skills": [
+    {
+      "id": "nonprofit.skill.founder_next_moves",
+      "path": "./plugins/lead-emergence-nonprofit-founder/skills/nonprofit-founder-next-moves/",
+      "capabilityIds": [
+        "nonprofit.roadmap",
+        "nonprofit.partners",
+        "nonprofit.meetings",
+        "nonprofit.regulatory_research"
+      ],
+      "triggers": [
+        "build my nonprofit roadmap",
+        "what should the nonprofit do next",
+        "research this nonprofit requirement",
+        "review partner follow-ups"
+      ],
+      "outcome": "A prioritized founder plan with authoritative sources, uncertainty, and clear separation from clinical or legal conclusions."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "nonprofit.workflow.next_moves",
+      "version": "0.2.0",
+      "name": "Founder next-move review",
+      "capabilityIds": [
+        "nonprofit.roadmap",
+        "nonprofit.partners",
+        "nonprofit.meetings",
+        "nonprofit.regulatory_research"
+      ],
+      "providerRequirementIds": [
+        "nonprofit.provider.public_authorities"
+      ],
+      "inputScopes": [
+        "nonprofit.project_settings",
+        "nonprofit.milestones",
+        "nonprofit.partner_pipeline",
+        "nonprofit.meetings",
+        "nonprofit.research"
+      ],
+      "outputScopes": [
+        "nonprofit.next_moves",
+        "nonprofit.research_questions"
+      ],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 12
+    }
+  ],
+  "providerRequirements": [
+    {
+      "id": "nonprofit.provider.public_authorities",
+      "provider": "public_authorities",
+      "required": false,
+      "authorization": {
+        "required": false,
+        "method": "public"
+      },
+      "scopes": [],
+      "operations": [
+        "read",
+        "propose"
+      ],
+      "dataBoundary": "Public, lawful, source-first research; private operational records are never sent to public sources by default."
+    }
+  ],
+  "appRequirements": [],
+  "permissions": {
+    "dataScopes": [
+      "nonprofit.operations",
+      "nonprofit.partner_pipeline",
+      "nonprofit.research",
+      "nonprofit.meetings"
+    ],
+    "contextScopes": [
+      "nonprofit.project_settings",
+      "nonprofit.jurisdiction"
+    ],
+    "crossDomainAccess": []
+  },
+  "automations": [],
+  "attentionTypes": [
+    {
+      "id": "nonprofit.attention.partner_followup",
+      "description": "A partner, volunteer, donor, or governance follow-up is due or overdue.",
+      "defaultPriority": "high",
+      "evidenceRequired": true
+    },
+    {
+      "id": "nonprofit.attention.next_move",
+      "description": "A recorded milestone, meeting action or research review needs attention.",
+      "defaultPriority": "normal",
+      "evidenceRequired": true
+    }
+  ],
+  "uiManifestPath": "./bundles/nonprofit-founder/ui-manifest.json",
+  "distribution": {
+    "pluginName": "lead-emergence-nonprofit-founder",
+    "marketplacePath": "./.agents/plugins/marketplace.json"
+  }
+}

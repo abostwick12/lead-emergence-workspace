@@ -12,7 +12,8 @@ const labels = (count: number, max: number) => z.array(z.string().trim().min(1).
   .refine(values => new Set(values.map(v => v.toLowerCase())).size === values.length, "Use each label once.");
 const date = z.iso.date().nullable();
 export const recordedUrl = z.string().max(2000).url().refine(raw => {
-  const u = new URL(raw); return ["https:", "http:"].includes(u.protocol) && !u.username && !u.password;
+  try { const u = new URL(raw); return ["https:", "http:"].includes(u.protocol) && !u.username && !u.password; }
+  catch { return false; }
 }, "Use a recorded HTTP(S) source URL without credentials.").nullable();
 export const theologicalPosition = z.object({
   id: z.string().uuid(), statement: z.string().trim().min(1).max(2000),

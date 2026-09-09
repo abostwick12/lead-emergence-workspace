@@ -2,13 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("discloses assigned Writing and Ministry access without implying assistant approval authority", async () => {
+test("discloses assigned Writing, Ministry and Nonprofit access without implying assistant approval authority", async () => {
   const consent = await readFile("app/oauth/consent/page.tsx", "utf8");
   assert.match(consent, /Assigned bundle access/);
   assert.match(consent, /current theological preferences and recorded position statuses/);
   assert.match(consent, /Historical writing does not confirm your current beliefs/);
   assert.match(consent, /Private working drafts and profile revision history remain native-only/);
   assert.match(consent, /cannot confirm your preferences, approve a proposal/);
+  assert.match(consent, /Nonprofit Founder can read your assigned administrative roadmaps/);
+  assert.match(consent, /No clinical records, patient information, legal certification/);
+  assert.match(consent, /Final saves, proposal decisions and revision history remain native-only/);
 });
 
 const sql = await readFile("supabase/migrations/20260820000000_workspace_foundation.sql", "utf8");

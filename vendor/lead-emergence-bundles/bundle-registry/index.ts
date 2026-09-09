@@ -54,6 +54,7 @@ export class BundleRegistry {
     const attentionTypeIds = new Set(manifest.attentionTypes.map((item) => item.id));
     const actionIds = new Set(uiManifest.quickActions.map((item) => item.id));
     const capabilityReferences = [
+      ...[...uiManifest.primaryNavigation, ...uiManifest.secondaryNavigation].flatMap((item) => item.capabilityId ? [item.capabilityId] : []),
       ...uiManifest.dashboardWidgets.map((item) => item.capabilityId),
       ...uiManifest.quickActions.map((item) => item.capabilityId),
       ...uiManifest.searchProviders.map((item) => item.capabilityId),

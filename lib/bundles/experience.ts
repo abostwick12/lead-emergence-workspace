@@ -6,6 +6,8 @@ import writerBundle from "@/vendor/lead-emergence-bundles/bundles/writer-editor/
 import writerUi from "@/vendor/lead-emergence-bundles/bundles/writer-editor/ui-manifest.json";
 import ministryBundle from "@/vendor/lead-emergence-bundles/catalog/ministry-bundle.json";
 import ministryUi from "@/vendor/lead-emergence-bundles/catalog/ministry-ui.json";
+import nonprofitBundle from "@/vendor/lead-emergence-bundles/catalog/nonprofit-bundle.json";
+import nonprofitUi from "@/vendor/lead-emergence-bundles/catalog/nonprofit-ui.json";
 
 const assignment = z.object({
   bundleKey: z.string(), status: z.enum(["active", "revoked", "expired", "unavailable"]),
@@ -22,7 +24,8 @@ export type BundleAuthority = z.infer<typeof bundleAuthoritySchema>;
 // workspace. It is product configuration, never a user-specific conditional.
 const artifacts = [
   { manifest: parseBundleManifest(writerBundle), uiManifest: uiManifestSchema.parse(writerUi), entryCapabilityId: "writer.resource.library" },
-  { manifest: parseBundleManifest(ministryBundle), uiManifest: uiManifestSchema.parse(ministryUi), entryCapabilityId: "ministry.research" }
+  { manifest: parseBundleManifest(ministryBundle), uiManifest: uiManifestSchema.parse(ministryUi), entryCapabilityId: "ministry.research" },
+  { manifest: parseBundleManifest(nonprofitBundle), uiManifest: uiManifestSchema.parse(nonprofitUi), entryCapabilityId: "nonprofit.roadmap" }
 ];
 
 export function composeBundleExperience(raw: unknown) {
@@ -50,8 +53,8 @@ export function composeBundleExperience(raw: unknown) {
     capabilityIds: [...allowed],
     ui: {
       ...ui,
-      primaryNavigation: ui.primaryNavigation.filter((item) => navigableBundles.has(item.sourceBundleKey)),
-      secondaryNavigation: ui.secondaryNavigation.filter((item) => navigableBundles.has(item.sourceBundleKey)),
+      primaryNavigation: ui.primaryNavigation.filter((item) => navigableBundles.has(item.sourceBundleKey) && (!item.capabilityId || allowed.has(item.capabilityId))),
+      secondaryNavigation: ui.secondaryNavigation.filter((item) => navigableBundles.has(item.sourceBundleKey) && (!item.capabilityId || allowed.has(item.capabilityId))),
       dashboardWidgets: ui.dashboardWidgets.filter((item) => allowed.has(item.capabilityId)),
       quickActions: ui.quickActions.filter((item) => allowed.has(item.capabilityId)),
       commandPaletteActions: ui.commandPaletteActions.filter((item) => allowed.has(item.capabilityId)),

@@ -26,6 +26,8 @@
     "test:writer:preparation": "node scripts/test-writer-preparation-local.mjs",
     "seed:ministry:local": "node scripts/seed-ministry-local.mjs",
     "test:ministry:local": "node scripts/test-ministry-local.mjs",
+    "seed:nonprofit:local": "node scripts/seed-nonprofit-local.mjs",
+    "test:nonprofit:local": "node scripts/test-nonprofit-local.mjs",
     "test:e2e": "playwright test",
     "scan:sensitive": "node scripts/scan-sensitive-data.mjs",
     "schema:checksum": "node scripts/check-workspace-schema.mjs",

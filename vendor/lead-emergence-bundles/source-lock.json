@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "59031bfd4203c4d1367ccd58311b4d60afe4390e",
+  "sourceRevision": "ead26bb30bf7ccd733e186255e7f0d52163345e9",
   "contractVersion": "1.0",
   "files": [
     {
@@ -11,7 +11,7 @@
     {
       "sourcePath": "packages/bundle-registry/src/index.ts",
       "outputPath": "bundle-registry/index.ts",
-      "sha256": "b3af6c6f627a6fd99941c57f3dfdffab4a3d0ba4550f7d2f919c31ba072b6605"
+      "sha256": "b4add2a3fc19d7412c524c81324499ae4224079eb52bcfc70abe611a904378e2"
     },
     {
       "sourcePath": "packages/capability-registry/src/index.ts",
@@ -36,7 +36,7 @@
     {
       "sourcePath": "packages/ui-manifest/src/index.ts",
       "outputPath": "ui-manifest/index.ts",
-      "sha256": "8e7a66242d89f8262868820f26df8a5e33fcf4f6486d167446d74add1b07b1bb"
+      "sha256": "069bb21408310495b2ff584a1e64bcf8ea0341715123e687c09605dd0b53cdc3"
     },
     {
       "sourcePath": "packages/workflow-runtime/src/index.ts",
@@ -71,7 +71,22 @@
     {
       "sourcePath": "bundles/ministry/contracts.ts",
       "outputPath": "domain-contracts/ministry.ts",
-      "sha256": "04d844ade33548a43eb0a1961b864df5c3beb4b6b52792f6c106f79b304ef854"
+      "sha256": "6e2dad3b12321750a1054b1a4997d36d3fe4a065aa1da383964780b4522adc24"
+    },
+    {
+      "sourcePath": "bundles/nonprofit-founder/bundle.json",
+      "outputPath": "catalog/nonprofit-bundle.json",
+      "sha256": "ad49271754a2945224db5076dcaaf153228c1b89351d34aefa40217581f84553"
+    },
+    {
+      "sourcePath": "bundles/nonprofit-founder/ui-manifest.json",
+      "outputPath": "catalog/nonprofit-ui.json",
+      "sha256": "2514a2ec54ea5d8fddc894635cff7d8cf4706629347e2f9751e5bc5f27bca1f7"
+    },
+    {
+      "sourcePath": "bundles/nonprofit-founder/contracts.ts",
+      "outputPath": "domain-contracts/nonprofit.ts",
+      "sha256": "c282fcd526ae44ee8e184ff9c6122dd818cd4a436e8442bc3c50dd96b813df2c"
     }
   ]
 }

@@ -16,6 +16,9 @@ for (const file of ["bundle.json", "ui-manifest.json"]) entries.push([`bundles/w
 entries.push(["bundles/ministry/bundle.json", "catalog/ministry-bundle.json"],
   ["bundles/ministry/ui-manifest.json", "catalog/ministry-ui.json"],
   ["bundles/ministry/contracts.ts", "domain-contracts/ministry.ts"]);
+entries.push(["bundles/nonprofit-founder/bundle.json", "catalog/nonprofit-bundle.json"],
+  ["bundles/nonprofit-founder/ui-manifest.json", "catalog/nonprofit-ui.json"],
+  ["bundles/nonprofit-founder/contracts.ts", "domain-contracts/nonprofit.ts"]);
 execFileSync("git", [...gitArgs, "diff", "--exit-code", "HEAD", "--", ...entries.map(([path]) => path)], { cwd: source });
 const files = [];
 for (const [sourcePath, outputPath] of entries) {

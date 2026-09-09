@@ -79,3 +79,7 @@ first-use value and responsiveness remain open. Optional Logos access is not
 connected or claimed. Rich archive ingestion, large-library ergonomics and a
 representative theological/source evaluation set still need shipment proof.
 This checkpoint does not complete the other native bundles.
+
+P7 hardening: source URL refinements now fail validation instead of throwing
+for a blank, incomplete or malformed URL. The current seventeen-file source
+export includes this fix; its exact revision is recorded in source-lock.json.
