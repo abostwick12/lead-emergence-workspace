@@ -91,7 +91,7 @@ try {
  const assistant=await connect(f.executive,own.client);
  console.log("Connected synthetic Executive MCP session.");
  const tools=(await assistant.client.listTools()).tools.filter(t=>t.name.startsWith("executive_"));
- assert.equal(tools.length,17);assert.equal(tools.filter(t=>!t.annotations.readOnlyHint).length,5);
+ assert.equal(tools.length,19);assert.equal(tools.filter(t=>!t.annotations.readOnlyHint).length,5);
  assert.ok(tools.every(t=>!t.annotations.openWorldHint&&!t.annotations.destructiveHint));
  for(const[kind,d]of Object.entries(records)){
   console.log("Checking connected "+kind+" tools.");
@@ -110,7 +110,7 @@ try {
   assert.equal(approved.body.document.data.reviewState,"inferred");records[kind]=approved.body.document;
  }
  assert.equal((await assistant.client.callTool({name:"executive_attention",arguments:{asOfDate:date}})).isError??false,false);
- pass("actual OAuth consent/PKCE, seventeen HTTP MCP tools and five proposal-only assistant writes");
+ pass("actual OAuth consent/PKCE, nineteen HTTP MCP tools and five proposal-only assistant writes");
 
  await rpc(assistant.db,"executive_save_document",{p_kind:"commitment",p_document_id:null,p_expected_revision:0,p_request_id:randomUUID(),p_data:data.commitment,p_confirm_exact_record:true},"42501");
  await rpc(assistant.db,"executive_document_history",{p_kind:"commitment",p_document_id:records.commitment.id},"42501");
@@ -143,6 +143,83 @@ try {
  const ownDenied=await assistant.client.callTool({name:"executive_resolve_references",arguments:{references:sourceRecords}});
  assert.ok(ownDenied.structuredContent.references.every(x=>x.metadata===null));
  pass("actual assistant source resolution and four-domain attention omit private canary bodies and other-client metadata");
+ // Real task-level HTTP and OAuth-MCP acceptance, independently of native-only tests.
+ const itemId=randomUUID(),nested={id:itemId,title:"Connected individual milestone "+randomUUID().slice(0,8),
+  owner:"Fictional task owner",dueDate:date,status:"blocked",nextAction:"Review the fictional milestone",
+  evidence:"CONNECTED_PRIVATE_TASK_EVIDENCE_CANARY",priority:"high",category:"other",dependsOn:[]};
+ const taskPlan=await rpc(dual.client,"nonprofit_save_document",{p_kind:"plan",p_document_id:nonprofit.document.id,p_expected_revision:1,
+  p_request_id:randomUUID(),p_confirm_administrative:true,p_data:{...nonprofit.document.data,milestones:[nested]}});
+ const taskRef={capabilityId:"nonprofit.roadmap",kind:"plan",documentId:taskPlan.document.id,revision:2,item:{kind:"milestone",id:itemId}};
+ const sourceCaps=sourceRecords.map(ref=>ref.capabilityId);
+ const permission=(current,taskCapabilities=["nonprofit.roadmap","investor.thesis"])=>({sourceCapabilities:sourceCaps,taskCapabilities,
+  taskMetadataVersion:"task-metadata-v1",expectedRevision:current.revision,requestId:randomUUID(),confirmTaskMetadataOnly:true,confirmExpandedTaskMetadata:true});
+ let current=(await web("/api/executive/sources/v2",null,dual.token)).body;
+ assert.deepEqual(current.taskCapabilities,[]);
+ let taskResult=await connectedDual.client.callTool({name:"executive_resolve_references",arguments:{references:[taskRef]}});
+ assert.equal(taskResult.structuredContent.references[0].metadata,null);
+ assert.equal((await web("/api/executive/sources/v2",{...permission(current),confirmExpandedTaskMetadata:false},dual.token)).status,400);
+ const granted=await web("/api/executive/sources/v2",permission(current),dual.token);
+ assert.equal(granted.status,200,JSON.stringify(granted.body));current=granted.body;
+ sharing=await rpc(dual.client,"executive_get_source_permissions");
+ await rpc(connectedDual.db,"executive_set_source_permissions_v2",{p_capabilities:sourceCaps,p_task_capabilities:[],p_expected_revision:current.revision,
+  p_request_id:randomUUID(),p_confirm_task_metadata_only:true,p_confirm_expanded_task_metadata:true,p_task_metadata_version:"task-metadata-v1"},"42501");
+ assert.equal((await web("/api/executive/sources/v2",permission(current,[]),connectedDual.token)).status,403);
+ taskResult=await connectedDual.client.callTool({name:"executive_resolve_references",arguments:{references:[taskRef]}});
+ assert.equal(taskResult.isError??false,false,JSON.stringify(taskResult));
+ assert.equal(taskResult.structuredContent.references[0].metadata.owner,nested.owner);
+ assert.equal(Object.keys(taskResult.structuredContent.references[0].metadata).length,12);
+ const enhanced=await connectedDual.client.callTool({name:"executive_review_attention",arguments:{asOfDate:date,limit:50,offset:0}});
+ assert.equal(enhanced.isError??false,false,JSON.stringify(enhanced));
+ assert.equal(enhanced.structuredContent.coverage.length,22);
+ assert.ok(enhanced.structuredContent.items.some(i=>i.source.documentId===taskRef.documentId&&i.source.item?.id===itemId));
+ assert.doesNotMatch(JSON.stringify([taskResult,enhanced]),/CONNECTED_PRIVATE_/);
+ const enhancedHttp=await web("/api/executive/attention/v2?asOfDate="+date+"&limit=2&offset=1",null,dual.token);
+ assert.equal(enhancedHttp.status,200,JSON.stringify(enhancedHttp.body));
+ assert.equal(enhancedHttp.body.offset,1);assert.equal(enhancedHttp.body.items.length,2);
+ assert.match(enhancedHttp.headers.get("cache-control"),/no-store/);
+ for(const path of ["/api/executive/attention/v2?offset=-1","/api/executive/attention/v2?offset=1&offset=2",
+  "/api/executive/attention/v2?workspaceId=x","/api/executive/source-search?capabilityId=nonprofit.roadmap&level=task&limit=51",
+  "/api/executive/source-search?capabilityId=nonprofit.roadmap&level=task&clientId=x"])
+  assert.equal((await web(path,null,dual.token)).status,400,path);
+ assert.equal((await assistant.client.callTool({name:"executive_resolve_references",arguments:{references:[taskRef]}})).structuredContent.references[0].metadata,null);
+ pass("expanded task consent works over native HTTP; OAuth clients cannot grant it and live task metadata stays scoped through actual MCP");
+
+ const catalogTitle="Connected task catalog "+randomUUID().slice(0,8),catalogIds=[];
+ for(let batch=0;batch<2;batch++){
+  const milestones=Array.from({length:26},(_,index)=>({...nested,id:randomUUID(),title:catalogTitle+" "+batch+"-"+index,
+   status:"planned",priority:"normal",dueDate:"2026-12-01"}));
+  const created=await rpc(dual.client,"nonprofit_save_document",{p_kind:"plan",p_document_id:null,p_expected_revision:0,p_request_id:randomUUID(),
+   p_confirm_administrative:true,p_data:{...nonprofit.document.data,title:catalogTitle+" parent "+batch,targetDate:"2026-12-01",milestones}});
+  catalogIds.push(...milestones.map(m=>({documentId:created.document.id,itemId:m.id})));
+ }
+ let cursor=null;const discovered=[];
+ do {
+  const found=await connectedDual.client.callTool({name:"executive_find_sources",arguments:{capabilityId:"nonprofit.roadmap",level:"task",
+   search:catalogTitle,limit:20,after:cursor}});
+  assert.equal(found.isError??false,false,JSON.stringify(found));assert.equal(found.structuredContent.total,52);
+  discovered.push(...found.structuredContent.items);cursor=found.structuredContent.nextCursor;
+ }while(cursor);
+ assert.equal(discovered.length,52);assert.equal(new Set(discovered.map(r=>r.reference.item.id)).size,52);
+ assert.ok(catalogIds.every(x=>discovered.some(r=>r.reference.documentId===x.documentId&&r.reference.item.id===x.itemId)));
+ const sourcePage=await web("/api/executive/source-search?capabilityId=nonprofit.roadmap&level=task&search="+encodeURIComponent(catalogTitle)+"&limit=7",null,dual.token);
+ assert.equal(sourcePage.status,200,JSON.stringify(sourcePage.body));assert.equal(sourcePage.body.items.length,7);assert.equal(sourcePage.body.total,52);
+ assert.doesNotMatch(JSON.stringify([discovered,sourcePage.body]),/CONNECTED_PRIVATE_/);
+ const proposal=await connectedDual.client.callTool({name:"executive_propose_daily_brief",arguments:{documentId:null,expectedRevision:0,requestId:randomUUID(),
+  data:{...data.daily_brief,title:"Connected exact task brief "+randomUUID().slice(0,8),references:[taskRef]},scope:"executive_coordination_only",
+  reason:"Link the actual task",evidence:"User requested a source-aware fictional brief"}});
+ assert.equal(proposal.isError??false,false,JSON.stringify(proposal));
+ const approvedTask=await web("/api/executive/proposals/decision",{proposalId:proposal.structuredContent.id,expectedRevision:0,
+  decision:"approve",confirmExactRecord:true},dual.token);
+ assert.equal(approvedTask.status,200,JSON.stringify(approvedTask.body));
+ assert.deepEqual(approvedTask.body.document.data.references,[taskRef]);
+ current=(await web("/api/executive/sources/v2",null,dual.token)).body;
+ const withdrawnTasks=await web("/api/executive/sources/v2",permission(current,[]),dual.token);assert.equal(withdrawnTasks.status,200);
+ sharing=await rpc(dual.client,"executive_get_source_permissions");
+ const inaccessible=await connectedDual.client.callTool({name:"executive_find_sources",arguments:{capabilityId:"nonprofit.roadmap",level:"task",search:catalogTitle}});
+ assert.deepEqual({state:inaccessible.structuredContent.state,total:inaccessible.structuredContent.total,items:inaccessible.structuredContent.items},{state:"not_shared",total:null,items:[]});
+ assert.equal((await connectedDual.client.callTool({name:"executive_resolve_references",arguments:{references:[taskRef]}})).structuredContent.references[0].metadata,null);
+ assert.equal((await web("/api/executive/daily_brief/"+approvedTask.body.document.id,null,dual.token)).status,200);
+ pass("HTTP and actual MCP source discovery page beyond fifty tasks; exact task proposals survive native review and task-only withdrawal immediately closes source reads");
 
  const brief=await web("/api/executive/daily_brief",saveInput("daily_brief",{...data.daily_brief,references:sourceRecords}),dual.token);
  assert.equal(brief.status,200,JSON.stringify(brief.body));

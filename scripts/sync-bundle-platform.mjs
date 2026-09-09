@@ -27,7 +27,8 @@ entries.push(["bundles/executive/bundle.json", "catalog/executive-bundle.json"],
   ["bundles/executive/ui-manifest.json", "catalog/executive-ui.json"],
   ["bundles/executive/contracts.ts", "domain-contracts/executive.ts"],
   ["bundles/executive/analysis.ts", "domain-contracts/executive-analysis.ts"],
-  ["bundles/executive/scheduling.ts", "domain-contracts/executive-scheduling.ts"]);
+  ["bundles/executive/scheduling.ts", "domain-contracts/executive-scheduling.ts"],
+  ["bundles/executive/attention.ts", "domain-contracts/executive-attention.ts"]);
 execFileSync("git", [...gitArgs, "diff", "--exit-code", "HEAD", "--", ...entries.map(([path]) => path)], { cwd: source });
 const files = [];
 for (const [sourcePath, outputPath] of entries) {

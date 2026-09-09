@@ -2,7 +2,7 @@
 import {useState} from "react";
 import {useRouter} from "next/navigation";
 import {useWorkspace} from "@/components/workspace-provider";
-import {executiveSave,executiveCapabilities,executiveLabels,emptyExecutiveData,prepareExecutiveBrief,type ExecutiveKind,type ExecutiveData,type ExecutiveDocument,type ExecutiveReference} from "@/lib/executive-bundle/contracts";
+import {executiveSave,executiveCapabilities,executiveLabels,emptyExecutiveData,prepareExecutiveFocusBrief,type ExecutiveKind,type ExecutiveData,type ExecutiveDocument,type ExecutiveReference} from "@/lib/executive-bundle/contracts";
 import {executiveHandoff,describeExecutive,browserDate} from "@/lib/executive-bundle/presentation";
 import {useExecutiveRead,useExecutiveAction,useUnsavedExecutive} from "./use-executive";
 import {ExecutiveFrame,AccessState,ReadState,CoordinationNotice,Disclosure,Validation,styles} from "./common";
@@ -40,11 +40,10 @@ function Editor({kind,document,reload}:{kind:ExecutiveKind;document:ExecutiveDoc
  const prepare=async()=>{
   if(value.recordType!=="daily_brief"&&value.recordType!=="weekly_review")return;
   if((dirty||base)&&!window.confirm("Replace the on-screen draft with a new attention-based draft? Saved revisions will stay unchanged until you confirm and save."))return;
-  const result=await action.run("/api/executive/attention?asOfDate="+encodeURIComponent(value.periodEnd),null);
+  const result=await action.run("/api/executive/attention/v2?limit=50&offset=0&asOfDate="+encodeURIComponent(value.periodEnd),null);
   if(!result)return;
   try {
-   const next=prepareExecutiveBrief(value.recordType,value.periodEnd,result);
-   if(next.recordType==="weekly_review")next.summary+=" This is current saved attention, not a complete record of activity during the review period. Add actual outcomes and evidence from the week.";
+   const next=prepareExecutiveFocusBrief(value.recordType,value.periodEnd,result);
    change(next);setFormKey(n=>n+1);setValidation(null);setNotice("Unsaved brief prepared from current permitted attention. Review the linked work and choose your own next actions.");
   }catch{setValidation("The attention response could not be verified for this date. Refresh before preparing a brief.");}
  };

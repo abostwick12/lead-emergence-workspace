@@ -38,19 +38,42 @@ export const executiveSources = {
 } as const;
 export type ExecutiveSourceCapability = keyof typeof executiveSources;
 export const executiveSourceCapability = z.enum(Object.keys(executiveSources) as [ExecutiveSourceCapability, ...ExecutiveSourceCapability[]]);
+// Optional item targets are separately permissioned; record sharing never grants them.
+export const executiveTaskKinds: Record<string, Record<string, readonly string[]>> = {
+  "executive.coordination": { meeting: ["action"] },
+  "executive.brief": { daily_brief: ["action"] },
+  "executive.review": { weekly_review: ["action"] },
+  "nonprofit.roadmap": { plan: ["milestone"] },
+  "nonprofit.partners": { partner: ["followup"] },
+  "nonprofit.meetings": { meeting: ["action"] },
+  "investor.company_research": { watchlist: ["watch_item"], brief: ["catalyst"] },
+  "investor.thesis": { thesis: ["catalyst"] },
+  "investor.filings": { filing: ["catalyst"] }
+};
+export const executiveItemTarget = z.object({
+  kind: z.enum(["action", "milestone", "followup", "watch_item", "catalyst"]), id
+}).strict();
 export const executiveReferenceBase = z.object({
   capabilityId: z.enum(["executive.coordination", "executive.brief", "executive.review", ...Object.keys(executiveSources)]),
-  kind: required(40), documentId: id, revision: z.number().int().positive()
+  kind: required(40), documentId: id, revision: z.number().int().positive(), item: executiveItemTarget.optional()
 }).strict();
 export type ExecutiveReference = z.infer<typeof executiveReferenceBase>;
 export function referenceCapabilityMatches(ref: ExecutiveReference): boolean {
+  if (ref.item) {
+    const kinds = Object.hasOwn(executiveTaskKinds, ref.capabilityId) ? executiveTaskKinds[ref.capabilityId] : undefined;
+    if (!kinds || !Object.hasOwn(kinds, ref.kind) || !kinds[ref.kind].includes(ref.item.kind)) return false;
+    return ref.item.kind !== "followup" || ref.item.id.toLowerCase() === ref.documentId.toLowerCase();
+  }
   if (Object.hasOwn(executiveCapabilities, ref.kind) && executiveCapabilities[ref.kind as ExecutiveKind] === ref.capabilityId) return true;
   if (!Object.hasOwn(executiveSources, ref.capabilityId)) return false;
   const source = executiveSources[ref.capabilityId as ExecutiveSourceCapability];
   return !!source && (source.kinds as readonly string[]).includes(ref.kind);
 }
 export const executiveReference = executiveReferenceBase.refine(referenceCapabilityMatches, "Use the source's matching record kind and capability.");
-export function referenceKey(ref: ExecutiveReference): string { return ref.capabilityId + ":" + ref.kind + ":" + ref.documentId.toLowerCase(); }
+export function referenceKey(ref: ExecutiveReference): string {
+  return ref.capabilityId + ":" + ref.kind + ":" + ref.documentId.toLowerCase()
+    + (ref.item ? ":" + ref.item.kind + ":" + ref.item.id.toLowerCase() : "");
+}
 const references = z.array(executiveReferenceBase).max(20);
 const action = z.object({
   id, title: required(240), owner: text(240), dueDate: date,
@@ -100,7 +123,7 @@ export type ExecutiveData = z.infer<(typeof executiveBaseSchemas)[ExecutiveKind]
 export function checkExecutiveData(data: ExecutiveData, ctx: z.RefinementCtx) {
   const issue = (message: string, path: (string | number)[] = []) => ctx.addIssue({ code: "custom", message, path });
   if (data.references.some(ref => !referenceCapabilityMatches(ref))) issue("A linked record does not match its source capability.", ["references"]);
-  if (new Set(data.references.map(referenceKey)).size !== data.references.length) issue("Link each source record once.", ["references"]);
+  if (new Set(data.references.map(referenceKey)).size !== data.references.length) issue("Link each source record or task once.", ["references"]);
   for (const name of ["options", "observations", "actions"] as const) {
     const entries = name in data ? (data as unknown as Record<string, { id: string }[]>)[name] : [];
     if (new Set(entries.map(x => x.id.toLowerCase())).size !== entries.length) issue("Use each item identifier once.", [name]);

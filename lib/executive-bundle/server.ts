@@ -4,6 +4,8 @@ import type {SupabaseClient} from "@supabase/supabase-js";
 import {BundleApiError} from "@/lib/workspace/bundle-server";
 import {executiveKind,executiveResult,executiveSave,executiveSearch,executiveSearchResult,executiveProposalInput,executiveProposal,executiveDecision,executiveDecisionResult,executiveHistory,executiveProposalsResult,executiveAttention,executiveAttentionInput,executiveSharingInput,executiveSharing,executiveResolveInput,executiveResolutionResult,referenceKey} from "./contracts";
 type Client=SupabaseClient<any,any,any,any,any>;
+import {executiveAttentionQuery,executiveAttentionV2,executiveSharingV2,executiveSharingV2Input,
+ executiveSourceSearchInput,executiveSourceSearchResult,sourceCursorKey} from "./contracts";
 const presentDocument=executiveResult.refine(result=>result.document!==null,"Expected a saved Executive record.");
 export async function executiveRpc<T>(client:Client,name:string,params:Record<string,unknown>,schema:z.ZodType<T>):Promise<T>{
  const {data,error}=await client.rpc(name,params);
@@ -47,6 +49,35 @@ export async function attention(client:Client,raw:unknown={}) {
  return executiveRpc(client,"executive_attention",input.asOfDate?{p_as_of_date:input.asOfDate}:{},executiveAttention);
 }
 export async function getSharing(client:Client) {return executiveRpc(client,"executive_get_source_permissions",{},executiveSharing);}
+export async function reviewAttention(client:Client,raw:unknown={}) {
+ const input=executiveAttentionQuery.parse(raw);
+ const result=await executiveRpc(client,"executive_review_attention",{
+  ...(input.asOfDate?{p_as_of_date:input.asOfDate}:{}),p_offset:input.offset,p_limit:input.limit
+ },executiveAttentionV2);
+ if(result.offset!==input.offset||result.limit!==input.limit||(input.asOfDate&&result.asOfDate!==input.asOfDate))
+  throw new BundleApiError("Attention did not match the requested date or page. Please refresh.",503);
+ return result;
+}
+export async function getSharingV2(client:Client) {return executiveRpc(client,"executive_get_source_permissions_v2",{},executiveSharingV2);}
+export async function setSharingV2(client:Client,raw:unknown) {
+ const input=executiveSharingV2Input.parse(raw);
+ return executiveRpc(client,"executive_set_source_permissions_v2",{
+  p_capabilities:input.sourceCapabilities,p_task_capabilities:input.taskCapabilities,p_expected_revision:input.expectedRevision,
+  p_request_id:input.requestId,p_confirm_task_metadata_only:input.confirmTaskMetadataOnly,
+  p_confirm_expanded_task_metadata:input.confirmExpandedTaskMetadata,p_task_metadata_version:input.taskMetadataVersion
+ },executiveSharingV2);
+}
+export async function findSources(client:Client,raw:unknown) {
+ const input=executiveSourceSearchInput.parse(raw);
+ const result=await executiveRpc(client,"executive_find_sources",{
+  p_capability:input.capabilityId,p_level:input.level,p_search:input.search,p_after:input.after,p_limit:input.limit
+ },executiveSourceSearchResult);
+ const keys=result.items.map(x=>sourceCursorKey(x.reference));
+ if(result.scope.capabilityId!==input.capabilityId||result.scope.level!==input.level||result.items.length>input.limit
+  ||keys.some((key,index)=>(input.after!==null&&key<=input.after)||(index>0&&key<=keys[index-1])))
+  throw new BundleApiError("Source results did not match the requested scope or page. Please refresh.",503);
+ return result;
+}
 export async function setSharing(client:Client,raw:unknown) {
  const input=executiveSharingInput.parse(raw);
  return executiveRpc(client,"executive_set_source_permissions",{p_capabilities:input.sourceCapabilities,p_expected_revision:input.expectedRevision,

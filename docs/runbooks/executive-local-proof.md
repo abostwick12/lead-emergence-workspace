@@ -10,12 +10,13 @@ accounts. No hosted migration, client data or provider connection is authorized.
    supabase db reset --local --workdir .bundle-local. Never use a linked target.
 3. Seed Writer, Ministry, Nonprofit, Investor and Executive, in that order.
    Credentials remain in ignored .bundle-local/fixtures.json. Do not print
-   fixture files or local status keys. Recheck the applied migration count.
+   fixture files or local status keys. Recheck all 29 applied migrations, including the task-consent extension.
 4. Run npm run test:executive:local for seven native foundation groups and
-   npm run test:bundles:rls:local for fifteen rolled-back database suites.
+   npm run test:executive:tasks for seven task-level native groups, then
+   npm run test:bundles:rls:local for sixteen rolled-back database suites.
    The hosted-only Gate A preflight is not applicable to this isolated stack.
 5. Start node scripts/serve-writer-local.mjs dev on loopback port 3125.
-   Run npm run test:executive:connected for ten actual HTTP/OAuth/MCP groups.
+   Run npm run test:executive:connected for twelve actual HTTP/OAuth/MCP groups.
    The optimized production host guard intentionally rejects localhost MCP
    with 421; do not weaken it or substitute a forged host header. The test
    preflight reports this clearly. Its fictional OAuth grants are disconnected.
@@ -41,12 +42,14 @@ and addresses only supabase_db_bundle-experience-p2. CLI telemetry may need the
 normal local sandbox approval; do not print keys to work around that restriction.
 
 Tests cover five native record flows, strict input and tenant/kind isolation,
-metadata-only default-off source coverage, actual pagination above fifty records,
-seventeen scoped tools, five assistant proposals, native-only approval, private
+separate versioned task consent, exact task links, old-permission compatibility,
+fixed six/twelve-field projections, actual pagination above fifty records/tasks,
+nineteen scoped tools, five assistant proposals, native-only approval, private
 canaries from four domains, source withdrawal, operator revocation/regrant,
 selective Executive access and disconnection. Browser journeys cover errors,
 exact confirmation, time ambiguity, brief preparation, evidence states, proposal
-conflicts, original recovery and saved-only handoffs.
+conflicts, original recovery, saved-only handoffs, a task link beyond the fiftieth
+source, task-only withdrawal and open-action ownership after a held meeting.
 
 Read exact current outcomes and limitations in docs/testing/test-evidence.md.
 No installed host, scheduling workflow, notification worker, complete weekly

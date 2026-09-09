@@ -1390,3 +1390,69 @@ Still absent or not claimable:
 
 See [Executive implementation](../architecture/executive-native-workspace.md)
 and [the reproducible local proof](../runbooks/executive-local-proof.md).
+
+## P9c — Executive individual-task attention and source discovery — 2026-09-09
+
+**Source-only implementation milestone; all six bundles remain NOT READY TO
+SHIP.** No hosted migration, production deployment, installed-host change,
+provider connection, client data or marketplace submission is included.
+
+- Fresh local replay: all **29 migrations** applied to bundle-experience-p2.
+  Read-only final count confirms 29 and zero non-fictional auth accounts.
+- Reusable source: **71 tests in nine files**, typecheck, six official plugin
+  validations and six skill validations pass. Executive 0.3.0 keeps both platform
+  contracts at 1.0. All **27** exported files exactly match their hashes and
+  approved transformations at 28d6b4cb876a37709e899526f7087a596b3aec67.
+- Workspace required checks pass: **245 runtime boundaries**, **32 schema/policy
+  tests**, typecheck, lint, **254 unit tests in 26 files**, optimized build
+  (50 generated pages).
+- Existing Executive native foundation: **seven groups** pass unchanged.
+  New task native acceptance: **seven groups**, including exact parity between
+  all five replayed SQL schemas and the pinned source; old grants never expand;
+  explicit versioned task consent; exact retries/concurrency; ten task mappings;
+  fixed six/twelve-field envelopes; cross-client/kind/item denial; 22-scope
+  attention counts; completed-meeting open actions; prerequisite/catalyst
+  certainty; 75-task source pagination; changed/deleted links; task withdrawal
+  and live source revocation.
+- Database isolation: **542 PostgreSQL assertions in 16 suites** pass, including
+  47 new task metadata helper/bridge privilege checks. Suites roll back fixtures.
+- Real Executive HTTP/OAuth/PKCE/MCP: **12 groups** pass, including nineteen
+  advertised tools with only five proposal writes; native-only expanded consent;
+  exact task proposals through native approval; title-only source discovery
+  across 52 tasks; current permission/capability enforcement and disconnect.
+  Private manuscript, source, research, task-evidence and operation canaries
+  do not appear in the new task metadata responses.
+- All connected cross-bundle regressions pass: Writer 11, revisions 10,
+  discovery 7, preparation 6; Ministry 10; Nonprofit 11; Investor 11 groups.
+- Optimized desktop/mobile browser acceptance: **80/80 pass without retries**
+  (20 Executive plus the existing 60), terminal completion in 11.1 minutes.
+  The two new Executive journeys cover separately confirmed task access, a
+  link beyond the fiftieth source, task-only withdrawal, task ownership and
+  follow-through after a held meeting. All eight selected spec files ran.
+- Four final synthetic task-card images were inspected at desktop and mobile
+  sizes: exact task links and held-meeting action attention. They are retained
+  alongside, not in place of, the P9b images under docs/testing/executive-proof.
+
+Corrected attempts: initial source/browser fixture literal types were tightened;
+old host schema-parity/tool-count expectations were updated to the actual new
+contract (with independent live SQL parity, not suppressed assertions). One
+preliminary browser run was stopped to correct a test-only Focus label; the
+subsequent task run passed both viewports. Early screenshots caught a refreshing
+view; final tests wait for live task data and capture the relevant card.
+No failed assertion was waived or converted to a skip.
+
+Security/platform: legacy record grants remain six-field; new foreign task
+sharing requires a separate native task-metadata-v1 confirmation and current
+parent source entitlement. Direct private helper/table access stays denied.
+Stable page cursors are not authorization tokens. Canonical references contain
+identifiers/revisions, not cached task details. Local scans are narrow
+token/private-key detection, not a comprehensive privacy/legal audit.
+OpenAI guidance was checked at
+[Build an MCP server](https://developers.openai.com/plugins/build/mcp-server);
+focused schemas/identifiers and per-request authorization informed the two
+read-only tool additions. Local MCP testing is not installed-host acceptance.
+
+Remaining: full-period weekly outcomes, explicit-availability scheduling,
+approved recurring/notification lifecycle, exact-child navigation and grouping
+redundant parent/task cues, crash/autosave recovery, shared Workspace Experience,
+representative client-value/accessibility and deployed release gates.

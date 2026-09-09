@@ -22,7 +22,12 @@ describe("Executive native integration boundaries",()=>{
  it.each(executiveKinds)("keeps trusted %s JSON schema parity",async kind=>{
   const sql=await readFile("supabase/migrations/20260911130000_executive_native_workspace.sql","utf8");
   const match=sql.match(new RegExp("when '"+kind+"' then \\$schema\\$([\\s\\S]*?)\\$schema\\$::jsonb"));
-  expect(match).not.toBeNull();expect(JSON.parse(match![1])).toEqual(z.toJSONSchema(executiveBaseSchemas[kind],{io:"input"}));
+  expect(match).not.toBeNull();
+  const extension=await readFile("supabase/migrations/20260911150000_executive_task_attention.sql","utf8");
+  expect(extension).toContain("'{properties,references,items,properties,item}'");
+  const task=extension.match(/\$item\$([\s\S]*?)\$item\$::jsonb/);expect(task).not.toBeNull();
+  const latest=JSON.parse(match![1]);latest.properties.references.items.properties.item=JSON.parse(task![1]);
+  expect(latest).toEqual(z.toJSONSchema(executiveBaseSchemas[kind],{io:"input"}));
  });
  it("composes Executive without pulling unrelated private domains into authority",()=>{
   const value=composeBundleExperience(authority);
@@ -99,14 +104,15 @@ describe("Executive native integration boundaries",()=>{
    expect(localTimeCandidates(local,zone)).toEqual(expected);
    for(const at of expected)expect(localMeetingTime(at,zone)).toBe(local);
  });
- it("advertises seventeen bounded tools, with five proposal-only writes",async()=>{
+ it("advertises nineteen bounded tools, with five proposal-only writes",async()=>{
   const rpc=vi.fn(async()=>({data:null,error:{code:"42501"}}));
   const server=createWorkspaceMcpServer({rpc} as never,undefined,{bundleCapabilityIds:caps});
   const client=new Client({name:"executive-unit",version:"1"}),[c,s]=InMemoryTransport.createLinkedPair();
   try{
    await server.connect(s);await client.connect(c);
    const tools=(await client.listTools()).tools.filter(t=>t.name.startsWith("executive_"));
-   expect(tools).toHaveLength(17);expect(tools.filter(t=>!t.annotations?.readOnlyHint)).toHaveLength(5);
+   expect(tools).toHaveLength(19);expect(tools.filter(t=>!t.annotations?.readOnlyHint)).toHaveLength(5);
+   expect(tools.map(t=>t.name)).toEqual(expect.arrayContaining(["executive_attention","executive_review_attention","executive_find_sources"]));
    expect(tools.some(t=>t.annotations?.openWorldHint)).toBe(false);
    expect(tools.some(t=>/save|approve|sharing|permissions|send|book|schedule/.test(t.name))).toBe(false);
    expect((await client.callTool({name:"executive_get_commitment",arguments:{documentId:id}})).isError).toBe(true);

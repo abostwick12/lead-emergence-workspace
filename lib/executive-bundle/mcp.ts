@@ -5,7 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { BundleApiError } from "@/lib/workspace/bundle-server";
 import { executiveKinds, executiveCapabilities, executiveLabels, executiveResult, executiveSearch, executiveSearchResult,
  executiveSchemas, executiveProposal, executiveAttention, executiveAttentionInput, executiveResolveInput, executiveResolutionResult } from "./contracts";
-import { getDocument, searchDocuments, proposeDocument, attention, resolveReferences } from "./server";
+import {executiveAttentionQuery,executiveAttentionV2,executiveSourceSearchInput,executiveSourceSearchResult} from "./contracts";
+import { getDocument, searchDocuments, proposeDocument, attention, resolveReferences,reviewAttention,findSources } from "./server";
 export function registerExecutiveTools(server:McpServer,client:SupabaseClient<any,any,any,any,any>,capabilities:string[]) {
  const annotations={readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false};
  const _meta={securitySchemes:[{type:"oauth2",scopes:["openid","email","profile"]}]};
@@ -32,10 +33,20 @@ export function registerExecutiveTools(server:McpServer,client:SupabaseClient<an
  }
  if(!executiveKinds.some(kind=>capabilities.includes(executiveCapabilities[kind])))return;
  server.registerTool("executive_attention",{
-  title:"Review scoped Executive attention",
+  title:"Review legacy record-only Executive attention",
   description:"Check bounded current saved-record task metadata, with source coverage and explicit rule evidence. Optional asOfDate changes the due-date comparison, not historical access or the saved-record snapshot. Only currently entitled Executive areas and explicitly shared external bundle metadata are included. At most fifty items; inspect total and coverage before conclusions. No nested task contents, calendars, inboxes, live markets, historical weekly completeness, no-change guarantee or notification delivery.",
   inputSchema:executiveAttentionInput,outputSchema:executiveAttention,annotations,_meta
  },input=>result(()=>attention(client,input)));
+ server.registerTool("executive_review_attention",{
+  title:"Review record and individual-task attention",
+  description:"Page through current Executive attention with 22 explicit record/task coverage scopes. Individual foreign tasks require separate native task-metadata-v1 consent plus live source entitlement; old record sharing never grants tasks. Returns saved owner, next step, dates, catalyst date certainty and unfinished-prerequisite count, not underlying research or private bodies. Completed meetings can have open actions. Estimated dates are not verified events. Check all relevant pages and coverage; current reads may change between pages. asOfDate compares dates, not historical snapshots. No monitoring, notifications, provider access, calendar booking or source-sharing changes.",
+  inputSchema:executiveAttentionQuery,outputSchema:executiveAttentionV2,annotations,_meta
+ },input=>result(()=>reviewAttention(client,input)));
+ server.registerTool("executive_find_sources",{
+  title:"Find permitted records and exact tasks",
+  description:"Search permitted titles within one explicit capability and record/task level, including work outside attention. Use returned exact references and stable nextCursor to continue. Each page rechecks source permission and entitlement; a cursor never authorizes access. Counts are current, not a frozen snapshot. Only a fixed metadata allowlist is returned; no private body text is searched. Preserve item.kind/item.id and the parent revision in task references. Do not reconstruct unavailable content or infer that omitted/unshared work is completed.",
+  inputSchema:executiveSourceSearchInput,outputSchema:executiveSourceSearchResult,annotations,_meta
+ },input=>result(()=>findSources(client,input)));
  server.registerTool("executive_resolve_references",{
   title:"Refresh linked task metadata",
   description:"Resolve up to twenty exact references from Executive attention or a saved record. Returns current, changed or unavailable with a fixed metadata allowlist. Source sharing and entitlement are checked now. Never reconstruct unavailable source text from prior context; ask the user to restore authorized access or remove the link. No underlying manuscript, theological profile, research or other private source body is retrieved.",

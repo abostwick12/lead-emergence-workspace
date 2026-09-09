@@ -89,7 +89,7 @@ test.describe("Executive native client workflow",()=>{
   for(const kind of ["daily_brief","weekly_review"] as const){
    await page.goto("/workspace/executive/"+kind+"/new");await page.getByRole("button",{name:"Prepare from current attention",exact:true}).click();
    await expect(page.getByLabel("Record review state",{exact:true})).toHaveValue("inferred");
-   const summary=await page.getByLabel("Brief summary",{exact:true}).inputValue();expect(summary).toContain("Unshared sources");if(kind==="weekly_review")expect(summary).toContain("not a complete record");
+   const summary=await page.getByLabel("Brief summary",{exact:true}).inputValue();expect(summary).toContain("Unshared record or task scopes");if(kind==="weekly_review")expect(summary).toContain("not a complete record");
    await page.getByRole("button",{name:"Add action",exact:true}).click();await page.getByLabel("Action *",{exact:true}).fill("Review the fictional source and choose one next move");
    await page.getByLabel("Action owner",{exact:true}).fill("Fictional coordinator");await page.getByLabel("Action evidence or agreement",{exact:true}).fill("A user-stated next action, not a sent message.");
    await confirm(page).check();await saveButton(page,kind).click();const d=await get(client,kind,await savedId(page,kind));expect(d.data).toMatchObject({reviewState:"inferred",actions:[expect.objectContaining({reviewState:"user_stated"})]});expect(d.data.references.length).toBeGreaterThan(0);
@@ -110,6 +110,84 @@ test.describe("Executive native client workflow",()=>{
   await confirm(page).check();await saveButton(page,"daily_brief").click();await expect(page.getByRole("status").filter({hasText:"Saved revision 2"})).toBeVisible();expect((await get(client,"daily_brief",d.id)).data.references).toEqual([]);
   await page.goto("/workspace/executive");await expect(page.getByRole("heading",{name:"What deserves your attention?",exact:true})).toBeVisible();
   await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:"test-results/executive-attention-"+info.project.name+".png",fullPage:false});await noOverflow(page);
+ });
+ test("separately shares individual tasks, links beyond fifty sources and withdraws live details",async({page},info)=>{
+  const client=await session("executiveDual");await share(client,[]);
+  const prefix=title("Fictional task picker"),plans=[];
+  for(let batch=0;batch<2;batch++){
+   const milestones=Array.from({length:26},(_,i)=>({id:randomUUID(),title:prefix+" "+batch+"-"+i,owner:"Fictional delivery owner",
+    dueDate:"2026-12-01",status:"planned",nextAction:"Review the fictional task outline",evidence:"BROWSER_PRIVATE_TASK_EVIDENCE_CANARY",priority:"normal",category:"other",dependsOn:[]}));
+   const r=await client.rpc("nonprofit_save_document",{p_kind:"plan",p_document_id:null,p_expected_revision:0,p_request_id:randomUUID(),p_confirm_administrative:true,
+    p_data:{title:prefix+" parent "+batch,mission:"BROWSER_PRIVATE_TASK_MISSION_CANARY",jurisdiction:"Fictional jurisdiction",status:"active",targetDate:"2026-12-01",milestones}});
+   expect(r.error).toBeNull();plans.push(r.data.document);
+  }
+  await signIn(page,"executiveDual");await page.goto("/workspace/executive/sources");
+  const record=page.getByRole("checkbox",{name:"Nonprofit roadmap tasks",exact:true});
+  const task=page.getByRole("checkbox",{name:"Include individual tasks — Nonprofit roadmap tasks",exact:true});
+  await expect(task).toBeDisabled();await record.check();await expect(task).not.toBeChecked();
+  await task.check();await page.getByRole("checkbox",{name:/I reviewed this exact selection/}).check();
+  await expect(page.getByRole("button",{name:"Confirm source permissions",exact:true})).toBeDisabled();
+  await page.getByRole("checkbox",{name:/I separately permit the selected individual-task fields/}).check();
+  await page.getByRole("button",{name:"Confirm source permissions",exact:true}).click();
+  await expect(page.getByRole("status").filter({hasText:"Source permissions saved"})).toBeVisible();
+  const permission=await client.rpc("executive_get_source_permissions_v2");expect(permission.error).toBeNull();
+  expect(permission.data.taskCapabilities).toEqual(["nonprofit.roadmap"]);
+  const first=await client.rpc("executive_find_sources",{p_capability:"nonprofit.roadmap",p_level:"task",p_search:prefix,p_limit:40});
+  expect(first.error).toBeNull();expect(first.data.total).toBe(52);
+  const later=await client.rpc("executive_find_sources",{p_capability:"nonprofit.roadmap",p_level:"task",p_search:prefix,p_limit:20,p_after:first.data.nextCursor});
+  expect(later.error).toBeNull();const target=later.data.items.at(-1);expect(target).toBeTruthy();
+
+  await page.goto("/workspace/executive/daily_brief/new");
+  await page.getByLabel("Title *",{exact:true}).fill(title("A precise task-linked brief"));
+  await page.getByLabel("Focus *",{exact:true}).fill("Which fictional task needs my next move?");
+  await page.getByText("Find a record or individual task to link",{exact:true}).click();
+  await page.getByLabel("Source workspace",{exact:true}).selectOption("nonprofit.roadmap");
+  await page.getByLabel("Link level",{exact:true}).selectOption("task");
+  await page.getByLabel("Find by title",{exact:true}).fill(prefix);await page.getByRole("button",{name:"Find sources",exact:true}).click();
+  await expect(page.getByText(/52 matching permitted tasks/)).toBeVisible();
+  await page.getByRole("button",{name:"Next source page",exact:true}).click();
+  await expect(page.getByText(/Later page · 20 returned/)).toBeVisible();
+  await page.getByRole("button",{name:"Next source page",exact:true}).click();
+  await expect(page.getByText(/Later page · 12 returned/)).toBeVisible();
+  await page.getByRole("button",{name:"Link "+target.metadata.title,exact:true}).click();
+  await page.getByText("Find a record or individual task to link",{exact:true}).click();
+  await expect(page.getByRole("heading",{name:target.metadata.title,exact:true})).toBeVisible();
+  await expect(page.getByText(/Owner: Fictional delivery owner/)).toBeVisible();
+  await expect(page.getByText("BROWSER_PRIVATE_TASK_EVIDENCE_CANARY",{exact:true})).toHaveCount(0);
+  await confirm(page).check();await saveButton(page,"daily_brief").click();
+  const briefId=await savedId(page,"daily_brief"),saved=await get(client,"daily_brief",briefId);
+  expect(saved.data.references).toEqual([target.reference]);expect(JSON.stringify(saved.data)).not.toContain(target.metadata.title);
+  await expect(page.getByRole("heading",{name:target.metadata.title,exact:true})).toBeVisible();
+  await page.getByRole("heading",{name:target.metadata.title,exact:true}).locator("..").screenshot({path:"test-results/executive-task-link-"+info.project.name+".png"});await noOverflow(page);
+
+  await page.goto("/workspace/executive/sources");await page.getByRole("checkbox",{name:"Include individual tasks — Nonprofit roadmap tasks",exact:true}).uncheck();
+  await page.getByRole("checkbox",{name:/I reviewed this exact selection/}).check();
+  await page.getByRole("button",{name:"Confirm source permissions",exact:true}).click();
+  await expect(page.getByRole("status").filter({hasText:"Source permissions saved"})).toBeVisible();
+  const withdrawn=await client.rpc("executive_get_source_permissions_v2");expect(withdrawn.data.sourceCapabilities).toEqual(["nonprofit.roadmap"]);expect(withdrawn.data.taskCapabilities).toEqual([]);
+  await page.goto("/workspace/executive/daily_brief/"+briefId);
+  await expect(page.getByRole("heading",{name:"Source unavailable",exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:target.metadata.title,exact:true})).toHaveCount(0);
+  await expect(page.getByText(/Owner: Fictional delivery owner/)).toHaveCount(0);
+  await share(client,[]);
+ });
+ test("shows task ownership and next steps in paged attention without treating a held meeting as pending",async({page},info)=>{
+  const client=await session(),name=title("Fictional blocked meeting follow-through"),content=executiveFixtures("2026-09-09").meeting;
+  const action={id:randomUUID(),title:name,owner:"Fictional operations lead",dueDate:"2020-01-01",state:"blocked" as const,
+   nextAction:"Obtain the illustrative missing decision",evidence:"ATTENTION_TASK_PRIVATE_EVIDENCE_CANARY",reviewState:"user_stated" as const};
+  const meeting=await save(client,"meeting",{...content,state:"held",title:title("Fictional completed meeting"),outcome:"PRIVATE_MEETING_OUTCOME_CANARY",actions:[action]});
+  await signIn(page);await page.goto("/workspace/executive");
+  const heading=page.getByRole("heading",{name,exact:true});await expect(heading).toBeVisible();
+  const card=heading.locator("..");
+  await expect(card.getByText(/Owner: Fictional operations lead/)).toBeVisible();
+  await expect(card.getByText("Next step: Obtain the illustrative missing decision",{exact:true})).toBeVisible();
+  await expect(card.getByText("This saved task is marked blocked.",{exact:true})).toBeVisible();
+  await expect(page.getByRole("heading",{name:meeting.data.title,exact:true})).toHaveCount(0);
+  await expect(page.getByText("ATTENTION_TASK_PRIVATE_EVIDENCE_CANARY",{exact:true})).toHaveCount(0);
+  await card.screenshot({path:"test-results/executive-task-attention-"+info.project.name+".png"});
+  await page.getByText(/Source coverage ·/).click();
+  await expect(page.getByText(/Executive commitments, decisions and meetings · individual tasks — metadata checked/)).toBeVisible();
+  await noOverflow(page);
  });
  test("reviews exact proposals, restores originals and exports saved work only",async({page})=>{
   const client=await session(),data={...executiveFixtures().commitment,title:title("A recoverable fictional commitment")},d=await save(client,"commitment",data);
