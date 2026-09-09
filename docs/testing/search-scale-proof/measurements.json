@@ -1,0 +1,502 @@
+{
+  "milestone": "P11a",
+  "date": "2026-09-09",
+  "fixture": "Fictional local records only; not a representative-client or production load test",
+  "method": "Real authenticated loopback RPC; one first read and five timed reads per case; nearest-rank p95 of five is the maximum. Not a production SLA.",
+  "counts": {
+    "writer": 12000,
+    "perDocumentKind": 200,
+    "ownTotal": 15000,
+    "foreignTotal": 500
+  },
+  "logicalTextBytes": 119653394,
+  "beforeMeasuredAt": "2026-09-09T22:37:17.216Z",
+  "afterMeasuredAt": "2026-09-09T22:39:34.998Z",
+  "planTotals": {
+    "before": {
+      "executionMs": 774.999,
+      "planningMs": 0.015,
+      "tempReadBlocks": 307972,
+      "tempWrittenBlocks": 18116,
+      "sharedHitBlocks": 52268,
+      "sharedReadBlocks": 0
+    },
+    "after": {
+      "executionMs": 184.063,
+      "planningMs": 0.019,
+      "tempReadBlocks": 0,
+      "tempWrittenBlocks": 0,
+      "sharedHitBlocks": 51743,
+      "sharedReadBlocks": 0
+    }
+  },
+  "cases": [
+    {
+      "name": "all_first",
+      "query": "p11ascale",
+      "providers": [
+        "executive.search.commitment",
+        "executive.search.daily_brief",
+        "executive.search.decision",
+        "executive.search.meeting",
+        "executive.search.weekly_review",
+        "investor.search.brief",
+        "investor.search.filing",
+        "investor.search.thesis",
+        "investor.search.watchlist",
+        "ministry.search.archive",
+        "ministry.search.research",
+        "nonprofit.search.meeting",
+        "nonprofit.search.partner",
+        "nonprofit.search.plan",
+        "nonprofit.search.research",
+        "writer.search.resources"
+      ],
+      "offset": 0,
+      "matchingCount": 15000,
+      "responseSha256ExcludingRetrievedAt": "8ecb4ef153e27d359355b701a60f06e5d7e4ce5467292f5a33fca080f0755e2a",
+      "before": {
+        "firstMs": 823.2,
+        "samplesMs": [
+          703.7,
+          672.9,
+          710,
+          707.5,
+          750.4
+        ],
+        "p50Ms": 707.5,
+        "p95Ms": 750.4
+      },
+      "after": {
+        "firstMs": 195.3,
+        "samplesMs": [
+          180.8,
+          165.5,
+          175.7,
+          167.8,
+          174.2
+        ],
+        "p50Ms": 174.2,
+        "p95Ms": 180.8
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "all_deep",
+      "query": "p11ascale",
+      "providers": [
+        "executive.search.commitment",
+        "executive.search.daily_brief",
+        "executive.search.decision",
+        "executive.search.meeting",
+        "executive.search.weekly_review",
+        "investor.search.brief",
+        "investor.search.filing",
+        "investor.search.thesis",
+        "investor.search.watchlist",
+        "ministry.search.archive",
+        "ministry.search.research",
+        "nonprofit.search.meeting",
+        "nonprofit.search.partner",
+        "nonprofit.search.plan",
+        "nonprofit.search.research",
+        "writer.search.resources"
+      ],
+      "offset": 10000,
+      "matchingCount": 15000,
+      "responseSha256ExcludingRetrievedAt": "94457b7802b9ab4e3a4c6596c6de9fcd451c56f42442d83df06ee41fd548e0af",
+      "before": {
+        "firstMs": 991.7,
+        "samplesMs": [
+          910.8,
+          898,
+          1132.4,
+          856.3,
+          948.1
+        ],
+        "p50Ms": 910.8,
+        "p95Ms": 1132.4
+      },
+      "after": {
+        "firstMs": 193.1,
+        "samplesMs": [
+          191.6,
+          197.5,
+          233.7,
+          227.7,
+          204.5
+        ],
+        "p50Ms": 204.5,
+        "p95Ms": 233.7
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "writer_broad",
+      "query": "p11ascale",
+      "providers": [
+        "writer.search.resources"
+      ],
+      "offset": 0,
+      "matchingCount": 12000,
+      "responseSha256ExcludingRetrievedAt": "2c7c3e905f6d925fa6eadffebdc77dc8d3ab10a984da47695f173eafae651c95",
+      "before": {
+        "firstMs": 245,
+        "samplesMs": [
+          255,
+          273.8,
+          274.1,
+          254.1,
+          254.7
+        ],
+        "p50Ms": 255,
+        "p95Ms": 274.1
+      },
+      "after": {
+        "firstMs": 128.7,
+        "samplesMs": [
+          124.5,
+          126,
+          123.3,
+          122.8,
+          123.1
+        ],
+        "p50Ms": 123.3,
+        "p95Ms": 126
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "writer_selective",
+      "query": "precisionneedle11999",
+      "providers": [
+        "writer.search.resources"
+      ],
+      "offset": 0,
+      "matchingCount": 1,
+      "responseSha256ExcludingRetrievedAt": "89b3c657e21eb1cfc366ddf68ba36fac5cb38562f28695d1545db7c3c1f6889f",
+      "before": {
+        "firstMs": 54.4,
+        "samplesMs": [
+          52.9,
+          51.6,
+          51.3,
+          50.5,
+          52.5
+        ],
+        "p50Ms": 51.6,
+        "p95Ms": 52.9
+      },
+      "after": {
+        "firstMs": 46.3,
+        "samplesMs": [
+          48.7,
+          51.6,
+          59,
+          49.8,
+          48.4
+        ],
+        "p50Ms": 49.8,
+        "p95Ms": 59
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "writer_phrase",
+      "query": "\"Fictional local resource\"",
+      "providers": [
+        "writer.search.resources"
+      ],
+      "offset": 0,
+      "matchingCount": 12000,
+      "responseSha256ExcludingRetrievedAt": "e27f2cce9817e2e55b729f4deae871c24e1bfa2c8ef29ff799cdc387d9953e5b",
+      "before": {
+        "firstMs": 867.5,
+        "samplesMs": [
+          819.6,
+          827.4,
+          842.3,
+          869.4,
+          900.1
+        ],
+        "p50Ms": 842.3,
+        "p95Ms": 900.1
+      },
+      "after": {
+        "firstMs": 722.9,
+        "samplesMs": [
+          722,
+          699.1,
+          675.7,
+          685.3,
+          701.2
+        ],
+        "p50Ms": 699.1,
+        "p95Ms": 722
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "ministry_research",
+      "query": "p11ascale",
+      "providers": [
+        "ministry.search.research"
+      ],
+      "offset": 0,
+      "matchingCount": 200,
+      "responseSha256ExcludingRetrievedAt": "52fe1d584e246a590d21dc4f4ea7ee9cad10acc48e85029bec5ec5e93f8eade2",
+      "before": {
+        "firstMs": 27.3,
+        "samplesMs": [
+          27,
+          27.7,
+          28.5,
+          27.8,
+          28.9
+        ],
+        "p50Ms": 27.8,
+        "p95Ms": 28.9
+      },
+      "after": {
+        "firstMs": 24,
+        "samplesMs": [
+          24.5,
+          24,
+          23.1,
+          23.5,
+          22.5
+        ],
+        "p50Ms": 23.5,
+        "p95Ms": 24.5
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "nonprofit_meetings",
+      "query": "p11ascale",
+      "providers": [
+        "nonprofit.search.meeting"
+      ],
+      "offset": 0,
+      "matchingCount": 200,
+      "responseSha256ExcludingRetrievedAt": "509aa774d695e8ea399da32e6d8616f23ec5abccceb389c45c0eb644f76b8413",
+      "before": {
+        "firstMs": 27.3,
+        "samplesMs": [
+          26.1,
+          26.7,
+          26.4,
+          26.3,
+          29.1
+        ],
+        "p50Ms": 26.4,
+        "p95Ms": 29.1
+      },
+      "after": {
+        "firstMs": 22.2,
+        "samplesMs": [
+          22.8,
+          22.8,
+          22.6,
+          22.9,
+          23.7
+        ],
+        "p50Ms": 22.8,
+        "p95Ms": 23.7
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "investor_theses",
+      "query": "p11ascale",
+      "providers": [
+        "investor.search.thesis"
+      ],
+      "offset": 0,
+      "matchingCount": 200,
+      "responseSha256ExcludingRetrievedAt": "d10a6f257247f33b730d04517ed047685c3e8ca3970f672c051c6c618c4a609c",
+      "before": {
+        "firstMs": 32,
+        "samplesMs": [
+          31.2,
+          34,
+          31.8,
+          32.3,
+          31.8
+        ],
+        "p50Ms": 31.8,
+        "p95Ms": 34
+      },
+      "after": {
+        "firstMs": 25.6,
+        "samplesMs": [
+          24.9,
+          25.2,
+          24.6,
+          25.4,
+          25.4
+        ],
+        "p50Ms": 25.2,
+        "p95Ms": 25.4
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "executive_briefs",
+      "query": "p11ascale",
+      "providers": [
+        "executive.search.daily_brief"
+      ],
+      "offset": 0,
+      "matchingCount": 200,
+      "responseSha256ExcludingRetrievedAt": "3912358d1c2b66819a5d9f3a73336270f7ed8daa8c4f8f38eecb115847fb47a1",
+      "before": {
+        "firstMs": 27,
+        "samplesMs": [
+          27.2,
+          25.9,
+          27.7,
+          27.3,
+          27.1
+        ],
+        "p50Ms": 27.2,
+        "p95Ms": 27.7
+      },
+      "after": {
+        "firstMs": 24.2,
+        "samplesMs": [
+          23.4,
+          25.1,
+          25.3,
+          24.5,
+          24.7
+        ],
+        "p50Ms": 24.7,
+        "p95Ms": 25.3
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "no_matches",
+      "query": "p11aneverpresent77889",
+      "providers": [
+        "executive.search.commitment",
+        "executive.search.daily_brief",
+        "executive.search.decision",
+        "executive.search.meeting",
+        "executive.search.weekly_review",
+        "investor.search.brief",
+        "investor.search.filing",
+        "investor.search.thesis",
+        "investor.search.watchlist",
+        "ministry.search.archive",
+        "ministry.search.research",
+        "nonprofit.search.meeting",
+        "nonprofit.search.partner",
+        "nonprofit.search.plan",
+        "nonprofit.search.research",
+        "writer.search.resources"
+      ],
+      "offset": 0,
+      "matchingCount": 0,
+      "responseSha256ExcludingRetrievedAt": "f6c764df95f5a9eaa982884dc68b70d248afe53f939e92ecfead01663bdb6ba8",
+      "before": {
+        "firstMs": 65,
+        "samplesMs": [
+          68.8,
+          64.7,
+          66.3,
+          65.5,
+          69.7
+        ],
+        "p50Ms": 66.3,
+        "p95Ms": 69.7
+      },
+      "after": {
+        "firstMs": 61.9,
+        "samplesMs": [
+          72.2,
+          71.4,
+          79,
+          81.2,
+          70.8
+        ],
+        "p50Ms": 72.2,
+        "p95Ms": 81.2
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    },
+    {
+      "name": "foreign_control",
+      "query": "foreignscaleprivate",
+      "providers": [
+        "executive.search.commitment",
+        "executive.search.daily_brief",
+        "executive.search.decision",
+        "executive.search.meeting",
+        "executive.search.weekly_review",
+        "investor.search.brief",
+        "investor.search.filing",
+        "investor.search.thesis",
+        "investor.search.watchlist",
+        "ministry.search.archive",
+        "ministry.search.research",
+        "nonprofit.search.meeting",
+        "nonprofit.search.partner",
+        "nonprofit.search.plan",
+        "nonprofit.search.research",
+        "writer.search.resources"
+      ],
+      "offset": 0,
+      "matchingCount": 0,
+      "responseSha256ExcludingRetrievedAt": "d62ce31711c4c919feee7f3a7a5605d8d6c2d61650bb16379f61099f5ab6411c",
+      "before": {
+        "firstMs": 67,
+        "samplesMs": [
+          71.3,
+          84.9,
+          65.4,
+          66.2,
+          64.6
+        ],
+        "p50Ms": 66.2,
+        "p95Ms": 84.9
+      },
+      "after": {
+        "firstMs": 60.2,
+        "samplesMs": [
+          66,
+          61.1,
+          78.8,
+          78.8,
+          62.5
+        ],
+        "p50Ms": 66,
+        "p95Ms": 78.8
+      },
+      "errorsBefore": 0,
+      "errorsAfter": 0,
+      "fullResponseParity": true
+    }
+  ]
+}

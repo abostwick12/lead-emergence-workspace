@@ -1,5 +1,14 @@
 # Test evidence
 
+## P11a large-library saved-work search — 2026-09-09
+
+See [the P11a scale acceptance ledger](workspace-search-scale-acceptance.md).
+A 15,000-record fictional owner library plus 500 other-owner controls preserves
+all tested results while page-bound previews reduce broad-search work. Raw
+before/after samples and response hashes are packaged with the ledger.
+This is controlled local evidence, not measured client value or a production
+latency guarantee. All six bundles remain **NOT READY TO SHIP**.
+
 ## P11 native saved-work search and quick actions — 2026-09-09
 
 See [the P11 acceptance ledger](workspace-search-acceptance.md) and

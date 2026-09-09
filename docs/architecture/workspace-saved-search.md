@@ -78,6 +78,29 @@ search preserves the typed query but shows no partial or previous result set.
 The UI distinguishes checking access, unavailable access, an assigned empty
 catalog, zero matches and a failed search. Reloading scopes does not grant access.
 
+## Page-bound preview work (P11a)
+
+Migration 34 keeps the same native guard, request/result contract, full match
+counts and ranking. The materialized match set contains identifiers, title,
+revision, update time, scope and rank, not full bodies, document JSON or
+search vectors. A materialized ranked page selects at most 25 candidates
+before owner-and-ID-scoped reads prepare their original plain-text previews.
+No data table, model tool, entitlement or sharing permission is added.
+
+This targets work demonstrated in the actual 15,000-record local query plan.
+It does not cap counts, omit candidates, change rank semantics or manufacture
+a cache hit. PostgreSQL documents that multiply used materialized CTEs retain
+their evaluated result, and ranking must still consider matching vectors.
+See [CTE evaluation](https://www.postgresql.org/docs/15/queries-with.html#QUERIES-WITH-CTE-MATERIALIZATION)
+and [text-search ranking and previews](https://www.postgresql.org/docs/15/textsearch-controls.html),
+reviewed 2026-09-09. The inference for this query is to retain required
+ranking while delaying expensive source-text preparation until the page is
+known. Preview text is still displayed as plain text, not trusted HTML.
+
+The P11a [scale ledger](../testing/workspace-search-scale-acceptance.md)
+separates this controlled synthetic workload from representative retrieval
+quality, concurrency, unaided value and deployed latency acceptance.
+
 ## Local verification environment
 
 Windows reserved the former 58420–58427 range during P11. The existing named

@@ -4,11 +4,13 @@ import {execFileSync} from "node:child_process";
 import {resolve} from "node:path";
 // A new named local Supabase database, never reset over an existing stack.
 // Keep its backup after verification. The next clean replay needs a new explicit name.
-const workdir=".bundle-local/fresh-p11",project="bundle-search-fresh-p11",container="supabase_db_"+project;
+const suffix=process.argv[2]??"p11a";
+assert.match(suffix,/^[a-z][a-z0-9-]{1,20}$/,"Choose a simple explicit local verification suffix.");
+const workdir=".bundle-local/fresh-"+suffix,project="bundle-search-fresh-"+suffix,container="supabase_db_"+project;
 const docker=process.platform==="win32"?"docker.exe":"docker",cli=process.platform==="win32"?"supabase.exe":"supabase";
 function run(command,args){return execFileSync(command,args,{encoding:"utf8",stdio:["ignore","pipe","pipe"]});}
-assert.equal(run(docker,["volume","ls","--filter","name="+project,"-q"]).trim(),"","A previous fresh-P11 backup exists; do not overwrite it.");
-try{await access(workdir);throw new Error("Fresh-P11 directory already exists; inspect it before retrying.");}catch(e){if(e.code!=="ENOENT")throw e;}
+assert.equal(run(docker,["volume","ls","--filter","name="+project,"-q"]).trim(),"","A previous named fresh backup exists; do not overwrite it.");
+try{await access(workdir);throw new Error("Named fresh directory already exists; inspect it before retrying.");}catch(e){if(e.code!=="ENOENT")throw e;}
 await mkdir(resolve(workdir,"supabase/migrations"),{recursive:true});
 const config=(await readFile("supabase/config.toml","utf8")).replace('project_id = "lead-emergence-workspace-local"','project_id = "'+project+'"').replaceAll("5642","5862").replaceAll("localhost:3000","localhost:3125").replaceAll("127.0.0.1:3000","127.0.0.1:3125");
 await writeFile(resolve(workdir,"supabase/config.toml"),config);
@@ -34,5 +36,5 @@ try{
  assert.equal(Number(sql("select count(*) from auth.users")),0);
  console.log("Fresh migration acceptance: "+migrations.length+" migrations; "+total+" assertions; zero users retained.");
 }finally{
- if(attempted){run(cli,["stop","--workdir",workdir]);console.log("Fresh-P11 database stopped. Local backup preserved.");}
+ if(attempted){run(cli,["stop","--workdir",workdir]);console.log("Named fresh database stopped. Local backup preserved.");}
 }
