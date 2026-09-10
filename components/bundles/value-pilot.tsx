@@ -7,6 +7,8 @@ import { getWorkspaceClient } from "@/lib/supabase/client";
 import { workspaceRead } from "@/lib/bundles/client";
 import { valuePilotChange, valuePilotDashboard, valuePilotSession,
   type ValuePilotChange, type ValuePilotDefinition, type ValuePilotSession } from "@/vendor/lead-emergence-bundles/domain-contracts/value-pilot";
+import { representativePilotKitByBundle,
+  type RepresentativePilotKit } from "@/vendor/lead-emergence-bundles/domain-contracts/pilot-kit";
 import styles from "./value-pilot.module.css";
 
 type Answers = {
@@ -19,6 +21,8 @@ const emptyAnswers: Answers = { outcome: null, signals: [], usefulness: 0, trust
   evidence: null, provenance: null, mutation: null, corrections: "0" };
 const labels = { strong_signal: "Strong user-reported signal", promising_signal: "Promising user-reported signal", needs_iteration: "Needs iteration" } as const;
 const abandonLabels = { interrupted: "I was interrupted", outcome_unclear: "The expected outcome was unclear", source_gap: "I lacked the needed sources", workflow_friction: "The workflow got in the way", other: "Another reason" } as const;
+const layerLabels = { user_input:"Participant input", authoritative_reference:"Authority to verify", public_source:"Supplied source",
+  prior_work:"Prior work", confirmed_configuration:"Confirmed preference", task_metadata:"Task metadata", synthetic_system_state:"Practice system state" } as const;
 
 class PilotRequestError extends Error { constructor(message: string, readonly status: number) { super(message); } }
 
@@ -35,6 +39,26 @@ async function changePilot(change: ValuePilotChange) {
 function elapsedLabel(seconds: number) {
   const minutes = Math.max(1, Math.ceil(seconds / 60));
   return minutes === 1 ? "1 measured minute" : `${minutes} measured minutes`;
+}
+
+function PilotGuide({ kit }: { kit: RepresentativePilotKit }) {
+  return <details className={styles.guide}>
+    <summary><span>Use a comparable pilot</span><small>{kit.targetMinutes}-minute script · fictional practice packet</small></summary>
+    <div className={styles.guideBody}>
+      <div className={styles.rehearsal}><strong>Rehearsal data only</strong><p>{kit.syntheticDataNotice}</p></div>
+      <section><h3>{kit.title}</h3><p>{kit.purpose}</p><p><strong>Best fit:</strong> {kit.participantFit}</p></section>
+      <section><h4>Before the timer</h4><ol>{kit.preparation.map(step => <li key={step.id}>{step.instruction}</li>)}</ol>
+        <p className={styles.baseline}><strong>Baseline question:</strong> {kit.baselinePrompt}</p></section>
+      <details className={styles.packet}><summary>Open the fictional source packet · {kit.sourcePacket.length} cards</summary>
+        <div className={styles.sourceCards}>{kit.sourcePacket.map(source => <article key={source.id}>
+          <span>{layerLabels[source.layer]}</span><h5>{source.label}</h5><p>{source.content}</p><small>{source.handling}</small>
+        </article>)}</div></details>
+      <section><h4>Timed objective</h4><ol className={styles.timed}>{kit.timedSteps.map(step => <li key={step.id}><p>{step.instruction}</p><small><strong>Done when:</strong> {step.evidenceOfCompletion}</small></li>)}</ol></section>
+      <section><h4>Quality bar</h4><ul className={styles.rubric}>{kit.rubric.map(item => <li key={item.id}>
+        <strong>{item.label}{item.critical ? " · required" : ""}</strong><span>{item.passDescription}</span></li>)}</ul></section>
+      <p className={styles.protocol}>A rehearsal checks the script, not client value. A controlled-beta decision requires at least {kit.thresholds.minimumRepresentativeAttempts} authorized representative attempts, including {kit.thresholds.minimumUnaidedAttempts} unaided attempts, with no critical safety issue.</p>
+    </div>
+  </details>;
 }
 
 function ResultSummary({ session }: { session: ValuePilotSession }) {
@@ -140,6 +164,7 @@ export function BundleValuePilot() {
       return <article className={styles.card} key={definition.bundleKey} data-available={definition.available}>
         <div className={styles.cardHead}><div><p>{definition.targetMinutes}-minute target</p><h2>{definition.displayName}</h2></div><span>{definition.available ? "Available" : "Not currently assigned"}</span></div>
         <p className={styles.promise}>{definition.promise}</p><div className={styles.expected}><strong>Expected first outcome</strong><p>{definition.firstRunOutcome}</p></div>
+        <PilotGuide kit={representativePilotKitByBundle[definition.bundleKey]}/>
         {active ? <div className={styles.active}><p><Clock3 size={16}/> Measurement is running from the server start time.</p><div className={styles.actions}>
           <Link className="button" href={definition.workspaceRoute}>Open {definition.displayName} <ArrowRight size={15}/></Link>
           <button className="button secondary" onClick={() => setOpenPilot(current => current === active.id ? null : active.id)}>{openPilot === active.id ? "Close result form" : "Record the outcome"}</button></div>

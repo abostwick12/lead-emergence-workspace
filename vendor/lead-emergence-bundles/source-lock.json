@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "1078b4e3ff6201160a1efdbe724e2577dd7ef925",
+  "sourceRevision": "a6967ae011ceca2ab683f29b0a9362d337465fe2",
   "contractVersion": "1.0",
   "files": [
     {
@@ -57,6 +57,11 @@
       "sourcePath": "bundles/value-pilot.ts",
       "outputPath": "domain-contracts/value-pilot.ts",
       "sha256": "6493c17924ecbf0c2744edf804c3ecb3e6eb72b237bb78698851614c51eef0ea"
+    },
+    {
+      "sourcePath": "bundles/pilot-kit.ts",
+      "outputPath": "domain-contracts/pilot-kit.ts",
+      "sha256": "2b8270e43aec03a46ca1a382f9f24762e451d6df6b72a914b9ab10f2a89f6a71"
     },
     {
       "sourcePath": "bundles/writer-editor/bundle.json",

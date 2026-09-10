@@ -52,6 +52,19 @@ test.describe("private bundle value checks",()=>{
     await page.goto("/workspace/settings");await expect(page.getByRole("link",{name:"Measure bundle value",exact:true})).toHaveAttribute("href","/workspace/value");
   });
 
+  test("shows a comparable fictional pilot guide without presenting it as client evidence",async({page},info)=>{
+    await signIn(page);const card=page.getByRole("article").filter({has:page.getByRole("heading",{name:"Writer & Editor",exact:true})});
+    await expect(card.getByText("Rehearsal data only",{exact:true})).not.toBeVisible();
+    await card.getByText("Use a comparable pilot",{exact:true}).click();
+    await expect(card.getByText("Rehearsal data only",{exact:true})).toBeVisible();
+    await expect(card.getByText(/never as client work or measured client value/i)).toBeVisible();
+    await card.getByText(/Open the fictional source packet/).click();
+    await expect(card.getByRole("heading",{name:"Unfinished draft",exact:true})).toBeVisible();
+    await expect(card.getByText(/No Wix connection is authorized/)).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+    await page.screenshot({path:`test-results/bundle-pilot-guide-${info.project.name}.png`,fullPage:true});
+  });
+
   test("retries the exact start after the server committed but the response was lost",async({page},info)=>{
     test.skip(info.project.name!=="desktop","Transport uncertainty is exercised once; the complete flow runs in both viewports.");
     await signIn(page);let interrupted=false;

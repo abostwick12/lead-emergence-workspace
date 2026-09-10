@@ -1,5 +1,21 @@
 # Test evidence
 
+## P17 comparable representative-pilot kits — 2026-09-10
+
+See [the P17 acceptance ledger](bundle-representative-pilot-acceptance.md) and
+[the pilot authority boundary](../architecture/bundle-representative-pilots.md).
+All six bundles now provide the same rehearsal-to-representative protocol with a
+fictional source packet, pre-timer setup, unaided timed task, observable outcome,
+expert rubric, critical safety checks, privacy-bounded run record, and controlled-
+beta decision oracle.
+
+Final local proof includes 189 portable tests, 323 host unit tests, 32 schema-
+policy checks, 275 runtime boundaries, an optimized 57-page build, seven focused
+desktop/mobile browser passes with one intentional mobile fault-injection duplicate
+skipped, and a two-case final screenshot rerun. P16 storage was unchanged, so its
+database suite was not mislabeled as fresh P17 evidence. No representative run
+occurred; all six bundles remain **NOT READY TO SHIP**.
+
 ## P16 private bundle first-value pilots — 2026-09-10
 
 See [the P16 acceptance ledger](bundle-value-pilot-acceptance.md) and

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { bundleValuePilotDefinitions } from "@/lib/bundles/experience";
 import { assessValuePilot, valuePilotBundleKeys, valuePilotChange } from "@/vendor/lead-emergence-bundles/domain-contracts/value-pilot";
+import { assessRepresentativePilot, representativePilotKitByBundle,
+  representativePilotKits } from "@/vendor/lead-emergence-bundles/domain-contracts/pilot-kit";
 
 const migration = readFileSync("supabase/migrations/20260915130000_bundle_value_pilots.sql", "utf8");
 const route = readFileSync("app/api/bundles/value-pilots/route.ts", "utf8");
@@ -25,6 +27,15 @@ describe("bundle value pilot host", () => {
       requiredGates: { evidenceRequired: true, provenanceRequired: true, mutationConfirmationRequired: true } })).toEqual({
         targetMet: true, qualityGatesMet: true, estimatedMinutesSaved: 17, assessment: "strong_signal"
       });
+  });
+  it("ships one fictional, privacy-bounded guide per bundle without counting rehearsal as client evidence", () => {
+    expect(representativePilotKits.map(item => item.bundleKey)).toEqual(valuePilotBundleKeys);
+    expect(representativePilotKits.every(item => item.syntheticDataNotice.toLowerCase().includes("fictional"))).toBe(true);
+    const kit = representativePilotKitByBundle.writer_editor;
+    expect(assessRepresentativePilot(kit, []).decision).toBe("insufficient_evidence");
+    expect(component).toContain("Use a comparable pilot");
+    expect(component).toContain("Rehearsal data only");
+    expect(component).not.toContain("participantName");
   });
   it("uses private server storage, direct native authority and exact retry receipts", () => {
     expect(migration).toContain("create table workspace_private.bundle_value_pilot_sessions");
