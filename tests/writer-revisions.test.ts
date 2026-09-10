@@ -38,6 +38,8 @@ describe("Writer approval contracts", () => {
       const response=await writingMutation(new Request("http://localhost/api/writing/import",{method:"POST",headers:{Authorization:"Bearer synthetic","Content-Type":"application/json"},body}),operation);
       expect(response.status).toBe(status); expect(response.headers.get("cache-control")).toContain("no-store");
     }
+    const batch=await writingMutation(new Request("http://localhost/api/writing/bulk",{method:"POST",headers:{Authorization:"Bearer synthetic","Content-Type":"application/json"},body:'{"x":"'+"x".repeat(650001)+'"}'}),operation,{tooLargeMessage:"This staging list is too large."});
+    expect(batch.status).toBe(413);expect(await batch.json()).toEqual({message:"This staging list is too large."});
     expect(operation).not.toHaveBeenCalled();
   });
 });

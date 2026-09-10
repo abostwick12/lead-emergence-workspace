@@ -3,14 +3,15 @@ import { ZodError } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { authenticatedBundleClient, BundleApiError, readBearerToken } from "@/lib/workspace/bundle-server";
 const headers = { "Cache-Control": "no-store, private", Vary: "Authorization" };
-export async function writingMutation(request: Request, operation: (client: SupabaseClient<any, any, any, any, any>, input: unknown) => Promise<unknown>) {
+type MutationCopy={tooLargeMessage?:string;missingMessage?:string;invalidMessage?:string};
+export async function writingMutation(request: Request, operation: (client: SupabaseClient<any, any, any, any, any>, input: unknown) => Promise<unknown>, copy:MutationCopy={}) {
   try {
     const { client } = await authenticatedBundleClient(readBearerToken(request));
     if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) throw new BundleApiError("Use a JSON request.", 415);
     // Bearer-only authorization (no ambient cookies), no permissive CORS, bounded
     // streaming body even when Content-Length is missing or malicious.
     const reader = request.body?.getReader();
-    if (!reader) throw new BundleApiError("Add the resource or proposal details.", 400);
+    if (!reader) throw new BundleApiError(copy.missingMessage??"Add the resource or proposal details.", 400);
     const chunks: Uint8Array[] = [];
     let size = 0;
     try {
@@ -18,7 +19,7 @@ export async function writingMutation(request: Request, operation: (client: Supa
         const { done, value } = await reader.read();
         if (done) break;
         size += value.byteLength;
-        if (size > 650000) { await reader.cancel(); throw new BundleApiError("This resource is too large. Use up to 100,000 characters of source text.", 413); }
+        if (size > 650000) { await reader.cancel(); throw new BundleApiError(copy.tooLargeMessage??"This resource is too large. Use up to 100,000 characters of source text.", 413); }
         chunks.push(value);
       }
     } finally { reader.releaseLock(); }
@@ -28,6 +29,6 @@ export async function writingMutation(request: Request, operation: (client: Supa
     return Response.json(await operation(client, input), { headers });
   } catch (error) {
     const status = error instanceof BundleApiError ? error.status : error instanceof ZodError ? 400 : 503;
-    return Response.json({ message: error instanceof BundleApiError ? error.message : status === 400 ? "Check the resource, revision, and source details." : "We couldn't save this change. You can safely retry." }, { status, headers });
+    return Response.json({ message: error instanceof BundleApiError ? error.message : status === 400 ? copy.invalidMessage??"Check the resource, revision, and source details." : "We couldn't save this change. You can safely retry." }, { status, headers });
   }
 }

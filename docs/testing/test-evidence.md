@@ -2,6 +2,9 @@
 
 ## P19 secure rich-source intake — 2026-09-10
 
+See [the P20 acceptance ledger](resumable-writer-library-acceptance.md) and
+[the implementation boundary](../architecture/resumable-writer-library-staging.md).
+
 See [the P19 acceptance ledger](secure-rich-source-intake-acceptance.md) and
 [the implementation boundary](../architecture/secure-rich-source-intake.md).
 Writer resources and Ministry archives now share bounded, entitlement-checked,
