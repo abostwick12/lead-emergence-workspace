@@ -9,11 +9,12 @@ describe("Native availability input fidelity",()=>{
  it("starts without invented windows, sources or a checked confirmation",()=>{
   const draft=availabilityDraft(meeting);
   expect(draft.checkedAt).toBeNull();expect(draft.source).toBe("");expect(draft.busy).toEqual([]);
-  expect(draft.offered[0].start).toBe("");expect(()=>reviewedAvailability(draft,meeting)).toThrow(/Confirm/);
+  expect(draft.offered[0].start).toBe("");expect(draft.offered[0].id).toMatch(/^[a-f0-9-]{36}$/);expect(draft.available[0].id).toMatch(/^[a-f0-9-]{36}$/);
+  expect(()=>reviewedAvailability(draft,meeting)).toThrow(/Confirm/);
  });
  it("retains exact saved instants, including repeated-hour choice and submillisecond precision",()=>{
   const saved={...meeting,timeZone:input.timeZone,availability:{input,participants:[]}};
-  const draft=availabilityDraft(saved);expect(draft.offered[0].start).toBe("2026-11-01T01:00");
+  const draft=availabilityDraft(saved);expect(draft.offered[0].start).toBe("2026-11-01T01:00");expect(draft.offered[0].id).toMatch(/^[a-f0-9-]{36}$/);
   expect(reviewedAvailability(draft,saved)).toEqual(saved.availability);
  });
  it("refuses a snapshot check for changed participants, duration or display zone",()=>{

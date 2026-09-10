@@ -91,8 +91,9 @@ current authority, without client-specific conditionals.
 Reads are keyed by subject, workspace, authority revision and resource path.
 Capability loss removes private state. Requests are private/no-store and have
 bounded payloads; the client has a twenty-second timeout, safe identical retries,
-visible errors and unsaved-navigation warnings. Unsaved forms are on-screen
-only: browser crash/autosave recovery is not yet implemented.
+visible errors and unsaved-navigation warnings. P15 protects unfinished forms in
+private direct-session-only server drafts with explicit restore/discard, conflict
+handling and atomic official commit.
 
 Actual installed ChatGPT/Codex operation, approved hosted migration/Entry consent,
 representative public-authority/grant research quality, unaided first-use/time

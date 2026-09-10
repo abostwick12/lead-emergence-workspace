@@ -5,10 +5,14 @@ export type WindowDraft={id:string;start:string;end:string;startInstant:string;e
 export type AvailabilityDraft={zone:string;offered:WindowDraft[];available:WindowDraft[];busy:WindowDraft[];source:string;bufferMinutes:number;checkedAt:string|null;context:string};
 export const meetingAvailabilityContext=(meeting:Pick<Meeting,"timeZone"|"durationMinutes"|"participants">)=>JSON.stringify([meeting.timeZone,meeting.durationMinutes,meeting.participants.map(p=>[p.name,p.role])]);
 export const blankAvailabilityWindow=(id:string):WindowDraft=>({id,start:"",end:"",startInstant:"",endInstant:""});
+const recoveryWindowId=(name:"offered"|"available"|"busy",index:number)=>{
+ const offset={offered:1,available:1001,busy:2001}[name]+index;
+ return "00000000-0000-4000-8000-"+offset.toString(16).padStart(12,"0");
+};
 export function availabilityDraft(meeting:Meeting):AvailabilityDraft{
  const saved=meeting.availability,input=saved?.input,zone=input?.timeZone??meeting.timeZone;
- const windows=(name:"offered"|"available"|"busy")=>(input?.[name]??[]).map((w,i)=>({id:name+"-"+i,start:localMeetingTime(w.start,zone),end:localMeetingTime(w.end,zone),startInstant:w.start,endInstant:w.end}));
- return {zone,offered:input?windows("offered"):[blankAvailabilityWindow("offered-0")],available:input?windows("available"):[blankAvailabilityWindow("available-0")],
+ const windows=(name:"offered"|"available"|"busy")=>(input?.[name]??[]).map((w,i)=>({id:recoveryWindowId(name,i),start:localMeetingTime(w.start,zone),end:localMeetingTime(w.end,zone),startInstant:w.start,endInstant:w.end}));
+ return {zone,offered:input?windows("offered"):[blankAvailabilityWindow(recoveryWindowId("offered",0))],available:input?windows("available"):[blankAvailabilityWindow(recoveryWindowId("available",0))],
   busy:windows("busy"),source:input?.source??"",bufferMinutes:input?.bufferMinutes??15,checkedAt:input?.checkedAt??null,
   context:saved?meetingAvailabilityContext({timeZone:saved.input.timeZone,durationMinutes:saved.input.durationMinutes,participants:saved.participants}):meetingAvailabilityContext(meeting)};
 }

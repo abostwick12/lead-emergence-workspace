@@ -136,8 +136,9 @@ Downloaded copies are not retroactively revocable, and rejected proposals/histor
 are retained rather than erased. Public availability of a filing does not verify
 its content, imply motive or authorize a trade.
 
-Remaining client gates include crash/autosave recovery, representative filing
-and thesis-quality evaluation, measured unaided first value/time saved,
+P15 now provides private autosave/reload recovery for every Investor editor.
+Remaining client gates include representative filing and thesis-quality
+evaluation, measured unaided first value/time saved,
 large-library ergonomics, physical-device/accessibility acceptance, installed
 ChatGPT/Codex use, successful live public lookup, deployed retention/rollback,
 payment enforcement and the remaining native bundles. No hosted migration,

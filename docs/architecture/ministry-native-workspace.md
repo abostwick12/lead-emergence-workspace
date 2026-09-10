@@ -68,13 +68,14 @@ It sends no automatic notification.
 Private read state is keyed by subject, workspace, authority revision and
 resource path. Capability loss unmounts private content. Requests use bearer
 authorization, no-store responses and bounded bodies. Ministry fetches have a
-20-second timeout with explicit recovery messages; failed changes remain in
-the form. Ordinary link/unload navigation warns about unsaved work.
+20-second timeout with explicit recovery messages. P15 adds private server draft
+recovery, exact retries, explicit restore/discard and atomic official commit.
+Ordinary link/unload navigation warns while draft protection is incomplete.
 
 ## Remaining acceptance
 
 Actual installed ChatGPT/Codex operation, approved hosted migration, deployed
-recovery and retention/export policy, representative-client research quality,
+backup/recovery and retention/export policy, representative-client research quality,
 first-use value and responsiveness remain open. Optional Logos access is not
 connected or claimed. Rich archive ingestion, large-library ergonomics and a
 representative theological/source evaluation set still need shipment proof.

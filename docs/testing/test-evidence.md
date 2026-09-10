@@ -1,5 +1,22 @@
 # Test evidence
 
+## P15 private native editor recovery — 2026-09-10
+
+See [the P15 acceptance ledger](native-editor-recovery-acceptance.md) and
+[the recovery authority boundary](../architecture/native-editor-recovery.md).
+All 16 Ministry, Nonprofit, Investor and Executive native editors now protect
+unfinished work in direct-session-only private server drafts, with explicit
+restore/discard/copy, stale-source review, exact retries and atomic canonical
+commit. Background protection no longer swallows the user’s official-save
+request. Writer retains its separately tested specialized recovery path.
+
+Final local proof includes 180 portable tests; six plugin and six skill
+validators; 318 host unit tests; 32 schema-policy checks; 272 runtime boundaries;
+1,061 PostgreSQL assertions across 24 suites; and one uninterrupted optimized
+desktop/mobile connected run with 202 passes and four explicitly documented
+skips. All six bundles remain **NOT READY TO SHIP** because representative,
+installed-host, deployed, provider, retention, payment and support gates remain.
+
 ## P14 native current-condition notifications — 2026-09-09
 
 See [the P14 acceptance ledger](workspace-notifications-acceptance.md) and

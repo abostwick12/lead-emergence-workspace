@@ -7,13 +7,14 @@ import {supportedTimeZoneOptions} from "@/lib/workspace/timezones";
 import {Choice,Field,NumberField,styles} from "./common";
 
 type Prepared={availability:ExecutiveMeetingAvailability;result:ReturnType<typeof proposeExecutiveTimes>};
-export function AvailabilityPlanner({meeting,onStage,onChoose,onRemove,onPending}:{meeting:Meeting;onStage:(snapshot:ExecutiveMeetingAvailability)=>void;
- onChoose:(meeting:Meeting)=>boolean;onRemove:()=>void;onPending:(pending:boolean)=>void}){
- const [draft,setDraft]=useState(()=>availabilityDraft(meeting)),[pending,setPending]=useState(false),
+export type AvailabilityRecovery=AvailabilityDraft&{pending:boolean};
+export function AvailabilityPlanner({meeting,onStage,onChoose,onRemove,onPending,recovery,onRecovery}:{meeting:Meeting;onStage:(snapshot:ExecutiveMeetingAvailability)=>void;
+ onChoose:(meeting:Meeting)=>boolean;onRemove:()=>void;onPending:(pending:boolean)=>void;recovery?:AvailabilityRecovery;onRecovery:(draft:AvailabilityRecovery|undefined)=>void}){
+ const [draft,setDraft]=useState<AvailabilityDraft>(()=>recovery?{zone:recovery.zone,offered:recovery.offered,available:recovery.available,busy:recovery.busy,source:recovery.source,bufferMinutes:recovery.bufferMinutes,checkedAt:recovery.checkedAt,context:recovery.context}:availabilityDraft(meeting)),[pending,setPending]=useState(recovery?.pending??false),
   [prepared,setPrepared]=useState<Prepared|null>(null),[error,setError]=useState<string|null>(null),[notice,setNotice]=useState<string|null>(null);
  const context=meetingAvailabilityContext(meeting),contextMatches=draft.context===context;
  const changed=(next:AvailabilityDraft,keepCheck=false)=>{
-  setDraft({...next,...(keepCheck?{}:{checkedAt:null})});setPending(true);onPending(true);setPrepared(null);setError(null);setNotice(null);
+  const staged={...next,...(keepCheck?{}:{checkedAt:null})};setDraft(staged);setPending(true);onPending(true);onRecovery({...staged,pending:true});setPrepared(null);setError(null);setNotice(null);
  };
  const format=(instant:string)=>new Intl.DateTimeFormat(undefined,{timeZone:meeting.timeZone,dateStyle:"medium",timeStyle:"short"}).format(new Date(instant));
  const calculate=()=>{
@@ -29,12 +30,12 @@ export function AvailabilityPlanner({meeting,onStage,onChoose,onRemove,onPending
    proposeExecutiveTimes(prepared.availability.input);
    if(start){if(!onChoose(chooseExecutiveMeetingTime(meeting,prepared.availability,start)))return;}
    else onStage(prepared.availability);
-   setPending(false);onPending(false);setNotice(start?"Proposed time and reviewed availability added to the unsaved meeting. Confirm and save; agreement is still needed.":"Reviewed availability added to the unsaved meeting. Confirm and save to keep it.");
+   setPending(false);onPending(false);onRecovery(undefined);setNotice(start?"Proposed time and reviewed availability added to the unsaved meeting. Confirm and save; agreement is still needed.":"Reviewed availability added to the unsaved meeting. Confirm and save to keep it.");
   }catch(caught){setPrepared(null);setError(caught instanceof Error?caught.message:"Recheck availability before using it.");}
  };
  const discard=()=>{
   if(pending&&!window.confirm("Discard unapplied availability edits? Your on-screen meeting and saved revisions stay unchanged."))return;
-  setDraft(availabilityDraft(meeting));setPrepared(null);setPending(false);onPending(false);setError(null);setNotice(null);
+  setDraft(availabilityDraft(meeting));setPrepared(null);setPending(false);onPending(false);onRecovery(undefined);setError(null);setNotice(null);
  };
  const active=prepared&&executiveAvailabilityMatches(meeting,prepared.availability)?prepared:null;
  return <details className={styles.detail}>
@@ -80,7 +81,7 @@ export function AvailabilityPlanner({meeting,onStage,onChoose,onRemove,onPending
    {notice&&<p role="status" className={styles.notice}>{notice}</p>}
    {pending&&<p className={styles.notice}>Unapplied availability edits: choose a time, keep the reviewed availability, or discard these edits before saving the meeting.</p>}
    {meeting.availability&&<button type="button" onClick={()=>{if(!window.confirm("Remove retained availability from the on-screen meeting? Earlier saved revisions keep their original copy."))return;
-    onRemove();setDraft(availabilityDraft({...meeting,availability:undefined}));setPrepared(null);setPending(false);onPending(false);setNotice("Availability removed from the unsaved meeting. Confirm and save to keep that change.");}}>Remove retained availability from this meeting</button>}
+    onRemove();setDraft(availabilityDraft({...meeting,availability:undefined}));setPrepared(null);setPending(false);onPending(false);onRecovery(undefined);setNotice("Availability removed from the unsaved meeting. Confirm and save to keep that change.");}}>Remove retained availability from this meeting</button>}
   </section>
  </details>;
 }

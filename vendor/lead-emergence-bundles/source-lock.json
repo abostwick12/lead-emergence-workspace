@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "e9f666768c9794ea7b9a55f975ae907c6e77353c",
+  "sourceRevision": "39f25d39525f5bcecab536df186f791aa64539db",
   "contractVersion": "1.0",
   "files": [
     {
@@ -47,6 +47,11 @@
       "sourcePath": "apps/lead-emergence-runtime/src/index.ts",
       "outputPath": "runtime/index.ts",
       "sha256": "8c7480da3d5daa16bdc2a20ef65c0f344515e3886930fa0165daed914306fa6a"
+    },
+    {
+      "sourcePath": "bundles/editor-recovery.ts",
+      "outputPath": "domain-contracts/editor-recovery.ts",
+      "sha256": "b867a9c044fc106040216fe85efe22037882c302717f1b2247a353637d610e59"
     },
     {
       "sourcePath": "bundles/writer-editor/bundle.json",

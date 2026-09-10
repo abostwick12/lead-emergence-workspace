@@ -4,6 +4,7 @@ import {createClient} from "@supabase/supabase-js";
 import {test,expect,type Page} from "@playwright/test";
 import {executiveFixtures} from "../../scripts/executive-fixtures.mjs";
 import type {ExecutiveData,ExecutiveDocument,ExecutiveKind} from "../../lib/executive-bundle/contracts";
+import {clearNewEditorDrafts} from "./editor-draft-cleanup";
 function fixtures(){return JSON.parse(readFileSync(".bundle-local/fixtures.json","utf8"));}
 async function session(role="executive"){
  const c=JSON.parse(readFileSync(".bundle-local/public-config.json","utf8"));expect(c.url).toBe("http://127.0.0.1:58521");
@@ -31,7 +32,8 @@ async function noOverflow(page:Page){expect(await page.evaluate(()=>document.doc
 test.describe("Executive native client workflow",()=>{
  test.setTimeout(150000);
  test.skip(process.env.EXECUTIVE_LOCAL_ACCEPTANCE!=="true","Requires isolated fictional accounts.");
- test.beforeEach(async({baseURL})=>expect(baseURL).toBe("http://localhost:3125"));
+ test.beforeEach(async({baseURL})=>{expect(baseURL).toBe("http://localhost:3125");await clearNewEditorDrafts("executive",["commitment","decision","meeting","daily_brief","weekly_review"],"executive");});
+ test.afterEach(async()=>clearNewEditorDrafts("executive",["commitment","decision","meeting","daily_brief","weekly_review"],"executive"));
  test("discloses scoped assistant access and denies an unassigned area",async({page})=>{
   await page.goto("/oauth/consent");await expect(page.getByText(/Executive can read assigned commitments/)).toBeVisible();
   await expect(page.getByRole("button",{name:"Allow access",exact:true})).toBeDisabled();
@@ -45,9 +47,9 @@ test.describe("Executive native client workflow",()=>{
   await page.getByLabel("Highest-value next action",{exact:true}).fill("Ask the fictional reviewer to check the opening question.");
   await page.getByLabel("Owner",{exact:true}).fill("Fictional coordinator");await page.getByLabel("Due date",{exact:true}).fill("2026-09-09");
   await confirm(page).check();await page.getByLabel("Title *",{exact:true}).fill(name+" — ready for review");await expect(confirm(page)).not.toBeChecked();await confirm(page).check();
-  await page.route("**/api/executive/commitment",route=>route.request().method()==="POST"?route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Synthetic save interruption."})}):route.continue());
+  await page.route("**/api/bundles/editor-drafts",route=>route.request().method()==="POST"&&route.request().postDataJSON().operation==="commit"?route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Synthetic save interruption."})}):route.continue());
   await saveButton(page,"commitment").click();await expect(page.getByRole("alert").filter({hasText:"Synthetic save interruption."})).toBeVisible();
-  await expect(page.getByLabel("Title *",{exact:true})).toHaveValue(name+" — ready for review");await page.unroute("**/api/executive/commitment");await saveButton(page,"commitment").click();
+  await expect(page.getByLabel("Title *",{exact:true})).toHaveValue(name+" — ready for review");await page.unroute("**/api/bundles/editor-drafts");await saveButton(page,"commitment").click();
   const d=await get(client,"commitment",await savedId(page,"commitment"));expect(d.data).toMatchObject({owner:"Fictional coordinator",reviewState:"user_stated",state:"open"});
   expect(await confirm(page).evaluate(el=>Number.parseFloat(getComputedStyle(el.closest("label")!).fontSize))).toBeGreaterThanOrEqual(15);
   await page.evaluate(()=>scrollTo(0,0));await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:"test-results/executive-commitment-"+info.project.name+".png",fullPage:false});await noOverflow(page);
@@ -177,7 +179,7 @@ test("saves reviewed meeting availability, reopens it and preserves history afte
   page.once("dialog",dialog=>dialog.accept());
   await page.getByRole("button",{name:"Remove retained availability from this meeting",exact:true}).click();
   await confirm(page).check();await saveButton(page,"meeting").click();
-  await expect(page.getByRole("status").filter({hasText:"Saved revision 2"})).toBeVisible();
+  await expect(page.getByRole("status").filter({hasText:"Official save completed as revision 2"})).toBeVisible();
   expect((await get(client,"meeting",id)).data).not.toHaveProperty("availability");
   const history=await client.rpc("executive_document_history",{p_kind:"meeting",p_document_id:id});expect(history.error).toBeNull();
   expect(history.data.revisions.find((r:ExecutiveDocument)=>r.revision===1).data.availability).toEqual((saved.data as Extract<ExecutiveData,{recordType:"meeting"}>).availability);
@@ -207,7 +209,7 @@ test("saves reviewed meeting availability, reopens it and preserves history afte
   await page.goto("/workspace/executive/daily_brief/"+d.id);await expect(page.getByRole("heading",{name:sourceTitle,exact:true})).toBeVisible();await expect(page.getByText("EXECUTIVE_BROWSER_PRIVATE_BODY_CANARY",{exact:true})).toHaveCount(0);
   await share(client,[]);await page.getByRole("button",{name:"Refresh linked sources",exact:true}).click();await expect(page.getByRole("heading",{name:"Source unavailable",exact:true})).toBeVisible();
   await expect(page.getByRole("heading",{name:sourceTitle,exact:true})).toHaveCount(0);await page.getByRole("button",{name:"Remove link",exact:true}).click();
-  await confirm(page).check();await saveButton(page,"daily_brief").click();await expect(page.getByRole("status").filter({hasText:"Saved revision 2"})).toBeVisible();expect((await get(client,"daily_brief",d.id)).data.references).toEqual([]);
+  await confirm(page).check();await saveButton(page,"daily_brief").click();await expect(page.getByRole("status").filter({hasText:"Official save completed as revision 2"})).toBeVisible();expect((await get(client,"daily_brief",d.id)).data.references).toEqual([]);
   await page.goto("/workspace/executive");await expect(page.getByRole("heading",{name:"What deserves your attention?",exact:true})).toBeVisible();
   await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:"test-results/executive-attention-"+info.project.name+".png",fullPage:false});await noOverflow(page);
  });
@@ -299,7 +301,7 @@ test("saves reviewed meeting availability, reopens it and preserves history afte
   await expect(page.getByRole("status").filter({hasText:"Approved and saved"})).toBeVisible();await page.goto("/workspace/executive/commitment/"+d.id);
   await expect(page.getByLabel("Highest-value next action",{exact:true})).toHaveValue("A revised fictional next move");
   await page.getByText(/Revision 1 · .* · user/).click();await page.getByRole("button",{name:"Review a copy of revision 1",exact:true}).click();expect((await get(client,"commitment",d.id)).revision).toBe(2);
-  await confirm(page).check();await saveButton(page,"commitment").click();await expect(page.getByRole("status").filter({hasText:"Saved revision 3"})).toBeVisible();
+  await confirm(page).check();await saveButton(page,"commitment").click();await expect(page.getByRole("status").filter({hasText:"Official save completed as revision 3"})).toBeVisible();
   await page.getByLabel("Notes",{exact:true}).fill("UNSAVED_EXECUTIVE_SHOULD_NOT_EXPORT");
   const download=page.waitForEvent("download");await page.getByRole("button",{name:"Download saved record",exact:true}).click();const file=await download,text=readFileSync((await file.path())!,"utf8");
   expect(text).toContain("Revision 3");expect(text).not.toContain("UNSAVED_EXECUTIVE_SHOULD_NOT_EXPORT");expect(text).toContain("live linked-source metadata are excluded");await noOverflow(page);

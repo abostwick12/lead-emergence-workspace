@@ -3,6 +3,7 @@ import {readFileSync} from "node:fs";
 import {createClient} from "@supabase/supabase-js";
 import {test,expect,type Page} from "@playwright/test";
 import {emptyProfile,type MinistryDocument} from "../../lib/ministry-bundle/contracts";
+import {clearNewEditorDrafts} from "./editor-draft-cleanup";
 function fixtures(){return JSON.parse(readFileSync(".bundle-local/fixtures.json","utf8"));}
 async function session(role="minister"){
  const c=JSON.parse(readFileSync(".bundle-local/public-config.json","utf8"));expect(c.url).toBe("http://127.0.0.1:58521");
@@ -22,11 +23,12 @@ async function signIn(page:Page,role="minister"){
 }
 const confirm=(page:Page)=>page.getByRole("checkbox",{name:/I confirm this exact configuration/});
 const profileSave=(page:Page)=>page.getByRole("button",{name:"Confirm and save preferences",exact:true});
-const notice=(page:Page)=>page.getByRole("status").filter({hasText:/Saved revision/});
+const notice=(page:Page)=>page.getByRole("status").filter({hasText:/Official save completed as revision/});
 test.describe("Ministry native client workflow",()=>{
  test.setTimeout(120000);
  test.skip(process.env.MINISTRY_LOCAL_ACCEPTANCE!=="true","Requires isolated fictional accounts.");
- test.beforeEach(async({baseURL})=>expect(baseURL).toBe("http://localhost:3125"));
+ test.beforeEach(async({baseURL})=>{expect(baseURL).toBe("http://localhost:3125");await clearNewEditorDrafts("ministry",["profile","research","archive"],"minister");});
+ test.afterEach(async()=>clearNewEditorDrafts("ministry",["profile","research","archive"],"minister"));
  test("discloses bundle-specific reading and proposal limits without approving an incomplete connection",async({page})=>{
   await page.goto("/oauth/consent");
   await expect(page.getByText(/Ministry can read your current theological preferences/)).toBeVisible();
@@ -45,10 +47,10 @@ test.describe("Ministry native client workflow",()=>{
    await page.getByRole("combobox",{name:"Position 1 status",exact:true}).selectOption("inferred");
    await confirm(page).check();await context.fill("Synthetic independent context, revised.");
    await expect(confirm(page)).not.toBeChecked();await confirm(page).check();
-   await page.route("**/api/ministry/profile",route=>route.request().method()==="POST"?route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Synthetic save failure."})}):route.continue());
+   await page.route("**/api/bundles/editor-drafts",route=>route.request().method()==="POST"&&route.request().postDataJSON().operation==="commit"?route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Synthetic save failure."})}):route.continue());
    await profileSave(page).click();await expect(page.getByRole("alert").filter({hasText:"Synthetic save failure."})).toBeVisible();
    await expect(context).toHaveValue("Synthetic independent context, revised.");
-   await page.unroute("**/api/ministry/profile");await profileSave(page).click();await expect(notice(page)).toBeVisible();
+   await page.unroute("**/api/bundles/editor-drafts");await profileSave(page).click();await expect(notice(page)).toBeVisible();
    await expect(page.getByRole("combobox",{name:"Position 1 status",exact:true})).toHaveValue("inferred");
    expect((await get(client,"profile"))?.data).toMatchObject({positions:[{epistemicState:"inferred"}]});
    await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:"test-results/ministry-profile-"+info.project.name+".png",fullPage:true});
@@ -79,7 +81,7 @@ test.describe("Ministry native client workflow",()=>{
   const proposed=await client.rpc("ministry_propose_research",{p_document_id:id,p_expected_revision:1,p_request_id:randomUUID(),p_patch:{teachingOutline:"Compare evidence, name uncertainty, then teach."},p_reason:"Make the reasoning explicit.",p_evidence:"Fictional recorded source [1]."});expect(proposed.error).toBeNull();
   await page.reload();await page.getByRole("button",{name:"Compare this proposal",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Current saved research",exact:true})).toBeVisible();
-  page.once("dialog",d=>d.accept());await page.getByRole("button",{name:"Approve compared changes",exact:true}).click();await expect(notice(page)).toBeVisible();
+  page.once("dialog",d=>d.accept());await page.getByRole("button",{name:"Approve compared changes",exact:true}).click();await expect(page.getByRole("status").filter({hasText:"Saved revision 2"})).toBeVisible();
   await expect(page.getByRole("textbox",{name:"Teaching outline",exact:true})).toHaveValue("Compare evidence, name uncertainty, then teach.");
   await page.getByText("Revision 1 · Original · User saved",{exact:true}).click();
   await page.getByRole("button",{name:"Review a copy of revision 1",exact:true}).click();
@@ -115,9 +117,10 @@ test.describe("Ministry native client workflow",()=>{
    await expect(field(second)).toBeVisible();
    await field(page).fill("First tab's fictional preference");await confirm(page).check();await profileSave(page).click();await expect(notice(page)).toBeVisible();
    await field(second).fill("Second tab's unsaved preference");await confirm(second).check();await profileSave(second).click();
-   await expect(second.getByRole("alert").filter({hasText:"Your work was not applied"})).toBeVisible();await expect(field(second)).toHaveValue("Second tab's unsaved preference");
+   await expect(second.getByRole("alert").filter({hasText:"Your edits did not overwrite it"})).toBeVisible();await expect(field(second)).toHaveValue("Second tab's unsaved preference");
    second.once("dialog",d=>d.dismiss());await second.getByRole("link",{name:"Research & teaching",exact:true}).click();await expect(second).toHaveURL(/\/profile$/);
-   second.once("dialog",d=>d.accept());await second.getByRole("button",{name:"Open latest saved revision",exact:true}).click();
+   second.once("dialog",d=>d.accept());await second.getByRole("button",{name:"Check server draft",exact:true}).click();
+   await expect(second.getByRole("button",{name:"Open latest saved revision",exact:true})).toBeVisible();await second.getByRole("button",{name:"Open latest saved revision",exact:true}).click();
    await expect(field(second)).toHaveValue("First tab's fictional preference");await expect(profileSave(second)).toBeDisabled();await second.close();
   }finally{await save(client,"profile",original?.data??null,await get(client,"profile"));}
  });

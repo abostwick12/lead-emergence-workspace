@@ -84,6 +84,8 @@ closes its own server. This harness renders actual meeting components but has
 no database, auth or simulated API; in-memory remount is not persistence proof.
 It does not replace steps 1–8.
 
-No installed host, booking/calendar provider, notification worker, representative
-client value or deployed privacy/retention/commercial acceptance is implied.
+P15 adds private server recovery to all five Executive editors; this runbook's
+earlier P9f evidence predates that milestone. No installed host, booking/calendar
+provider, notification worker, representative client value or deployed backup,
+privacy/retention/commercial acceptance is implied.
 All six bundles remain NOT READY TO SHIP until the shared release gates close.

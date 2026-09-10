@@ -89,6 +89,6 @@ scope expansion, provider adapter, paid service or hosted deployment was added.
 Existing optional Wix/Logos/Finances functionality remains unavailable.
 
 Native notifications do not close recurring delivery, installed-host,
-representative-value, shared crash-recovery, privacy/retention or deployed
+representative-value, deployed backup/recovery, privacy/retention or other
 release gates. See the acceptance ledger for actual checks rather than treating
 this architecture description as evidence.

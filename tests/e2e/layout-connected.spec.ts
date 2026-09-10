@@ -2,6 +2,7 @@ import {randomUUID} from "node:crypto";
 import {readFileSync} from "node:fs";
 import {createClient} from "@supabase/supabase-js";
 import {test,expect,type Page} from "@playwright/test";
+import {clearNewEditorDrafts} from "./editor-draft-cleanup";
 const empty={schemaVersion:"1.0",hiddenItemIds:[] as string[],pinnedNavigationIds:[] as string[],pinnedWidgetIds:[] as string[],orderOverrides:{} as Record<string,number>,defaultWorkspaceRoute:"/workspace"};
 function fixtures(){return JSON.parse(readFileSync(".bundle-local/fixtures.json","utf8"));}
 async function session(role="layoutAll"){
@@ -100,15 +101,18 @@ test.describe("native user-owned Workspace layout",()=>{
   expect((await client.rpc("get_workspace_layout")).data.revision).toBe(before.revision+1);
  });
  test("keeps an unsaved domain editor intact when another tab saves a layout",async({page,context})=>{
-  await signIn(page,"layoutAll","/workspace/executive/commitment/new",/\/commitment\/new$/);
-  await page.getByLabel("Title *",{exact:true}).fill("Unsaved fictional draft must survive layout refresh");
-  const layout=await context.newPage();await layout.goto("/workspace/layout");
-  await layout.getByRole("checkbox",{name:"Show Writing",exact:true}).uncheck();await previewSave(layout);
-  await expect(layout.getByRole("status").filter({hasText:"Layout saved."})).toBeVisible();
-  const refreshed=page.waitForResponse(r=>r.url().includes("/api/bundles/experience")&&r.status()===200);
-  await page.bringToFront();await page.evaluate(()=>window.dispatchEvent(new Event("focus")));await refreshed;
-  await expect(page.getByLabel("Title *",{exact:true})).toHaveValue("Unsaved fictional draft must survive layout refresh");
-  await layout.close();
+  await clearNewEditorDrafts("executive",["commitment"],"layoutAll");
+  try {
+   await signIn(page,"layoutAll","/workspace/executive/commitment/new",/\/commitment\/new$/);
+   await page.getByLabel("Title *",{exact:true}).fill("Unsaved fictional draft must survive layout refresh");
+   const layout=await context.newPage();await layout.goto("/workspace/layout");
+   await layout.getByRole("checkbox",{name:"Show Writing",exact:true}).uncheck();await previewSave(layout);
+   await expect(layout.getByRole("status").filter({hasText:"Layout saved."})).toBeVisible();
+   const refreshed=page.waitForResponse(r=>r.url().includes("/api/bundles/experience")&&r.status()===200);
+   await page.bringToFront();await page.evaluate(()=>window.dispatchEvent(new Event("focus")));await refreshed;
+   await expect(page.getByLabel("Title *",{exact:true})).toHaveValue("Unsaved fictional draft must survive layout refresh");
+   await layout.close();
+  }finally{await page.close({runBeforeUnload:false});await clearNewEditorDrafts("executive",["commitment"],"layoutAll");}
  });
  test("uses the default on ordinary sign-in without hijacking an explicit Home destination",async({page,browser})=>{
   await signIn(page);await page.getByRole("combobox",{name:"Starting workspace",exact:true}).selectOption("/workspace/investing");

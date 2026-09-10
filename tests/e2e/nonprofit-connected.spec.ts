@@ -3,6 +3,7 @@ import {readFileSync} from "node:fs";
 import {createClient} from "@supabase/supabase-js";
 import {test,expect,type Page} from "@playwright/test";
 import {emptyNonprofitData,type NonprofitDocument} from "../../lib/nonprofit-bundle/contracts";
+import {clearNewEditorDrafts} from "./editor-draft-cleanup";
 function fixtures(){return JSON.parse(readFileSync(".bundle-local/fixtures.json","utf8"));}
 async function session(role="founder"){
  const c=JSON.parse(readFileSync(".bundle-local/public-config.json","utf8"));expect(c.url).toBe("http://127.0.0.1:58521");
@@ -23,13 +24,14 @@ async function signIn(page:Page,role="founder"){
 }
 const confirm=(page:Page)=>page.getByRole("checkbox",{name:/I reviewed this exact record/});
 const saveButton=(page:Page,kind:string)=>page.getByRole("button",{name:"Confirm and save "+kind,exact:true});
-const notice=(page:Page)=>page.getByRole("status").filter({hasText:/Saved revision/});
+const notice=(page:Page)=>page.getByRole("status").filter({hasText:/Saved revision|Official save completed as revision/});
 const title=(prefix:string)=>prefix+" "+randomUUID().slice(0,8);
 async function savedId(page:Page,kind:string){await expect(page).toHaveURL(new RegExp("/workspace/nonprofit/"+kind+"/[a-f0-9-]{36}$"));return new URL(page.url()).pathname.split("/").at(-1)!;}
 test.describe("Nonprofit native client workflow",()=>{
  test.setTimeout(120000);
  test.skip(process.env.NONPROFIT_LOCAL_ACCEPTANCE!=="true","Requires isolated fictional accounts.");
- test.beforeEach(async({baseURL})=>expect(baseURL).toBe("http://localhost:3125"));
+ test.beforeEach(async({baseURL})=>{expect(baseURL).toBe("http://localhost:3125");await clearNewEditorDrafts("nonprofit",["plan","partner","meeting","research"],"founder");});
+ test.afterEach(async()=>clearNewEditorDrafts("nonprofit",["plan","partner","meeting","research"],"founder"));
  test("discloses nonprofit scope and denies unassigned native access",async({page})=>{
   await page.goto("/oauth/consent");await expect(page.getByText(/Nonprofit Founder can read your assigned administrative roadmaps/)).toBeVisible();await expect(page.getByRole("button",{name:"Allow access",exact:true})).toBeDisabled();
   await signIn(page,"reader");await page.goto("/workspace/nonprofit");await expect(page.getByRole("heading",{name:"This Nonprofit area is not included",exact:true})).toBeVisible();
@@ -48,10 +50,10 @@ test.describe("Nonprofit native client workflow",()=>{
   await page.getByRole("combobox",{name:"Action status",exact:true}).selectOption("blocked");
   await confirm(page).check();await page.getByRole("textbox",{name:"Roadmap title *",exact:true}).fill(name+" — reviewed");
   await expect(confirm(page)).not.toBeChecked();await confirm(page).check();
-  await page.route("**/api/nonprofit/plan",route=>route.request().method()==="POST"?route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Synthetic save interruption."})}):route.continue());
+  await page.route("**/api/bundles/editor-drafts",route=>route.request().method()==="POST"&&route.request().postDataJSON().operation==="commit"?route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Synthetic save interruption."})}):route.continue());
   await saveButton(page,"plan").click();await expect(page.getByRole("alert").filter({hasText:"Synthetic save interruption."})).toBeVisible();
   await expect(page.getByRole("textbox",{name:"Roadmap title *",exact:true})).toHaveValue(name+" — reviewed");
-  await page.unroute("**/api/nonprofit/plan");await saveButton(page,"plan").click();
+  await page.unroute("**/api/bundles/editor-drafts");await saveButton(page,"plan").click();
   const id=await savedId(page,"plan"),d=await get(client,"plan",id);expect(d.revision).toBe(1);expect(d.data).toMatchObject({milestones:expect.arrayContaining([expect.objectContaining({owner:"Example founder",status:"blocked"})])});
   await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:"test-results/nonprofit-roadmap-"+info.project.name+".png",fullPage:true});
   await page.getByRole("heading",{name:"Make the next moves manageable",exact:true}).scrollIntoViewIfNeeded();

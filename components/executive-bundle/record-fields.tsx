@@ -3,7 +3,7 @@ import {WeeklyOutcomes} from "./weekly-outcomes";
 import type {ExecutiveWeeklyReport} from "@/lib/executive-bundle/contracts";
 import {taskTargetId} from "@/lib/bundles/task-target";
 import {useState,useRef} from "react";
-import {AvailabilityPlanner} from "./availability-planner";
+import {AvailabilityPlanner,type AvailabilityRecovery} from "./availability-planner";
 import type {ExecutiveData,ExecutiveAction} from "@/lib/executive-bundle/contracts";
 import {executiveReviewState} from "@/lib/executive-bundle/contracts";
 import {localTimeCandidates,localMeetingTime} from "@/lib/executive-bundle/presentation";
@@ -26,29 +26,30 @@ export function ActionFields({actions,onChange,max=10}:{actions:ExecutiveAction[
  <button type="button" disabled={actions.length>=max} onClick={()=>onChange([...actions,{id:crypto.randomUUID(),title:"",owner:"",dueDate:null,state:"open",nextAction:"",evidence:"",reviewState:"user_stated"}])}>Add action</button></section>;
 }
 type Meeting=Extract<ExecutiveData,{recordType:"meeting"}>;
-function MeetingTime({value,onChange,onPending}:{value:Meeting;onChange:(value:Meeting)=>void;onPending:(pending:boolean)=>void}) {
- const [local,setLocal]=useState(()=>localMeetingTime(value.startsAt,value.timeZone)),[selection,setSelection]=useState(value.startsAt??""),[pending,setPending]=useState(false);
- const flags=useRef({manual:false,planner:false});
- const manualPending=(next:boolean)=>{flags.current.manual=next;setPending(next);onPending(next||flags.current.planner);};
+export type MeetingTimeRecovery={local:string;selection:string;pending:boolean};
+function MeetingTime({value,onChange,onPending,timeRecovery,availabilityRecovery,onTimeRecovery,onAvailabilityRecovery}:{value:Meeting;onChange:(value:Meeting)=>void;onPending:(pending:boolean)=>void;timeRecovery?:MeetingTimeRecovery;availabilityRecovery?:AvailabilityRecovery;onTimeRecovery:(value:MeetingTimeRecovery|undefined)=>void;onAvailabilityRecovery:(value:AvailabilityRecovery|undefined)=>void}) {
+ const [local,setLocal]=useState(()=>timeRecovery?.local??localMeetingTime(value.startsAt,value.timeZone)),[selection,setSelection]=useState(timeRecovery?.selection??value.startsAt??""),[pending,setPending]=useState(timeRecovery?.pending??false);
+ const flags=useRef({manual:timeRecovery?.pending??false,planner:availabilityRecovery?.pending??false});
+ const manualPending=(next:boolean,nextLocal=local,nextSelection=selection)=>{flags.current.manual=next;setPending(next);onPending(next||flags.current.planner);onTimeRecovery(next?{local:nextLocal,selection:nextSelection,pending:true}:undefined);};
  const candidates=localTimeCandidates(local,value.timeZone);
- const edit=()=>{manualPending(true);setSelection("");};
- const applyTime=(instant:string|null)=>{onChange({...value,startsAt:instant,agreement:"not_agreed"});setSelection(instant??"");manualPending(false);};
+ const edit=(nextLocal=local)=>{setSelection("");manualPending(true,nextLocal,"");};
+ const applyTime=(instant:string|null)=>{onChange({...value,startsAt:instant,agreement:"not_agreed"});setSelection(instant??"");manualPending(false,local,instant??"");};
  return <section className={styles.section}><h2>Meeting time and agreement</h2><p className={styles.muted}>Choose the local time and zone explicitly. A saved time is not a calendar booking.</p>
- <div className={styles.grid}><Field label="Meeting local date and time" type="datetime-local" value={local} onChange={v=>{setLocal(v);edit();}}/>
- <Choice label="Meeting time zone *" value={value.timeZone} values={["",...supportedTimeZoneOptions(["UTC",...(value.timeZone?[value.timeZone]:[])])]} labels={{"":"Choose a time zone"}} onChange={timeZone=>{onChange({...value,timeZone,startsAt:null,agreement:"not_agreed"});edit();}}/></div>
- {pending&&<div className={styles.notice} role="status">{local&&!candidates.length?<p>This local time does not exist in the selected zone, or the date/zone is incomplete. Choose a valid time; daylight-saving gaps are not guessed.</p>:candidates.length>1?<><p>This local hour occurs twice. Choose the intended instant.</p>{candidates.map(at=><label className={styles.check} key={at}><input type="radio" name="meeting-instant" checked={selection===at} onChange={()=>setSelection(at)}/><span>{new Intl.DateTimeFormat("en-US",{timeZone:value.timeZone,dateStyle:"medium",timeStyle:"long"}).format(new Date(at))} · UTC {at}</span></label>)}</>:<p>Apply this time below before saving the record. Changing a time clears reported agreement.</p>}
+ <div className={styles.grid}><Field label="Meeting local date and time" type="datetime-local" value={local} onChange={v=>{setLocal(v);edit(v);}}/>
+ <Choice label="Meeting time zone *" value={value.timeZone} values={["",...supportedTimeZoneOptions(["UTC",...(value.timeZone?[value.timeZone]:[])])]} labels={{"":"Choose a time zone"}} onChange={timeZone=>{onChange({...value,timeZone,startsAt:null,agreement:"not_agreed"});edit(local);}}/></div>
+ {pending&&<div className={styles.notice} role="status">{local&&!candidates.length?<p>This local time does not exist in the selected zone, or the date/zone is incomplete. Choose a valid time; daylight-saving gaps are not guessed.</p>:candidates.length>1?<><p>This local hour occurs twice. Choose the intended instant.</p>{candidates.map(at=><label className={styles.check} key={at}><input type="radio" name="meeting-instant" checked={selection===at} onChange={()=>{setSelection(at);onTimeRecovery({local,selection:at,pending:true});}}/><span>{new Intl.DateTimeFormat("en-US",{timeZone:value.timeZone,dateStyle:"medium",timeStyle:"long"}).format(new Date(at))} · UTC {at}</span></label>)}</>:<p>Apply this time below before saving the record. Changing a time clears reported agreement.</p>}
  <button type="button" disabled={!!local&&(candidates.length===0||candidates.length>1&&!candidates.includes(selection))} onClick={()=>applyTime(local?(candidates.length===1?candidates[0]:selection):null)}>{local?"Use this meeting time":"Keep meeting time unassigned"}</button></div>}
  {value.startsAt&&!pending&&<p className={styles.muted}>Recorded instant: {value.startsAt} · displayed in {value.timeZone}</p>}
  <div className={styles.grid}><NumberField label="Duration in minutes" value={value.durationMinutes} min={5} max={480} onChange={durationMinutes=>onChange({...value,durationMinutes:durationMinutes??0,agreement:"not_agreed"})}/>
  <Choice label="Meeting agreement" value={value.agreement} values={["not_agreed","user_reported_agreed"]} onChange={agreement=>onChange({...value,agreement:agreement as Meeting["agreement"]})}/></div>
  <p className={styles.muted}>“User reported agreed” records your confirmation of an actual agreement. It does not send invitations or check anyone’s availability.</p>
- <AvailabilityPlanner meeting={value} onPending={next=>{flags.current.planner=next;onPending(next||flags.current.manual);}}
+ <AvailabilityPlanner meeting={value} recovery={availabilityRecovery} onRecovery={onAvailabilityRecovery} onPending={next=>{flags.current.planner=next;onPending(next||flags.current.manual);}}
   onStage={availability=>onChange({...value,availability})} onRemove={()=>onChange({...value,availability:undefined})}
   onChoose={next=>{if(pending&&!window.confirm("Replace your unapplied manual time with this proposed time?"))return false;
-   onChange(next);setLocal(localMeetingTime(next.startsAt,next.timeZone));setSelection(next.startsAt??"");manualPending(false);return true;}}/>
+   onChange(next);setLocal(localMeetingTime(next.startsAt,next.timeZone));setSelection(next.startsAt??"");manualPending(false,localMeetingTime(next.startsAt,next.timeZone),next.startsAt??"");return true;}}/>
  </section>;
 }
-export function RecordFields({value,onChange,onTimePending,onPrepareWeekly}:{value:ExecutiveData;onChange:Change;onTimePending:(pending:boolean)=>void;onPrepareWeekly?:(report:ExecutiveWeeklyReport)=>void}) {
+export function RecordFields({value,onChange,onTimePending,onPrepareWeekly,meetingTimeRecovery,availabilityRecovery,onMeetingTimeRecovery,onAvailabilityRecovery}:{value:ExecutiveData;onChange:Change;onTimePending:(pending:boolean)=>void;onPrepareWeekly?:(report:ExecutiveWeeklyReport)=>void;meetingTimeRecovery?:MeetingTimeRecovery;availabilityRecovery?:AvailabilityRecovery;onMeetingTimeRecovery?:(value:MeetingTimeRecovery|undefined)=>void;onAvailabilityRecovery?:(value:AvailabilityRecovery|undefined)=>void}) {
  return <>
  <section className={styles.section}><h2>{value.recordType==="commitment"?"What needs to happen?":value.recordType==="decision"?"What needs to be decided?":value.recordType==="meeting"?"What should this meeting achieve?":"Make the next move clear"}</h2>
  <Field label="Title" value={value.title} max={240} required onChange={title=>onChange({...value,title})}/>
@@ -84,7 +85,7 @@ export function RecordFields({value,onChange,onTimePending,onPrepareWeekly}:{val
  <Field label="Decision date" type="date" value={value.decidedOn??""} onChange={decidedOn=>onChange({...value,decidedOn:decidedOn||null})}/>
  <Field label="Decision rationale" value={value.rationale} max={4000} multiline required={["decided","reversed"].includes(value.state)} onChange={rationale=>onChange({...value,rationale})}/></>}
  <Field label="What would make you revisit this?" value={value.revisitTrigger} max={2000} multiline onChange={revisitTrigger=>onChange({...value,revisitTrigger})}/></section>}
- {value.recordType==="meeting"&&<><MeetingTime value={value} onChange={onChange} onPending={onTimePending}/>
+ {value.recordType==="meeting"&&<><MeetingTime value={value} onChange={onChange} onPending={onTimePending} timeRecovery={meetingTimeRecovery} availabilityRecovery={availabilityRecovery} onTimeRecovery={onMeetingTimeRecovery??(()=>{})} onAvailabilityRecovery={onAvailabilityRecovery??(()=>{})}/>
  <section className={styles.section}><h2>People and outcomes</h2>{value.participants.map((p,i)=><div className={styles.grid} key={i}><Field label={"Participant "+(i+1)} value={p.name} max={240} required onChange={name=>onChange({...value,agreement:"not_agreed",participants:value.participants.map((old,index)=>index===i?{...old,name}:old)})}/><Field label={"Role "+(i+1)} value={p.role} max={240} onChange={role=>onChange({...value,agreement:"not_agreed",participants:value.participants.map((old,index)=>index===i?{...old,role}:old)})}/><button type="button" onClick={()=>onChange({...value,agreement:"not_agreed",participants:value.participants.filter((_,index)=>index!==i)})}>Remove participant {i+1}</button></div>)}
  <button type="button" disabled={value.participants.length>=30} onClick={()=>onChange({...value,agreement:"not_agreed",participants:[...value.participants,{name:"",role:""}]})}>Add participant</button>
  <Field label="Recorded meeting outcome" value={value.outcome} max={8000} required={value.state==="held"} multiline onChange={outcome=>onChange({...value,outcome})}/></section></>}

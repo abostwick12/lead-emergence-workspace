@@ -12,6 +12,7 @@ const sourceRevision = execFileSync("git", [...gitArgs, "rev-parse", "HEAD"], { 
 const packages = ["bundle-contract", "bundle-registry", "capability-registry", "policy", "provenance", "provider-contracts", "ui-manifest", "workflow-runtime"];
 const entries = packages.map((name) => [`packages/${name}/src/index.ts`, `${name}/index.ts`]);
 entries.push(["apps/lead-emergence-runtime/src/index.ts", "runtime/index.ts"]);
+entries.push(["bundles/editor-recovery.ts", "domain-contracts/editor-recovery.ts"]);
 for (const file of ["bundle.json", "ui-manifest.json"]) entries.push([`bundles/writer-editor/${file}`, `bundles/writer-editor/${file}`]);
 entries.push(["bundles/ministry/bundle.json", "catalog/ministry-bundle.json"],
   ["bundles/ministry/ui-manifest.json", "catalog/ministry-ui.json"],
@@ -44,6 +45,7 @@ for (const [sourcePath, outputPath] of entries) {
   let content = original.replaceAll("\r\n", "\n").replace(/@lead-emergence\/([a-z-]+)/g, "../$1/index");
   if (sourcePath === "bundles/workspace-experience/attention.ts") content = content.replaceAll('from "./discovery"', 'from "./workspace-discovery"');
   if (sourcePath === "bundles/investor/analysis.ts") content = content.replace('from "./contracts"', 'from "./investor"');
+  if (sourcePath === "bundles/editor-recovery.ts") for (const [folder, name] of [["ministry", "ministry"], ["nonprofit-founder", "nonprofit"], ["investor", "investor"], ["executive", "executive"]]) content = content.replace('from "./' + folder + '/contracts"', 'from "./' + name + '"');
   if (sourcePath.startsWith("bundles/executive/") && sourcePath.endsWith(".ts")) content = content.replaceAll('from "./contracts"', 'from "./executive"');
   const target = resolve(destination, outputPath);
   await mkdir(dirname(target), { recursive: true });

@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { test, expect, type Page } from "@playwright/test";
 import type { InvestorDocument } from "../../lib/investor-bundle/contracts";
 import { investorFixtures } from "../../scripts/investor-fixtures.mjs";
+import {clearNewEditorDrafts} from "./editor-draft-cleanup";
 function fixtures() { return JSON.parse(readFileSync(".bundle-local/fixtures.json", "utf8")); }
 async function session(role = "investor") {
   const c = JSON.parse(readFileSync(".bundle-local/public-config.json", "utf8")); expect(c.url).toBe("http://127.0.0.1:58521");
@@ -31,7 +32,8 @@ async function noOverflow(page: Page) { expect(await page.evaluate(() => documen
 test.describe("Investor native client workflow", () => {
   test.setTimeout(150000);
   test.skip(process.env.INVESTOR_LOCAL_ACCEPTANCE !== "true", "Requires isolated fictional accounts.");
-  test.beforeEach(async ({ baseURL }) => expect(baseURL).toBe("http://localhost:3125"));
+  test.beforeEach(async ({ baseURL }) => { expect(baseURL).toBe("http://localhost:3125"); await clearNewEditorDrafts("investor",["watchlist","thesis","filing","brief"],"investor"); });
+  test.afterEach(async()=>clearNewEditorDrafts("investor",["watchlist","thesis","filing","brief"],"investor"));
   test("discloses research scope and denies unassigned access", async ({ page }) => {
     await page.goto("/oauth/consent"); await expect(page.getByText(/Investor can read assigned watchlists/)).toBeVisible(); await expect(page.getByRole("button", { name: "Allow access", exact: true })).toBeDisabled();
     await signIn(page, "reader"); await page.goto("/workspace/investing"); await expect(page.getByRole("heading", { name: "This Investor area is not included", exact: true })).toBeVisible();
@@ -47,9 +49,9 @@ test.describe("Investor native client workflow", () => {
     await page.getByLabel("Why watch this? *", { exact: true }).fill("Investigate a demand assumption, not a trade.");
     await page.getByLabel("Next research question", { exact: true }).fill("What would contradict the demand assumption?");
     await confirm(page).check(); await page.getByLabel("Record title *", { exact: true }).fill(name + " — reviewed"); await expect(confirm(page)).not.toBeChecked(); await confirm(page).check();
-    await page.route("**/api/investor/watchlist", route => route.request().method() === "POST" ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "Synthetic save interruption." }) }) : route.continue());
+    await page.route("**/api/bundles/editor-drafts", route => route.request().method() === "POST" && route.request().postDataJSON().operation === "commit" ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "Synthetic save interruption." }) }) : route.continue());
     await saveButton(page, "watchlist").click(); await expect(page.getByRole("alert").filter({ hasText: "Synthetic save interruption." })).toBeVisible();
-    await expect(page.getByLabel("Record title *", { exact: true })).toHaveValue(name + " — reviewed"); await page.unroute("**/api/investor/watchlist"); await saveButton(page, "watchlist").click();
+    await expect(page.getByLabel("Record title *", { exact: true })).toHaveValue(name + " — reviewed"); await page.unroute("**/api/bundles/editor-drafts"); await saveButton(page, "watchlist").click();
     const id = await savedId(page, "watchlist"); expect((await get(client, "watchlist", id)).data).toMatchObject({ entries: [expect.objectContaining({ nextQuestion: "What would contradict the demand assumption?" })] });
     await expect(page.getByRole("heading", { name: name + " — reviewed", exact: true })).toBeVisible();
     expect(await confirm(page).evaluate(el => Number.parseFloat(getComputedStyle(el.closest("label")!).fontSize))).toBeGreaterThanOrEqual(15);
@@ -105,7 +107,7 @@ test.describe("Investor native client workflow", () => {
     await expect(page.getByRole("status").filter({ hasText: "Approved and saved" })).toBeVisible();
     await page.goto("/workspace/investing/thesis/" + d.id); await expect(page.getByLabel("Highest-value next question", { exact: true })).toHaveValue("Verify the next public reporting period.");
     await page.getByText(/Revision 1 · .* · user/).click(); await page.getByRole("button", { name: "Review a copy of revision 1", exact: true }).click(); expect((await get(client, "thesis", d.id)).revision).toBe(2);
-    await confirm(page).check(); await saveButton(page, "thesis").click(); await expect(page.getByRole("status").filter({ hasText: "Saved revision 3" })).toBeVisible();
+    await confirm(page).check(); await saveButton(page, "thesis").click(); await expect(page.getByRole("status").filter({ hasText: "Official save completed as revision 3" })).toBeVisible();
     await page.getByLabel("Highest-value next question", { exact: true }).fill("UNSAVED_SHOULD_NOT_EXPORT");
     const promise = page.waitForEvent("download"); await page.getByRole("button", { name: "Download saved record", exact: true }).click(); const downloaded = await promise, text = readFileSync((await downloaded.path())!, "utf8");
     expect(text).toContain("Saved revision 3"); expect(text).toContain("SYNTHETIC_INVESTOR_EVIDENCE_MARKER"); expect(text).toContain("not verified facts"); expect(text).not.toContain("UNSAVED_SHOULD_NOT_EXPORT");
