@@ -1,5 +1,23 @@
 # Test evidence
 
+## P18 cross-domain isolation matrix — 2026-09-10
+
+See [the P18 acceptance ledger](cross-domain-isolation-acceptance.md) and
+[the independent oracle design](../architecture/cross-domain-isolation-matrix.md).
+One fictional owner holds every bundle so missing entitlement cannot mask a
+domain leak. The rollback-only PostgreSQL oracle covers direct-table denial, RLS,
+all ordered domain reader/history pairs, same-domain foreign ownership, private-
+marker search, authorized and revoked OAuth, source revocation, Workspace-native
+aggregate denial, and Executive's explicit metadata-only exception.
+
+The new suite passes 184 assertions; the complete local database run passes
+1,325 assertions across 26 suites. Portable validation remains 189 tests. Final
+host proof includes 323 unit tests, 32 schema-policy checks, 275 runtime boundaries,
+type checking, lint, an optimized 57-page build and a verified 38-file source
+export. No UI or migration changed, so P17 browser evidence and the P16 fresh-
+database replay were not relabeled as P18 results. All six bundles remain
+**NOT READY TO SHIP**.
+
 ## P17 comparable representative-pilot kits — 2026-09-10
 
 See [the P17 acceptance ledger](bundle-representative-pilot-acceptance.md) and
