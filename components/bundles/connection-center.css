@@ -1,0 +1,24 @@
+.connection-center{display:grid;gap:1.4rem;max-width:1080px;margin:0 auto}
+.connection-center header{max-width:840px}
+.connection-center .panel{padding:1.3rem;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.connection-center section[aria-label]{display:grid;gap:1rem}
+.connection-center h2,.connection-center h3,.connection-center h4{margin:0 0 .6rem}
+.connection-center p{margin:.65rem 0;line-height:1.6;overflow-wrap:anywhere}
+.connection-center details{margin:.8rem 0}
+.connection-center summary{cursor:pointer;font-weight:600}
+.connection-center summary:focus-visible,.connection-center button:focus-visible{outline:3px solid var(--brass);outline-offset:4px}
+.connection-center button,.connection-center .button{white-space:normal;text-align:center;min-height:44px}
+.connection-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem}
+.connection-metrics>div{display:flex;flex-direction:column;gap:.5rem;border:1px solid var(--line);border-radius:12px;padding:1.2rem;background:var(--panel)}
+.connection-metrics strong{font-size:2rem;font-variant-numeric:tabular-nums}
+.connection-metrics span{font-size:.88rem;line-height:1.5}
+.connection-item-heading,.connection-section-title,.connection-actions,.connection-pages{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.connection-actions{justify-content:flex-start}
+.connection-state{display:inline-block;font-size:.8rem;border:1px solid var(--line);border-radius:999px;padding:.35rem .75rem}
+.connection-state[data-ready=true]{border-color:var(--success);color:var(--success)}
+.connection-center .connection-review{display:block!important;border-left:4px solid var(--brass)!important}.connection-review .connection-actions{margin-top:1.1rem}
+.connection-review h2{scroll-margin-top:120px}
+.connection-receipt{border-left:4px solid var(--success)!important}
+.connection-guidance>div+div{margin-top:1rem;border-top:1px solid var(--line);padding-top:.75rem}
+.connection-catalog li+li{margin-top:.8rem}
+@media(max-width:600px){.connection-metrics{grid-template-columns:1fr}.connection-metrics>div{flex-direction:row;align-items:center;gap:1rem}.connection-item-heading{align-items:flex-start;flex-direction:column}.connection-actions{align-items:stretch;width:100%}.connection-actions .button{flex:1 1 160px}.connection-center .panel{padding:1rem}.connection-center{gap:1rem}}

@@ -75,5 +75,12 @@ export function composeBundleExperience(raw: unknown) {
     }
   };
 }
+// Presentation guidance only: it never asserts provider access or starts setup.
+export function bundleConnectionGuidance(bundleKeys: string[]) {
+  return artifacts.filter(a => bundleKeys.includes(a.manifest.identity.key)).map(a => ({
+    key: a.manifest.identity.key, name: a.manifest.identity.displayName,
+    providers: a.manifest.providerRequirements, apps: a.manifest.appRequirements
+  })).filter(a => a.providers.length || a.apps.length);
+}
 export type BaseBundleExperience = ReturnType<typeof composeBundleExperience>;
 export type BundleExperience = BaseBundleExperience & { layout?: { status: "ready" | "unavailable"; revision: number | null; defaultUnavailable?: boolean } };

@@ -1,5 +1,16 @@
 # Test evidence
 
+## P13 native connection evidence — 2026-09-09
+
+See [the P13 acceptance ledger](workspace-connections-acceptance.md) and
+[the connection authority boundary](../architecture/workspace-connection-center.md).
+The native Connections route distinguishes actual grants, unfinished registration,
+blocked/revoked access and saved credential metadata. Exact reviewed disconnects
+have private retry receipts and explicit shared-family impact. Real local OAuth
+and native database boundaries are tested; provider and installed-host readiness
+are not inferred from saved labels. All six bundles remain **NOT READY TO SHIP**.
+
+
 ## P12 native shared attention — 2026-09-09
 
 See [the P12 acceptance ledger](workspace-attention-acceptance.md) and

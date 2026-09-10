@@ -266,8 +266,8 @@ test("fails closed for external connector capacity and preserves a native discon
   assert.doesNotMatch(connectorCapabilityGateSql, /service_role|access_token|client_secret/i);
   assert.match(integrationProviders, /chatgpt:[\s\S]*?connectionMethod: "mcp_oauth"/);
   assert.match(integrationProviders, /claude:[\s\S]*?connectionMethod: "mcp_oauth"/);
-  assert.match(integrationsPage, /const externalConnectionsEnabled = capabilities\.external_connectors && capabilities\.integration_limit > 0/);
-  assert.match(integrationsPage, /\/api\/integrations\/\$\{entry\.id\}\/disconnect/);
+  assert.match(integrationsPage, /ConnectionCenter/);
+  assert.match(connectorCapabilityGateSql, /p_status = 'disconnected'/);
 });
 
 test("requires a provider-specific consumer release before collecting external credentials", () => {
@@ -280,7 +280,7 @@ test("requires a provider-specific consumer release before collecting external c
   assert.match(integrationProviders, /consumerConnectionReady: false/);
   assert.match(integrationStartRoute, /!providerConfiguration\.consumerConnectionReady/);
   assert.match(integrationCredentialRoute, /!provider\.consumerConnectionReady/);
-  assert.match(integrationsPage, /cannot collect credentials or access provider data until its provider-specific adapter is reviewed and released/);
+  assert.doesNotMatch(integrationsPage, /apiKey|credentialValue|startExternalConnection/);
   assert.doesNotMatch(integrationProviders, /gmail\.compose|chat:write|Files\.ReadWrite/);
 });
 

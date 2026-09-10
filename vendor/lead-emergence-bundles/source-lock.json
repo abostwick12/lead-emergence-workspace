@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "b7c52e1f9f2a75beb3e701c5b303d95c7b7bc8fa",
+  "sourceRevision": "107e106661bf7f3b90e0e69a65333900bb26bca0",
   "contractVersion": "1.0",
   "files": [
     {
@@ -167,6 +167,11 @@
       "sourcePath": "bundles/workspace-experience/attention.ts",
       "outputPath": "domain-contracts/workspace-attention.ts",
       "sha256": "d307554063e40d192d9bb18a011349303f87cfb8f29c45f3b241f4b1829012a6"
+    },
+    {
+      "sourcePath": "bundles/workspace-experience/connections.ts",
+      "outputPath": "domain-contracts/workspace-connections.ts",
+      "sha256": "14365d103bdbd0215a7e28367411b55c8c9a38bb2e52231cbf5d3cdd48207b43"
     }
   ]
 }
