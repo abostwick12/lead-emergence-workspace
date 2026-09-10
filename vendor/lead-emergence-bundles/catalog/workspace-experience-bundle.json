@@ -22,6 +22,7 @@
     }
   },
   "capabilities": [
+    {"id":"workspace.notifications","version":"0.1.0","description":"Review current, source-linked in-app conditions with durable read, dismiss, snooze and type preferences. No background delivery.","domain":"workspace","operations":["read","execute"],"taskMetadataShareable":false},
     {
       "id": "workspace.compose",
       "version": "0.4.0",

@@ -1,12 +1,27 @@
 {
   "schemaVersion": "1.0",
   "bundleKey": "writer_editor",
-  "workspaceRoute": { "route": "/workspace/writing", "label": "Writing" },
+  "workspaceRoute": {
+    "route": "/workspace/writing",
+    "label": "Writing"
+  },
   "primaryNavigation": [
-    { "id": "writer.nav.writing", "label": "Writing", "route": "/workspace/writing", "icon": "pen-line", "order": 20 }
+    {
+      "id": "writer.nav.writing",
+      "label": "Writing",
+      "route": "/workspace/writing",
+      "icon": "pen-line",
+      "order": 20
+    }
   ],
   "secondaryNavigation": [
-    { "id": "writer.nav.library", "label": "Resource library", "route": "/workspace/writing/library", "icon": "library", "order": 20 }
+    {
+      "id": "writer.nav.library",
+      "label": "Resource library",
+      "route": "/workspace/writing/library",
+      "icon": "library",
+      "order": 20
+    }
   ],
   "dashboardWidgets": [
     {
@@ -15,7 +30,9 @@
       "order": 20,
       "type": "attention_queue",
       "capabilityId": "writer.resource.library",
-      "attentionTypes": ["writer.attention.awaiting_publication"],
+      "attentionTypes": [
+        "writer.attention.awaiting_publication"
+      ],
       "emptyStateId": "writer.empty.publication_queue"
     }
   ],
@@ -34,7 +51,9 @@
       "label": "Writing resources",
       "order": 20,
       "capabilityId": "writer.resource.library",
-      "resultTypes": ["writer.result.resource"]
+      "resultTypes": [
+        "writer.result.resource"
+      ]
     }
   ],
   "commandPaletteActions": [
@@ -49,9 +68,9 @@
   "notificationTypes": [
     {
       "id": "writer.notification.publication_ready",
-      "label": "Resource ready for publication",
-      "order": 20,
+      "label": "Resource marked ready",
       "capabilityId": "writer.resource.library",
+      "order": 20,
       "defaultEnabled": true
     }
   ],

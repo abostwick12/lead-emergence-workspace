@@ -1,5 +1,15 @@
 # Test evidence
 
+## P14 native current-condition notifications — 2026-09-09
+
+See [the P14 acceptance ledger](workspace-notifications-acceptance.md) and
+[the notification authority boundary](../architecture/workspace-notifications.md).
+Eight admitted update types use source-linked current conditions with durable
+read/dismiss/snooze choices, type preferences, complete counts and exact retries.
+No email, push, background delivery or live source verification is claimed.
+All six bundles remain **NOT READY TO SHIP**; the ledger records local proof
+separately from representative, installed-host and deployed release gates.
+
 ## P13 native connection evidence — 2026-09-09
 
 See [the P13 acceptance ledger](workspace-connections-acceptance.md) and

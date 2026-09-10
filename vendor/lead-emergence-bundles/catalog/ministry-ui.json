@@ -77,9 +77,9 @@
   "notificationTypes": [
     {
       "id": "ministry.notification.teaching_due",
-      "label": "Teaching commitment approaching",
+      "label": "Research date approaching",
+      "capabilityId": "ministry.research",
       "order": 30,
-      "capabilityId": "ministry.teaching",
       "defaultEnabled": true
     }
   ],

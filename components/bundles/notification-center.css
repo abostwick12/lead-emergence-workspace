@@ -1,0 +1,20 @@
+.notification-center{display:grid;gap:18px;max-width:1120px;margin:0 auto;min-width:0}
+.notification-center .panel{padding:20px;border:1px solid var(--line);border-radius:12px;background:rgb(22 32 47 / .55)}
+.notification-center p,.notification-center h2{margin:0}.notification-center .notification-card{border-left-width:3px}
+.notification-center header{display:grid;gap:12px}.notification-center header>.button{justify-self:start}
+.notification-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-block:1px solid var(--line);padding:18px 0}
+.notification-summary strong{font-size:24px;color:var(--ink)}.notification-summary span{color:var(--muted-strong);font-size:13px}
+.notification-views,.notification-tools,.notification-card-top,.notification-card-actions,.notification-pagination{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.notification-views .button[aria-current=page]{border-color:var(--accent,#efbb56);color:var(--ink);background:rgb(239 187 86 / .12)}
+.notification-views .button span{font-variant-numeric:tabular-nums}
+.notification-tools{justify-content:space-between}.notification-filter{display:grid;gap:7px;min-width:220px;max-width:100%}
+.notification-tools select{max-width:100%;min-height:44px}.notification-scope{font-size:13px}
+.notification-card{display:grid;gap:12px;min-width:0;border-left:3px solid transparent;overflow-wrap:anywhere}
+.notification-card[data-status=unread]{border-left-color:var(--accent,#efbb56)}.notification-card-top{justify-content:space-between}
+.notification-card h2{font-size:21px;line-height:1.35}.notification-status{text-transform:capitalize;font-size:12px;border:1px solid var(--line);border-radius:20px;padding:5px 10px;color:var(--muted-strong)}
+.notification-card-actions{padding-top:6px}.notification-card-actions .button{min-height:44px}.notification-feedback{display:grid;gap:12px}
+.notification-center summary{cursor:pointer;font-weight:600;min-height:30px}.notification-center details p{margin-top:12px}
+.notification-preferences label{display:flex;gap:12px;align-items:center;min-height:48px;padding:8px 0}
+.notification-preferences input{width:20px;height:20px;flex:0 0 auto}.notification-empty{display:grid;gap:12px}
+.notification-pagination{justify-content:space-between}.notification-center h1:focus{outline-offset:6px}
+@media(max-width:640px){.notification-center .panel{padding:16px}.notification-tools{align-items:stretch}.notification-filter{width:100%}.notification-views{gap:7px}.notification-views .button{flex:1 0 29%;padding:10px 8px}.notification-card-actions .button{flex:1 0 44%}.notification-card-top{align-items:flex-start}.notification-card h2{font-size:19px}.notification-pagination .button{flex:1}.notification-pagination p{width:100%;order:3;text-align:center}}

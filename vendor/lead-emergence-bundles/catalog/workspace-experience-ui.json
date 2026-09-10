@@ -1,15 +1,61 @@
 {
   "schemaVersion": "1.0",
   "bundleKey": "workspace_experience",
-  "workspaceRoute": { "route": "/workspace", "label": "Home" },
+  "workspaceRoute": {
+    "route": "/workspace",
+    "label": "Home"
+  },
   "primaryNavigation": [
-    { "id": "workspace.nav.home", "label": "Home", "route": "/workspace", "icon": "home", "order": 0, "capabilityId": "workspace.compose" }
+    {
+      "id": "workspace.nav.home",
+      "label": "Home",
+      "route": "/workspace",
+      "icon": "home",
+      "order": 0,
+      "capabilityId": "workspace.compose"
+    }
   ],
   "secondaryNavigation": [
-    { "id": "workspace.nav.search", "label": "Search", "route": "/workspace/search", "icon": "search", "order": 900, "capabilityId": "workspace.search" },
-    { "id": "workspace.nav.attention", "label": "Attention", "route": "/workspace/attention", "icon": "clock", "order": 910, "capabilityId": "workspace.attention" },
-    { "id": "workspace.nav.connections", "label": "Connections", "route": "/workspace/integrations", "icon": "plug", "order": 920, "capabilityId": "workspace.compose" },
-    { "id": "workspace.nav.settings", "label": "Workspace layout", "route": "/workspace/layout", "icon": "settings", "order": 930, "capabilityId": "workspace.personalize" }
+    {
+      "id": "workspace.nav.notifications",
+      "label": "Notifications",
+      "route": "/workspace/notifications",
+      "icon": "bell",
+      "order": 915,
+      "capabilityId": "workspace.notifications"
+    },
+    {
+      "id": "workspace.nav.search",
+      "label": "Search",
+      "route": "/workspace/search",
+      "icon": "search",
+      "order": 900,
+      "capabilityId": "workspace.search"
+    },
+    {
+      "id": "workspace.nav.attention",
+      "label": "Attention",
+      "route": "/workspace/attention",
+      "icon": "clock",
+      "order": 910,
+      "capabilityId": "workspace.attention"
+    },
+    {
+      "id": "workspace.nav.connections",
+      "label": "Connections",
+      "route": "/workspace/integrations",
+      "icon": "plug",
+      "order": 920,
+      "capabilityId": "workspace.compose"
+    },
+    {
+      "id": "workspace.nav.settings",
+      "label": "Workspace layout",
+      "route": "/workspace/layout",
+      "icon": "settings",
+      "order": 930,
+      "capabilityId": "workspace.personalize"
+    }
   ],
   "dashboardWidgets": [
     {
@@ -18,7 +64,9 @@
       "order": 0,
       "type": "attention_composer",
       "capabilityId": "workspace.attention",
-      "attentionTypes": ["workspace.attention.saved_work"],
+      "attentionTypes": [
+        "workspace.attention.saved_work"
+      ],
       "emptyStateId": "workspace.empty.attention"
     }
   ],
@@ -37,7 +85,10 @@
       "label": "All entitled workspaces",
       "order": 0,
       "capabilityId": "workspace.search",
-      "resultTypes": ["workspace.result.navigation", "workspace.result.action"]
+      "resultTypes": [
+        "workspace.result.navigation",
+        "workspace.result.action"
+      ]
     }
   ],
   "commandPaletteActions": [
@@ -52,9 +103,9 @@
   "notificationTypes": [
     {
       "id": "workspace.notification.connection_required",
-      "label": "Connection needs attention",
+      "label": "Saved access needs review",
+      "capabilityId": "workspace.notifications",
       "order": 90,
-      "capabilityId": "workspace.attention",
       "defaultEnabled": true
     }
   ],
@@ -63,7 +114,6 @@
       "id": "workspace.empty.attention",
       "title": "No matching saved-work cues",
       "description": "This checks admitted saved-work metadata only. Try another source or priority; no matching cues is not an all-clear."
-
     }
   ],
   "bundleSettings": [

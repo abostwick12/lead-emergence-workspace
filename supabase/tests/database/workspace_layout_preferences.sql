@@ -16,6 +16,6 @@ select is(has_function_privilege('anon',signature,'execute'),false,'anonymous ca
  from unnest(array['workspace.get_workspace_layout()','workspace.save_workspace_layout(jsonb,integer,text,uuid,boolean)']) signature;
 select is((select count(*)::integer from workspace_private.layout_contributions),11,'eleven implemented customizable contributions');
 select is((select count(*)::integer from workspace_private.layout_contributions where route='/workspace'),0,'Home is an escape, not a hideable contribution');
-select is((select count(*)::integer from workspace_private.bundle_capability_bindings where bundle_key='workspace_experience'),4,'only implemented Experience capabilities registered');
+select is((select count(*)::integer from workspace_private.bundle_capability_bindings where bundle_key='workspace_experience'),5,'only implemented Experience capabilities registered');
 select * from finish();
 rollback;

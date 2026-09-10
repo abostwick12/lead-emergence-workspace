@@ -121,9 +121,9 @@
   "notificationTypes": [
     {
       "id": "investor.notification.thesis_change",
-      "label": "Material thesis change",
-      "order": 50,
+      "label": "Recorded thesis concern",
       "capabilityId": "investor.thesis",
+      "order": 50,
       "defaultEnabled": true
     }
   ],

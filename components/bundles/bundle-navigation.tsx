@@ -16,6 +16,7 @@ export function BundleNavigation({ pathname, onNavigate }: { pathname: string; o
     {bundleExperience?.capabilityIds.includes("workspace.personalize") ? <Link className="nav-link" href="/workspace/layout" onClick={onNavigate} data-active={pathname==="/workspace/layout"}>Workspace layout</Link> : null}
     {bundleExperience?.capabilityIds.includes("workspace.search") ? <Link className="nav-link" href="/workspace/search" onClick={onNavigate} data-active={pathname==="/workspace/search"}>Search saved work</Link> : null}
     {bundleExperience?.capabilityIds.includes("workspace.attention") ? <Link className="nav-link" href="/workspace/attention" onClick={onNavigate} data-active={pathname==="/workspace/attention"}>Attention</Link> : null}
+    {bundleExperience?.capabilityIds.includes("workspace.notifications") ? <Link className="nav-link" href="/workspace/notifications" onClick={onNavigate} data-active={pathname==="/workspace/notifications"}>Notifications</Link> : null}
     {bundleError ? <button className="sign-out" onClick={refreshBundleExperience}>Retry bundle access</button> : null}
   </>;
 }

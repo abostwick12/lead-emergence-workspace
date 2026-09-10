@@ -19,7 +19,7 @@ const operationalLinks = [
 const workspaceLinks = [["/workspace/memory", "Memory", BrainCircuit], ["/workspace/integrations", "Connections", Plug]] as const;
 
 function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactNode; sotfPilotEnabled: boolean }) {
-  const { ready, user, workspace, onboarding, plan, capabilities, sotfAccess, error, signOut } = useWorkspace();
+  const { ready, user, workspace, onboarding, plan, capabilities, bundleExperience, sotfAccess, error, signOut } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -80,7 +80,36 @@ function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactN
       <div className="sidebar-footer"><div className="signal-status"><p className="eyebrow">Workspace status</p><p><span className="status-dot" />Private Workspace ready</p></div><Link className="settings-link" href="/workspace/settings"><Settings size={17} />Settings</Link>{signOutError ? <p className="error" role="alert">{signOutError}</p> : null}<button className="sign-out" disabled={signingOut} onClick={() => void handleSignOut()}>{signingOut ? "Signing out…" : "Sign out"}</button></div>
     </aside>
     {navOpen ? <button className="nav-backdrop" aria-label="Close navigation" onClick={() => setNavOpen(false)} /> : null}
-    <div className="workspace-stage"><header className="workspace-header"><div className="workspace-context"><div><p className="greeting">Welcome back, <em>{displayName}</em>.</p><WorkspaceHeaderDate /></div><div className="header-rule" /><div className="header-telemetry"><span className="eyebrow">Mode</span><strong>{capabilities.leader_mode ? "Leader" : "Personal"}</strong></div></div><WorkspaceClocks /><div className="header-actions"><QuickActions key={user.id+":"+workspace.id+":"+pathname} blocked={captureOpen}/><button className="quick-capture-trigger" disabled={!captureEnabled} title={captureEnabled ? "Quick capture" : "Quick Capture is unavailable for the current plan"} onClick={() => setCaptureOpen(true)}><Crosshair size={17} /><span>Quick capture</span><kbd>⌘K</kbd></button><button className="icon-button" aria-label="Theme is fixed to the Workspace command-center theme" title="Dark command-center theme"><Moon size={18} /></button><button className="icon-button" aria-label="Notifications are not available yet" title="Notifications are not available yet" disabled><Bell size={18} /></button><span className="avatar" aria-label={`Signed in as ${displayName}`}>{displayName.slice(0, 2).toUpperCase()}</span></div></header><main className="main">{children}</main></div>
+    <div className="workspace-stage">
+      <header className="workspace-header">
+      <div className="workspace-context">
+      <div>
+      <p className="greeting">Welcome back, <em>{displayName}</em>.</p>
+      <WorkspaceHeaderDate />
+      </div>
+      <div className="header-rule" />
+      <div className="header-telemetry">
+      <span className="eyebrow">Mode</span>
+      <strong>{capabilities.leader_mode ? "Leader" : "Personal"}</strong>
+      </div>
+      </div>
+      <WorkspaceClocks />
+      <div className="header-actions">
+      <QuickActions key={user.id+":"+workspace.id+":"+pathname} blocked={captureOpen}/>
+      <button className="quick-capture-trigger" disabled={!captureEnabled} title={captureEnabled ? "Quick capture" : "Quick Capture is unavailable for the current plan"} onClick={() => setCaptureOpen(true)}>
+      <Crosshair size={17} />
+      <span>Quick capture</span>
+      <kbd>⌘K</kbd>
+      </button>
+      <button className="icon-button" aria-label="Theme is fixed to the Workspace command-center theme" title="Dark command-center theme">
+      <Moon size={18} />
+      </button>{bundleExperience?.capabilityIds.includes("workspace.notifications")&&<Link className="icon-button notification-trigger" href="/workspace/notifications" aria-label="Notifications" title="Review current in-app notifications">
+      <Bell size={18}/>
+      </Link>}<span className="avatar" aria-label={`Signed in as ${displayName}`}>{displayName.slice(0, 2).toUpperCase()}</span>
+      </div>
+      </header>
+      <main className="main">{children}</main>
+      </div>
     <QuickCaptureDialog open={captureOpen} onClose={() => setCaptureOpen(false)} />
   </div>;
 }

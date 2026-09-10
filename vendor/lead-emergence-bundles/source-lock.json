@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "107e106661bf7f3b90e0e69a65333900bb26bca0",
+  "sourceRevision": "e9f666768c9794ea7b9a55f975ae907c6e77353c",
   "contractVersion": "1.0",
   "files": [
     {
@@ -56,7 +56,7 @@
     {
       "sourcePath": "bundles/writer-editor/ui-manifest.json",
       "outputPath": "bundles/writer-editor/ui-manifest.json",
-      "sha256": "f58d70b8147332527c32b1fbf3894a2d7dbaa368a37ee65f065a70e01eeee58f"
+      "sha256": "5a267d5e20c400f1dd2299fb6e9f6b3315454fcfdd1d6c9b28f84143f530addd"
     },
     {
       "sourcePath": "bundles/ministry/bundle.json",
@@ -66,7 +66,7 @@
     {
       "sourcePath": "bundles/ministry/ui-manifest.json",
       "outputPath": "catalog/ministry-ui.json",
-      "sha256": "88c7064d577799bc81ba9b21cddad7e56c5fb007302baa19e3090d8a00920f50"
+      "sha256": "29b8b581754fe6ec243a8a4f5cb6b1c319f412ad33a5a93a662a8e61999c6e79"
     },
     {
       "sourcePath": "bundles/ministry/contracts.ts",
@@ -96,7 +96,7 @@
     {
       "sourcePath": "bundles/investor/ui-manifest.json",
       "outputPath": "catalog/investor-ui.json",
-      "sha256": "3efc5b30a470a42aaa1562b927013ba760145ddaa2c41e067339d58c74889e25"
+      "sha256": "3ed032bb8e3abbebe6f1f6ea382dda057b064bb578d39b3be0b2b1d6583d35d7"
     },
     {
       "sourcePath": "bundles/investor/contracts.ts",
@@ -116,7 +116,7 @@
     {
       "sourcePath": "bundles/executive/ui-manifest.json",
       "outputPath": "catalog/executive-ui.json",
-      "sha256": "b6aa2ca378e322c9bdcbae87cb52e7af9d54a922156736a3a3ef89a910228c2a"
+      "sha256": "b2b80ec0ddf05d3eeb36577589ae697ba7f5d02bb66e4f2374704d7d358755e4"
     },
     {
       "sourcePath": "bundles/executive/contracts.ts",
@@ -146,12 +146,12 @@
     {
       "sourcePath": "bundles/workspace-experience/bundle.json",
       "outputPath": "catalog/workspace-experience-bundle.json",
-      "sha256": "045c1d7376c73d40bbea4afc6aa909fdea5fafb157201d39bd4474dc5e5d2bb0"
+      "sha256": "c607aa23b0aacb52c4a8b5a69b4d5aeb12d44b1c68b89cac7b52aec375b0453c"
     },
     {
       "sourcePath": "bundles/workspace-experience/ui-manifest.json",
       "outputPath": "catalog/workspace-experience-ui.json",
-      "sha256": "0e2f4ca9a4f24f92b9e85118dcdef1c1860724a55340859406b23114b1a64b78"
+      "sha256": "51410dc1f36ce4cd2941cbaaef918d9068548733357bc32f4dfe84e4db169b7e"
     },
     {
       "sourcePath": "bundles/workspace-experience/layout.ts",
@@ -167,6 +167,11 @@
       "sourcePath": "bundles/workspace-experience/attention.ts",
       "outputPath": "domain-contracts/workspace-attention.ts",
       "sha256": "d307554063e40d192d9bb18a011349303f87cfb8f29c45f3b241f4b1829012a6"
+    },
+    {
+      "sourcePath": "bundles/workspace-experience/notifications.ts",
+      "outputPath": "domain-contracts/workspace-notifications.ts",
+      "sha256": "af169ccd2e8b338c0ad8687ad0fabc941ac54ba4dc835835faae895543dd2191"
     },
     {
       "sourcePath": "bundles/workspace-experience/connections.ts",

@@ -189,7 +189,29 @@
       "capabilityId": "executive.review"
     }
   ],
-  "notificationTypes": [],
+  "notificationTypes": [
+    {
+      "id": "executive.notification.coordination_due",
+      "label": "Commitments and meeting actions due",
+      "capabilityId": "executive.coordination",
+      "order": 10,
+      "defaultEnabled": true
+    },
+    {
+      "id": "executive.notification.brief_action_due",
+      "label": "Daily brief actions due",
+      "capabilityId": "executive.brief",
+      "order": 11,
+      "defaultEnabled": true
+    },
+    {
+      "id": "executive.notification.review_action_due",
+      "label": "Weekly review actions due",
+      "capabilityId": "executive.review",
+      "order": 12,
+      "defaultEnabled": true
+    }
+  ],
   "emptyStates": [
     {
       "id": "executive.empty.brief",
