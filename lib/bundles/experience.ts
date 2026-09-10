@@ -2,6 +2,7 @@ import { z } from "zod";
 import { composeExperience } from "@/vendor/lead-emergence-bundles/runtime";
 import { parseBundleManifest } from "@/vendor/lead-emergence-bundles/bundle-contract";
 import { uiManifestSchema } from "@/vendor/lead-emergence-bundles/ui-manifest";
+import { valuePilotBundleKeys, valuePilotDefinition } from "@/vendor/lead-emergence-bundles/domain-contracts/value-pilot";
 import writerBundle from "@/vendor/lead-emergence-bundles/bundles/writer-editor/bundle.json";
 import writerUi from "@/vendor/lead-emergence-bundles/bundles/writer-editor/ui-manifest.json";
 import ministryBundle from "@/vendor/lead-emergence-bundles/catalog/ministry-bundle.json";
@@ -36,6 +37,34 @@ const artifacts = [
   { manifest: parseBundleManifest(executiveBundle), uiManifest: uiManifestSchema.parse(executiveUi), entryCapabilityId: "executive.coordination", alternateEntryCapabilityIds: ["executive.brief", "executive.review"] },
   { manifest: parseBundleManifest(experienceBundle), uiManifest: uiManifestSchema.parse(experienceUi), entryCapabilityId: "workspace.compose" }
 ];
+const valuePilotEntryCapabilities: Record<(typeof valuePilotBundleKeys)[number], string[]> = {
+  executive: ["executive.brief", "executive.coordination", "executive.review"],
+  writer_editor: ["writer.resource.review", "writer.resource.library"],
+  ministry: ["ministry.research", "ministry.teaching"],
+  nonprofit_founder: ["nonprofit.roadmap"],
+  investor: ["investor.thesis", "investor.company_research", "investor.filings"],
+  workspace_experience: ["workspace.compose"]
+};
+
+export function bundleValuePilotDefinitions(capabilityIds: string[]) {
+  const available = new Set(capabilityIds);
+  const byKey = new Map(artifacts.map(artifact => [artifact.manifest.identity.key, artifact]));
+  return valuePilotBundleKeys.map(bundleKey => {
+    const artifact = byKey.get(bundleKey);
+    if (!artifact) throw new Error("A bundle value definition is missing.");
+    if (!artifact.uiManifest.workspaceRoute) throw new Error("A bundle value route is missing.");
+    return valuePilotDefinition.parse({
+      schemaVersion: "1.0", bundleKey, manifestVersion: artifact.manifest.identity.version,
+      displayName: artifact.manifest.identity.displayName, promise: artifact.manifest.experience.promise,
+      firstRunOutcome: artifact.manifest.experience.firstRunOutcome,
+      targetMinutes: artifact.manifest.experience.timeToFirstValueMinutes,
+      successSignals: artifact.manifest.experience.successSignals,
+      qualityGates: artifact.manifest.experience.qualityGates,
+      workspaceRoute: artifact.uiManifest.workspaceRoute.route,
+      available: valuePilotEntryCapabilities[bundleKey].some(capability => available.has(capability))
+    });
+  });
+}
 
 export function composeBundleExperience(raw: unknown) {
   const authority = bundleAuthoritySchema.parse(raw);

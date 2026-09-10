@@ -1,5 +1,20 @@
 # Test evidence
 
+## P16 private bundle first-value pilots — 2026-09-10
+
+See [the P16 acceptance ledger](bundle-value-pilot-acceptance.md) and
+[the measurement authority boundary](../architecture/bundle-value-pilots.md).
+Every portable manifest promise now has a native, content-free value check with
+a pre-work user baseline, server-measured elapsed time, bounded outcome/trust
+ratings, explicit stop reasons, exact retries and current-entitlement enforcement.
+
+Final local proof includes 183 portable tests; 322 host unit tests; 32
+schema-policy checks; 275 runtime boundaries; an optimized 57-page build; all 42
+migrations replayed fresh; 1,141 PostgreSQL assertions across 25 suites; and five
+optimized desktop/mobile browser cases with one intentional mobile duplicate of
+desktop-only transport injection skipped. This proves the pilot mechanism, not
+representative client value. All six bundles remain **NOT READY TO SHIP**.
+
 ## P15 private native editor recovery — 2026-09-10
 
 See [the P15 acceptance ledger](native-editor-recovery-acceptance.md) and
