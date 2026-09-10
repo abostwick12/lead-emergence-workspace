@@ -1,12 +1,11 @@
 "use client";
-import {useState} from "react";
 import type {TeachingArchive} from "@/lib/ministry-bundle/contracts";
-import {Field,Choice,Lines,Validation,styles} from "./common";
+import {SourceFileIntake} from "@/components/source-intake/source-file-intake";
+import {Field,Choice,Lines,styles} from "./common";
 export function ArchiveFields({value,onChange}:{value:TeachingArchive;onChange:(v:TeachingArchive)=>void}) {
  const update=(patch:Partial<TeachingArchive>)=>onChange({...value,...patch});
- const [fileError,setFileError]=useState<string|null>(null);
  return <>
- <div className={styles.notice}>Keep prior teaching available without treating it as a statement of your current beliefs. Files are read as plain text; links are recorded, not fetched.</div>
+ <div className={styles.notice}>Keep prior teaching available without treating it as a statement of your current beliefs. Documents are reduced to reviewable text; links are recorded, not fetched.</div>
  <section className={styles.section}><h2>Identify the teaching</h2>
  <Field label="Teaching title" value={value.title} required max={240} onChange={title=>update({title})}/>
  <div className={styles.grid}><Field label="Author" value={value.author} max={300} onChange={author=>update({author})}/><Choice label="Teaching type" value={value.resourceType} values={["sermon","teaching","study_guide","other"]} onChange={resourceType=>update({resourceType:resourceType as TeachingArchive["resourceType"]})}/>
@@ -18,13 +17,10 @@ export function ArchiveFields({value,onChange}:{value:TeachingArchive;onChange:(
  <section className={styles.section}><h2>Preserve the source</h2>
  <Field label="Source description" value={value.sourceLabel} required max={500} onChange={sourceLabel=>update({sourceLabel})} hint="Where did this text come from? For example, your original sermon manuscript."/>
  <Field label="Recorded source URL" value={value.sourceUrl??""} max={2000} type="url" onChange={v=>update({sourceUrl:v||null})}/>
- <label className={styles.field}><span>Import a plain-text file</span><input aria-label="Import a plain-text file" type="file" accept=".txt,text/plain" onChange={async e=>{
-  const file=e.target.files?.[0];e.target.value="";if(!file)return;setFileError(null);
-  if(!file.name.toLowerCase().endsWith(".txt")||file.size>450000){setFileError("Choose a .txt file under 450 KB. Word and PDF import are not available here.");return;}
-  if(value.bodyText&&!window.confirm("Replace the unsaved teaching text with this file? Saved revisions will be preserved."))return;
-  try{const bodyText=await file.text();if(bodyText.length>100000||bodyText.includes("\0"))throw new Error("Use readable plain text with no more than 100,000 characters.");update({bodyText});}catch(error){setFileError(error instanceof Error?error.message:"Could not read this file.");}
- }}/><small>No filename, local path, or modification date is saved automatically. Record the source description yourself.</small></label>
- <Validation message={fileError}/>
+ <SourceFileIntake purpose="ministry_archive" currentText={value.bodyText} heading="Bring in prior teaching" onApply={result=>update({
+  bodyText:result.text,...(!value.title.trim()?{title:result.titleSuggestion}:{}),
+  ...(!value.sourceLabel.trim()?{sourceLabel:"Imported from "+result.file.name}:{})
+ })}/>
  <Field label="Teaching text" value={value.bodyText} max={100000} multiline onChange={bodyText=>update({bodyText})} hint={value.bodyText.length.toLocaleString()+" / 100,000 characters. Original saved text remains in revision history."}/>
  </section></>;
 }

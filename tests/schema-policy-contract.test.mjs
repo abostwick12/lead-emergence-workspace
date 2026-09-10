@@ -63,6 +63,7 @@ const bundleInviteRoute = await readFile("app/api/operator/bundles/invites/route
 const bundleClaimRoute = await readFile("app/api/bundles/invites/claim/route.ts", "utf8");
 const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
 const sotfOperationsSql = await readFile("supabase/migrations/20260906120000_sotf_operational_workflows.sql", "utf8");
+const sourceIntakeAuthorizationSql = await readFile("supabase/migrations/20260915140000_source_intake_authorization.sql", "utf8");
 const sotfWorkspacePage = await readFile("app/workspace/sotf/page.tsx", "utf8");
 const sotfProfessionalContext = await readFile("lib/sotf/professional-context.ts", "utf8");
 const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
@@ -428,4 +429,20 @@ test("keeps protected Professional Context and General P2 outside the SOTF RC", 
   assert.match(sotfProfessionalContext, /No protected read, write, grant, or local persistence is attempted/);
   assert.doesNotMatch(sotfOperationsSql, /create table[^;]+professional_context/i);
   assert.doesNotMatch(mcpServer, /registerTool\("(?:list_professional_context|list_context_candidates|propose_context_candidate|review_context_candidate|manage_professional_context)"/i);
+});
+
+test("authorizes rich source intake only for direct, entitled native sessions", () => {
+  assert.match(sourceIntakeAuthorizationSql, /create or replace function workspace\.authorize_source_intake\(p_purpose text\)/i);
+  assert.match(sourceIntakeAuthorizationSql, /workspace_private\.require_bundle_workspace\(\)/i);
+  assert.match(sourceIntakeAuthorizationSql, /workspace_private\.is_direct_session\(\)/i);
+  assert.match(sourceIntakeAuthorizationSql, /auth\.jwt\(\)->>'client_id' is not null/i);
+  assert.match(sourceIntakeAuthorizationSql, /p_purpose='writer_resource'/i);
+  assert.match(sourceIntakeAuthorizationSql, /writer\.resource\.manage/i);
+  assert.match(sourceIntakeAuthorizationSql, /writer\.resource\.review/i);
+  assert.match(sourceIntakeAuthorizationSql, /p_purpose='ministry_archive'/i);
+  assert.match(sourceIntakeAuthorizationSql, /ministry\.archive/i);
+  assert.match(sourceIntakeAuthorizationSql, /revoke all on function workspace\.authorize_source_intake\(text\) from public,anon,authenticated/i);
+  assert.match(sourceIntakeAuthorizationSql, /grant execute on function workspace\.authorize_source_intake\(text\) to authenticated/i);
+  assert.doesNotMatch(sourceIntakeAuthorizationSql, /service_role|insert into|update\s+workspace\.|delete from/i);
+  assert.match(nextConfig, /serverExternalPackages:\s*\["pdfjs-dist"\]/i);
 });

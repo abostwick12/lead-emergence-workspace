@@ -1,14 +1,32 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
+import JSZip from "jszip";
+
+async function docx(lines: string[]) {
+  const zip = new JSZip();
+  zip.file("[Content_Types].xml", `<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+  zip.file("_rels/.rels", `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+  zip.file("word/document.xml", `<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${lines.map(line=>`<w:p><w:r><w:t>${line}</w:t></w:r></w:p>`).join("")}</w:body></w:document>`);
+  return Buffer.from(await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" }));
+}
+async function clearWriterImportDraft(fixture:{email:string;password:string}) {
+  const config=JSON.parse(readFileSync(".bundle-local/public-config.json","utf8"));
+  const client=createClient(config.url,config.anonKey,{db:{schema:"workspace"},auth:{persistSession:false,autoRefreshToken:false}});
+  const signedIn=await client.auth.signInWithPassword({email:fixture.email,password:fixture.password});expect(signedIn.error).toBeNull();
+  const current=await client.rpc("writer_get_working_draft",{resource_id:null});expect(current.error).toBeNull();
+  if(current.data.values){const cleared=await client.rpc("writer_clear_working_draft",{resource_id:null,expected_version:current.data.version});expect(cleared.error).toBeNull();}
+}
 test.describe("Writer approved revisions in the actual local browser", () => {
   test.setTimeout(120000);
   test.skip(process.env.WRITER_LOCAL_ACCEPTANCE !== "true","Requires the isolated Writer stack and fictional accounts.");
   test("import text, preview a proposal, explicitly approve, and retain the original",async({page,baseURL},testInfo) => {
     expect(baseURL).toBe("http://localhost:3125");
     const fixture=JSON.parse(readFileSync(".bundle-local/fixtures.json","utf8")).writer;
+    await clearWriterImportDraft(fixture);
     const title="Synthetic browser manuscript "+randomUUID();
-    const original="A fictional manuscript about listening.\nThe original voice stays recoverable.";
+    const original="A fictional manuscript about listening.\n\nThe original voice stays recoverable.";
     const revised="A fictional revised manuscript about listening.\nMake space for the next voice.";
     const errors:string[]=[]; page.on("pageerror",(error)=>errors.push(error.message));
     await page.goto("/login?legacy=1");
@@ -17,11 +35,16 @@ test.describe("Writer approved revisions in the actual local browser", () => {
     await page.getByRole("button",{name:"Sign in",exact:true}).click();
     await expect(page).toHaveURL(/\/workspace$/);
     await page.goto("/workspace/writing/new");
-    await page.getByLabel("Title",{exact:true}).fill(title);
     await page.getByLabel("Author Optional").fill("Fictional author");
-    await page.getByLabel("Source label",{exact:true}).fill("Synthetic browser source");
-    await page.getByLabel(/Load a text file/).setInputFiles({name:"synthetic-manuscript.md",mimeType:"text/markdown",buffer:Buffer.from(original)});
+    await page.getByLabel("Choose a document",{exact:true}).setInputFiles({name:"synthetic-manuscript.docx",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",buffer:await docx(original.split("\n\n"))});
+    await expect(page.getByText("synthetic-manuscript.docx",{exact:true})).toBeVisible();
+    await expect(page.getByText(/Formatting is not preserved/)).toBeVisible();
+    await page.getByRole("button",{name:"Use this extracted text",exact:true}).click();
+    await expect(page.getByLabel("Title",{exact:true})).toHaveValue("synthetic manuscript");
+    await expect(page.getByLabel("Source label",{exact:true})).toHaveValue("Imported from synthetic-manuscript.docx");
     await expect(page.getByRole("textbox",{name:"Source text",exact:true})).toHaveValue(original);
+    await page.getByLabel("Title",{exact:true}).fill(title);
+    await page.getByLabel("Source label",{exact:true}).fill("Synthetic browser source");
     await page.route("**/api/writing/import", (route) => route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Synthetic temporary save failure. Please retry."})}));
     await page.getByRole("button",{name:"Save resource and review"}).click();
     await expect(page.getByText("Synthetic temporary save failure. Please retry.",{exact:true})).toBeVisible();

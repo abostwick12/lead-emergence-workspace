@@ -7,6 +7,7 @@ import { WritingAccessState } from "./writing-library";
 import { useWritingAction } from "./use-writing-action";
 import { useWorkingDraft } from "./use-working-draft";
 import { DraftStatus } from "./draft-status";
+import { SourceFileIntake } from "@/components/source-intake/source-file-intake";
 import styles from "./writing.module.css";
 export function WritingImportPage() {
   const { user, bundleExperience } = useWorkspace();
@@ -16,7 +17,7 @@ export function WritingImportPage() {
 function ImportForm() {
   const router=useRouter(),{error,run}=useWritingAction();
   const draft=useWorkingDraft(null,{title:"",author:"",resource_type:"article",source_label:"",source_url:"",source_date:"",source_file:"",body_text:""},null);
-  const [fileError,setFileError]=useState<string|null>(null),[submitting,setSubmitting]=useState(false);
+  const [submitting,setSubmitting]=useState(false);
   const values=draft.values,body=values.body_text||"";
   async function submit(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();setSubmitting(true);
@@ -47,20 +48,12 @@ function ImportForm() {
         <label>Recorded source URL <span>Optional; not fetched or verified</span><input name="source_url" type="url" maxLength={2000} placeholder="https://" value={values.source_url||""} onChange={e=>draft.update({source_url:e.target.value})} /></label>
         <label>Source date <span>Optional</span><input name="source_date" type="date" value={values.source_date||""} onChange={e=>draft.update({source_date:e.target.value})} /></label>
       </div>
-      <label>Load a text file <span>Optional · .txt or .md · replaces the text below; the original file is not uploaded</span>
-        <input type="file" accept=".txt,.md,text/plain,text/markdown" onChange={async(event)=>{
-          const file=event.target.files?.[0];setFileError(null);
-          if(!file)return;
-          if(!/\.(txt|md)$/i.test(file.name)||file.size>400000){setFileError("Choose a .txt or .md file up to 400 KB. For Word or PDF, paste the text below.");return;}
-          try {
-            const text=await file.text();
-            if(text.length>100000||text.includes("\u0000"))throw new Error("Use plain text up to 100,000 characters.");
-            draft.update({body_text:text,source_file:file.name});
-          } catch {setFileError("This file couldn't be read as plain text. Paste the text below.");}
-        }} />
-      </label>
-      {fileError&&<p role="alert">{fileError}</p>}
-      <label>Source text<textarea required rows={15} maxLength={100000} value={body} onChange={e=>draft.update({body_text:e.target.value,source_file:""})} /></label>
+      <SourceFileIntake purpose="writer_resource" currentText={body} heading="Bring in a manuscript or resource" onApply={result=>draft.update({
+        body_text:result.text,source_file:result.file.name,
+        ...(!(values.title??"").trim()?{title:result.titleSuggestion}:{}),
+        ...(!(values.source_label??"").trim()?{source_label:"Imported from "+result.file.name}:{})
+      })}/>
+      <label>Source text<textarea required rows={15} maxLength={100000} value={body} onChange={e=>draft.update({body_text:e.target.value})} /></label>
       {values.source_file&&<p className={styles.method}>Recorded file: {values.source_file}</p>}
       <p className={styles.method}>{body.length.toLocaleString()} / 100,000 characters · Import saves a private resource with “user stated” evidence status. It does not publish or verify its claims.</p>
       {error&&<p role="alert">{error}</p>}

@@ -5,6 +5,11 @@ import {test,expect,type Page} from "@playwright/test";
 import {emptyProfile,type MinistryDocument} from "../../lib/ministry-bundle/contracts";
 import {clearNewEditorDrafts} from "./editor-draft-cleanup";
 function fixtures(){return JSON.parse(readFileSync(".bundle-local/fixtures.json","utf8"));}
+function pdf(text:string){
+ const escaped=text.replaceAll("\\","\\\\").replaceAll("(","\\(").replaceAll(")","\\)");const stream=`BT /F1 12 Tf 72 720 Td (${escaped}) Tj ET`;
+ const objects=[`<< /Type /Catalog /Pages 2 0 R >>`,`<< /Type /Pages /Kids [3 0 R] /Count 1 >>`,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`,`<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`];
+ let output="%PDF-1.4\n";const offsets=[0];objects.forEach((object,index)=>{offsets.push(Buffer.byteLength(output));output+=`${index+1} 0 obj\n${object}\nendobj\n`;});const xref=Buffer.byteLength(output);output+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;output+=offsets.slice(1).map(offset=>`${String(offset).padStart(10,"0")} 00000 n \n`).join("");output+=`trailer\n<< /Size ${objects.length+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;return Buffer.from(output,"latin1");
+}
 async function session(role="minister"){
  const c=JSON.parse(readFileSync(".bundle-local/public-config.json","utf8"));expect(c.url).toBe("http://127.0.0.1:58521");
  const client=createClient(c.url,c.anonKey,{db:{schema:"workspace"},auth:{persistSession:false,autoRefreshToken:false}}),f=fixtures()[role];
@@ -97,7 +102,10 @@ test.describe("Ministry native client workflow",()=>{
   await signIn(page);await page.goto("/workspace/ministry/archive/new");
   await page.getByRole("textbox",{name:"Teaching title *",exact:true}).fill(title);
   await page.getByRole("textbox",{name:"Source description *",exact:true}).fill("Fictional original teaching manuscript");
-  await page.getByLabel("Import a plain-text file",{exact:true}).setInputFiles({name:"fictional-teaching.txt",mimeType:"text/plain",buffer:Buffer.from("Earlier teaching text "+marker)});
+  await page.getByLabel("Choose a document",{exact:true}).setInputFiles({name:"fictional-teaching.pdf",mimeType:"application/pdf",buffer:pdf("Earlier teaching text "+marker)});
+  await expect(page.getByText("fictional-teaching.pdf",{exact:true})).toBeVisible();
+  await expect(page.getByText(/1 page/)).toBeVisible();
+  await page.getByRole("button",{name:"Use this extracted text",exact:true}).click();
   await expect(page.getByRole("textbox",{name:"Teaching text",exact:true})).toHaveValue("Earlier teaching text "+marker);
   await page.getByRole("button",{name:"Save teaching",exact:true}).click();
   await expect(page).toHaveURL(/\/workspace\/ministry\/archive\/[a-f0-9-]{36}$/);

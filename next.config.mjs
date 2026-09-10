@@ -12,6 +12,7 @@ const developmentEvalSource = process.env.NODE_ENV === "development" ? " 'unsafe
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ["pdfjs-dist"],
   turbopack: {
     root: projectRoot
   },

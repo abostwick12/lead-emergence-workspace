@@ -1,5 +1,23 @@
 # Test evidence
 
+## P19 secure rich-source intake — 2026-09-10
+
+See [the P19 acceptance ledger](secure-rich-source-intake-acceptance.md) and
+[the implementation boundary](../architecture/secure-rich-source-intake.md).
+Writer resources and Ministry archives now share bounded, entitlement-checked,
+non-retained text/Markdown/Word/text-PDF intake with preview-before-apply. File
+application remains a protected draft change; canonical save, approval and
+revision authority are unchanged.
+
+Final local proof includes 203 portable tests; a 39-file pinned source export;
+336 host unit tests; 33 schema-policy checks; 279 runtime boundaries; 1,336
+PostgreSQL assertions across 27 suites; type checking; lint; a zero-vulnerability
+dependency audit; an optimized Next 16.3.4 build with 57 pages/routes; and real
+Writer DOCX plus Ministry PDF flows in desktop and mobile-emulated Chrome. P19
+used the retained isolated stack rather than relabeling it as a fresh replay.
+Representative documents, bulk migration, installed-host and deployed operations
+remain open. All six bundles remain **NOT READY TO SHIP**.
+
 ## P18 cross-domain isolation matrix — 2026-09-10
 
 See [the P18 acceptance ledger](cross-domain-isolation-acceptance.md) and
