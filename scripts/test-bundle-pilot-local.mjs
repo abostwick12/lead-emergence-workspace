@@ -26,6 +26,7 @@ const fixtures = {
   founder: { id: "92222222-2222-4222-8222-222222222222", email: "api.founder@example.invalid", password: "BundlePilotFounder!2026", workspaceId: "92aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
   invitee: { id: "93333333-3333-4333-8333-333333333333", email: "api.invitee@example.invalid", password: "BundlePilotInvitee!2026", workspaceId: "93bbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" }
 };
+const leadEmergenceBundleKeys = ["executive", "writer_editor", "ministry", "nonprofit_founder", "investor", "workspace_experience"];
 
 async function createFixtureUser(fixture, appMetadata = {}) {
   const { error } = await admin.auth.admin.createUser({
@@ -68,6 +69,8 @@ async function provisionFixtureWorkspace(fixture, client) {
     status: "active"
   });
   if (membershipError) throw membershipError;
+  const { error: provisionError } = await client.rpc("ensure_personal_workspace");
+  if (provisionError) throw provisionError;
 }
 
 async function request(path, accessToken, init = {}) {
@@ -97,6 +100,18 @@ try {
   await provisionFixtureWorkspace(fixtures.founder, founderSession.client);
   await provisionFixtureWorkspace(fixtures.invitee, inviteeSession.client);
 
+  const catalogReview = await request("/api/operator/bundles/state", operatorToken);
+  assert.equal(catalogReview.response.status, 200);
+  assert.equal(catalogReview.payload.state.workspace, null);
+  assert.deepEqual(
+    leadEmergenceBundleKeys.filter((bundleKey) => catalogReview.payload.state.bundles.some((bundle) => bundle.bundleKey === bundleKey)),
+    leadEmergenceBundleKeys
+  );
+  assert.equal(catalogReview.payload.state.bundles.every((bundle) => bundle.entitlementId === null), true);
+
+  const ordinaryReview = await request(`/api/operator/bundles/state?workspaceId=${fixtures.founder.workspaceId}`, founderToken);
+  assert.equal(ordinaryReview.response.status, 403);
+
   const assignmentBody = JSON.stringify({
     workspaceId: fixtures.founder.workspaceId,
     bundleKey: "sotf_transition",
@@ -124,6 +139,58 @@ try {
 
   const ordinaryAssignment = await request("/api/operator/bundles/assign", founderToken, { method: "POST", body: assignmentBody });
   assert.equal(ordinaryAssignment.response.status, 403);
+
+  for (const bundleKey of leadEmergenceBundleKeys) {
+    const assignment = await request("/api/operator/bundles/assign", operatorToken, {
+      method: "POST",
+      body: JSON.stringify({
+        workspaceId: fixtures.founder.workspaceId,
+        bundleKey,
+        idempotencyKey: `api-six-bundle-${bundleKey}-001`,
+        expiresAt: null
+      })
+    });
+    assert.equal(assignment.response.status, 200);
+    assert.equal(assignment.payload.entitlement.state, "active");
+  }
+
+  const reviewedClient = await request(`/api/operator/bundles/state?workspaceId=${fixtures.founder.workspaceId}`, operatorToken);
+  assert.equal(reviewedClient.response.status, 200);
+  assert.equal(reviewedClient.payload.state.workspace.ownerDisplayName, "API Founder");
+  assert.equal(reviewedClient.payload.state.workspace.ownerEmail, fixtures.founder.email);
+  assert.equal(reviewedClient.payload.state.workspace.workspaceId, fixtures.founder.workspaceId);
+  assert.equal(
+    reviewedClient.payload.state.bundles.filter((bundle) => leadEmergenceBundleKeys.includes(bundle.bundleKey) && bundle.state === "active").length,
+    6
+  );
+
+  const writerState = reviewedClient.payload.state.bundles.find((bundle) => bundle.bundleKey === "writer_editor");
+  assert.ok(writerState?.entitlementId);
+  const removedWriter = await request("/api/operator/bundles/entitlements/revoke", operatorToken, {
+    method: "POST",
+    body: JSON.stringify({ entitlementId: writerState.entitlementId, reason: "API lifecycle acceptance removal." })
+  });
+  assert.equal(removedWriter.response.status, 200);
+  assert.equal(removedWriter.payload.entitlement.state, "revoked");
+  const reviewAfterRemoval = await request(`/api/operator/bundles/state?workspaceId=${fixtures.founder.workspaceId}`, operatorToken);
+  assert.equal(reviewAfterRemoval.payload.state.bundles.find((bundle) => bundle.bundleKey === "writer_editor").state, "revoked");
+  const experienceAfterRemoval = await request("/api/bundles/experience", founderToken);
+  assert.equal(experienceAfterRemoval.response.status, 200);
+  assert.equal(experienceAfterRemoval.payload.bundleKeys.includes("writer_editor"), false);
+
+  const regrantedWriter = await request("/api/operator/bundles/assign", operatorToken, {
+    method: "POST",
+    body: JSON.stringify({
+      workspaceId: fixtures.founder.workspaceId,
+      bundleKey: "writer_editor",
+      idempotencyKey: "api-six-bundle-writer-editor-002",
+      expiresAt: null
+    })
+  });
+  assert.equal(regrantedWriter.response.status, 200);
+  const experienceAfterRegrant = await request("/api/bundles/experience", founderToken);
+  assert.equal(experienceAfterRegrant.response.status, 200);
+  assert.equal(leadEmergenceBundleKeys.every((bundleKey) => experienceAfterRegrant.payload.bundleKeys.includes(bundleKey)), true);
 
   const inviteBody = JSON.stringify({
     recipientEmail: fixtures.invitee.email,
@@ -197,7 +264,7 @@ try {
   });
   assert.equal(invalidClaim.response.status, 403);
 
-  console.log("Bundle API acceptance PASS: founder assignment, invite issuance/claim, retries, authorization, revocation, and canonical resolution.");
+  console.log("Bundle API acceptance PASS: verified client review, all-six assignment, removal/re-grant, invite lifecycle, authorization, and canonical resolution.");
 } catch (error) {
   console.error("Bundle acceptance failed. Reset the repository-local Supabase database before retrying.");
   throw error;

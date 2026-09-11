@@ -1875,3 +1875,58 @@ Remaining: full-period weekly outcomes, explicit-availability scheduling,
 approved recurring/notification lifecycle, exact-child navigation and grouping
 redundant parent/task cues, crash/autosave recovery, shared Workspace Experience,
 representative client-value/accessibility and deployed release gates.
+
+## P25 — Generic client access lifecycle — 2026-09-11
+
+**Source-only client-operations milestone. No hosted database, production
+deployment, external provider, client account, payment system, main merge, or
+public marketplace submission was changed.**
+
+- Fresh isolated replay applied all **48 migrations**, including the new
+  operator review bridge, from zero without repair or a linked project.
+- The new focused database suite passes **21 assertions**. The complete valid
+  local database collection passes **1,681 assertions in 32 suites**. The
+  separate `gate_a_hosted_preflight.sql` was not represented as a local suite:
+  it targets the independently hosted public-site schema. The named repository
+  RLS gate also passes **298 assertions in 10 suites**.
+- The production-shaped HTTP flow passes verified client review, all-six direct
+  assignment, current-state reconciliation, ordinary-user denial, exact
+  removal, native-composition removal, re-grant, invite issuance and claim,
+  retries, withdrawal, and hash secrecy.
+- The connected operator console passes **2/2 optimized Chrome cases** without
+  retries: one desktop and one mobile. Each completes verified-owner review,
+  Ministry grant, required-reason removal, re-grant, Nonprofit Founder invite,
+  and invite withdrawal; bearer-only API and horizontal-overflow checks pass.
+  Final screenshots were visually reviewed. These synthetic emulations are not
+  real-device or unaided-client accessibility proof.
+- Workspace gates pass: **301 runtime files** satisfy the product-boundary scan;
+  **35 schema/policy tests**, typecheck, lint, and **358 unit tests in 43 files**
+  pass. The optimized Next.js build compiles and generates **61 pages**.
+- The dependency audit reports **0 vulnerabilities**. The narrow sensitive-data
+  scan passes across **113 release-lineage commits, 1,417 unique Git blobs, and
+  the working tree**. This remains a targeted scanner, not a comprehensive
+  privacy or legal audit.
+
+Corrected attempts and findings:
+
+- The first clean replay caught an invalid PostgreSQL composite/scalar `INTO`;
+  explicit verified workspace fields replaced it before any acceptance claim.
+- The production test harness was unintentionally removing the bundle invite
+  signing secret because its secret filter was overbroad. It now strips only
+  Supabase administrative secrets and permits the application signing secret
+  to remain server-only. The production build uses the canonical HTTPS invite
+  origin while the application and database remain on loopback.
+- Early browser attempts reached the lifecycle successfully but used an
+  ambiguous test selector for the bundle dropdown. The selector was narrowed;
+  no product assertion was skipped, weakened, or retried through Playwright's
+  retry feature.
+
+The implementation is ready for the next release gate, not for a real client
+yet. Remaining proof includes hosted migration/deployment, production operator
+provisioning and recovery, representative client onboarding, support and
+offboarding rehearsal, payment/paywall behavior, and final privacy/retention
+and authorized-provider acceptance.
+
+See [client access architecture](../architecture/bundle-client-access.md),
+[operations](../runbooks/bundle-pilot-operations.md), and the
+[focused acceptance record](bundle-client-access-acceptance.md).

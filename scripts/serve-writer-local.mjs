@@ -5,9 +5,12 @@ const config = await localConfiguration();
 // test-runner inputs and are never supplied to the Workspace runtime.
 const env = { ...process.env,
   NEXT_PUBLIC_SUPABASE_URL: config.API_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY: config.ANON_KEY,
-  NEXT_PUBLIC_APP_URL: "http://localhost:3125", WORKSPACE_MCP_RESOURCE_URI: "https://workspace.leademergence.com/api/mcp"
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3125",
+  WORKSPACE_MCP_RESOURCE_URI: "https://workspace.leademergence.com/api/mcp"
 };
-for (const key of Object.keys(env)) if (/SERVICE_ROLE|SECRET_KEY|JWT_SECRET/.test(key)) delete env[key];
+for (const key of Object.keys(env)) {
+  if (/^(?:LOCAL_)?SUPABASE_(?:SERVICE_ROLE_KEY|SECRET_KEY|JWT_SECRET)$/.test(key)) delete env[key];
+}
 const mode = process.argv[2] || "dev";
 if (!["dev", "build", "start"].includes(mode)) throw new Error("Use dev, build, or start for the isolated preview.");
 const args = mode === "build" ? ["build"] : [mode, "-p", "3125", "--hostname", "127.0.0.1"];

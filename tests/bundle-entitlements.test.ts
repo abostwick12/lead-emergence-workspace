@@ -3,7 +3,9 @@ import {
   bundleAssignmentInput,
   bundleEntitlementRevocationInput,
   bundleInviteClaimInput,
-  bundleInviteInput
+  bundleInviteInput,
+  bundleInviteRevocationInput,
+  bundleOperatorStateInput
 } from "@/lib/workspace/bundle-contract";
 
 describe("bundle product contracts", () => {
@@ -37,5 +39,25 @@ describe("bundle product contracts", () => {
       entitlementId: "82dddddd-dddd-4ddd-8ddd-dddddddddddd",
       reason: "Pilot access ended."
     }).reason).toBe("Pilot access ended.");
+  });
+
+  it("accepts an optional exact workspace review and rejects unrecognized write fields", () => {
+    expect(bundleOperatorStateInput.parse({})).toEqual({});
+    expect(bundleOperatorStateInput.parse({ workspaceId: "82aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" })).toEqual({
+      workspaceId: "82aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    });
+    expect(bundleOperatorStateInput.safeParse({ workspaceId: "not-a-workspace" }).success).toBe(false);
+    expect(bundleAssignmentInput.safeParse({
+      workspaceId: "82aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      bundleKey: "writer_editor",
+      idempotencyKey: "strict-assignment-001",
+      expiresAt: null,
+      operator: true
+    }).success).toBe(false);
+    expect(bundleInviteRevocationInput.safeParse({
+      inviteId: "82dddddd-dddd-4ddd-8ddd-dddddddddddd",
+      reason: "Client no longer needs this invite.",
+      recipientEmail: "changed@example.com"
+    }).success).toBe(false);
   });
 });

@@ -62,6 +62,9 @@ const bundleAssignmentRoute = await readFile("app/api/operator/bundles/assign/ro
 const bundleInviteRoute = await readFile("app/api/operator/bundles/invites/route.ts", "utf8");
 const bundleClaimRoute = await readFile("app/api/bundles/invites/claim/route.ts", "utf8");
 const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
+const bundleOperatorLifecycleSql = await readFile("supabase/migrations/20260915190000_bundle_operator_lifecycle.sql", "utf8");
+const bundleOperatorStateRoute = await readFile("app/api/operator/bundles/state/route.ts", "utf8");
+const bundleOperatorConsole = await readFile("components/bundle-operator-console.tsx", "utf8");
 const sotfOperationsSql = await readFile("supabase/migrations/20260906120000_sotf_operational_workflows.sql", "utf8");
 const sourceIntakeAuthorizationSql = await readFile("supabase/migrations/20260915140000_source_intake_authorization.sql", "utf8");
 const executiveDeliverySql = await readFile("supabase/migrations/20260915180000_executive_delivery_schedules.sql", "utf8");
@@ -406,6 +409,29 @@ test("uses bounded hash-only single-claim bundle invites", () => {
   assert.match(bundleClaimRoute, /ensure_personal_workspace/i);
   assert.doesNotMatch(bundleInviteRoute + bundleClaimRoute, /token_hash/i);
   assert.match(envExample, /BUNDLE_INVITE_TOKEN_SECRET/);
+});
+
+test("provides a fail-closed catalog-wide client access review without exposing invite secrets", () => {
+  assert.match(bundleOperatorLifecycleSql, /create or replace function workspace_private\.get_bundle_operator_state/i);
+  assert.match(bundleOperatorLifecycleSql, /if not workspace_private\.is_bundle_operator\(\)/i);
+  assert.match(bundleOperatorLifecycleSql, /workspace_type = 'personal'/i);
+  assert.match(bundleOperatorLifecycleSql, /membership\.role = 'owner'[\s\S]*membership\.status = 'active'/i);
+  assert.match(bundleOperatorLifecycleSql, /where definition\.availability_status = 'active'/i);
+  assert.match(bundleOperatorLifecycleSql, /revoke all on function workspace_private\.get_bundle_operator_state\(uuid\) from public, anon, authenticated/i);
+  assert.match(bundleOperatorLifecycleSql, /grant execute on function workspace\.get_bundle_operator_state\(uuid\) to authenticated/i);
+  assert.doesNotMatch(bundleOperatorLifecycleSql + bundleOperatorStateRoute, /token_hash|service_role|SUPABASE_SERVICE_ROLE_KEY/i);
+  assert.match(bundleOperatorStateRoute, /readBearerToken\(request\)/);
+  assert.match(bundleOperatorStateRoute, /bundleOperatorStateInput\.parse/);
+  assert.match(bundleOperatorStateRoute, /"Cache-Control": "no-store"/);
+  for (const route of [
+    "/api/operator/bundles/state",
+    "/api/operator/bundles/assign",
+    "/api/operator/bundles/entitlements/revoke",
+    "/api/operator/bundles/invites",
+    "/api/operator/bundles/invites/revoke"
+  ]) assert.match(bundleOperatorConsole, new RegExp(route.replaceAll("/", "\\/")));
+  assert.match(bundleOperatorConsole, /Audit reason/);
+  assert.match(bundleOperatorConsole, /Verified owner/);
 });
 
 test("gates native and MCP SOTF presentation with the same fail-closed entitlement", () => {
