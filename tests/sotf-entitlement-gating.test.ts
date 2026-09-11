@@ -29,7 +29,14 @@ describe("SOTF presentation entitlement gates", () => {
     expect(await toolNames(true)).toEqual(expect.arrayContaining([
       "sotf_resume_transition", "sotf_prepare_next_move", "sotf_record_transition_step"
     ]));
-    expect((await toolNames(false)).some((name) => name.startsWith("sotf_"))).toBe(false);
+    const disabled = await toolNames(false);
+    expect(disabled).toEqual(expect.arrayContaining([
+      "list_entitled_bundles", "get_bundle_manifest", "list_workflows", "get_workflow",
+      "sotf_get_daily_brief_state", "sotf_record_daily_brief_outcome",
+    ]));
+    expect(disabled).not.toEqual(expect.arrayContaining([
+      "sotf_resume_transition", "sotf_prepare_next_move", "sotf_record_transition_step",
+    ]));
   });
 
   it("requires both the environment gate and an exact true database result", async () => {

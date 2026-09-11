@@ -5,6 +5,7 @@ import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import * as z from "zod/v4";
 import { registerSotfTools } from "@/lib/sotf/mcp";
+import { registerSotfV1Tools } from "@/lib/sotf/v1-mcp";
 import { mcpWwwAuthenticateChallenge } from "@/lib/workspace/mcp-auth";
 
 const setupArea = z.enum([
@@ -386,6 +387,7 @@ export function createWorkspaceMcpServer(
     description: "A conversational onboarding posture that asks one useful question at a time and confirms interpretations before storing them."
   }, async () => ({ messages: [{ role: "user", content: { type: "text", text: "Continue my Lead Emergence Workspace setup. First check my onboarding state and existing setup. Ask one useful question at a time, adapt to my answers, allow me to skip or say I don't know, and confirm meaningful interpretations before storing them as configuration." } }] }));
 
+  registerSotfV1Tools(server, supabase, { releaseEnabled: process.env.SOTF_PILOT_ENABLED === "true" });
   if (options.sotfEnabled === true) registerSotfTools(server, supabase);
   publishTopLevelOAuthSecuritySchemes(server);
   return server;

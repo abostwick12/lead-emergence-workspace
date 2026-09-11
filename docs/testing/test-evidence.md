@@ -665,3 +665,42 @@ invite, external send, auth configuration, or route cutover was performed.
   video. This resolves the reproducible local concern but is not a field or
   physical-device result; deployed-preview and physical-phone checks remain a
   production gate.
+
+## SOTF v1 Mode A daily-brief vertical slice — 2026-09-11
+
+This evidence belongs to `codex/sotf-v1-daily-brief-slice`, created from the
+canonical architecture commit `f8183b21379485d8a6866e8f4d4d37cb6a158cfc`.
+After a fresh fetch, `origin/main` remained
+`b38fb978e26564df6ead62db901f150665f07ad1`; no newer-main delta was adopted.
+No hosted migration, production deployment, entitlement mutation, provider
+connection, external send, or real ChatGPT execution was performed.
+
+- Clean local `supabase db reset --local` — **PASS**. All source migrations,
+  including `20260911143000_sotf_v1_daily_brief_slice.sql`, applied to the
+  unlinked local test stack from a fresh database.
+- `npm run test:rls` — **313/313 PASS** across ten pgTAP files. The new 36-case
+  file proves default-off release gating; current, future, expired, suspended,
+  revoked, missing-capability, wrong-client, independent-tenant, and
+  unsupported-host behavior; private storage; bounded confirmed outcome save;
+  content-free authorized-workflow retrieval auditing;
+  exact replay; conflicting identity; stale revision; reference/provenance and
+  extra-field rejection; and cancellation-before/after-write ordering.
+- Local schema lint for `workspace`, `workspace_private`, and `public` at
+  warning level with errors fatal — **PASS**, no schema errors.
+- `npm run test:unit` — **117/117 PASS** in 20 files. New coverage validates the
+  static manifest/current-and-exact workflow catalog, host/LE capability
+  declarations, strict MCP contracts, bounded projection, local-date and DST
+  behavior, UTC/local midnight mismatch, metadata outcome replay, and uncertain
+  write response handling.
+- `npm run test:schema` — **33/33 PASS**; `npm run check:boundaries` — **PASS**
+  across 86 runtime files with no Ministry/Consulting import or service-role
+  client; `npm run typecheck`, `npm run lint`, and `npm run build` — **PASS**.
+- `npm run scan:sensitive` — **PASS** across the working tree, 87 release-lineage
+  commits, and 522 unique reachable Git blobs. Dependency/build output was
+  excluded by the scanner.
+- `git diff --check` — **PASS**, with only Git's existing Windows line-ending
+  conversion warnings.
+- **REAL CHATGPT ACCEPTANCE: NOT RUN.** It still requires the separately
+  approved environment and entitlement setup, an actual ChatGPT MCP connection,
+  host-owned connector observation, explicit outcome preview/confirmation, and
+  post-cancellation checks defined in `sotf-v1-chatgpt-acceptance.md`.

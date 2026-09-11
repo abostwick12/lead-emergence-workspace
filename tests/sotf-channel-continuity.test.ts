@@ -52,7 +52,8 @@ describe('SOTF native API and new MCP conversation share one operational history
   it('keeps the pilot unavailable when its environment flag is off', async () => {
     vi.stubEnv('SOTF_PILOT_ENABLED','false');
     const client = await connect(false); const listed = await client.listTools();
-    expect(listed.tools.some(tool => tool.name.startsWith('sotf_'))).toBe(false);
+    expect(listed.tools.map(tool => tool.name)).toEqual(expect.arrayContaining(['sotf_get_daily_brief_state','sotf_record_daily_brief_outcome']));
+    expect(listed.tools.map(tool => tool.name)).not.toEqual(expect.arrayContaining(['sotf_resume_transition','sotf_prepare_next_move','sotf_record_transition_step']));
     expect((await GET(request())).status).toBe(503);
   });
 });

@@ -45,6 +45,10 @@ const sotfOperationsSql = await readFile("supabase/migrations/20260906120000_sot
 const sotfWorkspacePage = await readFile("app/workspace/sotf/page.tsx", "utf8");
 const sotfProfessionalContext = await readFile("lib/sotf/professional-context.ts", "utf8");
 const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
+const sotfV1Sql = await readFile("supabase/migrations/20260911143000_sotf_v1_daily_brief_slice.sql", "utf8");
+const sotfV1Catalog = await readFile("lib/sotf/workflow-catalog.ts", "utf8");
+const sotfV1DailyBrief = await readFile("lib/sotf/daily-brief-v1.ts", "utf8");
+const sotfV1Mcp = await readFile("lib/sotf/v1-mcp.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -406,4 +410,40 @@ test("keeps protected Professional Context and General P2 outside the SOTF RC", 
   assert.match(sotfProfessionalContext, /No protected read, write, grant, or local persistence is attempted/);
   assert.doesNotMatch(sotfOperationsSql, /create table[^;]+professional_context/i);
   assert.doesNotMatch(mcpServer, /registerTool\("(?:list_professional_context|list_context_candidates|propose_context_candidate|review_context_candidate|manage_professional_context)"/i);
+});
+
+test("implements only the release-gated SOTF v1 daily-brief contract", () => {
+  assert.match(sotfV1Catalog, /transition\.daily_brief/);
+  assert.match(sotfV1Catalog, /sotf_daily_brief_v1/);
+  assert.match(sotfV1Catalog, /execution_mode/);
+  assert.match(sotfV1Mcp, /registerTool\("list_entitled_bundles"/);
+  assert.match(sotfV1Mcp, /registerTool\("get_workflow"/);
+  assert.match(sotfV1Mcp, /registerTool\("sotf_get_daily_brief_state"/);
+  assert.match(sotfV1Mcp, /registerTool\("sotf_record_daily_brief_outcome"/);
+  assert.match(sotfV1Mcp, /SOTF_PILOT_ENABLED|releaseEnabled/);
+  assert.match(sotfV1DailyBrief, /64 \* 1024/);
+  assert.match(sotfV1DailyBrief, /recent_outcomes/);
+  assert.doesNotMatch(sotfV1Mcp + sotfV1DailyBrief + sotfV1Catalog, /fetch\(|googleapis|composio|SUPABASE_SERVICE_ROLE_KEY|eval\(|new Function/i);
+  assert.doesNotMatch(sotfV1Catalog, /transition\.(?:weekly_review|networking|interview|opportunity)/);
+});
+
+test("keeps SOTF v1 outcome persistence private, bounded, current-authority checked, and off by default", () => {
+  assert.match(sotfV1Sql, /sotf_v1_daily_brief_enabled', 'false'/);
+  assert.match(sotfV1Sql, /workspace_private\.require_mcp_workspace\(\)/);
+  assert.match(sotfV1Sql, /assistant_provider = 'chatgpt'/);
+  assert.match(sotfV1Sql, /entitlement\.starts_at <= now\(\)/);
+  assert.match(sotfV1Sql, /entitlement\.revoked_at is null/);
+  assert.match(sotfV1Sql, /workspace_private\.has_personal_capability/);
+  assert.match(sotfV1Sql, /octet_length\(payload::text\) <= 8192/);
+  assert.match(sotfV1Sql, /unique \(workspace_id, user_id, workflow_id, request_id\)/);
+  assert.match(sotfV1Sql, /unique \(workspace_id, user_id, workflow_id, run_id\)/);
+  assert.match(sotfV1Sql, /revoke all on workspace_private\.sotf_daily_brief_outcomes[\s\S]*?from public, anon, authenticated/);
+  assert.match(sotfV1Sql, /create table workspace_private\.sotf_workflow_access_audit/);
+  assert.match(sotfV1Sql, /create function workspace\.sotf_v1_authorize_workflow_retrieval/);
+  assert.match(sotfV1Sql, /workflow_retrieved/);
+  assert.match(sotfV1Sql, /provider_content_persisted/);
+  assert.match(sotfV1Sql, /create function workspace_private\.lock_sotf_v1_authority/);
+  assert.match(sotfV1Sql, /for update/);
+  assert.doesNotMatch(sotfV1Sql, /create table[^;]+(?:provider_payload|transcript|email_content|brief_text)/i);
+  assert.doesNotMatch(sotfV1Sql, /service_role|auth\.users\s+set|integration_credentials/i);
 });
