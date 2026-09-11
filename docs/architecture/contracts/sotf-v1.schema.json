@@ -1,0 +1,715 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SOTF daily brief v1 design contracts",
+  "description": "Documentation-only strict schemas for the first vertical slice. Not registered runtime tools; semantic requirements are in sotf-v1-contracts.md.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/bundle"
+    },
+    {
+      "$ref": "#/$defs/workflow"
+    },
+    {
+      "$ref": "#/$defs/outcome"
+    }
+  ],
+  "$defs": {
+    "entitlement": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bundle_key": {
+          "const": "sotf_transition"
+        },
+        "required_capabilities": {
+          "const": [
+            "core_workspace",
+            "workspace_mcp",
+            "career",
+            "daily_brief",
+            "agentic_workflows"
+          ]
+        }
+      },
+      "required": [
+        "bundle_key",
+        "required_capabilities"
+      ]
+    },
+    "hostCapabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "const": [
+            "mcp",
+            "user_interaction",
+            "reasoning",
+            "approval_interaction"
+          ]
+        },
+        "optional": {
+          "const": [
+            "calendar_read",
+            "email_read"
+          ]
+        }
+      },
+      "required": [
+        "required",
+        "optional"
+      ]
+    },
+    "leDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "server_name": {
+          "const": "lewis"
+        },
+        "contract_version": {
+          "const": "sotf_daily_brief_v1"
+        },
+        "required_tools": {
+          "const": [
+            "get_onboarding_state",
+            "list_entitled_bundles",
+            "get_bundle_manifest",
+            "list_workflows",
+            "get_workflow",
+            "sotf_get_daily_brief_state",
+            "sotf_record_daily_brief_outcome"
+          ]
+        }
+      },
+      "required": [
+        "server_name",
+        "contract_version",
+        "required_tools"
+      ]
+    },
+    "skill": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skill_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "skill_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "maxLength": 32
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      },
+      "required": [
+        "skill_id",
+        "skill_version",
+        "reference"
+      ]
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1"
+        },
+        "bundle_key": {
+          "const": "sotf_transition"
+        },
+        "bundle_version": {
+          "const": "1.0.0"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "entitlement": {
+          "$ref": "#/$defs/entitlement"
+        },
+        "portable_skills": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/skill"
+          },
+          "minItems": 1,
+          "maxItems": 3
+        },
+        "hosted_workflows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "workflow_id": {
+                "const": "transition.daily_brief"
+              },
+              "version_selection": {
+                "const": "current"
+              }
+            },
+            "required": [
+              "workflow_id",
+              "version_selection"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "host_capabilities": {
+          "$ref": "#/$defs/hostCapabilities"
+        },
+        "le_mcp": {
+          "$ref": "#/$defs/leDependency"
+        },
+        "host_compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "supported_hosts": {
+              "const": [
+                "chatgpt"
+              ]
+            },
+            "acceptance_status": {
+              "const": "not_run"
+            },
+            "contract_schema_versions": {
+              "const": [
+                "1"
+              ]
+            }
+          },
+          "required": [
+            "supported_hosts",
+            "acceptance_status",
+            "contract_schema_versions"
+          ]
+        },
+        "bootstrap_reference": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "degradation_policy": {
+          "const": "sotf_v1_online_only"
+        }
+      },
+      "required": [
+        "schema_version",
+        "bundle_key",
+        "bundle_version",
+        "display_name",
+        "description",
+        "entitlement",
+        "portable_skills",
+        "hosted_workflows",
+        "host_capabilities",
+        "le_mcp",
+        "host_compatibility",
+        "bootstrap_reference",
+        "degradation_policy"
+      ]
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1"
+        },
+        "workflow_id": {
+          "const": "transition.daily_brief"
+        },
+        "workflow_version": {
+          "const": "1.0.0"
+        },
+        "bundle_key": {
+          "const": "sotf_transition"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "execution_mode": {
+          "const": "A"
+        },
+        "supported_hosts": {
+          "const": [
+            "chatgpt"
+          ]
+        },
+        "entitlement": {
+          "$ref": "#/$defs/entitlement"
+        },
+        "host_capabilities": {
+          "$ref": "#/$defs/hostCapabilities"
+        },
+        "le_mcp": {
+          "$ref": "#/$defs/leDependency"
+        },
+        "referenced_skills": {
+          "const": [
+            "sotf.daily_prioritization"
+          ]
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "type": {
+                "enum": [
+                  "date",
+                  "iana_timezone",
+                  "string"
+                ]
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "handling": {
+                "const": "host_ephemeral"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600
+              }
+            },
+            "required": [
+              "name",
+              "type",
+              "required",
+              "handling",
+              "description"
+            ]
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "state_reads": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "tool": {
+                "const": "sotf_get_daily_brief_state"
+              },
+              "projection_version": {
+                "const": "1"
+              },
+              "purpose": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600
+              }
+            },
+            "required": [
+              "tool",
+              "projection_version",
+              "purpose"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "step_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "owner": {
+                "const": "host"
+              },
+              "instruction": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1600
+              }
+            },
+            "required": [
+              "step_id",
+              "owner",
+              "instruction"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 12
+        },
+        "decision_rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "approval_gates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "gate_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "applies_to": {
+                "const": "sotf_record_daily_brief_outcome"
+              },
+              "rule": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            },
+            "required": [
+              "gate_id",
+              "applies_to",
+              "rule"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "allowed_write_backs": {
+          "const": [
+            "sotf_record_daily_brief_outcome"
+          ]
+        },
+        "ephemeral_data_classes": {
+          "const": [
+            "provider_payloads",
+            "host_conversation",
+            "brief_text",
+            "unconfirmed_inference"
+          ]
+        },
+        "stop_conditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "success_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600
+          },
+          "minItems": 1,
+          "maxItems": 10
+        },
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "destination": {
+              "const": "host_conversation"
+            },
+            "sections": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240
+              },
+              "minItems": 0,
+              "maxItems": 10,
+              "uniqueItems": true
+            },
+            "max_priorities": {
+              "const": 3
+            },
+            "persist_brief_text": {
+              "const": false
+            }
+          },
+          "required": [
+            "destination",
+            "sections",
+            "max_priorities",
+            "persist_brief_text"
+          ]
+        },
+        "outcome_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schema_ref": {
+              "const": "sotf-v1.schema.json#/$defs/outcome"
+            },
+            "consent": {
+              "const": "explicit_preview_confirmation"
+            },
+            "durable_effect": {
+              "const": "append_daily_brief_outcome_only"
+            }
+          },
+          "required": [
+            "schema_ref",
+            "consent",
+            "durable_effect"
+          ]
+        },
+        "degradation_policy": {
+          "const": "sotf_v1_online_only"
+        },
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schema_versions": {
+              "const": [
+                "1"
+              ]
+            },
+            "required_le_contract": {
+              "const": "sotf_daily_brief_v1"
+            }
+          },
+          "required": [
+            "schema_versions",
+            "required_le_contract"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "workflow_id",
+        "workflow_version",
+        "bundle_key",
+        "title",
+        "description",
+        "execution_mode",
+        "supported_hosts",
+        "entitlement",
+        "host_capabilities",
+        "le_mcp",
+        "referenced_skills",
+        "inputs",
+        "state_reads",
+        "steps",
+        "decision_rules",
+        "approval_gates",
+        "allowed_write_backs",
+        "ephemeral_data_classes",
+        "stop_conditions",
+        "success_criteria",
+        "output",
+        "outcome_contract",
+        "degradation_policy",
+        "compatibility"
+      ]
+    },
+    "leReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entity_type": {
+          "enum": [
+            "criterion",
+            "opportunity",
+            "commitment",
+            "meeting",
+            "hypothesis"
+          ]
+        },
+        "entity_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      },
+      "required": [
+        "entity_type",
+        "entity_id"
+      ]
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1"
+        },
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "run_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "workflow_id": {
+          "const": "transition.daily_brief"
+        },
+        "workflow_version": {
+          "const": "1.0.0"
+        },
+        "expected_state_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2000
+        },
+        "brief_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "time_zone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "host": {
+          "const": "chatgpt"
+        },
+        "execution_mode": {
+          "const": "A"
+        },
+        "data_class": {
+          "const": "ordinary_transition_operations"
+        },
+        "user_confirmed": {
+          "const": true
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "degraded"
+          ]
+        },
+        "connector_results": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "calendar_read": {
+              "enum": [
+                "used",
+                "not_available",
+                "failed",
+                "not_requested"
+              ]
+            },
+            "email_read": {
+              "enum": [
+                "used",
+                "not_available",
+                "failed",
+                "not_requested"
+              ]
+            }
+          },
+          "required": [
+            "calendar_read",
+            "email_read"
+          ]
+        },
+        "degradation_reasons": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "calendar_unavailable",
+              "calendar_failed",
+              "email_unavailable",
+              "email_failed",
+              "state_truncated"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 5,
+          "uniqueItems": true
+        },
+        "selected_le_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/leReference"
+          },
+          "minItems": 0,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "priority_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "usefulness": {
+          "enum": [
+            "useful",
+            "not_useful",
+            "not_rated"
+          ]
+        },
+        "provenance": {
+          "const": {
+            "source": "host_reported_user_confirmed",
+            "provider_content_persisted": false
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "run_id",
+        "workflow_id",
+        "workflow_version",
+        "expected_state_revision",
+        "brief_date",
+        "time_zone",
+        "host",
+        "execution_mode",
+        "data_class",
+        "user_confirmed",
+        "status",
+        "connector_results",
+        "degradation_reasons",
+        "selected_le_refs",
+        "priority_count",
+        "usefulness",
+        "provenance"
+      ]
+    }
+  }
+}

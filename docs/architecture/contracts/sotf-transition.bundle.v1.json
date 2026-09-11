@@ -1,0 +1,66 @@
+{
+  "schema_version": "1",
+  "bundle_key": "sotf_transition",
+  "bundle_version": "1.0.0",
+  "display_name": "SOTF Transition — Daily Brief",
+  "description": "Portable prioritization method and host bootstrap with an entitled hosted daily-brief reference.",
+  "entitlement": {
+    "bundle_key": "sotf_transition",
+    "required_capabilities": [
+      "core_workspace",
+      "workspace_mcp",
+      "career",
+      "daily_brief",
+      "agentic_workflows"
+    ]
+  },
+  "portable_skills": [
+    {
+      "skill_id": "sotf.daily_prioritization",
+      "skill_version": "1.0.0",
+      "reference": "../sotf-v1-contracts.md#portable-method-and-bootstrap"
+    }
+  ],
+  "hosted_workflows": [
+    {
+      "workflow_id": "transition.daily_brief",
+      "version_selection": "current"
+    }
+  ],
+  "host_capabilities": {
+    "required": [
+      "mcp",
+      "user_interaction",
+      "reasoning",
+      "approval_interaction"
+    ],
+    "optional": [
+      "calendar_read",
+      "email_read"
+    ]
+  },
+  "le_mcp": {
+    "server_name": "lewis",
+    "contract_version": "sotf_daily_brief_v1",
+    "required_tools": [
+      "get_onboarding_state",
+      "list_entitled_bundles",
+      "get_bundle_manifest",
+      "list_workflows",
+      "get_workflow",
+      "sotf_get_daily_brief_state",
+      "sotf_record_daily_brief_outcome"
+    ]
+  },
+  "host_compatibility": {
+    "supported_hosts": [
+      "chatgpt"
+    ],
+    "acceptance_status": "not_run",
+    "contract_schema_versions": [
+      "1"
+    ]
+  },
+  "bootstrap_reference": "../sotf-v1-contracts.md#portable-method-and-bootstrap",
+  "degradation_policy": "sotf_v1_online_only"
+}

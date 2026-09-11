@@ -1,0 +1,32 @@
+{
+  "schema_version": "1",
+  "request_id": "70000000-0000-4000-8000-000000000011",
+  "run_id": "70000000-0000-4000-8000-000000000012",
+  "workflow_id": "transition.daily_brief",
+  "workflow_version": "1.0.0",
+  "expected_state_revision": 5,
+  "brief_date": "2026-09-11",
+  "time_zone": "America/Chicago",
+  "host": "chatgpt",
+  "execution_mode": "A",
+  "data_class": "ordinary_transition_operations",
+  "user_confirmed": true,
+  "status": "completed",
+  "connector_results": {
+    "calendar_read": "used",
+    "email_read": "used"
+  },
+  "degradation_reasons": [],
+  "selected_le_refs": [
+    {
+      "entity_type": "commitment",
+      "entity_id": "fictional-promise"
+    }
+  ],
+  "priority_count": 1,
+  "usefulness": "not_rated",
+  "provenance": {
+    "source": "host_reported_user_confirmed",
+    "provider_content_persisted": false
+  }
+}
