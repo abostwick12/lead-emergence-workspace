@@ -19,8 +19,8 @@ test("discloses assigned Writing, Ministry, Nonprofit, Investor and Executive ac
   assert.match(consent, /Source sharing starts off/);
   assert.match(consent, /bounded outcome-history projection/);
   assert.match(consent, /availability you manually enter; this does not connect a calendar/);
-  assert.match(consent, /source-permission changes, proposal decisions and full revision history remain native-only/);
-  assert.match(consent, /No recurring automation is started by this connection/);
+  assert.match(consent, /source-permission changes, proposal decisions, native schedule controls and full revision history remain native-only/);
+  assert.match(consent, /An assistant connection cannot create, change or trigger recurring schedules/);
 });
 
 const sql = await readFile("supabase/migrations/20260820000000_workspace_foundation.sql", "utf8");
@@ -64,6 +64,8 @@ const bundleClaimRoute = await readFile("app/api/bundles/invites/claim/route.ts"
 const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
 const sotfOperationsSql = await readFile("supabase/migrations/20260906120000_sotf_operational_workflows.sql", "utf8");
 const sourceIntakeAuthorizationSql = await readFile("supabase/migrations/20260915140000_source_intake_authorization.sql", "utf8");
+const executiveDeliverySql = await readFile("supabase/migrations/20260915180000_executive_delivery_schedules.sql", "utf8");
+const executiveMcp = await readFile("lib/executive-bundle/mcp.ts", "utf8");
 const sotfWorkspacePage = await readFile("app/workspace/sotf/page.tsx", "utf8");
 const sotfProfessionalContext = await readFile("lib/sotf/professional-context.ts", "utf8");
 const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
@@ -445,4 +447,17 @@ test("authorizes rich source intake only for direct, entitled native sessions", 
   assert.match(sourceIntakeAuthorizationSql, /grant execute on function workspace\.authorize_source_intake\(text\) to authenticated/i);
   assert.doesNotMatch(sourceIntakeAuthorizationSql, /service_role|insert into|update\s+workspace\.|delete from/i);
   assert.match(nextConfig, /serverExternalPackages:\s*\["pdfjs-dist"\]/i);
+});
+
+test("keeps Executive delivery native, private and honest about background execution", () => {
+  for (const table of ["executive_delivery_schedules", "executive_delivery_events", "executive_delivery_requests"]) {
+    assert.match(executiveDeliverySql, new RegExp(`alter table workspace_private\\.${table} enable row level security`, "i"));
+  }
+  assert.match(executiveDeliverySql, /revoke all on workspace_private\.executive_delivery_schedules,workspace_private\.executive_delivery_events/i);
+  assert.match(executiveDeliverySql, /perform workspace_private\.executive_direct_user\(\)/i);
+  assert.match(executiveDeliverySql, /'backgroundDeliveryAvailable',false/i);
+  assert.match(executiveDeliverySql, /'externalDelivery',false,'recordCreated',false/i);
+  assert.match(executiveDeliverySql, /grant execute on function workspace\.executive_review_attention[^;]+workspace\.executive_change_delivery\(jsonb\),workspace\.executive_deliveries\(\) to authenticated/i);
+  assert.doesNotMatch(executiveDeliverySql, /grant execute[^;]+\bto\s+(?:public|anon)\b/i);
+  assert.doesNotMatch(executiveMcp, /executive_(?:change_)?deliver(?:y|ies)/i);
 });

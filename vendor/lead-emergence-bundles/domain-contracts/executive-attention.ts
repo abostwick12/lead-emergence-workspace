@@ -72,11 +72,23 @@ const coverage = z.object({
   capabilityId: z.string(), level: z.enum(["record", "task"]),
   state: z.enum(["current", "not_shared", "unavailable"]), total: z.number().int().nonnegative().nullable()
 }).strict();
+export const executiveAttentionGroupKey=z.enum(["executive","writer_editor","ministry","nonprofit_founder","investor"]);
+export function executiveAttentionGroupForCapability(capabilityId:string):z.infer<typeof executiveAttentionGroupKey>{
+ if(capabilityId.startsWith("executive."))return "executive";
+ if(capabilityId.startsWith("writer."))return "writer_editor";
+ if(capabilityId.startsWith("ministry."))return "ministry";
+ if(capabilityId.startsWith("nonprofit."))return "nonprofit_founder";
+ if(capabilityId.startsWith("investor."))return "investor";
+ throw new Error("Unsupported Executive attention capability.");
+}
+export const executiveAttentionGroup=z.object({
+ groupKey:executiveAttentionGroupKey,total:z.number().int().positive()
+}).strict();
 export const executiveAttentionV2 = z.object({
   schemaVersion: z.literal("2.0"), asOfDate: z.iso.date(), retrievedAt: z.iso.datetime({ offset: true }),
   items: z.array(executiveAttentionItem).max(50), total: z.number().int().nonnegative(),
   offset: z.number().int().nonnegative(), limit: z.number().int().min(1).max(50),
-  coverage: z.array(coverage).length(22)
+  coverage: z.array(coverage).length(22),groups:z.array(executiveAttentionGroup).max(15)
 }).strict().superRefine((value, ctx) => {
   const keys = new Set([
     ...executiveAllCapabilities.map(cap => cap + ":record"),
@@ -91,6 +103,9 @@ export const executiveAttentionV2 = z.object({
   if (value.total !== value.coverage.reduce((sum, c) => sum + (c.total ?? 0), 0)
     || value.items.length !== Math.min(value.limit, Math.max(0, value.total - value.offset)))
     issue("Attention counts or paging could not be verified.");
+  if(value.groups.reduce((sum,group)=>sum+group.total,0)!==value.total
+    ||new Set(value.groups.map(group=>group.groupKey)).size!==value.groups.length)
+    issue("Attention group totals could not be verified.");
   if (new Set(value.items.map(item => item.id)).size !== value.items.length
     || value.items.some(item => item.id !== referenceKey(item.source)))
     issue("Attention targets must be unique.");
@@ -100,6 +115,8 @@ export const executiveAttentionV2 = z.object({
   if (value.items.some(item => !value.coverage.some(c => c.capabilityId === item.source.capabilityId
     && c.level === (item.source.item ? "task" : "record") && c.state === "current")))
     issue("Every item must belong to a currently checked scope.");
+  if(value.items.some(item=>!value.groups.some(group=>group.groupKey===executiveAttentionGroupForCapability(item.source.capabilityId))))
+    issue("Every attention item needs its source group.");
 });
 
 // Cursors contain only a stable record/item identity, never a source title.

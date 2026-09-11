@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "8678d1e552bfcde404229f17c69fd78d3ed7e878",
+  "sourceRevision": "141c12caa34bf13e8461124c1ec8cc0f4ea289ad",
   "contractVersion": "1.0",
   "files": [
     {
@@ -61,7 +61,7 @@
     {
       "sourcePath": "bundles/pilot-kit.ts",
       "outputPath": "domain-contracts/pilot-kit.ts",
-      "sha256": "5515f5f88b9cdc2c5324dd0e150cfab55deaa915d173f18bf097adf44cf838f0"
+      "sha256": "f5b9fe98947c99854e5e431097fae57da3bb0b5bfbd5242a21ca1fde3fe5ad3c"
     },
     {
       "sourcePath": "bundles/source-intake.ts",
@@ -141,7 +141,7 @@
     {
       "sourcePath": "bundles/executive/bundle.json",
       "outputPath": "catalog/executive-bundle.json",
-      "sha256": "d865908d8a52a564eff7035d6ab02784395522f115c4b1111339fb7d23d0a3ac"
+      "sha256": "3e05a5f3d78479dc13a71ff79e1c72e7fa3086aec84707fe78ae10130eadc500"
     },
     {
       "sourcePath": "bundles/executive/ui-manifest.json",
@@ -166,7 +166,12 @@
     {
       "sourcePath": "bundles/executive/attention.ts",
       "outputPath": "domain-contracts/executive-attention.ts",
-      "sha256": "eac3a45d98457455de021dd5d2528e75339815c9a81b7af3138242d263733f6c"
+      "sha256": "3dde38ac044bb53d0be0e69c4ceef9d67b76ead042ea3ee72d8489370734e406"
+    },
+    {
+      "sourcePath": "bundles/executive/delivery.ts",
+      "outputPath": "domain-contracts/executive-delivery.ts",
+      "sha256": "a5216b674bdf1cd07cd2e2b99607d0d3f779f26ebc6061f184b8c6794a654495"
     },
     {
       "sourcePath": "bundles/executive/weekly.ts",

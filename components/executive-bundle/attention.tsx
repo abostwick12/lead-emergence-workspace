@@ -3,10 +3,11 @@ import Link from "next/link";
 import {useState} from "react";
 import {z} from "zod";
 import {useWorkspace} from "@/components/workspace-provider";
-import {executiveAttentionV2,executiveKinds,executiveCapabilities,executiveLabels} from "@/lib/executive-bundle/contracts";
+import {executiveAttentionV2,executiveAttentionGroupForCapability,executiveKinds,executiveCapabilities,executiveLabels} from "@/lib/executive-bundle/contracts";
 import {sourceLabel,sourceRoute,browserDate} from "@/lib/executive-bundle/presentation";
 import {useExecutiveRead} from "./use-executive";
 import {ExecutiveFrame,AccessState,ReadState,Field,Disclosure,styles} from "./common";
+import {ExecutiveDeliverySchedules} from "./delivery-schedules";
 type Attention=z.infer<typeof executiveAttentionV2>;
 function useAttention(date:string,offset=0) {
  const {bundleExperience}=useWorkspace(),capability=executiveKinds.map(k=>executiveCapabilities[k]).find(c=>bundleExperience?.capabilityIds.includes(c))??"__no_read__";
@@ -20,13 +21,16 @@ function Coverage({data}:{data:Attention}) {
  </Disclosure>;
 }
 function Moves({data,limit=50}:{data:Attention;limit?:number}) {
- return <><ul className={styles.list}>{data.items.slice(0,limit).map(item=>{
+ const labels={executive:"Executive",writer_editor:"Writer & Editor",ministry:"Ministry",nonprofit_founder:"Nonprofit Founder",investor:"Investor"} as const;
+ const visible=data.items.slice(0,limit);
+ return <>{data.groups.length>0&&<div className={styles.metrics} aria-label="Attention by source workspace">{data.groups.map(group=><div className={styles.metric} key={group.groupKey}><strong>{group.total}</strong>{labels[group.groupKey]} cue{group.total===1?"":"s"}</div>)}</div>}
+ {data.groups.map(group=>{const items=visible.filter(item=>executiveAttentionGroupForCapability(item.source.capabilityId)===group.groupKey);return items.length?<section key={group.groupKey} aria-labelledby={"attention-group-"+group.groupKey}><h2 id={"attention-group-"+group.groupKey}>{labels[group.groupKey]} sources</h2><p className={styles.muted}>{group.total} matching cue{group.total===1?"":"s"} across the complete checked source scopes; {items.length} shown on this page.</p><ul className={styles.list}>{items.map(item=>{
  const route=sourceRoute(item.source);
  return <li key={item.id}><article className={styles.row+" "+(item.priority==="high"?styles.priority:"")}><p className={styles.eyebrow}>{sourceLabel(item.source.capabilityId)} · {item.priority} priority</p>
  <h3>{item.title}</h3>{item.source.item&&<><p className={styles.muted}>From: {item.parentTitle} · Owner: {item.owner||"not recorded"}</p><p>Next step: {item.nextAction||"not recorded"}</p></>}<p>{item.reason}</p><p className={styles.muted}>{item.dueDate?"Recorded date: "+item.dueDate:"No due or review date recorded"}{item.dateState?" · saved catalyst date certainty: "+item.dateState:""} · source revision {item.source.revision}{item.sourceReviewState?" · "+item.sourceReviewState.replaceAll("_"," "):""}</p>
  <Disclosure summary="Why this appears"><p>{item.evidence}</p><p className={styles.muted}>Source last updated: {new Date(item.sourceUpdatedAt).toLocaleString()}. A cue is not an independently verified conclusion.</p></Disclosure>
  {route&&<Link href={route}>{item.action}</Link>}</article></li>;
- })}</ul><p className={styles.muted}>Showing {data.items.length?data.offset+1:0}–{data.offset+Math.min(limit,data.items.length)} of {data.total} matching cues. Date comparison: {data.asOfDate}. Access checked: {new Date(data.retrievedAt).toLocaleString()}.</p>
+ })}</ul></section>:null})}<p className={styles.muted}>Showing {data.items.length?data.offset+1:0}–{data.offset+Math.min(limit,data.items.length)} of {data.total} matching cues. Date comparison: {data.asOfDate}. Access checked: {new Date(data.retrievedAt).toLocaleString()}.</p>
  {data.total>Math.min(limit,data.items.length)&&<p className={styles.notice}>This page is bounded. Review the remaining attention pages or source workspaces; missing items are not evidence of completion.</p>}</>;
 }
 export function ExecutiveAttention({label}:{label:string}) {
@@ -64,7 +68,8 @@ export function ExecutiveHome() {
  <h3>Review assistant proposals</h3>{allowed.map(k=><p key={k}><Link href={"/workspace/executive/"+k+"/proposals"}>{executiveLabels[k]}</Link></p>)}
  <p className={styles.muted}>Proposals wait for your exact review. Only your native confirmation changes a saved record.</p>
  <p><Link href="/workspace/integrations/assistant">Manage assistant connections</Link></p>
- <p className={styles.notice}>No recurring brief, notification, calendar booking or outgoing message is created here. Scheduling and automation controls are still being completed.</p>
+ <p className={styles.notice}>Assistant connections cannot create or manage recurring schedules. Native review schedules remain under your direct control and never send or book externally.</p>
  </aside></div>
+ <ExecutiveDeliverySchedules capability={executiveCapabilities[first]} availableKinds={allowed.filter((kind):kind is "daily_brief"|"weekly_review"=>kind==="daily_brief"||kind==="weekly_review")}/>
  </ExecutiveFrame>;
 }

@@ -58,6 +58,11 @@
 .metrics { display: flex; gap: 16px; flex-wrap: wrap; margin: 18px 0; }
 .metric { flex: 1; min-width: 130px; padding: 16px; background: #20333e; border: 1px solid #435f6d; border-radius: 8px; }
 .metric strong { display: block; font-size: 25px; font-weight: 500; }
+.scheduleGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); gap: 16px; margin: 22px 0; }
+.scheduleCard { min-width: 0; padding: 20px; border: 1px solid #435f6d; border-radius: 9px; background: #192c36; }
+.scheduleCard h3 { margin: 4px 0 10px; }
+.scheduleEditor { margin: 24px 0; padding: 22px; border: 1px solid #7699a8; border-radius: 9px; background: #20333e; }
+.weekdayGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 4px 14px; }
 @media (max-width: 850px) { .overview { grid-template-columns: 1fr; } .rail { order: 2; } }
 @media (max-width: 720px) { .grid, .compare { grid-template-columns: 1fr; } .section { padding: 18px; } .toolbar { display: block; } .nav { gap: 8px; } .nav a { padding: 7px 9px; } }
 @media (prefers-reduced-motion: reduce) { .workspace * { scroll-behavior: auto !important; } }

@@ -35,6 +35,7 @@ entries.push(["bundles/executive/bundle.json", "catalog/executive-bundle.json"],
   ["bundles/executive/analysis.ts", "domain-contracts/executive-analysis.ts"],
   ["bundles/executive/scheduling.ts", "domain-contracts/executive-scheduling.ts"],
   ["bundles/executive/attention.ts", "domain-contracts/executive-attention.ts"],
+  ["bundles/executive/delivery.ts", "domain-contracts/executive-delivery.ts"],
   ["bundles/executive/weekly.ts", "domain-contracts/executive-weekly.ts"]);
 entries.push(["bundles/workspace-experience/bundle.json", "catalog/workspace-experience-bundle.json"],
   ["bundles/workspace-experience/ui-manifest.json", "catalog/workspace-experience-ui.json"],

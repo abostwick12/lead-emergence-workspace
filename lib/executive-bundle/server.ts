@@ -7,6 +7,7 @@ type Client=SupabaseClient<any,any,any,any,any>;
 import {executiveAttentionQuery,executiveAttentionV2,executiveSharingV2,executiveSharingV2Input,
  executiveSourceSearchInput,executiveSourceSearchResult,sourceCursorKey} from "./contracts";
 import {executiveWeeklyQuery,executiveWeeklyReport,weeklyInstantMicros} from "./contracts";
+import {executiveDeliveryList,executiveDeliveryMutation,executiveDeliverySchedule} from "./contracts";
 export async function weeklyOutcomes(client:Client,raw:unknown) {
  const input=executiveWeeklyQuery.parse(raw);
  const result=await executiveRpc(client,"executive_weekly_outcomes",{
@@ -19,12 +20,19 @@ export async function weeklyOutcomes(client:Client,raw:unknown) {
   throw new BundleApiError("Weekly outcomes did not match the requested period or page. Refresh before using them.",503);
  return result;
 }
+export async function listDeliveries(client:Client) {
+ return executiveRpc(client,"executive_deliveries",{},executiveDeliveryList);
+}
+export async function changeDelivery(client:Client,raw:unknown) {
+ const input=executiveDeliveryMutation.parse(raw);
+ return executiveRpc(client,"executive_change_delivery",{p_change:input},executiveDeliverySchedule);
+}
 const presentDocument=executiveResult.refine(result=>result.document!==null,"Expected a saved Executive record.");
 export async function executiveRpc<T>(client:Client,name:string,params:Record<string,unknown>,schema:z.ZodType<T>):Promise<T>{
  const {data,error}=await client.rpc(name,params);
  if(error){
   const status=error.code==="54000"?429:error.code==="42501"?403:error.code==="P0002"?404:error.code==="40001"?409:["22023","22P02"].includes(error.code)?400:503;
-  throw new BundleApiError(status===429?"Executive is temporarily rate-limited. Wait before retrying; no external action was performed.":status===403?"Your Executive or linked-source access does not allow this action. Review current source permissions and remove unavailable links before saving.":status===404?"This Executive record is unavailable.":status===409?"This record, proposal or source selection changed. Your work was not applied. Compare the latest saved revision before retrying.":status===400?"Check the Executive record, dates, source references and exact confirmation.":"Executive is temporarily unavailable. You can safely retry.",status);
+  throw new BundleApiError(status===429?"Executive is temporarily rate-limited. Wait before retrying; no external action was performed.":status===403?"Your current Executive capability or linked-source access does not allow this action. Refresh access before continuing.":status===404?"This Executive record is unavailable.":status===409?"This record, proposal, schedule or source selection changed. Your work was not applied. Refresh and compare the latest version before retrying.":status===400?"Check the Executive record, dates, schedule, source references and exact confirmation.":"Executive is temporarily unavailable. You can safely retry.",status);
  }
  const result=schema.safeParse(data);
  if(!result.success)throw new BundleApiError("We could not verify the Executive response. Please retry.",503);

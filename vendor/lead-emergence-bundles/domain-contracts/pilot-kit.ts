@@ -104,7 +104,7 @@ const commonThresholds = {
 
 export const representativePilotKits = representativePilotKit.array().length(6).parse([
   {
-    schemaVersion: "1.0", scenarioId: "executive.pilot.attention_brief", bundleKey: "executive", manifestVersion: "0.5.0",
+    schemaVersion: "1.0", scenarioId: "executive.pilot.attention_brief", bundleKey: "executive", manifestVersion: "0.6.0",
     title: "Find the three moves that deserve attention", targetMinutes: 8,
     purpose: "Test whether the bundle can turn permitted task-level signals into a defensible brief without opening unrelated domain content.",
     syntheticDataNotice: "This packet describes fictional work. It is safe for rehearsal and must never be reported as client validation.",

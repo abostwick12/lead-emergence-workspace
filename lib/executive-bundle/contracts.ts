@@ -2,6 +2,7 @@ export * from "@/vendor/lead-emergence-bundles/domain-contracts/executive";
 export * from "@/vendor/lead-emergence-bundles/domain-contracts/executive-analysis";
 export * from "@/vendor/lead-emergence-bundles/domain-contracts/executive-scheduling";
 export * from "@/vendor/lead-emergence-bundles/domain-contracts/executive-attention";
+export * from "@/vendor/lead-emergence-bundles/domain-contracts/executive-delivery";
 export * from "@/vendor/lead-emergence-bundles/domain-contracts/executive-weekly";
 export { executiveResolutionV2 as executiveResolutionResult } from "@/vendor/lead-emergence-bundles/domain-contracts/executive-attention";
 import { z } from "zod";

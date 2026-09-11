@@ -27,7 +27,7 @@ describe("Executive task bridge response correlation",()=>{
  it("does not accept a different attention page or comparison date",async()=>{
   const coverage=[...executiveAllCapabilities.map(capabilityId=>({capabilityId,level:"record",state:"current",total:0})),
    ...Object.keys(executiveTaskKinds).map(capabilityId=>({capabilityId,level:"task",state:"current",total:0}))];
-  const data={schemaVersion:"2.0",asOfDate:"2026-09-09",retrievedAt:now,items:[],total:0,offset:0,limit:25,coverage};
+  const data={schemaVersion:"2.0",asOfDate:"2026-09-09",retrievedAt:now,items:[],total:0,offset:0,limit:25,coverage,groups:[]};
   const rpc=vi.fn(async()=>({data,error:null}));
   expect((await reviewAttention({rpc} as never,{})).total).toBe(0);
   for(const input of [{offset:25},{limit:10},{asOfDate:"2026-09-10"}])
