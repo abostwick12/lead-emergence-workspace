@@ -69,6 +69,8 @@ LEAD EMERGENCE
 
 The host retrieves authorized workflow definitions, combines them with separately retrieved Lead Emergence durable state and host-accessible external information, and performs the work using only capabilities already available and authorized in that host.
 
+**The host agent runs the workflow. Lead Emergence does not become a second agent runtime.** The host owns user interaction, reasoning, execution of workflow steps, human approval interactions, portable skill behavior, and host-native scheduling where supported. Lead Emergence may calculate bounded product-specific synthesis from its own state; that does not authorize it to run an agent loop, call host tools, or execute the hosted procedure on the host's behalf.
+
 ### Responsibility split
 
 | Concern | Default owner |
@@ -247,6 +249,8 @@ The exact operation name and schema are not fixed by this decision. The architec
 
 Retrieving a workflow must not itself mutate user state. Durable mutations occur only through separately reviewed Lead Emergence MCP tools governed by formal write-back contracts.
 
+Content-free access auditing and existing authentication/connection bookkeeping are security control-plane effects, not workflow execution or user-state write-back. Retrieval must not create workflow runs, consume workflow steps, update context, or record completion. Audit records are evidence of access, never permission to reuse an old entitlement.
+
 A hosted workflow definition should be capable of declaring the architectural equivalents of:
 
 ```text
@@ -339,6 +343,8 @@ It should expose reviewed, capability-scoped tools for data such as:
 The MCP should preserve the existing principles of tenant isolation, narrow action contracts, explicit confirmation for consequential writes, idempotency, and auditable changes.
 
 Hosted workflow retrieval and durable state mutation are separate contracts. Reading an authorized workflow definition does not authorize a write. Each durable mutation must pass through its separately reviewed MCP tool and write-back contract.
+
+The MCP may report onboarding/capabilities, expose entitled bundle and workflow metadata, retrieve contracts and bounded state, accept governed outcomes, and expose synthesis/signals. It must not evolve into a duplicate agent runtime, generic job executor, provider orchestration service, host-connector proxy, or arbitrary remote-code execution layer. Workflow steps, decision rules, approval gates, success criteria, and stop conditions are declarative instructions for the host, never downloadable executable programs.
 
 It should **not** receive broad external-provider credentials merely because an external provider appears in the Lead Emergence catalog.
 
@@ -478,7 +484,7 @@ However:
 - providers currently marked `consumerConnectionReady: false` should remain unreleased unless a specific approved requirement satisfies the direct-integration exception;
 - provider-specific OAuth adapters, refresh workers, remote-revocation implementations, and external action adapters are **not launch requirements by default**;
 - no Codex task should turn an unreleased provider into a production dependency solely because that provider appears in the catalog;
-- ChatGPT/Claude/other agent-host connection work should remain separate from third-party provider ownership.
+- ChatGPT/Claude/other agent-host connection work should remain separate from third-party provider ownership; and
 - the hosted workflow library must not be used to reopen generic provider integration scope.
 
 This is a scope reduction, not a request for a broad destructive refactor.
@@ -496,7 +502,7 @@ Subject to the host platform's own rules and availability, a customer may retain
 - portable skills;
 - intentionally delivered methodology and guidance;
 - portable agent-role definitions where intentionally delivered;
-- the customer's own app/connector authorizations; and
+- the customer's own app/connector authorizations;
 - the customer's conversations;
 - customer-owned exported artifacts; and
 - other portable bundle assets intentionally delivered to the customer.
@@ -515,6 +521,7 @@ An active Lead Emergence subscription may provide:
 - persistent structured context;
 - Context Graph storage and retrieval;
 - durable task/opportunity/decision/workflow state;
+- workflow outcome history;
 - cross-workflow synthesis inputs;
 - longitudinal signal detection;
 - continuous optimization;
@@ -553,6 +560,8 @@ Lead Emergence-native services
 ```
 
 The user keeps portable methodology, their conversations and exported artifacts, and their own host connections subject to host-platform behavior. Lead Emergence disables or degrades access to subscription-backed workflow definitions, durable intelligence, and services according to entitlement state. Lead Emergence does not revoke customer-owned host/provider connections.
+
+Every invocation must obtain current authorized workflow/state access. If authorization is denied or Lead Emergence cannot be reached, stop the hosted workflow and explain that its LE services are unavailable. The user may explicitly choose basic host-directed work with retained portable methods; do not label that work as an active LE workflow, assume stale entitlement, or queue its results for automatic later write-back. Previously retrieved text may remain in host conversations; this architecture neither promises remote erasure nor treats possession of that text as continuing service authorization.
 
 ### Cancellation and data lifecycle
 
@@ -656,6 +665,8 @@ Illustrative classification:
 | Entire inbox, drive, or Slack history | Not a default Lead Emergence persistence target |
 
 Persistence must be intentional, provenance-aware, and bounded to the durable value being created.
+
+AI inference is not canonical truth. It remains labeled inference or a review candidate until a separately authorized, bounded operation with appropriate provenance and explicit review permits a defined promotion. A confirmation flag is an assertion of an actual user interaction, not permission for an agent to fabricate approval. Workflow completion cannot silently change criteria, preferences, evidence status, or protected context.
 
 ### Workflow outcomes and the optimization flywheel
 
@@ -812,7 +823,7 @@ Until explicitly changed by a reviewed architecture decision:
 - provider or transcript mirroring; and
 - generalized provider ingestion pipelines.
 
-These may resume only when a documented workflow demonstrates that the host-agent path is insufficient or when a separate host has passed its reviewed compatibility/acceptance matrix.
+Dormant provider work may resume only for an explicitly approved use case that demonstrates why host execution is insufficient, justifies the added security/operational burden, and meets the direct-integration exception policy. Other host certification requires separate approval and its own acceptance matrix. Arbitrary remote code and data mirroring are not enabled by a provider exception; changing those boundaries requires a new canonical decision.
 
 The lists above describe architectural direction and scope boundaries. They do not authorize an implementation task, make every listed future capability a launch dependency, or override the requirement for a concrete accepted workflow and separately approved implementation scope.
 
@@ -889,7 +900,7 @@ The initial Lead Emergence consumer launch is not required to be:
 - a provider or transcript mirror; or
 - a generalized ingestion pipeline.
 
-Those capabilities may be added later when they produce a customer outcome that cannot be achieved through the agent-owned architecture.
+Future capabilities require separately accepted product scope and all applicable architecture/security decisions. The existence of a potential customer outcome does not itself authorize any item above.
 
 ---
 
