@@ -93,6 +93,36 @@ A concise product boundary is:
 
 ---
 
+## Launch host policy
+
+The architecture is intentionally host-neutral, but the initial consumer launch is **not** a multi-host certification effort.
+
+### Initial certified host
+
+**ChatGPT is the initial supported orchestration host for consumer launch acceptance.**
+
+Other AI environments may remain architecture-compatible and may be explored in parallel, but they are not to be advertised as supported launch hosts until they have their own reviewed capability and acceptance matrix.
+
+A new host must demonstrate, at minimum:
+
+- bundle installation/configuration compatibility;
+- required skill or instruction behavior;
+- Lead Emergence MCP connectivity;
+- required external app/connector behavior;
+- supported read/write semantics;
+- confirmation behavior for consequential actions;
+- graceful degradation behavior;
+- subscription-off behavior; and
+- end-to-end acceptance for each workflow advertised on that host.
+
+Host-specific differences should be isolated in compatibility/configuration surfaces rather than changing the core Lead Emergence state model.
+
+The consumer launch rule is therefore:
+
+> **Architect for multiple hosts; certify one host at a time. ChatGPT is the initial certified host.**
+
+---
+
 ## Bundle contract
 
 A bundle is primarily an **installation and configuration package for the customer's AI environment**, not a monolithic server-side application.
@@ -111,6 +141,46 @@ A bundle may define:
 - upgrade hooks for capabilities that genuinely require Lead Emergence-native execution.
 
 The bundle should configure the host to combine its own connected apps with Lead Emergence MCP data rather than routing all external data through Lead Emergence.
+
+### Machine-readable bundle manifest
+
+The bundle contract should be represented in a machine-readable manifest rather than existing only as prose or installation instructions.
+
+At minimum, the manifest should declare the architectural equivalents of:
+
+```text
+bundle identity and version
+supported host(s)
+required host capabilities
+optional host capabilities
+required external host apps/connectors
+required Lead Emergence MCP capabilities
+required Lead Emergence entitlements
+workflow definitions
+workflow execution mode
+allowed Lead Emergence durable writes
+host-ephemeral data expectations
+optional provider requirements
+graceful-degradation behavior
+subscription-inactive behavior
+compatibility constraints
+upgrade/native-execution hooks
+```
+
+Exact schema names may evolve, but the manifest must make the bundle's operational assumptions inspectable and testable.
+
+The installer/onboarding path should be able to evaluate:
+
+```text
+bundle requirements
++ host capabilities
++ available host apps/connectors
++ Lead Emergence entitlements
++ Lead Emergence MCP capabilities
+= supported / degraded / unsupported
+```
+
+No workflow should silently assume a host feature, connector, MCP capability, or entitlement that the manifest does not declare.
 
 ### Example: daily transition brief
 
@@ -161,6 +231,57 @@ It should expose reviewed, capability-scoped tools for data such as:
 The MCP should preserve the existing principles of tenant isolation, narrow action contracts, explicit confirmation for consequential writes, idempotency, and auditable changes.
 
 It should **not** receive broad external-provider credentials merely because an external provider appears in the Lead Emergence catalog.
+
+---
+
+## Execution modes
+
+Every workflow should be classified into one of three execution modes before implementation. The execution mode determines whether Lead Emergence needs direct provider custody or can rely on the user's AI host.
+
+### A. User-session orchestration
+
+The user's AI host runs the workflow while the user is actively interacting with the host.
+
+Typical shape:
+
+```text
+user
+→ AI host
+→ host apps/connectors + Lead Emergence MCP
+→ result
+```
+
+This is the default consumer mode.
+
+### B. Host-owned scheduled/background execution
+
+The AI host provides a supported scheduled, event-driven, or background mechanism and continues to own external-provider connectivity.
+
+Typical shape:
+
+```text
+host scheduler/background runtime
+→ host apps/connectors + Lead Emergence MCP
+→ result
+```
+
+A scheduled workflow does **not** by itself justify Lead Emergence-owned provider credentials when the host can execute it reliably.
+
+### C. Lead Emergence-native background execution
+
+Lead Emergence runs the workflow independently of an active user or host-agent session.
+
+Typical shape:
+
+```text
+Lead Emergence scheduler/event runtime
+→ approved direct integration(s)
+→ Lead Emergence state/action
+```
+
+This mode requires an approved direct-integration exception whenever external provider access is necessary.
+
+Before building provider custody, the workflow must explicitly state why execution mode A or B cannot satisfy the product requirement.
 
 ---
 
@@ -271,6 +392,29 @@ Calendar + Gmail + retained skill/workflow guidance
 
 The user keeps the methodology and their own connections. They lose the persistent Lead Emergence intelligence layer and any active subscription-backed services.
 
+### Cancellation and data lifecycle
+
+Cancellation must distinguish three separate things:
+
+1. **Portable installed assets** in the customer's AI environment.
+2. **Subscription-backed Lead Emergence services** such as MCP access, optimization, background/native execution, updates, and control-plane features.
+3. **Customer Lead Emergence durable data** such as Context Graph records, tasks, decisions, opportunities, workflow state, and historical signals.
+
+The cancellation contract should require explicit product behavior for each category.
+
+At minimum:
+
+- installed portable assets intentionally delivered to the customer are not remotely destroyed merely because a subscription ends;
+- subscription-backed Lead Emergence services are disabled or degraded according to entitlement state;
+- the user's own host/provider connections remain governed by those hosts/providers;
+- Lead Emergence durable data must follow a documented retention/deletion policy;
+- resubscription behavior must define whether eligible retained state is restored and under what conditions;
+- customers must have a documented path for export where product policy promises exportability;
+- explicit account/data deletion must remain distinct from ordinary subscription cancellation; and
+- bundle manifests must define predictable subscription-inactive behavior.
+
+This architecture decision does **not** invent a retention duration. The retention period, deletion timing, export guarantees, and resubscription window must be explicitly defined and published before consumer launch rather than inferred from implementation defaults.
+
 ---
 
 ## Data ownership and persistence
@@ -300,6 +444,57 @@ Only information that creates ongoing user value should be intentionally written
 
 Do not mirror entire inboxes, drives, Slack histories, or provider datasets into Lead Emergence merely because they are available to the host agent.
 
+### Formal write-back contract
+
+Every workflow that may persist information to Lead Emergence must declare a write-back contract in its bundle/workflow definition.
+
+The contract should identify the architectural equivalents of:
+
+```text
+source workflow
+source/host provenance
+input data classification
+ephemeral-only fields
+allowed durable output type(s)
+allowed Lead Emergence destination(s)
+required user confirmation or review
+privacy scope
+provenance requirements
+idempotency/deduplication identity
+retention classification
+failure/degradation behavior
+```
+
+The preferred flow is:
+
+```text
+external provider data via host
+→ host reasoning/workflow
+→ minimal approved durable result
+→ Lead Emergence MCP write
+```
+
+not:
+
+```text
+external provider dataset
+→ wholesale copy into Lead Emergence
+```
+
+Illustrative classification:
+
+| Information | Default persistence posture |
+| --- | --- |
+| Full email body used for one workflow | Ephemeral host context |
+| Full calendar payload used for one brief | Ephemeral unless a durable requirement is approved |
+| Confirmed interview date relevant to career workflow | Eligible durable state |
+| Confirmed priority or decision | Eligible durable state |
+| Workflow completion/outcome signal | Eligible durable structured signal |
+| Longitudinal optimization measurement | Eligible durable derived state with provenance |
+| Entire inbox, drive, or Slack history | Not a default Lead Emergence persistence target |
+
+Persistence must be intentional, provenance-aware, and bounded to the durable value being created.
+
 ---
 
 ## Capability and host-compatibility rule
@@ -314,6 +509,8 @@ Therefore:
 - launch claims must be backed by real acceptance tests on each supported host/plan combination;
 - a working acceptance path is authoritative over an outdated generalized assumption;
 - changes in host-platform availability should be isolated to compatibility/configuration code rather than forcing a redesign of Lead Emergence core state.
+
+For initial consumer launch, these requirements are certified against ChatGPT first. Other hosts require separate acceptance before being represented as supported.
 
 The product should preserve the architecture even as individual host capabilities evolve.
 
@@ -351,6 +548,12 @@ Before implementing any new integration, workflow, connector, or automation, ans
 5. If no, reject the provider work from launch scope.
 6. If yes, write a provider-specific architecture/security note before implementation.
 
+Additionally, before implementation:
+
+- classify the workflow as execution mode A, B, or C;
+- declare its requirements in the machine-readable bundle manifest; and
+- define its write-back contract before allowing durable Lead Emergence persistence.
+
 No provider should become `consumerConnectionReady: true` solely to make a bundle easier to implement.
 
 ---
@@ -364,13 +567,17 @@ Until explicitly changed by a reviewed architecture decision:
 - Lead Emergence MCP hardening and acceptance;
 - tenant-safe identity and authorization;
 - Context Graph;
-- bundles and bundle manifests;
+- bundles and machine-readable bundle manifests;
 - skills and workflow definitions;
 - host capability checks;
+- ChatGPT launch-host acceptance;
+- workflow execution-mode classification;
+- formal write-back contracts;
 - persistent operational state;
 - synthesis/signal interfaces;
 - Continuous Optimization Engine;
 - subscription/entitlement boundaries;
+- cancellation/data-lifecycle behavior;
 - dashboard/control-plane improvements;
 - graceful degradation and cancellation behavior.
 
@@ -384,9 +591,10 @@ Until explicitly changed by a reviewed architecture decision:
 - LE-owned GitHub provider execution;
 - generic provider token-refresh workers;
 - generic external-provider action adapters;
-- Composio or equivalent integration-broker adoption.
+- Composio or equivalent integration-broker adoption;
+- multi-host consumer certification beyond ChatGPT.
 
-These may resume only when a documented workflow demonstrates that the host-agent path is insufficient.
+These may resume only when a documented workflow demonstrates that the host-agent path is insufficient or when a separate host has passed its reviewed compatibility/acceptance matrix.
 
 ---
 
@@ -394,15 +602,19 @@ These may resume only when a documented workflow demonstrates that the host-agen
 
 The individual consumer launch architecture is acceptable when a test user can:
 
-1. install/configure an eligible Lead Emergence bundle in a supported AI host;
-2. connect the Lead Emergence MCP securely;
-3. use the host's own external apps/connectors required by that bundle;
-4. execute a workflow that combines host-connected external information with Lead Emergence state;
-5. persist only approved durable state back to Lead Emergence;
-6. receive useful synthesis/signals that depend on historical Lead Emergence context;
-7. disconnect/reconnect the Lead Emergence MCP safely;
-8. experience a predictable degraded workflow when Lead Emergence subscription access is removed; and
-9. do all of the above without Lead Emergence taking custody of unnecessary third-party credentials.
+1. install/configure an eligible Lead Emergence bundle in **ChatGPT**, the initial certified consumer host;
+2. have that bundle's machine-readable manifest validate the required host, connector, entitlement, MCP, degradation, and persistence assumptions;
+3. connect the Lead Emergence MCP securely;
+4. use ChatGPT's own external apps/connectors required by that bundle;
+5. execute a workflow that combines host-connected external information with Lead Emergence state;
+6. persist only write-back-contract-approved durable state back to Lead Emergence;
+7. receive useful synthesis/signals that depend on historical Lead Emergence context;
+8. disconnect/reconnect the Lead Emergence MCP safely;
+9. experience a predictable degraded workflow when Lead Emergence subscription access is removed;
+10. observe documented cancellation behavior for portable assets, subscription-backed services, and Lead Emergence durable data; and
+11. do all of the above without Lead Emergence taking custody of unnecessary third-party credentials.
+
+Additional AI hosts require their own reviewed capability and acceptance matrix before they are included in consumer launch claims.
 
 ---
 
@@ -415,7 +627,8 @@ The initial Lead Emergence consumer launch is not required to be:
 - a full email/calendar/document client;
 - an independent automation server for every workflow;
 - a mirrored datastore for external providers;
-- a universal cross-agent execution fabric.
+- a universal cross-agent execution fabric;
+- a simultaneously certified multi-host product.
 
 Those capabilities may be added later when they produce a customer outcome that cannot be achieved through the agent-owned architecture.
 
