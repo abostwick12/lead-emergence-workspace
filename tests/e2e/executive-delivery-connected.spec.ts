@@ -22,12 +22,12 @@ test.describe("native Executive review schedules",()=>{
   const before=await savedBriefs();await signIn(page);
   await expect(page.getByRole("heading",{name:"Bring the right review back at the right time",exact:true})).toBeVisible();
   await expect(page.getByText(/This installed version has no background runner/)).toBeVisible();
-  await page.getByLabel("Schedule name",{exact:true}).fill("Client-ready weekday brief");await page.getByLabel("Named time zone",{exact:true}).fill("America/Chicago");
-  await page.getByLabel("Local time",{exact:true}).fill("07:45");await page.getByLabel("When to create a cue",{exact:true}).selectOption("when_attention_summary_changes");
+  await page.getByLabel("Schedule name *",{exact:true}).fill("Client-ready morning brief");await page.getByLabel("Named time zone *",{exact:true}).fill("America/Chicago");
+  await page.getByLabel("Local time *",{exact:true}).fill("07:45");await page.getByLabel("When to create a cue",{exact:true}).selectOption("when_attention_summary_changes");
   await page.getByRole("checkbox",{name:/I confirm this exact local schedule/}).check();
   let intercepted=false;await page.route("**/api/executive/deliveries",async route=>{if(route.request().method()!=="POST"||intercepted)return route.continue();intercepted=true;const response=await route.fetch();expect(response.status()).toBe(200);await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"Synthetic uncertain schedule response."})});});
   await page.getByRole("button",{name:"Create schedule",exact:true}).click();await expect(page.getByRole("alert").filter({hasText:"Synthetic uncertain schedule response."})).toBeVisible();
-  await page.getByRole("button",{name:"Create schedule",exact:true}).click();await expect(page.getByRole("heading",{name:"Client-ready weekday brief",exact:true})).toBeVisible();await page.unroute("**/api/executive/deliveries");
+  await page.getByRole("button",{name:"Create schedule",exact:true}).click();await expect(page.getByRole("heading",{name:"Client-ready morning brief",exact:true})).toBeVisible();await page.unroute("**/api/executive/deliveries");
   const client=await session(),created=await client.rpc("executive_deliveries");expect(created.error).toBeNull();expect(created.data.schedules.filter((schedule:{status:string})=>schedule.status!=="cancelled")).toHaveLength(1);
   await page.getByRole("button",{name:"Pause",exact:true}).click();await expect(page.getByText("Daily brief · paused",{exact:true})).toBeVisible();
   await page.getByRole("button",{name:"Resume",exact:true}).click();await expect(page.getByText("Daily brief · active",{exact:true})).toBeVisible();
@@ -42,7 +42,7 @@ test.describe("native Executive review schedules",()=>{
  test("uses a named-zone weekly cadence and keeps schedule creation explicit",async({page})=>{
   await signIn(page);await page.getByLabel("Review",{exact:true}).selectOption("weekly_review");
   await expect(page.getByLabel("Friday",{exact:true})).toBeChecked();await page.getByLabel("Monday",{exact:true}).check();
-  await page.getByLabel("Named time zone",{exact:true}).fill("America/New_York");await page.getByRole("checkbox",{name:/I confirm this exact local schedule/}).check();
+  await page.getByLabel("Named time zone *",{exact:true}).fill("America/New_York");await page.getByRole("checkbox",{name:/I confirm this exact local schedule/}).check();
   await page.getByRole("button",{name:"Create schedule",exact:true}).click();await expect(page.getByRole("heading",{name:"Friday weekly review",exact:true})).toBeVisible();
   await expect(page.getByText(/Every Monday, Friday at 16:00 · America\/New_York/)).toBeVisible();await noOverflow(page);
  });

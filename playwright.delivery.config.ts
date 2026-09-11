@@ -1,0 +1,2 @@
+import {defineConfig,devices} from "@playwright/test";
+export default defineConfig({testDir:"./tests/e2e",testMatch:"executive-delivery-component.spec.ts",workers:1,retries:0,timeout:45000,reporter:[["list"]],outputDir:"test-results/delivery-component",use:{baseURL:"http://127.0.0.1:3131",channel:"chrome",trace:"retain-on-failure",screenshot:"only-on-failure"},projects:[{name:"desktop",use:{...devices["Desktop Chrome"]}},{name:"mobile",use:{...devices["Pixel 7"]}}]});

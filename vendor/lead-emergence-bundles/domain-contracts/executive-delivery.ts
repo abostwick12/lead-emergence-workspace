@@ -52,6 +52,7 @@ export const executiveDeliveryEvent=z.object({
   ||(value.deliveryKind==="daily_brief")!==(value.route==="/workspace/executive/daily_brief/new"))
   context.addIssue({code:"custom",message:"Delivery counts or destination could not be verified."});
 });
+export type ExecutiveDeliveryEvent=z.infer<typeof executiveDeliveryEvent>;
 export const executiveDeliveryList=z.object({
  schemaVersion:z.literal("1.0"),workspaceId:z.string().uuid(),authorityRevision:z.string().min(1).max(200),serverNow:instant,
  schedules:z.array(executiveDeliverySchedule).max(20),deliveries:z.array(executiveDeliveryEvent).max(50),
@@ -62,3 +63,4 @@ export const executiveDeliveryList=z.object({
   ||value.deliveries.some(delivery=>!value.schedules.some(schedule=>schedule.scheduleId===delivery.scheduleId)))
   context.addIssue({code:"custom",message:"Delivery schedules or history could not be verified."});
 });
+export type ExecutiveDeliveryList=z.infer<typeof executiveDeliveryList>;

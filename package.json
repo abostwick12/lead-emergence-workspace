@@ -46,6 +46,7 @@
     "test:executive:tasks": "node scripts/test-executive-tasks-local.mjs",
     "test:executive:weekly": "node scripts/test-executive-weekly-local.mjs",
     "test:executive:component": "node tests/harness/availability/run.mjs",
+    "test:executive:delivery-component": "node tests/harness/delivery/run.mjs",
     "test:executive:connected": "node scripts/test-executive-connected.mjs",
     "test:bundles:rls:local": "node scripts/test-bundle-rls-local.mjs",
     "test:e2e": "playwright test",

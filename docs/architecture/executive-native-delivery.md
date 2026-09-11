@@ -1,7 +1,8 @@
 # P23 Executive native delivery and grouped attention
 
-Status: implementation in progress on `codex2/bundle-experience-integration`.
-Portable source revision will be pinned at the completed checkpoint. Overall
+Status: provider-free local implementation and acceptance complete on
+`codex2/bundle-experience-integration`. Portable source revision
+`8e006faa369e91f3f89aed0ac104e4d05242317f` is pinned by the host. Overall
 client shipment remains **NOT READY TO SHIP**.
 
 ## User outcome
@@ -61,7 +62,9 @@ The fingerprint removes retrieval time, comparison date and paging controls,
 then hashes the complete totals, grouped/coverage state and first 50 ordered
 attention items. It is intentionally bounded: calendars, inboxes, live markets,
 unshared scopes and underlying private source bodies are excluded. Events label
-the complete total and inspected-page counts separately.
+the complete total and inspected-page counts separately. Recent activity sorts
+by evaluation time, occurrence due time and event identity so same-timestamp
+evaluations remain deterministic without weakening duplicate-occurrence guards.
 
 PostgreSQL named-zone conversion determines daylight-saving gap and repeated-
 hour behavior. The next-occurrence helper chooses the first representable
@@ -75,12 +78,16 @@ OAuth consent explicitly states that schedule controls remain native-only.
 There are no provider requirements, credentials, background jobs or external
 delivery claims in P23.
 
-## Acceptance still required
+## Local acceptance
 
-Before this checkpoint can be published, the new migration must replay from an
-empty isolated database, the adversarial PostgreSQL suite and complete database
-matrix must pass, desktop/mobile browser acceptance must exercise the real
-native API, and full source/host static, unit, optimized-build, boundary and
-sensitive-data checks must pass. Representative-client, installed-host, hosted,
-backup/privacy/retention/support, provider and payment gates remain outside this
-local milestone.
+The isolated database rebuilt from empty through all 47 migrations. All 1,660
+PostgreSQL assertions across 31 rollback-only suites passed, including 91 P23
+delivery assertions. The real authenticated API and native browser flow passed
+four desktop/mobile cases, while the account-free component harness passed four
+additional responsive cases. Source and host type, unit, lint, schema-policy,
+boundary, optimized-build and sensitive-data checks also passed. Full details
+are recorded in `docs/testing/executive-native-delivery-acceptance.md`.
+
+Representative-client, installed-host, hosted migration/backup/privacy/
+retention/support, provider and payment gates remain outside this local
+milestone.

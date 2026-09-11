@@ -85,7 +85,7 @@ insert into p23_state values('resumed',workspace.executive_change_delivery(jsonb
 select is((select (v->>'version')::integer from p23_state where k='resumed'),4,'resume advances the version');
 reset role;
 
-update workspace_private.executive_delivery_schedules set next_occurrence=now()-interval '1 minute' where id=(select (v->>'scheduleId')::uuid from p23_state where k='created');
+update workspace_private.executive_delivery_schedules set next_occurrence=now()-interval '3 minutes' where id=(select (v->>'scheduleId')::uuid from p23_state where k='created');
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"23111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}',true);
 insert into p23_state values('first-due',workspace.executive_deliveries());
@@ -93,7 +93,7 @@ select is((select v->'deliveries'->0->>'outcome' from p23_state where k='first-d
 select is((select (v->'deliveries'->0->>'currentAttentionCount')::integer from p23_state where k='first-due'),0,'delivery reports the exact current attention total');
 reset role;
 select is((select count(*)::integer from workspace_private.executive_documents where workspace_id='23aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),0,'delivery creates no canonical Executive record');
-update workspace_private.executive_delivery_schedules set next_occurrence=now()-interval '1 minute' where id=(select (v->>'scheduleId')::uuid from p23_state where k='created');
+update workspace_private.executive_delivery_schedules set next_occurrence=now()-interval '2 minutes' where id=(select (v->>'scheduleId')::uuid from p23_state where k='created');
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"23111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}',true);
 insert into p23_state values('unchanged-due',workspace.executive_deliveries());

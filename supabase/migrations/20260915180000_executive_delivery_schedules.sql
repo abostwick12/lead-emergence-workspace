@@ -173,7 +173,7 @@ $$;
 
 create function workspace.executive_change_delivery(p_change jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare target uuid:=workspace_private.require_executive_any();request_id uuid;operation text;expected bigint;schedule_id uuid;
+declare target uuid:=workspace_private.require_executive_any();request_key uuid;operation text;expected bigint;schedule_id uuid;
  definition jsonb;kind text;cadence jsonb;days smallint[]:='{}';saved workspace_private.executive_delivery_requests%rowtype;
  current_schedule workspace_private.executive_delivery_schedules%rowtype;result jsonb;next_at timestamptz;
 begin
@@ -188,7 +188,7 @@ begin
   or p_change->'confirmExactSchedule' is distinct from 'true'::jsonb then
   raise exception 'Review and confirm an exact Executive schedule change.' using errcode='22023';
  end if;
- operation:=p_change->>'operation';expected:=(p_change->>'expectedVersion')::bigint;request_id:=(p_change->>'requestId')::uuid;definition:=p_change->'definition';
+ operation:=p_change->>'operation';expected:=(p_change->>'expectedVersion')::bigint;request_key:=(p_change->>'requestId')::uuid;definition:=p_change->'definition';
  if operation='create' then
   if p_change->'scheduleId'<>'null'::jsonb or expected<>0 or jsonb_typeof(definition)<>'object' then
    raise exception 'Schedule identity and version do not match creation.' using errcode='22023'; end if;
@@ -207,7 +207,7 @@ begin
   if operation='update' and definition->>'deliveryKind'<>kind then raise exception 'Cancel this schedule before changing its delivery type.' using errcode='22023'; end if;
  else kind:=definition->>'deliveryKind'; end if;
  if operation in ('create','update','resume') then perform workspace_private.require_executive(kind); end if;
- select * into saved from workspace_private.executive_delivery_requests r where r.workspace_id=target and r.request_id=request_id;
+ select * into saved from workspace_private.executive_delivery_requests r where r.workspace_id=target and r.request_id=request_key;
  if found then
   if saved.input is distinct from p_change then raise exception 'This request identifier was already used.' using errcode='40001'; end if;
   return jsonb_set(saved.result,'{replayed}','true');
@@ -246,7 +246,7 @@ begin
   end if;
  end if;
  result:=workspace_private.executive_delivery_schedule_item(current_schedule,false);
- insert into workspace_private.executive_delivery_requests(workspace_id,request_id,input,result) values(target,request_id,p_change,result);
+ insert into workspace_private.executive_delivery_requests(workspace_id,request_id,input,result) values(target,request_key,p_change,result);
  return result;
 end; $$;
 
@@ -286,9 +286,9 @@ begin
    'deliveryKind',e.delivery_kind,'label',e.label,'dueAt',e.due_at,'evaluatedAt',e.evaluated_at,'outcome',e.outcome,'reason',e.reason,
    'currentAttentionCount',e.current_attention_count,'inspectedAttentionCount',e.inspected_attention_count,
    'inspectedHighPriorityCount',e.inspected_high_priority_count,'route',e.route,'requiresUserReview',true,
-   'externalDelivery',false,'recordCreated',false) order by e.evaluated_at desc,e.id desc)
+   'externalDelivery',false,'recordCreated',false) order by e.evaluated_at desc,e.due_at desc,e.id desc)
    from (select x.* from workspace_private.executive_delivery_events x where x.workspace_id=target and x.schedule_id=any(listed_ids)
-    order by x.evaluated_at desc,x.id desc limit 50)e),'[]'::jsonb));
+    order by x.evaluated_at desc,x.due_at desc,x.id desc limit 50)e),'[]'::jsonb));
 end; $$;
 
 revoke all on function workspace.executive_review_attention_ungrouped(date,integer,integer),

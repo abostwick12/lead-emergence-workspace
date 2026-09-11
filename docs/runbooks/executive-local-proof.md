@@ -7,7 +7,7 @@ Exact current results and corrected attempts belong in docs/testing/test-evidenc
 ## Environment and sequence
 
 1. Run npm run prepare:writer:local. Verify the copied configuration names
-   bundle-experience-p2, API port 58421 and expected 58420–58427 local ports.
+   bundle-experience-p2, API port 58521 and expected 58520–58527 local ports.
    Do not print private status keys or ignored fixture files.
 2. Start only the named local stack. Inspect identity counts before mutating
    fixtures. If existing fictional data is retained, preserve it and apply
@@ -17,15 +17,16 @@ Exact current results and corrected attempts belong in docs/testing/test-evidenc
    applied 30/31 without a reset: upgrade proof, not a fresh 31-migration replay.
    A separately authorized fresh replay must first verify its exact disposable
    target, preserve backups and exclude non-fictional identities.
-3. On an empty authorized stack, seed Writer, Ministry, Nonprofit, Investor and
-   Executive in that order. Otherwise reuse the existing fictional fixtures.
-   Credentials remain in ignored .bundle-local/fixtures.json. Verify all 31
-   applied migrations and that every auth identity is fictional.
+3. On an empty authorized stack, seed Writer first so the fictional operator
+   exists, then seed only the additional bundle fixtures needed by the selected
+   acceptance suites. Otherwise reuse the existing fictional fixtures.
+   Credentials remain in ignored .bundle-local/fixtures.json. Verify every
+   applied migration and that every auth identity is fictional.
 4. Run npm run test:executive:local (eight foundation groups),
    npm run test:executive:tasks (seven task groups),
    npm run test:executive:weekly (five recorded-history groups), and
-   npm run test:bundles:rls:local (588 assertions in eighteen rollback-only suites).
-   Weekly contributes 33 assertions; retained availability contributes 13.
+   npm run test:bundles:rls:local. At P23 the complete database matrix is 1,660
+   assertions in 31 rollback-only suites; native delivery contributes 91.
    The hosted-only Gate A preflight is not applicable to this isolated stack.
 5. Start node scripts/serve-writer-local.mjs dev on loopback port 3125.
    Run npm run test:executive:connected for thirteen actual HTTP/OAuth/MCP groups.
@@ -42,11 +43,14 @@ Exact current results and corrected attempts belong in docs/testing/test-evidenc
 8. Start node scripts/serve-writer-local.mjs start. Set E2E_BASE_URL to
    http://localhost:3125 and WRITER_LOCAL_ACCEPTANCE, MINISTRY_LOCAL_ACCEPTANCE,
    NONPROFIT_LOCAL_ACCEPTANCE, INVESTOR_LOCAL_ACCEPTANCE and
-   EXECUTIVE_LOCAL_ACCEPTANCE to true. Explicitly select these nine specs:
+   EXECUTIVE_LOCAL_ACCEPTANCE to true. For P23 delivery acceptance also set
+   EXECUTIVE_DELIVERY_LOCAL_ACCEPTANCE to true. Explicitly select the relevant
+   connected specs, including `executive-delivery-connected.spec.ts` for P23:
    writer-connected, writer-revisions-connected, writer-library-connected,
    writer-preparation-connected, ministry-connected, nonprofit-connected,
-   investor-connected, executive-connected and task-navigation-connected.
-   They contain 116 desktop/mobile cases, one worker, zero retries.
+   investor-connected, executive-connected, task-navigation-connected and
+   executive-delivery-connected. At P23 they contain 120 desktop/mobile cases,
+   one worker and zero retries.
    Executive plus task navigation contributes 56 cases: 28 Executive and 28
    exact-task navigation. New weekly cases cover historical/current state,
    preparation, saved zones, paging, empty/error distinction and read retry
@@ -83,6 +87,12 @@ Its bounded runner starts Vite on 127.0.0.1:3130, runs ten desktop/mobile cases 
 closes its own server. This harness renders actual meeting components but has
 no database, auth or simulated API; in-memory remount is not persistence proof.
 It does not replace steps 1–8.
+
+For the P23 schedule surface, run
+`npm run test:executive:delivery-component`. Its isolated Vite harness starts on
+127.0.0.1:3131, renders the real delivery component with an in-memory test
+adapter, and runs four desktop/mobile interaction and layout cases. It is not
+persistence or authorization proof and does not replace the connected spec.
 
 P15 adds private server recovery to all five Executive editors; this runbook's
 earlier P9f evidence predates that milestone. No installed host, booking/calendar
