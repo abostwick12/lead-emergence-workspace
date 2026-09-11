@@ -1,9 +1,12 @@
 "use client";
+import Link from "next/link";
 import {useEffect,useRef,useState} from "react";
 import {workspaceRead,WorkspaceReadError} from "@/lib/bundles/client";
 import {useWorkspace} from "@/components/workspace-provider";
 import {publicationPacket,publicationText,type PublicationPacket} from "@/lib/writing/publication";
 import {useWritingRead} from "./use-writing-read";
+import {useWritingAction} from "./use-writing-action";
+import type {PublicationQueueItem,PublicationQueueReceipt} from "@/lib/writing/publication-readiness";
 import styles from "./writing.module.css";
 export function WritingPublication({resourceId,revision}:{resourceId:string;revision:number}){
  const [opened,setOpened]=useState(false);
@@ -46,10 +49,22 @@ function PublicationPanel({resourceId,revision}:{resourceId:string;revision:numb
    <button className={styles.secondary} disabled={busy} onClick={()=>void output("text")}>Download handoff text</button>
    <button className={styles.secondary} disabled={busy} onClick={()=>void output("json")}>Download structured packet</button>
   </div>
+  <PublicationQueueAction resourceId={resourceId} revision={revision}/>
   {notice&&<p role="status">{notice}</p>}
   <div className={styles.formGrid}><div><h3>Website summary</h3><p className={styles.prose}>{p.content.summary||"Not prepared in the current revision."}</p></div><div><h3>SEO description</h3><p className={styles.prose}>{p.content.seoDescription||"Not prepared in the current revision."}</p></div></div>
   <ul className={styles.findings}>{p.checklist.map(check=><li key={check.id}><h3>{check.label} · {check.status.replaceAll("_"," ")}</h3><p>{check.detail}</p></li>)}</ul>
   <p className={styles.method}>Source: {p.source.label} · Evidence status: {p.source.evidenceStatus}. Private draft/profile fields and stored file/provider identifiers are not added. Review the source text for private information before sharing.</p>
   <p>{p.publicationDecision}</p>
  </div>;
+}
+
+function PublicationQueueAction({resourceId,revision}:{resourceId:string;revision:number}){
+ const queue=useWritingRead<PublicationQueueItem|null>("/api/writing/publication/"+resourceId,"writer.publication.queue"),action=useWritingAction();
+ const [saved,setSaved]=useState<PublicationQueueItem|null>(null),item=saved??queue.data;
+ if(!queue.enabled)return null;
+ if(queue.loading)return <p role="status">Checking this revision’s publication plan…</p>;
+ if(queue.error)return <div role="alert"><p>{queue.error}</p><button className={styles.secondary} onClick={queue.retry}>Retry publication plan</button></div>;
+ if(item&&item.stage!=="removed")return <div className={styles.queueShortcut}><div><strong>{item.resourceRevision===item.currentResourceRevision?"This revision is in the publication queue.":"This publication plan needs the latest revision."}</strong><span>{item.blockers.length} current {item.blockers.length===1?"blocker":"blockers"} · {item.evidenceStatus} link evidence</span></div><Link className={styles.secondary} href="/workspace/writing/publication">Open publication queue</Link></div>;
+ async function add(){const result=await action.run<PublicationQueueReceipt>("/api/writing/publication",{resourceId,expectedResourceRevision:revision,expectedVersion:item?.version??0,destinationUrl:item?.destinationUrl??null,note:item?.note??"",stage:"queued",confirmations:{accuracyAndQuotesReviewed:false,voiceReviewed:false,rightsConfirmed:false},confirmQueueChange:true},true);if(result)setSaved(result.item);}
+ return <div className={styles.queueShortcut}><div><strong>Keep the handoff from getting lost.</strong><span>Add this exact saved revision to a private readiness queue. Nothing is sent or published.</span></div><button className={styles.secondary} disabled={action.busy} onClick={()=>void add()}>Add revision {revision} to publication queue</button>{action.error&&<p role="alert">{action.error}</p>}</div>;
 }

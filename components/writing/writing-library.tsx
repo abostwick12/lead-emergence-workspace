@@ -31,7 +31,7 @@ export function WritingLibraryPage() {
     <header className={styles.pageHeader}>
       <div><p className={styles.eyebrow}>Writer & Editor</p><h1>Give good work its next reader.</h1>
         <p>Find a resource, see what it needs, and make the next editorial decision with the source in view.</p></div>
-      {canReview && bundleExperience?.capabilityIds.includes("writer.resource.manage") ? <div className={styles.headerActions}><Link className={styles.textLink} href="/workspace/writing/bulk">Import a library</Link><Link className={styles.secondary} href="/workspace/writing/new">Add one resource</Link></div> : <span className={styles.readOnly}><ShieldCheck size={15} />Read-only review</span>}
+      {canReview && bundleExperience?.capabilityIds.includes("writer.resource.manage") ? <div className={styles.headerActions}>{bundleExperience.capabilityIds.includes("writer.publication.queue")&&<Link className={styles.textLink} href="/workspace/writing/publication">Publication queue</Link>}<Link className={styles.textLink} href="/workspace/writing/bulk">Import a library</Link><Link className={styles.secondary} href="/workspace/writing/new">Add one resource</Link></div> : <span className={styles.readOnly}><ShieldCheck size={15} />Read-only review</span>}
     </header>
     {bundleExperience?.capabilityIds.includes("writer.profile")&&<Link className={styles.textLink} href="/workspace/writing/preferences">Writing preferences & taxonomy</Link>}
     <div className={styles.libraryHeading}><h2>Resource library</h2>

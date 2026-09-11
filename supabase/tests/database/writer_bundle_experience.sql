@@ -31,7 +31,7 @@ select is(has_function_privilege('authenticated','workspace_private.bundle_capab
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"75111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}',true);
 select is(workspace.get_bundle_experience()->>'workspaceId','75aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','native experience resolves the authenticated owner');
-select is(jsonb_array_length(workspace.get_bundle_experience()->'capabilities'),5,'Writer receives the five activated portable capabilities');
+select is(jsonb_array_length(workspace.get_bundle_experience()->'capabilities'),6,'Writer receives the six activated portable capabilities');
 select is(workspace.writer_list_resources()->>'total','1','library counts include only the authenticated tenant');
 select is(workspace.writer_list_resources()->>'awaitingPublication','1','attention count reflects actual resource state');
 select is(workspace.writer_get_resource('75000000-0000-4000-8000-000000000001')->'resource'->>'title','Synthetic A resource','Writer can read their source');
@@ -65,7 +65,7 @@ update workspace.bundle_entitlements set starts_at=now(),expires_at=null where w
 
 update workspace.bundle_capabilities set enabled=false where bundle_key='writer_editor' and capability_key='writer_resource_review';
 set local role authenticated;
-select is(jsonb_array_length(workspace.get_bundle_experience()->'capabilities'),4,'disabled mapping removes the individual capability');
+select is(jsonb_array_length(workspace.get_bundle_experience()->'capabilities'),5,'disabled mapping removes the individual capability');
 select throws_ok($sql$select workspace.writer_get_resource('75000000-0000-4000-8000-000000000001')$sql$,'42501','Active Writer & Editor access is required.','disabled review mapping cannot read full source');
 reset role;
 update workspace.bundle_capabilities set enabled=true where bundle_key='writer_editor';
@@ -85,7 +85,7 @@ select set_config('request.writer_mcp_claims',jsonb_build_object('sub','75111111
 set local role authenticated;
 select set_config('request.jwt.claims',current_setting('request.writer_mcp_claims'),true);
 select is(workspace.writer_list_resources()->>'total','1','MCP and browser share the same authenticated library');
-select is(jsonb_array_length(workspace.get_bundle_experience()->'capabilities'),5,'MCP resolves the same five capabilities');
+select is(jsonb_array_length(workspace.get_bundle_experience()->'capabilities'),6,'MCP resolves the same six capabilities');
 select throws_ok($sql$select workspace.writer_decide_proposal('75000000-0000-4000-8000-000000000001',1,'approve')$sql$,'42501','Open Workspace to approve this action yourself.','MCP cannot approve by calling a hidden RPC directly');
 select throws_ok($sql$select workspace.writer_import_resource('75000000-0000-4000-8000-000000000001','{}')$sql$,'42501','Open Workspace to approve this action yourself.','MCP cannot create canonical imports directly');
 select set_config('request.jwt.claims',(current_setting('request.writer_mcp_claims')::jsonb || '{"aud":"https://wrong.invalid/mcp"}')::text,true);

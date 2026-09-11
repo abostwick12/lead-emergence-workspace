@@ -1,5 +1,22 @@
 # Test evidence
 
+## P21 Writer publication readiness — 2026-09-10
+
+See [the P21 acceptance ledger](writer-publication-queue-acceptance.md) and
+[the implementation boundary](../architecture/writer-publication-readiness.md).
+The Writer bundle now has an exact-revision publication queue with human review,
+dated user-observed link evidence, derived blockers, safe request recovery and an
+explicit handoff that is never presented as publication. Workspace performs no
+server-side URL fetch or provider mutation.
+
+Final local proof includes 217 portable tests; a 40-file pinned source export;
+350 host unit tests; 33 schema-policy checks; 295 runtime boundaries; a fresh
+44-migration replay; 1,490 PostgreSQL assertions across 29 suites; an optimized
+Next 16.3.4 build with 59 pages/routes; and all 28 Writer desktop/mobile browser
+cases across six files. Focused screenshots passed visual review, and the
+dependency audit reported zero vulnerabilities. No real destination, client
+content or provider account was used. All six bundles remain **NOT READY TO SHIP**.
+
 ## P19 secure rich-source intake — 2026-09-10
 
 See [the P20 acceptance ledger](resumable-writer-library-acceptance.md) and

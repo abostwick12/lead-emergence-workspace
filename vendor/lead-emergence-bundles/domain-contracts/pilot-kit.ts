@@ -140,7 +140,7 @@ export const representativePilotKits = representativePilotKit.array().length(6).
     ], thresholds: commonThresholds
   },
   {
-    schemaVersion: "1.0", scenarioId: "writer_editor.pilot.resource_review", bundleKey: "writer_editor", manifestVersion: "0.3.0",
+    schemaVersion: "1.0", scenarioId: "writer_editor.pilot.resource_review", bundleKey: "writer_editor", manifestVersion: "0.4.0",
     title: "Turn an unfinished resource into a publishable recommendation", targetMinutes: 10,
     purpose: "Test one source-led review that preserves voice while combining editorial, metadata, related-resource, and publishing checks.",
     syntheticDataNotice: "All titles, prose, links, and library history in this packet are fictional. Use them only for rehearsal, never as client work or measured client value.",

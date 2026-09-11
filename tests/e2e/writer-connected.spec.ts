@@ -40,7 +40,9 @@ test.describe("Writer actual local account acceptance", () => {
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await signIn(page, data.writer);
-    await expect(page.getByRole("article", { name: "Writing publication queue" })).toContainText("2 resources are waiting");
+    const publicationQueue = page.getByRole("article", { name: "Writing publication queue" });
+    await expect(publicationQueue).toContainText("Nothing is waiting for a handoff");
+    await expect(publicationQueue.getByRole("link", { name: "Open publication queue" })).toBeVisible();
     await openWriting(page);
     // Repeated acceptance runs may put the original fixture on a later page.
     await page.getByLabel("Search resources", { exact: true }).fill("attention");

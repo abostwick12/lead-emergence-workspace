@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "identity": {
     "key": "writer_editor",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "displayName": "Writer & Editor",
     "description": "Improves documents and turns resource libraries into accurate, publishable, findable collections.",
     "kind": "functional"
@@ -61,6 +61,14 @@
       "domain": "writing",
       "operations": ["read", "propose"],
       "taskMetadataShareable": true
+    },
+    {
+      "id": "writer.publication.queue",
+      "version": "0.1.0",
+      "description": "Track revision-bound publication readiness and user-observed public link evidence without fetching or publishing externally.",
+      "domain": "writing",
+      "operations": ["read", "execute"],
+      "taskMetadataShareable": false
     }
   ],
   "skills": [
@@ -96,6 +104,18 @@
       "mode": "read",
       "evidenceRequired": true,
       "targetUserMinutes": 5
+    },
+    {
+      "id": "writer.workflow.publication_readiness",
+      "version": "0.1.0",
+      "name": "Review and stage a revision for publication handoff",
+      "capabilityIds": ["writer.resource.review", "writer.publication.queue"],
+      "providerRequirementIds": [],
+      "inputScopes": ["writing.resources", "writing.publishing_queue"],
+      "outputScopes": ["writing.publication_readiness", "writing.link_evidence"],
+      "mode": "execute",
+      "evidenceRequired": true,
+      "targetUserMinutes": 8
     }
   ],
   "providerRequirements": [

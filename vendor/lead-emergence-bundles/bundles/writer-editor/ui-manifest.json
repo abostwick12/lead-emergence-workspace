@@ -21,6 +21,13 @@
       "route": "/workspace/writing/library",
       "icon": "library",
       "order": 20
+    },
+    {
+      "id": "writer.nav.publication_queue",
+      "label": "Publication queue",
+      "route": "/workspace/writing/publication",
+      "icon": "list-checks",
+      "order": 21
     }
   ],
   "dashboardWidgets": [
@@ -29,7 +36,7 @@
       "label": "Publication queue",
       "order": 20,
       "type": "attention_queue",
-      "capabilityId": "writer.resource.library",
+      "capabilityId": "writer.publication.queue",
       "attentionTypes": [
         "writer.attention.awaiting_publication"
       ],
@@ -43,6 +50,13 @@
       "order": 20,
       "workflowId": "writer.workflow.resource_review",
       "capabilityId": "writer.resource.review"
+    },
+    {
+      "id": "writer.action.publication_queue",
+      "label": "Open publication queue",
+      "order": 21,
+      "workflowId": "writer.workflow.publication_readiness",
+      "capabilityId": "writer.publication.queue"
     }
   ],
   "searchProviders": [

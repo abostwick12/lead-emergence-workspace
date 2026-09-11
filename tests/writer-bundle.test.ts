@@ -17,7 +17,8 @@ const authority: BundleAuthority = {
   workspaceId: "72000000-0000-4000-8000-000000000001",
   revision: "revision-one", resolvedAt: "2026-09-08T18:00:00Z",
   assignments: [{ bundleKey: "writer_editor", status: "active", startsAt: "2026-09-01T00:00:00Z", expiresAt: null }],
-  capabilities: [{ bundleKey: "writer_editor", capabilityId: "writer.resource.library" }, { bundleKey: "writer_editor", capabilityId: "writer.resource.review" }]
+  capabilities: [{ bundleKey: "writer_editor", capabilityId: "writer.resource.library" }, { bundleKey: "writer_editor", capabilityId: "writer.resource.review" },
+    { bundleKey: "writer_editor", capabilityId: "writer.publication.queue" }]
 };
 const closers: Array<{ close: () => Promise<void> }> = [];
 afterEach(async () => { await Promise.all(closers.splice(0).map((item) => item.close())); });
@@ -34,7 +35,7 @@ describe("Writer platform integration", () => {
     const result = composeBundleExperience(authority);
     expect(result.ui.primaryNavigation.map((item) => item.label)).toEqual(["Writing"]);
     expect(result.ui.dashboardWidgets.map((item) => item.id)).toEqual(["writer.widget.publication_queue"]);
-    expect(result.capabilityIds).toEqual(["writer.resource.library", "writer.resource.review"]);
+    expect(result.capabilityIds).toEqual(["writer.publication.queue", "writer.resource.library", "writer.resource.review"]);
     expect(result.capabilityIds).not.toContain("writer.wix.propose_changes");
     const restricted = composeBundleExperience({ ...authority, capabilities: [authority.capabilities[1]] });
     expect(restricted.ui.dashboardWidgets).toEqual([]);

@@ -16,6 +16,7 @@ entries.push(["bundles/editor-recovery.ts", "domain-contracts/editor-recovery.ts
 entries.push(["bundles/value-pilot.ts", "domain-contracts/value-pilot.ts"]);
 entries.push(["bundles/pilot-kit.ts", "domain-contracts/pilot-kit.ts"]);
 entries.push(["bundles/source-intake.ts", "domain-contracts/source-intake.ts"]);
+entries.push(["bundles/publication-readiness.ts", "domain-contracts/publication-readiness.ts"]);
 for (const file of ["bundle.json", "ui-manifest.json"]) entries.push([`bundles/writer-editor/${file}`, `bundles/writer-editor/${file}`]);
 entries.push(["bundles/ministry/bundle.json", "catalog/ministry-bundle.json"],
   ["bundles/ministry/ui-manifest.json", "catalog/ministry-ui.json"],

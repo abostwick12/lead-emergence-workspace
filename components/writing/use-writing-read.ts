@@ -23,5 +23,7 @@ export function useWritingRead<T>(path: string, capability: string) {
   }, [enabled, key, path, attempt, refreshBundleExperience]);
   const matching = key !== null && state?.key === key;
   return { enabled, data: matching ? state.data : null, loading: enabled && !matching,
-    error: matching ? state.error : null, retry: useCallback(() => { setState(null); setAttempt((value) => value + 1); }, []) };
+    error: matching ? state.error : null,
+    retry: useCallback(() => { setState(null); setAttempt((value) => value + 1); }, []),
+    refresh: useCallback(() => { setAttempt((value) => value + 1); }, []) };
 }
