@@ -17,6 +17,7 @@ entries.push(["bundles/value-pilot.ts", "domain-contracts/value-pilot.ts"]);
 entries.push(["bundles/pilot-kit.ts", "domain-contracts/pilot-kit.ts"]);
 entries.push(["bundles/source-intake.ts", "domain-contracts/source-intake.ts"]);
 entries.push(["bundles/publication-readiness.ts", "domain-contracts/publication-readiness.ts"]);
+entries.push(["bundles/workspace-experience/layout-proposal.ts", "domain-contracts/layout-proposal.ts"]);
 for (const file of ["bundle.json", "ui-manifest.json"]) entries.push([`bundles/writer-editor/${file}`, `bundles/writer-editor/${file}`]);
 entries.push(["bundles/ministry/bundle.json", "catalog/ministry-bundle.json"],
   ["bundles/ministry/ui-manifest.json", "catalog/ministry-ui.json"],
@@ -48,6 +49,7 @@ for (const [sourcePath, outputPath] of entries) {
   const original = await readFile(resolve(source, sourcePath), "utf8");
   let content = original.replaceAll("\r\n", "\n").replace(/@lead-emergence\/([a-z-]+)/g, "../$1/index");
   if (sourcePath === "bundles/workspace-experience/attention.ts") content = content.replaceAll('from "./discovery"', 'from "./workspace-discovery"');
+  if (sourcePath === "bundles/workspace-experience/layout-proposal.ts") content = content.replaceAll('from "./layout"', 'from "./workspace-layout"');
   if (sourcePath === "bundles/investor/analysis.ts") content = content.replace('from "./contracts"', 'from "./investor"');
   if (sourcePath === "bundles/editor-recovery.ts") for (const [folder, name] of [["ministry", "ministry"], ["nonprofit-founder", "nonprofit"], ["investor", "investor"], ["executive", "executive"]]) content = content.replace('from "./' + folder + '/contracts"', 'from "./' + name + '"');
   if (sourcePath.startsWith("bundles/executive/") && sourcePath.endsWith(".ts")) content = content.replaceAll('from "./contracts"', 'from "./executive"');

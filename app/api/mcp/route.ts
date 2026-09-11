@@ -52,7 +52,7 @@ async function handleMcpRequest(request: Request) {
       enableJsonResponse: true,
     });
     const server = createWorkspaceMcpServer(authenticated.supabase, authenticated.claims.client_id as string, {
-      sotfEnabled, bundleCapabilityIds: experience?.capabilityIds ?? []
+      sotfEnabled, bundleCapabilityIds: experience?.capabilityIds ?? [], bundleExperience: experience ?? undefined
     });
     await server.connect(transport);
     if (requestMethods.has("initialize")) {

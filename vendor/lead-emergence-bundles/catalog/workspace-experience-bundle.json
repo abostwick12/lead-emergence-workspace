@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "identity": {
     "key": "workspace_experience",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "displayName": "Workspace Experience",
     "description": "Composes entitled bundle contributions into a focused, user-controlled Lead Emergence workspace.",
     "kind": "experience"
@@ -49,8 +49,8 @@
     },
     {
       "id": "workspace.personalize",
-      "version": "0.4.0",
-      "description": "Preview and explicitly confirm user-owned pins, hidden items, order, and default workspace; retain recovery history without changing access.",
+      "version": "0.5.0",
+      "description": "Review capability-grounded assistant proposals, preview and explicitly confirm user-owned pins, hidden items, order, and default workspace; retain recovery history without changing access.",
       "domain": "workspace",
       "operations": ["read", "propose"],
       "taskMetadataShareable": false
@@ -68,7 +68,7 @@
   "workflows": [
     {
       "id": "workspace.workflow.recommend_layout",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "name": "Workspace layout recommendation",
       "capabilityIds": ["workspace.compose", "workspace.attention", "workspace.personalize"],
       "providerRequirementIds": [],

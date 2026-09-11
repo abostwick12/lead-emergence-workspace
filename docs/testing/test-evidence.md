@@ -1,5 +1,24 @@
 # Test evidence
 
+## P22 Workspace layout proposals — 2026-09-10
+
+See [the P22 acceptance ledger](workspace-layout-proposals-acceptance.md) and
+[the implementation boundary](../architecture/workspace-layout-proposals.md).
+Workspace Experience now lets a connected assistant prepare a grounded,
+immutable layout recommendation from capability-filtered active metadata while
+keeping proposal history, preview, acceptance, rejection and persistence native
+to the user. Dormant choices remain undisclosed and preserved.
+
+Final local proof includes 227 portable tests; a 41-file pinned source export;
+353 host unit tests; 33 schema-policy checks; 298 runtime boundaries; a fresh
+45-migration replay; 1,569 PostgreSQL assertions across 30 suites; an optimized
+Next 16.3.4 build with 59 pages/routes; four actual OAuth/MCP boundary groups;
+four connected proposal browser cases; and all 14 existing native layout browser
+cases across desktop/mobile Chrome. Focused screenshots passed visual and
+overflow review, and the dependency audit reported zero vulnerabilities. No
+representative client, installed host, hosted environment or provider was used.
+All six bundles remain **NOT READY TO SHIP**.
+
 ## P21 Writer publication readiness — 2026-09-10
 
 See [the P21 acceptance ledger](writer-publication-queue-acceptance.md) and

@@ -1,6 +1,6 @@
 {
   "repository": "abostwick12/lead-emergence-bundles",
-  "sourceRevision": "8cbbeea5a32a2c4ebce5d1f1c5b3433982cdce9f",
+  "sourceRevision": "8678d1e552bfcde404229f17c69fd78d3ed7e878",
   "contractVersion": "1.0",
   "files": [
     {
@@ -61,7 +61,7 @@
     {
       "sourcePath": "bundles/pilot-kit.ts",
       "outputPath": "domain-contracts/pilot-kit.ts",
-      "sha256": "954f49b7c738941fb8b2fa25bc87fb4350ea95c060324feb0e57d725bfb782b3"
+      "sha256": "5515f5f88b9cdc2c5324dd0e150cfab55deaa915d173f18bf097adf44cf838f0"
     },
     {
       "sourcePath": "bundles/source-intake.ts",
@@ -72,6 +72,11 @@
       "sourcePath": "bundles/publication-readiness.ts",
       "outputPath": "domain-contracts/publication-readiness.ts",
       "sha256": "62e992b4b31a551a6494f6a481619efa25684a5c2bdbe51282cad37b365f2ea3"
+    },
+    {
+      "sourcePath": "bundles/workspace-experience/layout-proposal.ts",
+      "outputPath": "domain-contracts/layout-proposal.ts",
+      "sha256": "e6819055cec66b3d2401d73924649bdb8492be06d195391dc5fc0297433e4e9d"
     },
     {
       "sourcePath": "bundles/writer-editor/bundle.json",
@@ -171,7 +176,7 @@
     {
       "sourcePath": "bundles/workspace-experience/bundle.json",
       "outputPath": "catalog/workspace-experience-bundle.json",
-      "sha256": "c607aa23b0aacb52c4a8b5a69b4d5aeb12d44b1c68b89cac7b52aec375b0453c"
+      "sha256": "b59ca2b3a602641437198628538adf80c10abaad1428013466006291e911a257"
     },
     {
       "sourcePath": "bundles/workspace-experience/ui-manifest.json",

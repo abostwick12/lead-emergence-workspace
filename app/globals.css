@@ -304,4 +304,18 @@ select { min-height: 44px; }
 .layout-row-controls input, .layout-preview input { width: auto; min-width: 18px; height: 18px; }
 .layout-preview { display: grid; gap: .8rem; border-top: 1px solid #263340; margin-top: 1.2rem; padding-top: 1.2rem; }
 .layout-preview p { overflow-wrap: anywhere; }
-@media (max-width: 700px) { .layout-row { align-items: flex-start; flex-direction: column; } .layout-row-controls { width: 100%; } .layout-actions { align-items: stretch; flex-direction: column; } }
+.layout-proposals { display: grid; gap: 1rem; }
+.layout-proposal-heading, .layout-proposal-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.layout-proposal-heading h2, .layout-proposal-card h3 { margin: .35rem 0 0; overflow-wrap: anywhere; }
+.layout-proposal-heading > span, .layout-proposal-card-heading > span { padding: .3rem .55rem; border: 1px solid #445669; border-radius: 999px; color: #b9c8d6; font-size: 12px; text-transform: capitalize; white-space: nowrap; }
+.layout-proposal-empty { display: grid; gap: .35rem; padding: 1rem; border: 1px dashed #405161; border-radius: 10px; color: #c4d0db; }
+.layout-proposal-empty span { color: #9dabb8; font-size: 14px; line-height: 1.5; }
+.layout-proposal-list { display: grid; gap: 1rem; }
+.layout-proposal-history { border-top: 1px solid #334656; padding-top: .85rem; }.layout-proposal-history summary { color: #b9c8d6; cursor: pointer; font-weight: 700; }.layout-proposal-history[open] summary { margin-bottom: 1rem; }
+.layout-proposal-card { min-width: 0; padding: 1rem; border: 1px solid #3c5062; border-radius: 12px; background: #111b25; }
+.layout-proposal-card[data-status="stale"] { border-color: #735f43; }.layout-proposal-card[data-status="accepted"] { border-color: #3f6658; }
+.layout-proposal-card > p { line-height: 1.55; overflow-wrap: anywhere; }
+.layout-proposal-card ul { display: grid; gap: .65rem; margin: 1rem 0; padding: 0; list-style: none; }
+.layout-proposal-card li { display: grid; gap: .25rem; padding: .75rem; border-left: 2px solid #6aa697; background: #17242d; }
+.layout-proposal-card li span { color: #c2ccd5; font-size: 14px; line-height: 1.5; }.layout-proposal-card li small { color: #91a3b2; text-transform: capitalize; }
+@media (max-width: 700px) { .layout-row { align-items: flex-start; flex-direction: column; } .layout-row-controls { width: 100%; } .layout-actions { align-items: stretch; flex-direction: column; } .layout-proposal-heading,.layout-proposal-card-heading { flex-direction: column; } }

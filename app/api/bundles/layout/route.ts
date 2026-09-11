@@ -2,6 +2,7 @@ import { authenticatedBundleClient, BundleApiError, readBearerToken } from "@/li
 import { resolveBundleExperience } from "@/lib/bundles/server";
 import { layoutRecordSchema, layoutSaveSchema } from "@/lib/bundles/layout";
 import { workspaceLayoutCatalog } from "@/vendor/lead-emergence-bundles/domain-contracts/workspace-layout";
+import { listWorkspaceLayoutProposals } from "@/lib/bundles/layout-proposals";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const headers={"Cache-Control":"no-store, private",Vary:"Authorization"};
@@ -17,7 +18,9 @@ export async function GET(request:Request) {
   if(error)throw new BundleApiError("Layout unavailable",error.code==="42501"?403:503);
   const record=layoutRecordSchema.parse(data);
   if(record.workspaceId!==base.workspaceId || record.authorityRevision!==base.revision)throw new BundleApiError("Access changed",409);
-  return Response.json({record,catalog:workspaceLayoutCatalog(base.ui)}, {headers});
+  const proposals=await listWorkspaceLayoutProposals(client);
+  if(proposals.workspaceId!==record.workspaceId || proposals.layoutRevision!==record.revision || proposals.authorityRevision!==record.authorityRevision)throw new BundleApiError("Access changed",409);
+  return Response.json({record,catalog:workspaceLayoutCatalog(base.ui),proposals}, {headers});
  } catch(error) {return failure(error);}
 }
 export async function POST(request:Request) {

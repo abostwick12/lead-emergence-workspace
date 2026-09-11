@@ -10,6 +10,8 @@ import { registerMinistryTools } from "@/lib/ministry-bundle/mcp";
 import { registerNonprofitTools } from "@/lib/nonprofit-bundle/mcp";
 import { registerInvestorTools } from "@/lib/investor-bundle/mcp";
 import { registerExecutiveTools } from "@/lib/executive-bundle/mcp";
+import { registerWorkspaceLayoutProposalTools } from "@/lib/bundles/layout-proposal-mcp";
+import type { BaseBundleExperience } from "@/lib/bundles/experience";
 import { mcpWwwAuthenticateChallenge } from "@/lib/workspace/mcp-auth";
 
 const setupArea = z.enum([
@@ -74,7 +76,7 @@ type McpServerInternals = {
 export function createWorkspaceMcpServer(
   supabase: SupabaseClient<any, any, any, any, any>,
   currentClientId?: string,
-  options: { sotfEnabled?: boolean; bundleCapabilityIds?: string[] } = {}
+  options: { sotfEnabled?: boolean; bundleCapabilityIds?: string[]; bundleExperience?: BaseBundleExperience } = {}
 ) {
   const server = new McpServer({ name: "lewis", version: "1.4.0" });
 
@@ -397,6 +399,7 @@ export function createWorkspaceMcpServer(
   registerNonprofitTools(server, supabase, options.bundleCapabilityIds ?? []);
   registerInvestorTools(server, supabase, options.bundleCapabilityIds ?? []);
   registerExecutiveTools(server, supabase, options.bundleCapabilityIds ?? []);
+  registerWorkspaceLayoutProposalTools(server, supabase, options.bundleCapabilityIds ?? [], options.bundleExperience);
   publishTopLevelOAuthSecuritySchemes(server);
   return server;
 }

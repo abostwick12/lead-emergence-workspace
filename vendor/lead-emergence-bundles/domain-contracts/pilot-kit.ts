@@ -287,7 +287,7 @@ export const representativePilotKits = representativePilotKit.array().length(6).
     ], thresholds: commonThresholds
   },
   {
-    schemaVersion: "1.0", scenarioId: "workspace_experience.pilot.attention_workspace", bundleKey: "workspace_experience", manifestVersion: "0.4.0",
+    schemaVersion: "1.0", scenarioId: "workspace_experience.pilot.attention_workspace", bundleKey: "workspace_experience", manifestVersion: "0.5.0",
     title: "Open once and know where to begin", targetMinutes: 5,
     purpose: "Test whether entitlement-derived navigation and prioritized attention help a participant begin useful work without exposing or inventing unavailable bundle content.",
     syntheticDataNotice: "The assigned bundles, attention items, and preferences are fictional. They test composition and navigation only and are not customer usage evidence.",
