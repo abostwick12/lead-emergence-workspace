@@ -4,12 +4,14 @@
 
 **Decision date:** 2026-09-11
 
+**Amended:** 2026-09-11 — portable skills and subscription-backed hosted workflows
+
 ## Purpose
 
 Lead Emergence is not intended to replace the user's primary AI environment or duplicate every external integration available there. The default consumer architecture is **agent-owned orchestration**:
 
 - The user's chosen AI environment (initially ChatGPT, with other supported agents where practical) is the primary conversational and orchestration surface.
-- Lead Emergence bundles configure that environment with the skills, workflow guidance, agent roles, and connector requirements needed for a use case.
+- Lead Emergence bundles configure that environment with portable skills, host bootstrap/configuration, capability requirements, Lead Emergence MCP setup, and references to subscription-backed hosted workflows.
 - External provider accounts such as Gmail, Google Calendar, Google Drive, Slack, GitHub, and similar services should be connected to the user's AI environment whenever the host supports them.
 - The Lead Emergence MCP provides secure access to Lead Emergence-owned context, state, synthesis inputs, and durable signals.
 - Lead Emergence directly owns a third-party provider credential only when a documented product requirement cannot be satisfied through the host agent or when Lead Emergence must execute independently of the user's active agent session.
@@ -36,41 +38,36 @@ The differentiated product is not a collection of OAuth adapters. The differenti
 
 A concise product boundary is:
 
-> **The user's agent does the work. Lead Emergence gives the agent a durable operating environment that remembers, structures, synthesizes, and improves that work over time.**
+> **The host owns the tools and performs the work. Lead Emergence owns the durable operating method, state, history, and improvement loop.**
 
 ---
 
 ## Canonical architecture
 
 ```text
-                    USER'S AI ENVIRONMENT
-                 ChatGPT / other supported host
-                           |
-             +-------------+-------------+
-             |             |             |
-          Skills        Agent roles    Host apps
-             |             |          / connectors
-             |             |             |
-             |             |      Gmail / Calendar /
-             |             |       Drive / Slack / etc.
-             |             |             |
-             +-------------+-------------+
-                           |
-                      Workflows
-                           |
-                           v
-                 LEAD EMERGENCE MCP
-                           |
-             +-------------+-------------+
-             |             |             |
-        Context Graph   Operational    Durable signals
-                        state
-             |             |             |
-             +-------------+-------------+
-                           |
-                           v
-                 Lead Emergence platform
+CHATGPT / CUSTOMER AI HOST
+├─ reasoning
+├─ customer-owned external connectors/apps
+├─ Gmail / Calendar / Drive / Slack / etc.
+├─ portable Lead Emergence skills
+└─ workflow execution
+          │
+          │ Lead Emergence MCP
+          ▼
+LEAD EMERGENCE
+├─ hosted workflow library
+├─ workflow versions
+├─ workflow contracts
+├─ durable context
+├─ operational state
+├─ Context Graph
+├─ longitudinal signals
+├─ Continuous Optimization
+├─ workflow outcome history
+└─ approved write-back policy
 ```
+
+The host retrieves authorized workflow definitions, combines them with separately retrieved Lead Emergence durable state and host-accessible external information, and performs the work using only capabilities already available and authorized in that host.
 
 ### Responsibility split
 
@@ -80,7 +77,9 @@ A concise product boundary is:
 | External app authentication | User's AI environment / provider |
 | External app retrieval and supported actions | User's AI environment |
 | Bundle installation/configuration | Lead Emergence bundle |
-| Skills and workflow methods | Lead Emergence bundle, executed by host |
+| Portable skills and intentionally delivered methodology | Lead Emergence bundle, installed and executed in the host |
+| Hosted workflow library, versions, and contracts | Lead Emergence, retrieved through the Lead Emergence MCP and executed by the host |
+| Workflow execution | User's AI environment, except an approved mode C workflow |
 | Specialized agent roles | Lead Emergence bundle, executed where the host supports them |
 | Lead Emergence identity and entitlement | Lead Emergence |
 | Persistent structured context | Lead Emergence |
@@ -90,6 +89,47 @@ A concise product boundary is:
 | Continuous optimization | Lead Emergence |
 | Secure access to LE state/actions | Lead Emergence MCP |
 | Human-readable control/display surface | Lead Emergence web application |
+
+### Portable skills and hosted workflows
+
+The architecture distinguishes **portable skills** from **subscription-backed hosted workflows**.
+
+A **portable skill** is reusable knowledge, methodology, or behavior intentionally installed into the customer's AI environment. Examples include:
+
+- the STAR interview method;
+- the TIARA networking method;
+- an assumption-challenging method;
+- editing or style guidance; and
+- a general decision framework.
+
+Subject to host-platform rules, portable skills may remain with the customer after Lead Emergence subscription access ends. A portable skill should not contain subscription-critical state or require Lead Emergence merely to exist.
+
+A **hosted workflow** is a versioned Lead Emergence operating procedure that coordinates:
+
+- portable skills;
+- host capabilities;
+- Lead Emergence MCP capabilities;
+- workflow steps;
+- allowed durable writes;
+- ephemeral data handling;
+- degradation behavior; and
+- completion and outcome reporting.
+
+Illustrative hosted workflow identifiers include:
+
+```text
+transition.daily_brief
+transition.weekly_review
+networking.prepare
+networking.follow_up
+interview.prepare
+interview.practice
+opportunity.review
+```
+
+Hosted workflows remain subscription-backed Lead Emergence assets. The host retrieves them at execution time through an authenticated, entitlement- and capability-scoped Lead Emergence MCP read surface.
+
+A Lead Emergence hosted workflow is a **declarative, versioned execution contract**. It is not arbitrary JavaScript, arbitrary Python, shell execution, remotely supplied executable code, unrestricted prompt injection, or a generic tool proxy. The host interprets the contract and invokes only capabilities already available and authorized in that host. A workflow's reference to Gmail, Calendar, Drive, Slack, or another host capability does not grant Lead Emergence access to that provider.
 
 ---
 
@@ -125,22 +165,30 @@ The consumer launch rule is therefore:
 
 ## Bundle contract
 
-A bundle is primarily an **installation and configuration package for the customer's AI environment**, not a monolithic server-side application.
+A bundle is primarily an **installation, bootstrap, and configuration package for the customer's AI environment**, not a monolithic server-side application and not a permanent installation of every complete operational workflow.
 
-A bundle may define:
+A bundle may contain or declare:
 
-- skills and supporting resources;
-- specialized agent roles or sub-workflows where the host supports them;
-- required and optional host connectors/apps;
+- portable skills and supporting resources;
+- host bootstrap and configuration;
+- specialized agent roles where the host supports them;
+- required and optional host capabilities and connectors/apps;
+- Lead Emergence MCP connection requirements;
 - setup instructions and capability checks;
-- workflow definitions and triggers supported by the host;
-- the Lead Emergence MCP capabilities required by the workflow;
-- data that should be persisted to Lead Emergence;
-- signals that should be written back to Lead Emergence;
-- graceful-degradation behavior when Lead Emergence or an optional app is unavailable; and
-- upgrade hooks for capabilities that genuinely require Lead Emergence-native execution.
+- hosted workflow catalog metadata and workflow references/identifiers;
+- required Lead Emergence entitlements;
+- graceful-degradation and subscription-inactive behavior; and
+- compatibility information.
 
-The bundle should configure the host to combine its own connected apps with Lead Emergence MCP data rather than routing all external data through Lead Emergence.
+Therefore:
+
+```text
+bundle installation
+!=
+permanent installation of every Lead Emergence workflow
+```
+
+The customer installs the operating interface and portable methods. Subscription-backed workflows remain in the Lead Emergence hosted workflow library and are retrieved when needed. The bundle should configure the host to combine its own connected apps with Lead Emergence MCP workflows and durable state rather than routing all external data through Lead Emergence.
 
 ### Machine-readable bundle manifest
 
@@ -156,15 +204,12 @@ optional host capabilities
 required external host apps/connectors
 required Lead Emergence MCP capabilities
 required Lead Emergence entitlements
-workflow definitions
-workflow execution mode
-allowed Lead Emergence durable writes
-host-ephemeral data expectations
-optional provider requirements
+portable skill declarations
+host bootstrap/configuration requirements
+hosted workflow catalog metadata and references
 graceful-degradation behavior
 subscription-inactive behavior
 compatibility constraints
-upgrade/native-execution hooks
 ```
 
 Exact schema names may evolve, but the manifest must make the bundle's operational assumptions inspectable and testable.
@@ -180,7 +225,69 @@ bundle requirements
 = supported / degraded / unsupported
 ```
 
-No workflow should silently assume a host feature, connector, MCP capability, or entitlement that the manifest does not declare.
+No bundle or referenced workflow should silently assume a host feature, connector, MCP capability, or entitlement that its inspectable contracts do not declare.
+
+### Hosted workflow retrieval contract
+
+The architecture should support a future read-only operation conceptually equivalent to:
+
+```text
+get_workflow("transition.daily_brief")
+```
+
+The exact operation name and schema are not fixed by this decision. The architectural contract is that workflow retrieval must be:
+
+- authenticated;
+- tenant/workspace bound;
+- entitlement scoped;
+- capability scoped;
+- read-only;
+- version aware; and
+- auditable.
+
+Retrieving a workflow must not itself mutate user state. Durable mutations occur only through separately reviewed Lead Emergence MCP tools governed by formal write-back contracts.
+
+A hosted workflow definition should be capable of declaring the architectural equivalents of:
+
+```text
+workflow identity and version
+bundle identity
+supported hosts
+execution mode
+required host capabilities
+optional host capabilities
+required Lead Emergence MCP capabilities
+referenced portable skills
+workflow steps
+allowed durable writes
+ephemeral data classes
+completion and outcome contract
+degradation behavior
+compatibility constraints
+```
+
+Exact schema and field names may evolve. The definition must remain declarative, inspectable, versionable, and bounded to reviewed host and Lead Emergence capabilities.
+
+The preferred launch model is:
+
+```text
+stable versioned hosted workflow
++ separately retrieved Lead Emergence durable state
++ host-accessible external information
+= personalized execution in ChatGPT
+```
+
+For example:
+
+```text
+hosted interview.prepare workflow
++ Lead Emergence career pipeline
++ Lead Emergence coaching context
++ the user's ChatGPT-connected calendar/email where useful
+= personalized interview preparation
+```
+
+Server-generated arbitrary personalized prompts are not a launch dependency. Future adaptive workflow composition may be considered through a separate decision, but launch should preserve stable workflow versioning, auditability, and the clean host/Lead Emergence security boundary.
 
 ### Example: daily transition brief
 
@@ -217,6 +324,7 @@ The MCP is not a generic proxy for every service the user can access. It is the 
 
 It should expose reviewed, capability-scoped tools for data such as:
 
+- authorized hosted workflow discovery and read-only versioned retrieval;
 - onboarding and workspace configuration;
 - confirmed professional/personal context permitted by policy;
 - tasks and leadership state;
@@ -230,6 +338,8 @@ It should expose reviewed, capability-scoped tools for data such as:
 
 The MCP should preserve the existing principles of tenant isolation, narrow action contracts, explicit confirmation for consequential writes, idempotency, and auditable changes.
 
+Hosted workflow retrieval and durable state mutation are separate contracts. Reading an authorized workflow definition does not authorize a write. Each durable mutation must pass through its separately reviewed MCP tool and write-back contract.
+
 It should **not** receive broad external-provider credentials merely because an external provider appears in the Lead Emergence catalog.
 
 ---
@@ -237,6 +347,19 @@ It should **not** receive broad external-provider credentials merely because an 
 ## Execution modes
 
 Every workflow should be classified into one of three execution modes before implementation. The execution mode determines whether Lead Emergence needs direct provider custody or can rely on the user's AI host.
+
+The location of a workflow definition does not determine its execution mode. Hosting a declarative workflow in Lead Emergence does **not** make the workflow mode C.
+
+For example:
+
+```text
+Lead Emergence hosts transition.daily_brief definition
+→ ChatGPT retrieves it
+→ ChatGPT executes it with host tools and Lead Emergence MCP data
+= mode A
+```
+
+If ChatGPT itself schedules that execution through a supported host-owned mechanism, it is mode B. It becomes mode C only when Lead Emergence independently executes the workflow.
 
 ### A. User-session orchestration
 
@@ -293,6 +416,25 @@ If the user's AI host already provides a secure connection to an external servic
 
 Lead Emergence should not duplicate the connection.
 
+A hosted workflow may declare that a host capability is required or optional. That declaration does not authorize Lead Emergence to acquire the corresponding provider credential, proxy the provider, mirror its data, or assume its execution responsibility.
+
+The default remains:
+
+```text
+Gmail credential    → ChatGPT/customer AI host
+Calendar credential → ChatGPT/customer AI host
+Drive credential    → ChatGPT/customer AI host
+Slack credential    → ChatGPT/customer AI host
+```
+
+not:
+
+```text
+Gmail credential → Lead Emergence
+```
+
+unless a separately reviewed direct-integration exception applies.
+
 ### Direct integration exception
 
 A Lead Emergence-owned provider connection may be justified only when at least one of these is true:
@@ -337,6 +479,7 @@ However:
 - provider-specific OAuth adapters, refresh workers, remote-revocation implementations, and external action adapters are **not launch requirements by default**;
 - no Codex task should turn an unreleased provider into a production dependency solely because that provider appears in the catalog;
 - ChatGPT/Claude/other agent-host connection work should remain separate from third-party provider ownership.
+- the hosted workflow library must not be used to reopen generic provider integration scope.
 
 This is a scope reduction, not a request for a broad destructive refactor.
 
@@ -344,25 +487,31 @@ This is a scope reduction, not a request for a broad destructive refactor.
 
 ## Subscription and customer ownership
 
-The architecture should intentionally distinguish between **customer-owned installed capability** and **subscription-backed Lead Emergence intelligence**.
+The architecture should intentionally distinguish between **portable skills and customer-owned host assets** and **subscription-backed Lead Emergence hosted workflows, services, and durable intelligence**.
 
 ### Customer-owned after installation
 
 Subject to the host platform's own rules and availability, a customer may retain installed/configured assets that were placed in their AI environment, including:
 
-- skills;
-- workflow instructions;
-- agent-role definitions;
+- portable skills;
+- intentionally delivered methodology and guidance;
+- portable agent-role definitions where intentionally delivered;
 - the customer's own app/connector authorizations; and
+- the customer's conversations;
+- customer-owned exported artifacts; and
 - other portable bundle assets intentionally delivered to the customer.
 
-Lead Emergence should not depend on artificial destruction of these assets to create retention.
+Portable assets should not contain subscription-critical state or silently embed the complete current hosted workflow library. Lead Emergence should not depend on artificial destruction of customer assets to create retention.
+
+Subscription value comes from the continuously maintained operating environment: current hosted workflows, durable context and history, workflow improvements, optimization, and supported Lead Emergence services.
 
 ### Subscription-backed capability
 
 An active Lead Emergence subscription may provide:
 
 - Lead Emergence MCP access;
+- the hosted workflow library;
+- current workflow versions, contracts, and updates;
 - persistent structured context;
 - Context Graph storage and retrieval;
 - durable task/opportunity/decision/workflow state;
@@ -382,22 +531,35 @@ Example:
 
 ```text
 Active subscription:
-Calendar + Gmail + LE priorities + LE history + Context Graph
-    -> personalized strategic brief
+ChatGPT tools/connectors
++ portable skills
++ Lead Emergence hosted workflows
++ Lead Emergence durable context and history
++ Lead Emergence optimization
+→ full Lead Emergence experience
 
 Inactive subscription:
-Calendar + Gmail + retained skill/workflow guidance
-    -> basic host-generated brief
+ChatGPT tools/connectors
++ retained portable skills
+→ basic host-directed use
+
+No active access to:
+hosted Lead Emergence workflow library
+current workflow versions or updates
+Lead Emergence durable intelligence
+Lead Emergence Context Graph
+Lead Emergence optimization
+Lead Emergence-native services
 ```
 
-The user keeps the methodology and their own connections. They lose the persistent Lead Emergence intelligence layer and any active subscription-backed services.
+The user keeps portable methodology, their conversations and exported artifacts, and their own host connections subject to host-platform behavior. Lead Emergence disables or degrades access to subscription-backed workflow definitions, durable intelligence, and services according to entitlement state. Lead Emergence does not revoke customer-owned host/provider connections.
 
 ### Cancellation and data lifecycle
 
 Cancellation must distinguish three separate things:
 
-1. **Portable installed assets** in the customer's AI environment.
-2. **Subscription-backed Lead Emergence services** such as MCP access, optimization, background/native execution, updates, and control-plane features.
+1. **Portable installed assets and customer-owned host assets** in the customer's AI environment.
+2. **Subscription-backed Lead Emergence services and assets** such as MCP access, the hosted workflow library, current workflow versions, optimization, background/native execution, updates, and control-plane features.
 3. **Customer Lead Emergence durable data** such as Context Graph records, tasks, decisions, opportunities, workflow state, and historical signals.
 
 The cancellation contract should require explicit product behavior for each category.
@@ -405,7 +567,7 @@ The cancellation contract should require explicit product behavior for each cate
 At minimum:
 
 - installed portable assets intentionally delivered to the customer are not remotely destroyed merely because a subscription ends;
-- subscription-backed Lead Emergence services are disabled or degraded according to entitlement state;
+- subscription-backed Lead Emergence workflow retrieval, services, and updates are disabled or degraded according to entitlement state;
 - the user's own host/provider connections remain governed by those hosts/providers;
 - Lead Emergence durable data must follow a documented retention/deletion policy;
 - resubscription behavior must define whether eligible retained state is restored and under what conditions;
@@ -413,7 +575,7 @@ At minimum:
 - explicit account/data deletion must remain distinct from ordinary subscription cancellation; and
 - bundle manifests must define predictable subscription-inactive behavior.
 
-This architecture decision does **not** invent a retention duration. The retention period, deletion timing, export guarantees, and resubscription window must be explicitly defined and published before consumer launch rather than inferred from implementation defaults.
+This architecture decision does **not** invent a retention duration. Data retention, deletion timing, export guarantees, and resubscription behavior remain a separate product-policy requirement. They must be explicitly defined and published before consumer launch rather than inferred from implementation defaults or conflated with subscription access to hosted workflows.
 
 ---
 
@@ -495,6 +657,30 @@ Illustrative classification:
 
 Persistence must be intentional, provenance-aware, and bounded to the durable value being created.
 
+### Workflow outcomes and the optimization flywheel
+
+Hosted workflows should define a completion/outcome contract for approved structured results and operational metadata. The optimization path is:
+
+```text
+hosted workflow
+      ↓
+ChatGPT executes with host tools
+      ↓
+approved structured outcome
+      ↓
+Lead Emergence durable state
+      ↓
+Continuous Optimization
+      ↓
+patterns / friction / opportunity / measured results
+      ↓
+future workflow improvement
+```
+
+The governing rule is **metadata over content surveillance**. Workflow outcome contracts should prefer structured completion state, approved durable results, measured outcomes, user corrections, degradation reasons, and provenance over raw emails, prompts, Slack content, transcripts, calendar payloads, or other provider data.
+
+Lead Emergence does not need to ingest the underlying provider data merely to optimize a workflow. Continuous Optimization should consume the minimum approved, provenance-aware outcome and operational signals required to improve future workflow versions.
+
 ---
 
 ## Capability and host-compatibility rule
@@ -539,22 +725,50 @@ The host/provider remains responsible for the user's separate external account a
 
 ## Implementation rule for Codex and future agents
 
-Before implementing any new integration, workflow, connector, or automation, answer these questions in order:
+Before implementing any new integration, workflow, connector, or automation, first classify the proposed capability as one of:
+
+1. part of the customer's host/tool environment;
+2. a portable skill;
+3. a Lead Emergence hosted workflow; or
+4. Lead Emergence durable intelligence/state.
+
+Then ask whether it is being placed in the correct layer and answer these questions in order:
 
 1. Can the user's AI host already perform this external action using the user's own app/connector?
-2. If yes, can the bundle instruct the host to combine that result with Lead Emergence MCP data?
-3. If yes, implement the workflow at the bundle/host level and **do not build a duplicate Lead Emergence provider integration**.
-4. If no, does the requirement satisfy a direct-integration exception above?
-5. If no, reject the provider work from launch scope.
-6. If yes, write a provider-specific architecture/security note before implementation.
+2. If yes, can a portable skill or hosted workflow instruct the host to combine that result with Lead Emergence MCP data?
+3. If yes, implement the workflow at the host layer and **do not build a duplicate Lead Emergence provider integration**.
+4. Would the proposal require Lead Emergence to own a credential, execution responsibility, or dataset that the customer's host already owns?
+5. If yes, does the requirement satisfy a direct-integration exception above?
+6. If no exception applies, reject the provider work from launch scope.
+7. If an exception applies, write and approve a provider-specific architecture/security note before implementation.
 
 Additionally, before implementation:
 
 - classify the workflow as execution mode A, B, or C;
-- declare its requirements in the machine-readable bundle manifest; and
+- declare bundle/bootstrap requirements in the machine-readable bundle manifest;
+- declare hosted-workflow requirements in its versioned workflow contract; and
 - define its write-back contract before allowing durable Lead Emergence persistence.
 
 No provider should become `consumerConnectionReady: true` solely to make a bundle easier to implement.
+
+### Anti-drift rule
+
+Architectural possibility is not implementation authorization. Do not infer an implementation requirement merely because a future capability is described or technically possible. A future capability is not a launch dependency unless this canonical architecture and a concrete accepted workflow require it.
+
+Without another reviewed decision and, where applicable, an approved direct-integration exception, this document does not authorize:
+
+- generic provider OAuth;
+- universal provider proxying;
+- Composio adoption;
+- universal background automation;
+- Claude certification;
+- a universal Context Graph;
+- arbitrary remote workflow code;
+- provider data mirroring;
+- transcript mirroring; or
+- generalized ingestion pipelines.
+
+Hosted workflow retrieval is not authorization for any item in this list.
 
 ---
 
@@ -566,16 +780,17 @@ Until explicitly changed by a reviewed architecture decision:
 
 - Lead Emergence MCP hardening and acceptance;
 - tenant-safe identity and authorization;
-- Context Graph;
-- bundles and machine-readable bundle manifests;
-- skills and workflow definitions;
+- workflow-required durable context and Context Graph capabilities without making a universal graph a launch dependency;
+- portable skill/bootstrap bundles and machine-readable bundle manifests;
+- hosted workflow library contracts, versioning, catalog references, and read-only retrieval;
+- portable skills and declarative hosted workflow definitions;
 - host capability checks;
 - ChatGPT launch-host acceptance;
 - workflow execution-mode classification;
 - formal write-back contracts;
 - persistent operational state;
 - synthesis/signal interfaces;
-- Continuous Optimization Engine;
+- workflow outcome contracts and bounded Continuous Optimization interfaces;
 - subscription/entitlement boundaries;
 - cancellation/data-lifecycle behavior;
 - dashboard/control-plane improvements;
@@ -592,9 +807,45 @@ Until explicitly changed by a reviewed architecture decision:
 - generic provider token-refresh workers;
 - generic external-provider action adapters;
 - Composio or equivalent integration-broker adoption;
-- multi-host consumer certification beyond ChatGPT.
+- multi-host consumer certification beyond ChatGPT;
+- arbitrary remote workflow code;
+- provider or transcript mirroring; and
+- generalized provider ingestion pipelines.
 
 These may resume only when a documented workflow demonstrates that the host-agent path is insufficient or when a separate host has passed its reviewed compatibility/acceptance matrix.
+
+The lists above describe architectural direction and scope boundaries. They do not authorize an implementation task, make every listed future capability a launch dependency, or override the requirement for a concrete accepted workflow and separately approved implementation scope.
+
+### Conformance-audit reconciliation and initial SOTF bundle
+
+The conformance finding that no installable ChatGPT bundle currently exists remains valid, but the required launch artifact is now understood as:
+
+```text
+portable skill/bootstrap package
++ host capability declarations
++ Lead Emergence MCP setup
++ hosted workflow catalog metadata and references
+```
+
+It is not a package that permanently installs every complete Lead Emergence workflow into ChatGPT.
+
+Accordingly, a first SOTF/transition bundle should install only the portable methods, bootstrap/configuration, host capability declarations, and Lead Emergence MCP connection material intentionally delivered to the customer. It should reference entitled hosted workflow identifiers such as `transition.daily_brief` or `transition.weekly_review`. ChatGPT should retrieve the authorized current workflow definition when the workflow is invoked, then combine it with separately retrieved Lead Emergence state and host-accessible information.
+
+This refinement does not change the conformance conclusions that formal write-back contracts and real ChatGPT acceptance remain required, provider infrastructure should remain dormant, cancellation and degradation must become testable, and neither a universal Context Graph nor generic background automation is a launch dependency.
+
+### Decisions deliberately left open
+
+This architecture does not prematurely choose:
+
+- exact manifest, workflow-schema, catalog, or MCP operation names;
+- workflow version-selection, pinning, migration, rollback, or cache semantics;
+- the precise inactive-subscription response and host user experience when retrieval is denied;
+- the host-platform packaging and retention mechanics for portable skills;
+- workflow outcome granularity, review/confirmation thresholds, or privacy classifications;
+- durable-data retention periods, export guarantees, deletion timing, or resubscription restoration windows; or
+- any mode B or C workflow that has not been separately accepted.
+
+These require product, security, and workflow-specific decisions before implementation. Their architectural possibility must not be treated as launch authorization.
 
 ---
 
@@ -602,17 +853,19 @@ These may resume only when a documented workflow demonstrates that the host-agen
 
 The individual consumer launch architecture is acceptable when a test user can:
 
-1. install/configure an eligible Lead Emergence bundle in **ChatGPT**, the initial certified consumer host;
-2. have that bundle's machine-readable manifest validate the required host, connector, entitlement, MCP, degradation, and persistence assumptions;
+1. install/configure an eligible portable skill/bootstrap bundle in **ChatGPT**, the initial certified consumer host;
+2. have that bundle's machine-readable manifest validate the required host, connector, entitlement, MCP, hosted-workflow references, degradation, and persistence assumptions;
 3. connect the Lead Emergence MCP securely;
 4. use ChatGPT's own external apps/connectors required by that bundle;
-5. execute a workflow that combines host-connected external information with Lead Emergence state;
-6. persist only write-back-contract-approved durable state back to Lead Emergence;
-7. receive useful synthesis/signals that depend on historical Lead Emergence context;
-8. disconnect/reconnect the Lead Emergence MCP safely;
-9. experience a predictable degraded workflow when Lead Emergence subscription access is removed;
-10. observe documented cancellation behavior for portable assets, subscription-backed services, and Lead Emergence durable data; and
-11. do all of the above without Lead Emergence taking custody of unnecessary third-party credentials.
+5. discover and retrieve an entitled, compatible, versioned hosted workflow through a read-only Lead Emergence MCP contract;
+6. execute that workflow by combining host-connected external information with separately retrieved Lead Emergence state;
+7. persist only write-back-contract-approved durable state back to Lead Emergence;
+8. record an approved structured completion/outcome without requiring provider-content ingestion;
+9. receive useful synthesis/signals that depend on historical Lead Emergence context;
+10. disconnect/reconnect the Lead Emergence MCP safely;
+11. experience predictable inactive-subscription behavior in which retained portable skills remain usable but hosted workflow and durable-intelligence access is unavailable;
+12. observe documented cancellation behavior for portable/customer-owned assets, subscription-backed services, and Lead Emergence durable data; and
+13. do all of the above without Lead Emergence taking custody of unnecessary third-party credentials.
 
 Additional AI hosts require their own reviewed capability and acceptance matrix before they are included in consumer launch claims.
 
@@ -628,7 +881,13 @@ The initial Lead Emergence consumer launch is not required to be:
 - an independent automation server for every workflow;
 - a mirrored datastore for external providers;
 - a universal cross-agent execution fabric;
-- a simultaneously certified multi-host product.
+- a simultaneously certified multi-host product;
+- a universal Context Graph;
+- a generic background automation platform;
+- an arbitrary remote-code workflow runtime;
+- a server-generated arbitrary personalized-prompt service;
+- a provider or transcript mirror; or
+- a generalized ingestion pipeline.
 
 Those capabilities may be added later when they produce a customer outcome that cannot be achieved through the agent-owned architecture.
 
@@ -638,6 +897,10 @@ Those capabilities may be added later when they produce a customer outcome that 
 
 When evaluating a proposed feature, ask:
 
-> **Does this make the customer's agent more capable because Lead Emergence supplies durable intelligence, or are we rebuilding something the customer's agent already owns?**
+> **Is this capability part of the customer's host/tool environment, a portable skill, a Lead Emergence hosted workflow, or Lead Emergence durable intelligence/state? Are we putting it in the correct layer?**
 
-If the second answer is true, do not add it to the Lead Emergence core without an approved exception.
+Then ask:
+
+> **Does this implementation require Lead Emergence to own a credential, execution responsibility, or dataset that the customer's host already owns?**
+
+If the answer is yes, do not add it to the Lead Emergence core without an explicit, reviewed exception.
