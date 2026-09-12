@@ -447,3 +447,16 @@ test("keeps SOTF v1 outcome persistence private, bounded, current-authority chec
   assert.doesNotMatch(sotfV1Sql, /create table[^;]+(?:provider_payload|transcript|email_content|brief_text)/i);
   assert.doesNotMatch(sotfV1Sql, /service_role|auth\.users\s+set|integration_credentials/i);
 });
+
+test("fails closed on SQL NULL for every fixed SOTF v1 RPC identity", () => {
+  for (const field of [
+    "schema_version", "workflow_id", "workflow_version", "host", "execution_mode", "data_class"
+  ]) {
+    assert.match(sotfV1Sql, new RegExp(`jsonb_typeof\\(outcome -> '${field}'\\) is distinct from 'string'`));
+  }
+  assert.match(sotfV1Sql, /outcome ->> 'host' is distinct from 'chatgpt'/);
+  assert.match(sotfV1Sql, /outcome #>> '\{provenance,source\}' is distinct from 'host_reported_user_confirmed'/);
+  assert.match(sotfV1Sql, /p_workflow_id is distinct from 'transition\.daily_brief'/);
+  assert.match(sotfV1Sql, /p_workflow_version is distinct from '1\.0\.0'/);
+  assert.doesNotMatch(sotfV1Sql, /(?:->> 'host'|->> 'execution_mode'|->> 'data_class'|#>> '\{provenance,source\}') <>/);
+});

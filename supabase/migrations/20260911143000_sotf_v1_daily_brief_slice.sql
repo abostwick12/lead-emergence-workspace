@@ -144,7 +144,7 @@ create function workspace_private.require_sotf_v1_access()
 returns uuid language plpgsql stable security definer set search_path = '' as $$
 declare access jsonb := workspace.sotf_v1_access_state();
 begin
-  if access ->> 'state' <> 'active' then
+  if access ->> 'state' is distinct from 'active' then
     raise exception 'sotf_v1:%', access ->> 'state' using errcode = '42501';
   end if;
   return (access ->> 'workspace_id')::uuid;
@@ -159,10 +159,10 @@ declare
   target_workspace uuid := workspace_private.require_sotf_v1_access();
 begin
   perform workspace_private.lock_sotf_v1_authority(target_workspace);
-  if p_workflow_id <> 'transition.daily_brief' then
+  if p_workflow_id is distinct from 'transition.daily_brief' then
     raise exception 'sotf_v1:not_available' using errcode = '22023';
   end if;
-  if p_workflow_version <> '1.0.0' then
+  if p_workflow_version is distinct from '1.0.0' then
     raise exception 'sotf_v1:version_not_available' using errcode = '22023';
   end if;
   insert into workspace_private.sotf_workflow_access_audit(
@@ -254,22 +254,32 @@ begin
     ]
   then raise exception 'sotf_v1:invalid_input' using errcode = '22023'; end if;
 
-  if outcome ->> 'schema_version' <> '1'
-    or jsonb_typeof(outcome -> 'schema_version') is distinct from 'string'
-    or outcome ->> 'workflow_id' <> 'transition.daily_brief'
-    or outcome ->> 'workflow_version' <> '1.0.0'
-    or outcome ->> 'host' <> 'chatgpt'
-    or outcome ->> 'execution_mode' <> 'A'
-    or outcome ->> 'data_class' <> 'ordinary_transition_operations'
+  if jsonb_typeof(outcome -> 'schema_version') is distinct from 'string'
+    or outcome ->> 'schema_version' is distinct from '1'
+    or jsonb_typeof(outcome -> 'workflow_id') is distinct from 'string'
+    or outcome ->> 'workflow_id' is distinct from 'transition.daily_brief'
+    or jsonb_typeof(outcome -> 'workflow_version') is distinct from 'string'
+    or outcome ->> 'workflow_version' is distinct from '1.0.0'
+    or jsonb_typeof(outcome -> 'host') is distinct from 'string'
+    or outcome ->> 'host' is distinct from 'chatgpt'
+    or jsonb_typeof(outcome -> 'execution_mode') is distinct from 'string'
+    or outcome ->> 'execution_mode' is distinct from 'A'
+    or jsonb_typeof(outcome -> 'data_class') is distinct from 'string'
+    or outcome ->> 'data_class' is distinct from 'ordinary_transition_operations'
     or outcome -> 'user_confirmed' is distinct from 'true'::jsonb
+    or jsonb_typeof(outcome -> 'status') is distinct from 'string'
     or outcome ->> 'status' not in ('completed','degraded')
+    or jsonb_typeof(outcome -> 'usefulness') is distinct from 'string'
     or outcome ->> 'usefulness' not in ('useful','not_useful','not_rated')
+    or jsonb_typeof(outcome -> 'request_id') is distinct from 'string'
     or outcome ->> 'request_id' !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    or jsonb_typeof(outcome -> 'run_id') is distinct from 'string'
     or outcome ->> 'run_id' !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     or jsonb_typeof(outcome -> 'expected_state_revision') is distinct from 'number'
     or outcome ->> 'expected_state_revision' !~ '^[0-9]{1,4}$'
-    or (outcome ->> 'expected_state_revision')::integer not between 0 and 2000
+    or jsonb_typeof(outcome -> 'brief_date') is distinct from 'string'
     or outcome ->> 'brief_date' !~ '^\d{4}-\d{2}-\d{2}$'
+    or jsonb_typeof(outcome -> 'time_zone') is distinct from 'string'
     or char_length(outcome ->> 'time_zone') not between 1 and 80
     or not exists (select 1 from pg_timezone_names where name = outcome ->> 'time_zone')
     or jsonb_typeof(outcome -> 'priority_count') is distinct from 'number'
@@ -277,6 +287,9 @@ begin
   then raise exception 'sotf_v1:invalid_input' using errcode = '22023'; end if;
 
   begin
+    if (outcome ->> 'expected_state_revision')::integer not between 0 and 2000 then
+      raise exception 'sotf_v1:invalid_input' using errcode = '22023';
+    end if;
     perform (outcome ->> 'brief_date')::date;
     perform (outcome ->> 'request_id')::uuid;
     perform (outcome ->> 'run_id')::uuid;
@@ -288,7 +301,9 @@ begin
   if jsonb_typeof(connector) is distinct from 'object'
     or (select count(*) from jsonb_object_keys(connector)) <> 2
     or not connector ?& array['calendar_read','email_read']
+    or jsonb_typeof(connector -> 'calendar_read') is distinct from 'string'
     or connector ->> 'calendar_read' not in ('used','not_available','failed','not_requested')
+    or jsonb_typeof(connector -> 'email_read') is distinct from 'string'
     or connector ->> 'email_read' not in ('used','not_available','failed','not_requested')
   then raise exception 'sotf_v1:invalid_input' using errcode = '22023'; end if;
 
@@ -296,7 +311,9 @@ begin
     or jsonb_array_length(outcome -> 'degradation_reasons') > 5
   then raise exception 'sotf_v1:invalid_input' using errcode = '22023'; end if;
   for reason in select jsonb_array_elements_text(outcome -> 'degradation_reasons') loop
-    if reason not in ('calendar_unavailable','calendar_failed','email_unavailable','email_failed','state_truncated') then
+    if reason is null
+      or reason not in ('calendar_unavailable','calendar_failed','email_unavailable','email_failed','state_truncated')
+    then
       raise exception 'sotf_v1:invalid_input' using errcode = '22023';
     end if;
   end loop;
@@ -326,6 +343,7 @@ begin
     if jsonb_typeof(reference) is distinct from 'object'
       or (select count(*) from jsonb_object_keys(reference)) <> 2
       or not reference ?& array['entity_type','entity_id']
+      or jsonb_typeof(reference -> 'entity_type') is distinct from 'string'
       or reference ->> 'entity_type' not in ('criterion','opportunity','commitment','meeting','hypothesis')
       or jsonb_typeof(reference -> 'entity_id') is distinct from 'string'
       or char_length(reference ->> 'entity_id') not between 1 and 100
@@ -341,7 +359,8 @@ begin
 
   if jsonb_typeof(outcome -> 'provenance') is distinct from 'object'
     or (select count(*) from jsonb_object_keys(outcome -> 'provenance')) <> 2
-    or outcome #>> '{provenance,source}' <> 'host_reported_user_confirmed'
+    or jsonb_typeof(outcome #> '{provenance,source}') is distinct from 'string'
+    or outcome #>> '{provenance,source}' is distinct from 'host_reported_user_confirmed'
     or outcome #> '{provenance,provider_content_persisted}' is distinct from 'false'::jsonb
   then raise exception 'sotf_v1:invalid_input' using errcode = '22023'; end if;
 end; $$;
@@ -397,7 +416,7 @@ create function workspace.sotf_v1_list_daily_brief_outcomes(p_workflow_version t
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare target_workspace uuid := workspace_private.require_sotf_v1_access();
 begin
-  if p_workflow_version <> '1.0.0' then raise exception 'sotf_v1:version_not_available' using errcode = '22023'; end if;
+  if p_workflow_version is distinct from '1.0.0' then raise exception 'sotf_v1:version_not_available' using errcode = '22023'; end if;
   return coalesce((
     select jsonb_agg(row.receipt order by row.recorded_at desc, row.id desc)
     from (

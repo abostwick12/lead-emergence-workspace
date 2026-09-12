@@ -34,6 +34,70 @@ from workspace_private.product_settings
 cross join (values ('74dddddd-dddd-4ddd-8ddd-dddddddddddd'::uuid),('74eeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid)) as clients(client_id)
 where setting_key='mcp_resource_uri';
 
+-- One assertion per hostile payload proves the authoritative RPC rejects with
+-- its typed input error and leaves every durable surface unchanged. The helper
+-- is transaction-local test apparatus and runs as its postgres creator so it
+-- can inspect private persistence around the authenticated RPC invocation.
+create function pg_temp.assert_sotf_v1_outcome_denied(
+  target_path text[], mutation text, replacement jsonb, description text
+) returns text language plpgsql security definer set search_path = 'extensions' as $$
+declare
+  candidate jsonb := current_setting('request.sotf_outcome')::jsonb || jsonb_build_object(
+    'request_id',gen_random_uuid()::text,'run_id',gen_random_uuid()::text
+  );
+  response jsonb;
+  before_outcomes bigint;
+  after_outcomes bigint;
+  before_events bigint;
+  after_events bigint;
+  before_revision integer;
+  after_revision integer;
+  before_audits bigint;
+  after_audits bigint;
+  caught_state text;
+  caught_message text;
+begin
+  if mutation = 'missing' then
+    candidate := candidate #- target_path;
+  elsif mutation = 'replace' then
+    candidate := jsonb_set(candidate,target_path,replacement,false);
+  elsif mutation = 'sql_null' then
+    candidate := null::jsonb;
+  else
+    raise exception 'unknown test mutation: %', mutation;
+  end if;
+
+  select count(*) into before_outcomes from workspace_private.sotf_daily_brief_outcomes;
+  select count(*) into before_events from workspace_private.sotf_operation_events;
+  select revision into before_revision from workspace_private.sotf_operation_heads
+    where workspace_id='74aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  select count(*) into before_audits from workspace_private.sotf_workflow_access_audit;
+
+  begin
+    response := workspace.sotf_v1_record_daily_brief_outcome(candidate);
+  exception when others then
+    caught_state := sqlstate;
+    caught_message := sqlerrm;
+  end;
+
+  select count(*) into after_outcomes from workspace_private.sotf_daily_brief_outcomes;
+  select count(*) into after_events from workspace_private.sotf_operation_events;
+  select revision into after_revision from workspace_private.sotf_operation_heads
+    where workspace_id='74aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  select count(*) into after_audits from workspace_private.sotf_workflow_access_audit;
+
+  return extensions.ok(
+    caught_state = '22023'
+      and caught_message = 'sotf_v1:invalid_input'
+      and response ->> 'saved' is distinct from 'true'
+      and after_outcomes = before_outcomes
+      and after_events = before_events
+      and after_revision is not distinct from before_revision
+      and after_audits = before_audits,
+    description || ' is denied with no save, outcome, revision, event, audit receipt, or partial persistence'
+  );
+end; $$;
+
 select is((select setting_value from workspace_private.product_settings where setting_key='sotf_v1_daily_brief_enabled'),'false','the additive migration cannot activate the slice');
 select is(has_table_privilege('authenticated','workspace_private.sotf_daily_brief_outcomes','select'),false,'outcome storage is not directly readable');
 select is(has_table_privilege('authenticated','workspace_private.sotf_daily_brief_outcomes','insert'),false,'outcome storage is not directly writable');
@@ -72,6 +136,9 @@ update workspace.bundle_capabilities set enabled=true where bundle_key='sotf_tra
 set local role authenticated;
 select is(workspace.sotf_v1_access_state()->>'state','active','current entitlement, capability, MCP, and release gates authorize the slice');
 select is(workspace.sotf_v1_access_state()->>'workspace_id','74aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','access derives tenant binding from the current MCP authority');
+select throws_ok($sql$select workspace.sotf_v1_authorize_workflow_retrieval(null,'1.0.0')$sql$,'22023','sotf_v1:not_available','SQL NULL workflow identity fails closed before an access receipt');
+select throws_ok($sql$select workspace.sotf_v1_authorize_workflow_retrieval('transition.daily_brief',null)$sql$,'22023','sotf_v1:version_not_available','SQL NULL workflow version fails closed before an access receipt');
+select throws_ok($sql$select workspace.sotf_v1_list_daily_brief_outcomes(null)$sql$,'22023','sotf_v1:version_not_available','SQL NULL outcome-list version fails closed instead of returning an empty successful read');
 select throws_ok($sql$select workspace.sotf_v1_authorize_workflow_retrieval('transition.daily_brief','2.0.0')$sql$,'22023','sotf_v1:version_not_available','an absent exact version is denied without an audit success receipt');
 select is(workspace.sotf_v1_authorize_workflow_retrieval('transition.daily_brief','1.0.0')->>'state','active','exact workflow retrieval rechecks current authority at delivery');
 reset role;
@@ -99,8 +166,79 @@ select set_config('request.sotf_outcome',jsonb_build_object(
   'selected_le_refs',jsonb_build_array(jsonb_build_object('entity_type','commitment','entity_id','synthetic-follow-up')),
   'priority_count',1,'usefulness','not_rated','provenance',jsonb_build_object('source','host_reported_user_confirmed','provider_content_persisted',false)
 )::text,true);
+
+-- Host's complete required-value matrix. JSON null and a host value created
+-- from SQL NULL both make ->> return SQL NULL; each must still fail closed.
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'missing',null,'host field absent');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'replace','null'::jsonb,'host JSON null');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'replace',jsonb_build_object('value',null)->'value','host extracted as SQL NULL');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'replace','""'::jsonb,'host empty string');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'replace','"   "'::jsonb,'host whitespace-only string');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'replace','7'::jsonb,'host number');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'replace','true'::jsonb,'host boolean');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'replace','{}'::jsonb,'host object');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'replace','[]'::jsonb,'host array');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'replace','"claude"'::jsonb,'unsupported host string');
+select pg_temp.assert_sotf_v1_outcome_denied(array['host'],'sql_null',null,'SQL NULL outcome parameter');
+
+-- Every other required top-level outcome field receives the same absence,
+-- JSON-null, and wrong-type treatment at the database authority boundary.
+select pg_temp.assert_sotf_v1_outcome_denied(array[field_name],'missing',null,field_name || ' absent')
+from (values
+  ('schema_version'),('request_id'),('run_id'),('workflow_id'),('workflow_version'),
+  ('expected_state_revision'),('brief_date'),('time_zone'),('execution_mode'),('data_class'),
+  ('user_confirmed'),('status'),('connector_results'),('degradation_reasons'),('selected_le_refs'),
+  ('priority_count'),('usefulness'),('provenance')
+) as required_fields(field_name);
+select pg_temp.assert_sotf_v1_outcome_denied(array[field_name],'replace','null'::jsonb,field_name || ' JSON null')
+from (values
+  ('schema_version'),('request_id'),('run_id'),('workflow_id'),('workflow_version'),
+  ('expected_state_revision'),('brief_date'),('time_zone'),('execution_mode'),('data_class'),
+  ('user_confirmed'),('status'),('connector_results'),('degradation_reasons'),('selected_le_refs'),
+  ('priority_count'),('usefulness'),('provenance')
+) as required_fields(field_name);
+select pg_temp.assert_sotf_v1_outcome_denied(array[field_name],'replace',wrong_value,field_name || ' wrong JSON type')
+from (values
+  ('schema_version','7'::jsonb),('request_id','7'::jsonb),('run_id','false'::jsonb),
+  ('workflow_id','{}'::jsonb),('workflow_version','[]'::jsonb),('expected_state_revision','"2"'::jsonb),
+  ('brief_date','7'::jsonb),('time_zone','{}'::jsonb),('execution_mode','7'::jsonb),
+  ('data_class','false'::jsonb),('user_confirmed','"true"'::jsonb),('status','7'::jsonb),
+  ('connector_results','[]'::jsonb),('degradation_reasons','{}'::jsonb),('selected_le_refs','{}'::jsonb),
+  ('priority_count','"1"'::jsonb),('usefulness','false'::jsonb),('provenance','[]'::jsonb)
+) as required_fields(field_name,wrong_value);
+
+-- Required nested fields are equally caller-controlled and cannot inherit
+-- safety from the enclosing object or array shape.
+select pg_temp.assert_sotf_v1_outcome_denied(target_path,'missing',null,description || ' absent')
+from (values
+  (array['connector_results','calendar_read'],'connector calendar_read'),
+  (array['connector_results','email_read'],'connector email_read'),
+  (array['provenance','source'],'provenance source'),
+  (array['provenance','provider_content_persisted'],'provenance provider_content_persisted'),
+  (array['selected_le_refs','0','entity_type'],'selected reference entity_type'),
+  (array['selected_le_refs','0','entity_id'],'selected reference entity_id')
+) as nested_fields(target_path,description);
+select pg_temp.assert_sotf_v1_outcome_denied(target_path,'replace','null'::jsonb,description || ' JSON null')
+from (values
+  (array['connector_results','calendar_read'],'connector calendar_read'),
+  (array['connector_results','email_read'],'connector email_read'),
+  (array['provenance','source'],'provenance source'),
+  (array['provenance','provider_content_persisted'],'provenance provider_content_persisted'),
+  (array['selected_le_refs','0','entity_type'],'selected reference entity_type'),
+  (array['selected_le_refs','0','entity_id'],'selected reference entity_id')
+) as nested_fields(target_path,description);
+select pg_temp.assert_sotf_v1_outcome_denied(target_path,'replace',wrong_value,description || ' wrong JSON type')
+from (values
+  (array['connector_results','calendar_read'],'7'::jsonb,'connector calendar_read'),
+  (array['connector_results','email_read'],'false'::jsonb,'connector email_read'),
+  (array['provenance','source'],'{}'::jsonb,'provenance source'),
+  (array['provenance','provider_content_persisted'],'"false"'::jsonb,'provenance provider_content_persisted'),
+  (array['selected_le_refs','0','entity_type'],'7'::jsonb,'selected reference entity_type'),
+  (array['selected_le_refs','0','entity_id'],'{}'::jsonb,'selected reference entity_id')
+) as nested_fields(target_path,wrong_value,description);
+
 select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb)->>'replayed','false','a reviewed metadata-only outcome is appended once');
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb)->>'replayed','true','an exact retry returns the original receipt');
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb)->>'replayed','true','a supported chatgpt host remains eligible and an exact retry returns the original receipt');
 reset role;
 select is((select count(*) from workspace_private.sotf_daily_brief_outcomes where workspace_id='74aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),1::bigint,'exact retry does not duplicate the outcome');
 select is((select payload ? 'provider_content' from workspace_private.sotf_daily_brief_outcomes where workspace_id='74aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),false,'the durable payload has no provider-content field');
