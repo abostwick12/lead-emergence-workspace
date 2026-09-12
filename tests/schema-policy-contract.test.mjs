@@ -49,6 +49,9 @@ const sotfV1Sql = await readFile("supabase/migrations/20260911143000_sotf_v1_dai
 const sotfV1Catalog = await readFile("lib/sotf/workflow-catalog.ts", "utf8");
 const sotfV1DailyBrief = await readFile("lib/sotf/daily-brief-v1.ts", "utf8");
 const sotfV1Mcp = await readFile("lib/sotf/v1-mcp.ts", "utf8");
+const sotfV1SemanticParitySql = await readFile("supabase/migrations/20260912162000_sotf_v1_outcome_semantic_parity.sql", "utf8");
+const sotfV1SemanticParityDbTest = await readFile("supabase/tests/database/sotf_v1_outcome_semantic_parity.sql", "utf8");
+const sotfV1SemanticParityMcpTest = await readFile("tests/sotf-v1-outcome-semantic-parity.test.ts", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -459,4 +462,21 @@ test("fails closed on SQL NULL for every fixed SOTF v1 RPC identity", () => {
   assert.match(sotfV1Sql, /p_workflow_id is distinct from 'transition\.daily_brief'/);
   assert.match(sotfV1Sql, /p_workflow_version is distinct from '1\.0\.0'/);
   assert.doesNotMatch(sotfV1Sql, /(?:->> 'host'|->> 'execution_mode'|->> 'data_class'|#>> '\{provenance,source\}') <>/);
+});
+
+test("enforces the same SOTF v1 outcome semantic corpus at MCP and authenticated RPC boundaries", () => {
+  assert.match(sotfV1SemanticParitySql, /create function workspace_private\.sotf_v1_daily_brief_projection_semantics/);
+  assert.match(sotfV1SemanticParitySql, /jsonb_array_length\(semantics -> 'truncated_sections'\) > 0[\s\S]*outcome -> 'degradation_reasons' \? 'state_truncated'/);
+  assert.match(sotfV1SemanticParitySql, /semantics -> 'eligible_refs' @> jsonb_build_array\(reference\)/);
+  assert.equal((sotfV1SemanticParitySql.match(/perform workspace_private\.validate_sotf_v1_daily_brief_projection_semantics/g) ?? []).length, 2);
+  assert.match(sotfV1SemanticParitySql, /revoke all on function workspace_private\.sotf_v1_daily_brief_projection_semantics[\s\S]*from public,anon,authenticated/);
+
+  const handlerCases = [...new Set([...sotfV1SemanticParityMcpTest.matchAll(/(?:id: "|SOTF-PARITY:)(C\d{2})/g)].map((match) => match[1]))].sort();
+  const rpcCases = [...new Set([...sotfV1SemanticParityDbTest.matchAll(/(?:SOTF-PARITY:|\(')(C\d{2})/g)].map((match) => match[1]))].sort();
+  const expectedCases = Array.from({ length: 24 }, (_, index) => `C${String(index + 1).padStart(2, "0")}`);
+  assert.deepEqual(handlerCases, expectedCases);
+  assert.deepEqual(rpcCases, expectedCases);
+  assert.deepEqual(handlerCases, rpcCases);
+  assert.match(sotfV1SemanticParityDbTest, /no success receipt or durable side effect/);
+  assert.match(sotfV1SemanticParityMcpTest, /recordCalls/);
 });
