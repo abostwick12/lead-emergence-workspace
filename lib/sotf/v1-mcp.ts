@@ -4,10 +4,10 @@ import { z } from "zod";
 import {
   dailyBriefOutcomeReceiptSchema,
   dailyBriefOutcomeSchema,
+  dailyBriefProjectionAuthoritySchema,
   dailyBriefStateProjectionSchema,
   dailyBriefStateInputSchema,
   DailyBriefContractError,
-  isDailyBriefReferenceEligible,
   projectDailyBriefState,
 } from "./daily-brief-v1";
 import { createSotfStore } from "./server";
@@ -55,6 +55,14 @@ const outcomeProbeSchema = z.discriminatedUnion("state", [
 ]);
 const storedOutcomeSchema = z.strictObject({
   saved: z.literal(true), replayed: z.boolean(), receipt: dailyBriefOutcomeReceiptSchema,
+});
+const dailyBriefStateResultSchema = z.strictObject({
+  projection: dailyBriefStateProjectionSchema,
+  authority: z.strictObject({
+    authority_version: z.literal("1"),
+    authority_token: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+    authority_local_day: z.string().date(),
+  }),
 });
 
 const v1ErrorCodes = [
@@ -149,19 +157,29 @@ export function registerSotfV1Tools(
     title: "Get bounded SOTF daily-brief state",
     description: "Read only the ordinary SOTF records authorized for transition.daily_brief. Provider content, protected context, and the broad operational event log are excluded.",
     inputSchema: dailyBriefStateInputSchema, annotations: readOnly,
-    ...outputFor(dailyBriefStateProjectionSchema),
+    ...outputFor(dailyBriefStateResultSchema),
   }, (input) => invoke(async () => {
     const parsed = dailyBriefStateInputSchema.parse(input);
     const access = await resolveAccess(client, options.releaseEnabled);
     if (access.state !== "active") return accessFailure(access);
     const workflow = getSotfV1Workflow(parsed.workflow_id, parsed.workflow_version);
     if (!workflow.ok) return fail(workflow.code, false);
-    const [{ state, workspaceId }, outcomes] = await Promise.all([
+    const [{ state, workspaceId }, outcomes, authority] = await Promise.all([
       createSotfStore(client).read(),
       readOutcomes(client, parsed.workflow_version),
+      readDailyBriefAuthority(client, parsed),
     ]);
     if (workspaceId !== access.workspace_id) return fail("access_denied", false);
-    return ok(projectDailyBriefState(state, workspaceId, parsed, outcomes));
+    if (state.revision !== authority.state_revision) return fail("state_changed", false);
+    const projection = projectDailyBriefState(state, workspaceId, parsed, outcomes, new Date(authority.as_of), authority);
+    return ok({
+      projection,
+      authority: {
+        authority_version: authority.authority_version,
+        authority_token: authority.authority_token,
+        authority_local_day: authority.authority_local_day,
+      },
+    });
   }));
 
   server.registerTool("sotf_record_daily_brief_outcome", {
@@ -172,35 +190,32 @@ export function registerSotfV1Tools(
     ...outputFor(storedOutcomeSchema),
   }, (input) => invoke(async () => {
     const parsed = dailyBriefOutcomeSchema.parse(input);
+    const { expected_authority_token: expectedAuthorityToken, ...storedOutcome } = parsed;
     const access = await resolveAccess(client, options.releaseEnabled);
     if (access.state !== "active") return accessFailure(access);
     const workflow = getSotfV1Workflow(parsed.workflow_id, parsed.workflow_version);
     if (!workflow.ok) return fail(workflow.code, false);
 
-    const probe = parseReadResult(outcomeProbeSchema, await callRpc(client, "sotf_v1_probe_daily_brief_outcome", { outcome: parsed }));
+    const probe = parseReadResult(outcomeProbeSchema, await callRpc(client, "sotf_v1_probe_daily_brief_outcome", { outcome: storedOutcome }));
     if (probe.state === "replay") return ok({ saved: true, replayed: true, receipt: probe.receipt });
     if (probe.state === "conflict") return fail("idempotency_conflict", false);
 
-    const [{ state, workspaceId }, outcomes] = await Promise.all([
-      createSotfStore(client).read(),
-      readOutcomes(client, parsed.workflow_version),
-    ]);
-    if (workspaceId !== access.workspace_id) return fail("access_denied", false);
-    const projection = projectDailyBriefState(state, workspaceId, {
-      workflow_id: parsed.workflow_id,
-      workflow_version: parsed.workflow_version,
-      brief_date: parsed.brief_date,
-      time_zone: parsed.time_zone,
-    }, outcomes);
-    if (projection.state_revision !== parsed.expected_state_revision) return fail("state_changed", false);
-    if (parsed.selected_le_refs.some((reference) => !isDailyBriefReferenceEligible(projection, reference))) {
+    const authority = await readDailyBriefAuthority(client, parsed);
+    if (authority.workspace_id !== access.workspace_id) return fail("access_denied", false);
+    if (authority.state_revision !== parsed.expected_state_revision
+      || authority.authority_token !== expectedAuthorityToken) return fail("state_changed", false);
+    if (parsed.selected_le_refs.some((reference) => !authority.eligible_refs.some((eligible) =>
+      eligible.entity_type === reference.entity_type && eligible.entity_id === reference.entity_id))) {
       return fail("invalid_input", false);
     }
-    const truncated = projection.truncated_sections.length > 0;
+    const truncated = authority.truncated_sections.length > 0;
     if (truncated !== parsed.degradation_reasons.includes("state_truncated")) return fail("invalid_input", false);
 
     try {
-      const stored = await callRpc(client, "sotf_v1_record_daily_brief_outcome", { outcome: parsed });
+      const stored = await callRpc(client, "sotf_v1_record_daily_brief_outcome", {
+        outcome: storedOutcome,
+        p_expected_authority_token: expectedAuthorityToken,
+      });
       return ok(storedOutcomeSchema.parse(stored));
     } catch (error) {
       if (error instanceof SotfV1RpcError && isDefinitiveWriteRejection(error.code)) throw error;
@@ -227,6 +242,19 @@ async function resolveAccess(client: SupabaseClient<any, any, any, any, any>, re
 async function readOutcomes(client: SupabaseClient<any, any, any, any, any>, workflowVersion: string) {
   const value = await callRpc(client, "sotf_v1_list_daily_brief_outcomes", { p_workflow_version: workflowVersion });
   return parseReadResult(z.array(dailyBriefOutcomeReceiptSchema).max(3), value);
+}
+
+async function readDailyBriefAuthority(
+  client: SupabaseClient<any, any, any, any, any>,
+  input: { workflow_id: string; workflow_version: string; brief_date: string; time_zone: string },
+) {
+  const value = await callRpc(client, "sotf_v1_get_daily_brief_authority", {
+    p_workflow_id: input.workflow_id,
+    p_workflow_version: input.workflow_version,
+    p_brief_date: input.brief_date,
+    p_time_zone: input.time_zone,
+  });
+  return parseReadResult(dailyBriefProjectionAuthoritySchema, value);
 }
 
 function parseReadResult<T>(schema: z.ZodType<T>, value: unknown): T {

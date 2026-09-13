@@ -133,6 +133,7 @@ create function pg_temp.reference_case(raw_reference text, expected_accept boole
 returns boolean language plpgsql security definer set search_path='extensions' as $$
 declare
   candidate jsonb := pg_temp.reference_outcome(raw_reference);
+  authority_token text;
   response jsonb;
   replay jsonb;
   before_state jsonb := pg_temp.reference_snapshot();
@@ -140,8 +141,11 @@ declare
   caught_state text;
   caught_message text;
 begin
+  authority_token := workspace.sotf_v1_get_daily_brief_authority(
+    candidate ->> 'workflow_id',candidate ->> 'workflow_version',candidate ->> 'brief_date',candidate ->> 'time_zone'
+  ) ->> 'authority_token';
   begin
-    response := workspace.sotf_v1_record_daily_brief_outcome(candidate);
+    response := workspace.sotf_v1_record_daily_brief_outcome(candidate,authority_token);
   exception when others then
     caught_state := sqlstate;
     caught_message := sqlerrm;
@@ -157,7 +161,7 @@ begin
   then return false; end if;
   saved_state := pg_temp.reference_snapshot();
   begin
-    replay := workspace.sotf_v1_record_daily_brief_outcome(candidate);
+    replay := workspace.sotf_v1_record_daily_brief_outcome(candidate,authority_token);
   exception when others then
     return false;
   end;

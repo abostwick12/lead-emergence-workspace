@@ -5,6 +5,7 @@
   "workflow_id": "transition.daily_brief",
   "workflow_version": "1.0.0",
   "expected_state_revision": 5,
+  "expected_authority_token": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "brief_date": "2026-09-11",
   "time_zone": "America/Chicago",
   "host": "chatgpt",

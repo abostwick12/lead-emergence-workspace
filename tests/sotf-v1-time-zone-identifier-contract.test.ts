@@ -24,6 +24,7 @@ function outcome(timeZone: string) {
     workflow_id: "transition.daily_brief",
     workflow_version: "1.0.0",
     expected_state_revision: 1,
+    expected_authority_token: `sha256:${"a".repeat(64)}`,
     brief_date: "2026-09-13",
     time_zone: timeZone,
     host: "chatgpt",
@@ -68,7 +69,7 @@ describe("SOTF v1 canonical time-zone identifier contract", () => {
   });
 
   it("uses the same attack corpus as the database authority", () => {
-    expect(corpus).toHaveLength(43);
+    expect(corpus).toHaveLength(47);
     expect(new Set(corpus.map((row) => row.id)).size).toBe(corpus.length);
     expect(corpus.find((row) => row.raw === "posix/America/Chicago")?.accepted).toBe(false);
     for (const row of corpus) {

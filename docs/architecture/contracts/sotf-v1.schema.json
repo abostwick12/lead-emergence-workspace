@@ -593,6 +593,10 @@
           "minimum": 0,
           "maximum": 2000
         },
+        "expected_authority_token": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
         "brief_date": {
           "type": "string",
           "format": "date"
@@ -696,6 +700,7 @@
         "workflow_id",
         "workflow_version",
         "expected_state_revision",
+        "expected_authority_token",
         "brief_date",
         "time_zone",
         "host",

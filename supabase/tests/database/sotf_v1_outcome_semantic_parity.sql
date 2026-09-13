@@ -32,6 +32,7 @@ create function pg_temp.assert_sotf_v1_semantic_denied(
 ) returns text language plpgsql security definer set search_path = 'extensions' as $$
 declare
   response jsonb;
+  authority_token text;
   before_state jsonb;
   after_state jsonb;
   caught_state text;
@@ -47,8 +48,12 @@ begin
     'resource_grants',(select count(*) from workspace_private.mcp_oauth_resource_grants)
   ) into before_state;
 
+  authority_token := workspace.sotf_v1_get_daily_brief_authority(
+    candidate ->> 'workflow_id',candidate ->> 'workflow_version',candidate ->> 'brief_date',candidate ->> 'time_zone'
+  ) ->> 'authority_token';
+
   begin
-    response := workspace.sotf_v1_record_daily_brief_outcome(candidate);
+    response := workspace.sotf_v1_record_daily_brief_outcome(candidate,authority_token);
   exception when others then
     caught_state := sqlstate;
     caught_message := sqlerrm;
@@ -78,6 +83,13 @@ returns jsonb language sql stable security definer set search_path = '' as $$
   select workspace_private.sotf_v1_daily_brief_projection_semantics(
     '75aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',target_date,'America/Chicago'
   );
+$$;
+
+create function pg_temp.sotf_v1_authority_token(candidate jsonb)
+returns text language sql volatile security definer set search_path = '' as $$
+  select workspace.sotf_v1_get_daily_brief_authority(
+    candidate ->> 'workflow_id',candidate ->> 'workflow_version',candidate ->> 'brief_date',candidate ->> 'time_zone'
+  ) ->> 'authority_token';
 $$;
 
 select set_config('request.sotf_semantic_claims',jsonb_build_object(
@@ -129,8 +141,8 @@ select is(pg_temp.sotf_v1_projection_semantics(
   (current_setting('request.sotf_semantic_outcome')::jsonb ->> 'brief_date')::date
 ) -> 'truncated_sections','[]'::jsonb,'[SOTF-PARITY:C01] false plus empty is derived from the untruncated projection');
 select is(workspace.sotf_v1_probe_daily_brief_outcome(current_setting('request.sotf_semantic_outcome')::jsonb)->>'state','new','[SOTF-PARITY:C01] false plus empty is accepted by the authenticated probe');
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_semantic_outcome')::jsonb)->>'replayed','false','[SOTF-PARITY:C01] false plus empty persists once');
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_semantic_outcome')::jsonb)->>'replayed','true','[SOTF-PARITY:C01] exact retry is idempotent');
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_semantic_outcome')::jsonb,pg_temp.sotf_v1_authority_token(current_setting('request.sotf_semantic_outcome')::jsonb))->>'replayed','false','[SOTF-PARITY:C01] false plus empty persists once');
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_semantic_outcome')::jsonb,pg_temp.sotf_v1_authority_token(current_setting('request.sotf_semantic_outcome')::jsonb))->>'replayed','true','[SOTF-PARITY:C01] exact retry is idempotent');
 select is(workspace.sotf_v1_probe_daily_brief_outcome(current_setting('request.sotf_semantic_outcome')::jsonb)->>'state','replay','[SOTF-PARITY:C05] no redundant boolean is the canonical false declaration');
 select is(workspace.sotf_v1_probe_daily_brief_outcome(current_setting('request.sotf_semantic_outcome')::jsonb)->>'state','replay','[SOTF-PARITY:C06] no caller sections field is canonical because the server derives it');
 
@@ -317,15 +329,15 @@ select set_config('request.sotf_truncated_outcome',(
   )
 )::text,true);
 select is(workspace.sotf_v1_probe_daily_brief_outcome(current_setting('request.sotf_truncated_outcome')::jsonb)->>'state','new','[SOTF-PARITY:C02] true plus non-empty is accepted by the authenticated probe');
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_truncated_outcome')::jsonb)->>'replayed','false','[SOTF-PARITY:C02] true plus non-empty persists once');
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_truncated_outcome')::jsonb)->>'replayed','true','[SOTF-PARITY:C02] exact retry is idempotent');
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_truncated_outcome')::jsonb,pg_temp.sotf_v1_authority_token(current_setting('request.sotf_truncated_outcome')::jsonb))->>'replayed','false','[SOTF-PARITY:C02] true plus non-empty persists once');
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_truncated_outcome')::jsonb,pg_temp.sotf_v1_authority_token(current_setting('request.sotf_truncated_outcome')::jsonb))->>'replayed','true','[SOTF-PARITY:C02] exact retry is idempotent');
 
 select is(workspace.sotf_append_operation(jsonb_build_object(
   'requestId','75000000-0000-4000-8000-000000000023','expectedRevision',11,
   'userConfirmed',true,'dataClass','ordinary_transition_operations',
   'command',jsonb_build_object('type','resolve_commitment','commitmentId','long-commitment','status','done','evidence','Synthetic completion')
 ))->>'revision','12','truncated fixture is later resolved out of projection');
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_truncated_outcome')::jsonb)->>'replayed','true','[SOTF-PARITY:C22] exact retry remains replayable after projection changes');
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_truncated_outcome')::jsonb,pg_temp.sotf_v1_authority_token(current_setting('request.sotf_truncated_outcome')::jsonb))->>'replayed','true','[SOTF-PARITY:C22] exact retry remains replayable after projection changes');
 
 select pg_temp.assert_sotf_v1_semantic_denied(
   current_setting('request.sotf_truncated_outcome')::jsonb || jsonb_build_object(

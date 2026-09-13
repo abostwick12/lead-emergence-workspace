@@ -86,7 +86,7 @@
     {
       "step_id": "state",
       "owner": "host",
-      "instruction": "Call sotf_get_daily_brief_state for this workflow version, brief_date and time_zone. Stop if denied, unavailable, incompatible or transition_not_started. Retain the returned revision and selected entity IDs in this run only."
+      "instruction": "Call sotf_get_daily_brief_state for this workflow version, brief_date and time_zone. Stop if denied, unavailable, incompatible or transition_not_started. Use the returned projection and retain its revision, the database authority token, and selected entity IDs in this run only. Do not recreate its UTC window from host time-zone data."
     },
     {
       "step_id": "host_context",
@@ -111,7 +111,7 @@
     {
       "step_id": "outcome",
       "owner": "host",
-      "instruction": "After confirmation call sotf_record_daily_brief_outcome with one request_id and run_id and the returned state revision. Verify the saved receipt. For uncertain results keep the exact payload and IDs; do not create a fresh duplicate. A denial stops LE use. A revision conflict requires a fresh bounded state read and renewed review."
+      "instruction": "After confirmation call sotf_record_daily_brief_outcome with one request_id and run_id, the returned state revision, and the exact returned authority token. Verify the saved receipt. For uncertain results keep the exact payload and IDs; do not create a fresh duplicate. A denial stops LE use. A revision or authority conflict requires a fresh bounded state read and renewed review."
     }
   ],
   "decision_rules": [

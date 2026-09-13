@@ -19,6 +19,7 @@ type ReferenceCase = {
 const sql = readFileSync("supabase/tests/database/sotf_v1_reference_parsing_parity.sql", "utf8");
 const corpus: ReferenceCase[] = JSON.parse(sql.split("$parsing$")[1]);
 const workspaceId = "80111111-1111-4111-8111-111111111111";
+const authorityToken = `sha256:${"b".repeat(64)}`;
 const closeables: Array<{ close: () => Promise<void> }> = [];
 
 afterEach(async () => {
@@ -60,6 +61,7 @@ function outcome(reference: string, sequence: number) {
     request_id: "80300000-0000-4000-8000-" + String(sequence).padStart(12, "0"),
     run_id: "80400000-0000-4000-8000-" + String(sequence).padStart(12, "0"),
     workflow_id: "transition.daily_brief", workflow_version: "1.0.0", expected_state_revision: 5,
+    expected_authority_token: authorityToken,
     brief_date: "2026-09-13", time_zone: "America/Chicago", host: "chatgpt", execution_mode: "A",
     data_class: "ordinary_transition_operations", user_confirmed: true, status: "degraded",
     connector_results: { calendar_read: "not_requested", email_read: "not_requested" },
@@ -124,6 +126,15 @@ describe("SOTF v1 exact authority-reference parsing", () => {
         if (name === "sotf_v1_probe_daily_brief_outcome") return { data: { state: "new" }, error: null };
         if (name === "sotf_read_operations") return { data: batch, error: null };
         if (name === "sotf_v1_list_daily_brief_outcomes") return { data: [], error: null };
+        if (name === "sotf_v1_get_daily_brief_authority") return { data: {
+          authority_version: "1", authority_token: authorityToken, authority_local_day: "2026-09-13",
+          workspace_id: workspaceId, workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+          state_revision: 5, as_of: "2026-09-13T12:00:00.000Z", brief_date: "2026-09-13",
+          time_zone: "America/Chicago", window_start: "2026-09-13T05:00:00.000Z",
+          window_end: "2026-09-15T05:00:00.000Z",
+          eligible_refs: [{ entity_type: "hypothesis", entity_id: "a-b" }],
+          truncated_sections: ["hypotheses"],
+        }, error: null };
         if (name === "sotf_v1_record_daily_brief_outcome") {
           recordCalls += 1;
           const saved = parameters?.outcome as ReturnType<typeof outcome>;

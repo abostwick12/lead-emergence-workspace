@@ -7,6 +7,7 @@ vi.mock("server-only", () => ({}));
 import { createWorkspaceMcpServer } from "@/lib/workspace/mcp-server";
 
 const workspaceId = "73000000-0000-4000-8000-000000000001";
+const authorityToken = `sha256:${"a".repeat(64)}`;
 const closeables: Array<{ close: () => Promise<void> }> = [];
 
 afterEach(async () => {
@@ -40,6 +41,17 @@ function operationBatch() {
         command: { type: "start_transition", timing: "Fall", question: "Which work should I test?", weeklyHours: 8, criteria: [], hypotheses: [] },
       },
     }],
+  };
+}
+
+function authority(overrides: Record<string, unknown> = {}) {
+  return {
+    authority_version: "1", authority_token: authorityToken, authority_local_day: "2026-09-11",
+    workspace_id: workspaceId, workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+    state_revision: 1, as_of: "2026-09-11T12:00:00.000Z", brief_date: "2026-09-11",
+    time_zone: "America/Chicago", window_start: "2026-09-11T05:00:00.000Z",
+    window_end: "2026-09-13T05:00:00.000Z", eligible_refs: [], truncated_sections: [],
+    ...overrides,
   };
 }
 
@@ -92,13 +104,17 @@ describe("SOTF v1 MCP contract", () => {
       if (name === "sotf_v1_access_state") return { data: { state: "active", workspace_id: workspaceId, capabilities: ["core_workspace", "workspace_mcp", "career", "daily_brief", "agentic_workflows"] }, error: null };
       if (name === "sotf_read_operations") return { data: operationBatch(), error: null };
       if (name === "sotf_v1_list_daily_brief_outcomes") return { data: [], error: null };
+      if (name === "sotf_v1_get_daily_brief_authority") return { data: authority(), error: null };
       return { data: null, error: { code: "unexpected", message: name } };
     });
     const client = await connect(rpc);
     const result = await client.callTool({ name: "sotf_get_daily_brief_state", arguments: {
       workflow_id: "transition.daily_brief", workflow_version: "1.0.0", brief_date: "2026-09-11", time_zone: "America/Chicago",
     } });
-    expect(data(result)).toMatchObject({ status: "ok", data: { workspace_id: workspaceId, state_revision: 1, workflow_id: "transition.daily_brief" } });
+    expect(data(result)).toMatchObject({ status: "ok", data: {
+      projection: { workspace_id: workspaceId, state_revision: 1, workflow_id: "transition.daily_brief" },
+      authority: { authority_version: "1", authority_token: authorityToken, authority_local_day: "2026-09-11" },
+    } });
     expect(JSON.stringify(data(result))).not.toContain("events");
     expect(JSON.stringify(data(result))).not.toContain("envelope");
   });
@@ -111,6 +127,7 @@ describe("SOTF v1 MCP contract", () => {
       if (name === "sotf_v1_probe_daily_brief_outcome") return { data: replay ? { state: "replay", receipt } : { state: "new" }, error: null };
       if (name === "sotf_read_operations") return { data: operationBatch(), error: null };
       if (name === "sotf_v1_list_daily_brief_outcomes") return { data: [], error: null };
+      if (name === "sotf_v1_get_daily_brief_authority") return { data: authority(), error: null };
       if (name === "sotf_v1_record_daily_brief_outcome") { replay = true; return { data: { saved: true, replayed: false, receipt }, error: null }; }
       return { data: null, error: { code: "unexpected", message: name } };
     });
@@ -118,6 +135,7 @@ describe("SOTF v1 MCP contract", () => {
     const outcome = {
       schema_version: "1", request_id: receipt.request_id, run_id: receipt.run_id,
       workflow_id: "transition.daily_brief", workflow_version: "1.0.0", expected_state_revision: 1,
+      expected_authority_token: authorityToken,
       brief_date: "2026-09-11", time_zone: "America/Chicago", host: "chatgpt", execution_mode: "A",
       data_class: "ordinary_transition_operations", user_confirmed: true, status: "completed",
       connector_results: { calendar_read: "used", email_read: "used" }, degradation_reasons: [],
@@ -127,6 +145,10 @@ describe("SOTF v1 MCP contract", () => {
     expect(data(await client.callTool({ name: "sotf_record_daily_brief_outcome", arguments: outcome }))).toMatchObject({ status: "ok", data: { saved: true, replayed: false } });
     expect(data(await client.callTool({ name: "sotf_record_daily_brief_outcome", arguments: outcome }))).toMatchObject({ status: "ok", data: { saved: true, replayed: true } });
     expect(rpc.mock.calls.filter(([name]) => name === "sotf_v1_record_daily_brief_outcome")).toHaveLength(1);
+    expect(rpc).toHaveBeenCalledWith("sotf_v1_record_daily_brief_outcome", {
+      outcome: expect.not.objectContaining({ expected_authority_token: expect.anything() }),
+      p_expected_authority_token: authorityToken,
+    });
   });
 
   it("reports an uncertain write result without claiming the outcome was absent", async () => {
@@ -135,6 +157,7 @@ describe("SOTF v1 MCP contract", () => {
       if (name === "sotf_v1_probe_daily_brief_outcome") return { data: { state: "new" }, error: null };
       if (name === "sotf_read_operations") return { data: operationBatch(), error: null };
       if (name === "sotf_v1_list_daily_brief_outcomes") return { data: [], error: null };
+      if (name === "sotf_v1_get_daily_brief_authority") return { data: authority(), error: null };
       if (name === "sotf_v1_record_daily_brief_outcome") throw new Error("reply lost");
       return { data: null, error: { code: "unexpected", message: name } };
     });
@@ -142,6 +165,7 @@ describe("SOTF v1 MCP contract", () => {
     const result = await client.callTool({ name: "sotf_record_daily_brief_outcome", arguments: {
       schema_version: "1", request_id: "73000000-0000-4000-8000-000000000031", run_id: "73000000-0000-4000-8000-000000000032",
       workflow_id: "transition.daily_brief", workflow_version: "1.0.0", expected_state_revision: 1,
+      expected_authority_token: authorityToken,
       brief_date: "2026-09-11", time_zone: "America/Chicago", host: "chatgpt", execution_mode: "A",
       data_class: "ordinary_transition_operations", user_confirmed: true, status: "completed",
       connector_results: { calendar_read: "used", email_read: "used" }, degradation_reasons: [],
@@ -149,6 +173,28 @@ describe("SOTF v1 MCP contract", () => {
       provenance: { source: "host_reported_user_confirmed", provider_content_persisted: false },
     } });
     expect(result.structuredContent).toMatchObject({ status: "error", code: "result_unknown", saved: null, retryable: true });
+  });
+
+  it("fails closed when application-visible authority is stale", async () => {
+    const rpc = vi.fn(async (name: string) => {
+      if (name === "sotf_v1_access_state") return { data: { state: "active", workspace_id: workspaceId, capabilities: ["core_workspace", "workspace_mcp", "career", "daily_brief", "agentic_workflows"] }, error: null };
+      if (name === "sotf_v1_probe_daily_brief_outcome") return { data: { state: "new" }, error: null };
+      if (name === "sotf_v1_get_daily_brief_authority") return { data: authority(), error: null };
+      return { data: null, error: { code: "unexpected", message: name } };
+    });
+    const client = await connect(rpc);
+    const result = await client.callTool({ name: "sotf_record_daily_brief_outcome", arguments: {
+      schema_version: "1", request_id: "73000000-0000-4000-8000-000000000041", run_id: "73000000-0000-4000-8000-000000000042",
+      workflow_id: "transition.daily_brief", workflow_version: "1.0.0", expected_state_revision: 1,
+      expected_authority_token: `sha256:${"d".repeat(64)}`,
+      brief_date: "2026-09-11", time_zone: "America/Chicago", host: "chatgpt", execution_mode: "A",
+      data_class: "ordinary_transition_operations", user_confirmed: true, status: "completed",
+      connector_results: { calendar_read: "used", email_read: "used" }, degradation_reasons: [],
+      selected_le_refs: [], priority_count: 0, usefulness: "not_rated",
+      provenance: { source: "host_reported_user_confirmed", provider_content_persisted: false },
+    } });
+    expect(data(result)).toMatchObject({ status: "error", code: "state_changed", saved: false });
+    expect(rpc.mock.calls.some(([name]) => name === "sotf_v1_record_daily_brief_outcome")).toBe(false);
   });
 
   it("keeps the bootstrap as discovery instructions instead of embedding the workflow body", async () => {

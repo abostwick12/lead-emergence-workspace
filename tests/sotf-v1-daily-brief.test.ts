@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyBriefOutcomeSchema, dailyBriefWindow, projectDailyBriefState } from "@/lib/sotf/daily-brief-v1";
+import { dailyBriefOutcomeSchema, dailyBriefWindow, projectDailyBriefState, type DailyBriefProjectionAuthority } from "@/lib/sotf/daily-brief-v1";
 import { emptyPilotState, type PilotState } from "@/lib/sotf/contracts";
 
 const workspaceId = "71000000-0000-4000-8000-000000000001";
@@ -48,6 +48,42 @@ describe("SOTF v1 bounded daily-brief state", () => {
     expect(Buffer.byteLength(JSON.stringify(projection), "utf8")).toBeLessThanOrEqual(64 * 1024);
   });
 
+  it("uses database-owned UTC boundaries for governed meeting eligibility", () => {
+    const boundedState = state();
+    boundedState.revision = 8;
+    boundedState.meetings = [{
+      id: "asuncion-boundary", title: "Boundary meeting", kind: "networking",
+      startsAt: "2026-09-15T03:15:00.000Z", endsAt: "2026-09-15T03:45:00.000Z",
+      status: "accepted", provider: "manual", objective: "Exercise the database boundary", hypothesisIds: [],
+    }];
+    boundedState.opportunities = [];
+    boundedState.commitments = [];
+    boundedState.hypotheses = [];
+    boundedState.criteria = [];
+    const authority: DailyBriefProjectionAuthority = {
+      authority_version: "1",
+      authority_token: `sha256:${"a".repeat(64)}`,
+      authority_local_day: "2026-09-13",
+      workspace_id: workspaceId,
+      workflow_id: "transition.daily_brief",
+      workflow_version: "1.0.0",
+      state_revision: 8,
+      as_of: "2026-09-13T12:00:00.000Z",
+      brief_date: "2026-09-13",
+      time_zone: "America/Asuncion",
+      window_start: "2026-09-13T04:00:00.000Z",
+      window_end: "2026-09-15T04:00:00.000Z",
+      eligible_refs: [{ entity_type: "meeting", entity_id: "asuncion-boundary" }],
+      truncated_sections: [],
+    };
+    const projection = projectDailyBriefState(boundedState, workspaceId, {
+      workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+      brief_date: "2026-09-13", time_zone: "America/Asuncion",
+    }, [], new Date(authority.as_of), authority);
+    expect(projection.window_end).toBe("2026-09-15T04:00:00.000Z");
+    expect(projection.meetings).toEqual([expect.objectContaining({ id: "asuncion-boundary" })]);
+  });
+
   it("marks bounded truncation and never emits more than the contract limits", () => {
     const large = state();
     large.criteria = Array.from({ length: 25 }, (_, index) => ({
@@ -67,6 +103,7 @@ describe("SOTF v1 bounded daily-brief state", () => {
     const base = {
       schema_version: "1", request_id: "72000000-0000-4000-8000-000000000001", run_id: "72000000-0000-4000-8000-000000000002",
       workflow_id: "transition.daily_brief", workflow_version: "1.0.0", expected_state_revision: 7,
+      expected_authority_token: `sha256:${"a".repeat(64)}`,
       brief_date: "2026-03-08", time_zone: "America/Chicago", host: "chatgpt", execution_mode: "A",
       data_class: "ordinary_transition_operations", user_confirmed: true, priority_count: 1,
       selected_le_refs: [{ entity_type: "commitment", entity_id: "follow-up" }], usefulness: "not_rated",

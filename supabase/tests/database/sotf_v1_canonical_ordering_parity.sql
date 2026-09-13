@@ -213,18 +213,21 @@ select set_config('request.sotf_ordering_outcome',jsonb_build_object(
   'provenance',jsonb_build_object('source','host_reported_user_confirmed','provider_content_persisted',false)
 )::text,true);
 
+select set_config('request.sotf_ordering_authority_token',workspace.sotf_v1_get_daily_brief_authority(
+  'transition.daily_brief','1.0.0',current_setting('request.sotf_ordering_outcome')::jsonb ->> 'brief_date','America/Chicago'
+) ->> 'authority_token',true);
 select set_config('request.sotf_ordering_before',pg_temp.ordering_snapshot()::text,true);
-select throws_ok(format('select workspace.sotf_v1_record_daily_brief_outcome(%L::jsonb)',current_setting('request.sotf_ordering_outcome')),
+select throws_ok(format('select workspace.sotf_v1_record_daily_brief_outcome(%L::jsonb,%L)',current_setting('request.sotf_ordering_outcome'),current_setting('request.sotf_ordering_authority_token')),
   '22023','sotf_v1:invalid_input','reproduced a_b direct-RPC bypass is denied');
 select is(pg_temp.ordering_snapshot(),current_setting('request.sotf_ordering_before')::jsonb,
   'denied out-of-projection reference changes no durable surface');
 select set_config('request.sotf_ordering_outcome',jsonb_set(
   current_setting('request.sotf_ordering_outcome')::jsonb,'{selected_le_refs,0,entity_id}','"a-b"'::jsonb
 )::text,true);
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_ordering_outcome')::jsonb)->>'replayed','false',
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_ordering_outcome')::jsonb,current_setting('request.sotf_ordering_authority_token'))->>'replayed','false',
   'canonically projected a-b reference persists once');
 select set_config('request.sotf_ordering_saved',pg_temp.ordering_snapshot()::text,true);
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_ordering_outcome')::jsonb)->>'replayed','true',
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_ordering_outcome')::jsonb,current_setting('request.sotf_ordering_authority_token'))->>'replayed','true',
   'exact retry of valid canonical reference is idempotent');
 select is(pg_temp.ordering_snapshot(),current_setting('request.sotf_ordering_saved')::jsonb,
   'exact valid retry changes no durable surface');

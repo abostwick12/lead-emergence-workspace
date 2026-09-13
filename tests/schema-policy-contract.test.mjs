@@ -45,6 +45,37 @@ test("locks one exact canonical SOTF time-zone contract across JavaScript and Po
   assert.match(packageJson, /test:sotf:time-zone:local/);
 });
 
+test("makes PostgreSQL the sole governed SOTF civil-time boundary authority", async () => {
+  const migration = await readFile("supabase/migrations/20260913213000_sotf_v1_time_zone_boundary_authority.sql", "utf8");
+  const dbTest = await readFile("supabase/tests/database/sotf_v1_time_zone_boundary_authority.sql", "utf8");
+  const mcp = await readFile("lib/sotf/v1-mcp.ts", "utf8");
+  const dailyBrief = await readFile("lib/sotf/daily-brief-v1.ts", "utf8");
+  const contract = await readFile("docs/architecture/sotf-v1-contracts.md", "utf8");
+  const packageJson = await readFile("package.json", "utf8");
+
+  assert.match(migration, /target_brief_date::timestamp at time zone target_time_zone/);
+  assert.match(migration, /\(target_brief_date \+ 2\)::timestamp at time zone target_time_zone/);
+  assert.match(migration, /create function workspace\.sotf_v1_get_daily_brief_authority/);
+  assert.match(migration, /extensions\.digest/);
+  assert.match(migration, /revoke execute on function workspace\.sotf_v1_record_daily_brief_outcome\(jsonb\)/);
+  assert.match(migration, /create function workspace\.sotf_v1_record_daily_brief_outcome\([\s\S]*p_expected_authority_token text/);
+  assert.match(migration, /lock_sotf_v1_authority\(target_workspace\)[\s\S]*authority_token'[\s\S]*state_changed/);
+  assert.doesNotMatch(migration, /p_window_start|p_window_end/);
+  assert.match(mcp, /readDailyBriefAuthority\(client, parsed\)/);
+  assert.match(mcp, /projectDailyBriefState\(state, workspaceId, parsed, outcomes, new Date\(authority\.as_of\), authority\)/);
+  assert.doesNotMatch(mcp, /dailyBriefWindow/);
+  assert.match(dailyBrief, /authority \? \{[\s\S]*window_start: authority\.window_start/);
+  assert.match(dailyBrief, /assertProjectionMatchesAuthority/);
+  assert.match(dbTest, /America\/Asuncion/);
+  assert.match(dbTest, /America\/Chicago/);
+  assert.match(dbTest, /Australia\/Lord_Howe/);
+  assert.match(dbTest, /Pacific\/Chatham/);
+  assert.match(dbTest, /stale authority denial has no partial persistence/);
+  assert.match(contract, /Identifier membership and civil-time interpretation are separate contracts/);
+  assert.match(contract, /never recreates them with Node\/ICU/);
+  assert.match(packageJson, /sotf_v1_time_zone_boundary_authority\.sql/);
+});
+
 test("locks exact SOTF authority-reference parsing across MCP and RPC boundaries", async () => {
   const migration = await readFile("supabase/migrations/20260913150000_sotf_v1_reference_parsing_parity.sql", "utf8");
   const dbTest = await readFile("supabase/tests/database/sotf_v1_reference_parsing_parity.sql", "utf8");

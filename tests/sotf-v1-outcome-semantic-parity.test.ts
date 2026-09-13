@@ -7,6 +7,7 @@ vi.mock("server-only", () => ({}));
 import { createWorkspaceMcpServer } from "@/lib/workspace/mcp-server";
 
 const workspaceId = "73000000-0000-4000-8000-000000000001";
+const authorityToken = `sha256:${"c".repeat(64)}`;
 const closeables: Array<{ close: () => Promise<void> }> = [];
 
 afterEach(async () => {
@@ -61,6 +62,7 @@ function outcome(revision: number, sequence: number) {
     request_id: `76100000-0000-4000-8000-${String(sequence).padStart(12, "0")}`,
     run_id: `76200000-0000-4000-8000-${String(sequence).padStart(12, "0")}`,
     workflow_id: "transition.daily_brief", workflow_version: "1.0.0", expected_state_revision: revision,
+    expected_authority_token: authorityToken,
     brief_date: "2026-09-11", time_zone: "America/Chicago", host: "chatgpt", execution_mode: "A",
     data_class: "ordinary_transition_operations", user_confirmed: true, status: "completed",
     connector_results: { calendar_read: "used", email_read: "used" }, degradation_reasons: [] as unknown[],
@@ -121,12 +123,25 @@ describe("SOTF v1 outcome semantic parity", () => {
       const batch = operationBatch(testCase.extra);
       const base = outcome(batch.revision, index + 1);
       const candidate = testCase.mutate ? testCase.mutate(base) : base;
+      const hasLongCommitment = testCase.id === "C02" || testCase.id === "C04";
+      const eligibleRefs = testCase.id === "C17" ? [] : [
+        { entity_type: "commitment", entity_id: "eligible-now" },
+        ...(hasLongCommitment ? [{ entity_type: "commitment", entity_id: "long-commitment" }] : []),
+      ];
       let recordCalls = 0;
       const rpc = vi.fn(async (name: string, parameters?: { outcome?: Record<string, unknown> }) => {
         if (name === "sotf_v1_access_state") return { data: { state: "active", workspace_id: workspaceId, capabilities: ["core_workspace", "workspace_mcp", "career", "daily_brief", "agentic_workflows"] }, error: null };
         if (name === "sotf_v1_probe_daily_brief_outcome") return { data: { state: "new" }, error: null };
         if (name === "sotf_read_operations") return { data: batch, error: null };
         if (name === "sotf_v1_list_daily_brief_outcomes") return { data: [], error: null };
+        if (name === "sotf_v1_get_daily_brief_authority") return { data: {
+          authority_version: "1", authority_token: authorityToken, authority_local_day: "2026-09-12",
+          workspace_id: workspaceId, workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+          state_revision: batch.revision, as_of: "2026-09-12T12:00:00.000Z", brief_date: "2026-09-11",
+          time_zone: "America/Chicago", window_start: "2026-09-11T05:00:00.000Z",
+          window_end: "2026-09-13T05:00:00.000Z", eligible_refs: eligibleRefs,
+          truncated_sections: hasLongCommitment ? ["commitments"] : [],
+        }, error: null };
         if (name === "sotf_v1_record_daily_brief_outcome") {
           recordCalls += 1;
           const saved = parameters?.outcome ?? candidate;

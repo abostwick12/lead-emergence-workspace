@@ -45,7 +45,11 @@ select set_config('request.sotf_time_zone_corpus',$time_zone_corpus$[
   {"id":"TZ40","description":"posixrules implementation entry","raw":"posixrules","accepted":false},
   {"id":"TZ41","description":"fixed-offset Etc zone","raw":"Etc/GMT+6","accepted":false},
   {"id":"TZ42","description":"Canada legacy link","raw":"Canada/Central","accepted":false},
-  {"id":"TZ43","description":"IANA primary unavailable in pinned PostgreSQL","raw":"America/Coyhaique","accepted":false}
+  {"id":"TZ43","description":"IANA primary unavailable in pinned PostgreSQL","raw":"America/Coyhaique","accepted":false},
+  {"id":"TZ44","description":"recent-rule-change Asuncion primary","raw":"America/Asuncion","accepted":true},
+  {"id":"TZ45","description":"southern-hemisphere Santiago primary","raw":"America/Santiago","accepted":true},
+  {"id":"TZ46","description":"quarter-hour Chatham primary","raw":"Pacific/Chatham","accepted":true},
+  {"id":"TZ47","description":"irregular-rule Casablanca primary","raw":"Africa/Casablanca","accepted":true}
 ]$time_zone_corpus$,true);
 
 select is(
@@ -145,6 +149,7 @@ create function pg_temp.time_zone_case(raw_time_zone text, expected_accept boole
 returns boolean language plpgsql security definer set search_path='extensions' as $$
 declare
   candidate jsonb := pg_temp.time_zone_outcome(raw_time_zone,expected_accept);
+  authority_token text;
   response jsonb;
   replay jsonb;
   before_state jsonb := pg_temp.time_zone_snapshot();
@@ -152,8 +157,15 @@ declare
   caught_state text;
   caught_message text;
 begin
+  if expected_accept then
+    authority_token := workspace.sotf_v1_get_daily_brief_authority(
+      candidate ->> 'workflow_id',candidate ->> 'workflow_version',candidate ->> 'brief_date',candidate ->> 'time_zone'
+    ) ->> 'authority_token';
+  else
+    authority_token := 'sha256:' || repeat('0',64);
+  end if;
   begin
-    response := workspace.sotf_v1_record_daily_brief_outcome(candidate);
+    response := workspace.sotf_v1_record_daily_brief_outcome(candidate,authority_token);
   exception when others then
     caught_state := sqlstate;
     caught_message := sqlerrm;
@@ -169,7 +181,7 @@ begin
   then return false; end if;
   saved_state := pg_temp.time_zone_snapshot();
   begin
-    replay := workspace.sotf_v1_record_daily_brief_outcome(candidate);
+    replay := workspace.sotf_v1_record_daily_brief_outcome(candidate,authority_token);
   exception when others then
     return false;
   end;

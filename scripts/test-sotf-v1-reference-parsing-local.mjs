@@ -79,6 +79,7 @@ let loader;
 let host;
 let store;
 let revision = 0;
+let authorityToken = "sha256:" + "0".repeat(64);
 let initialized = false;
 const content = (result) => result.structuredContent;
 
@@ -109,6 +110,7 @@ const outcome = (raw, index) => ({
   request_id: "81300000-0000-4000-8000-" + String(index + 1).padStart(12, "0"),
   run_id: "81400000-0000-4000-8000-" + String(index + 1).padStart(12, "0"),
   workflow_id: "transition.daily_brief", workflow_version: "1.0.0", expected_state_revision: revision,
+  expected_authority_token: authorityToken,
   brief_date: date, time_zone: "America/Chicago", host: "chatgpt", execution_mode: "A",
   data_class: "ordinary_transition_operations", user_confirmed: true, status: "degraded",
   connector_results: { calendar_read: "not_requested", email_read: "not_requested" },
@@ -123,7 +125,8 @@ async function assertDualDeny(label, payload) {
   const handlerResult = await call("sotf_record_daily_brief_outcome", payload);
   assert.notEqual(content(handlerResult)?.status, "ok", label + " handler must deny");
   assert.deepEqual(snapshot(), before, label + " handler denial must not mutate");
-  const rpcResult = await db.rpc("sotf_v1_record_daily_brief_outcome", { outcome: payload });
+  const { expected_authority_token, ...storedOutcome } = payload;
+  const rpcResult = await db.rpc("sotf_v1_record_daily_brief_outcome", { outcome: storedOutcome, p_expected_authority_token: expected_authority_token });
   assert(rpcResult.error, label + " authenticated RPC must deny");
   assert.equal(rpcResult.error.code, "22023", label + " RPC must fail as invalid input");
   assert.deepEqual(snapshot(), before, label + " RPC denial must not mutate");
@@ -139,7 +142,8 @@ async function assertDualAccept(label, payload) {
   const afterHandler = snapshot();
   assert.equal(afterHandler[surfaces[0]].count, before[surfaces[0]].count + 1, label + " persists once");
   for (const table of surfaces.slice(1)) assert.deepEqual(afterHandler[table], before[table], label + " does not alter " + table);
-  const rpcResult = await db.rpc("sotf_v1_record_daily_brief_outcome", { outcome: payload });
+  const { expected_authority_token, ...storedOutcome } = payload;
+  const rpcResult = await db.rpc("sotf_v1_record_daily_brief_outcome", { outcome: storedOutcome, p_expected_authority_token: expected_authority_token });
   assert.ifError(rpcResult.error);
   assert.equal(rpcResult.data?.replayed, true, label + " exact RPC retry must replay");
   assert.deepEqual(snapshot(), afterHandler, label + " replay must not duplicate");
@@ -191,7 +195,8 @@ try {
     workflow_id: "transition.daily_brief", workflow_version: "1.0.0", brief_date: date, time_zone: "America/Chicago",
   }));
   assert.equal(projected.status, "ok");
-  assert.deepEqual(projected.data.hypotheses.map((item) => item.id), ["0", "1", "a-b"]);
+  authorityToken = projected.data.authority.authority_token;
+  assert.deepEqual(projected.data.projection.hypotheses.map((item) => item.id), ["0", "1", "a-b"]);
 
   for (let index = 0; index < corpus.length; index += 1) {
     const row = corpus[index];

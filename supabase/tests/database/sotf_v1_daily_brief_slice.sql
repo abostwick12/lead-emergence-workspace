@@ -74,7 +74,7 @@ begin
   select count(*) into before_audits from workspace_private.sotf_workflow_access_audit;
 
   begin
-    response := workspace.sotf_v1_record_daily_brief_outcome(candidate);
+    response := workspace.sotf_v1_record_daily_brief_outcome(candidate,'sha256:' || repeat('0',64));
   exception when others then
     caught_state := sqlstate;
     caught_message := sqlerrm;
@@ -103,7 +103,9 @@ select is(has_table_privilege('authenticated','workspace_private.sotf_daily_brie
 select is(has_table_privilege('authenticated','workspace_private.sotf_daily_brief_outcomes','insert'),false,'outcome storage is not directly writable');
 select is(has_table_privilege('authenticated','workspace_private.sotf_workflow_access_audit','select'),false,'workflow access receipts are private operational audit data');
 select is(has_function_privilege('anon','workspace.sotf_v1_access_state()','execute'),false,'anonymous callers cannot probe v1 access');
-select is(has_function_privilege('authenticated','workspace.sotf_v1_record_daily_brief_outcome(jsonb)','execute'),true,'authenticated MCP callers may reach the fail-closed write bridge');
+select is(has_function_privilege('authenticated','workspace.sotf_v1_record_daily_brief_outcome(jsonb)','execute'),false,'the legacy write bridge cannot bypass the authority token');
+select is(has_function_privilege('authenticated','workspace.sotf_v1_record_daily_brief_outcome(jsonb,text)','execute'),true,'authenticated MCP callers may reach the authority-bound write bridge');
+select is(has_function_privilege('authenticated','workspace.sotf_v1_get_daily_brief_authority(text,text,text,text)','execute'),true,'authenticated MCP callers may read current daily-brief authority');
 
 select set_config('request.sotf_mcp_claims',jsonb_build_object('sub','74111111-1111-4111-8111-111111111111','role','authenticated','aud',(select setting_value from workspace_private.product_settings where setting_key='mcp_resource_uri'),'client_id','74cccccc-cccc-4ccc-8ccc-cccccccccccc','workspace_mcp','true','iat',floor(extract(epoch from clock_timestamp())))::text,true);
 set local role authenticated;
@@ -237,18 +239,21 @@ from (values
   (array['selected_le_refs','0','entity_id'],'{}'::jsonb,'selected reference entity_id')
 ) as nested_fields(target_path,wrong_value,description);
 
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb)->>'replayed','false','a reviewed metadata-only outcome is appended once');
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb)->>'replayed','true','a supported chatgpt host remains eligible and an exact retry returns the original receipt');
+select set_config('request.sotf_authority_token',workspace.sotf_v1_get_daily_brief_authority(
+  'transition.daily_brief','1.0.0',current_setting('request.sotf_outcome')::jsonb ->> 'brief_date','America/Chicago'
+) ->> 'authority_token',true);
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb,current_setting('request.sotf_authority_token'))->>'replayed','false','a reviewed metadata-only outcome is appended once');
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb,current_setting('request.sotf_authority_token'))->>'replayed','true','a supported chatgpt host remains eligible and an exact retry returns the original receipt');
 reset role;
 select is((select count(*) from workspace_private.sotf_daily_brief_outcomes where workspace_id='74aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),1::bigint,'exact retry does not duplicate the outcome');
 select is((select payload ? 'provider_content' from workspace_private.sotf_daily_brief_outcomes where workspace_id='74aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),false,'the durable payload has no provider-content field');
 set local role authenticated;
 select set_config('request.jwt.claims',current_setting('request.sotf_mcp_claims'),true);
-select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(jsonb_set(current_setting('request.sotf_outcome')::jsonb,'{usefulness}','"useful"'))$sql$,'22023','sotf_v1:idempotency_conflict','one request or run identity cannot acquire changed intent');
-select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb || jsonb_build_object('request_id','74000000-0000-4000-8000-000000000021','run_id','74000000-0000-4000-8000-000000000022','expected_state_revision',1))$sql$,'40001','sotf_v1:state_changed','a new stale outcome is rejected before persistence');
-select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb || jsonb_build_object('request_id','74000000-0000-4000-8000-000000000031','run_id','74000000-0000-4000-8000-000000000032','selected_le_refs',jsonb_build_array(jsonb_build_object('entity_type','commitment','entity_id','not-in-state'))))$sql$,'22023','sotf_v1:invalid_input','selected references must exist in the current tenant state');
-select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb || jsonb_build_object('request_id','74000000-0000-4000-8000-000000000041','run_id','74000000-0000-4000-8000-000000000042','user_confirmed',false))$sql$,'22023','sotf_v1:invalid_input','unconfirmed outcomes cannot be saved');
-select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb || jsonb_build_object('request_id','74000000-0000-4000-8000-000000000051','run_id','74000000-0000-4000-8000-000000000052','provider_content','forbidden'))$sql$,'22023','sotf_v1:invalid_input','extra provider data is rejected by the exact contract');
+select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(jsonb_set(current_setting('request.sotf_outcome')::jsonb,'{usefulness}','"useful"'),current_setting('request.sotf_authority_token'))$sql$,'22023','sotf_v1:idempotency_conflict','one request or run identity cannot acquire changed intent');
+select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb || jsonb_build_object('request_id','74000000-0000-4000-8000-000000000021','run_id','74000000-0000-4000-8000-000000000022','expected_state_revision',1),current_setting('request.sotf_authority_token'))$sql$,'40001','sotf_v1:state_changed','a new stale outcome is rejected before persistence');
+select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb || jsonb_build_object('request_id','74000000-0000-4000-8000-000000000031','run_id','74000000-0000-4000-8000-000000000032','selected_le_refs',jsonb_build_array(jsonb_build_object('entity_type','commitment','entity_id','not-in-state'))),current_setting('request.sotf_authority_token'))$sql$,'22023','sotf_v1:invalid_input','selected references must exist in the current tenant state');
+select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb || jsonb_build_object('request_id','74000000-0000-4000-8000-000000000041','run_id','74000000-0000-4000-8000-000000000042','user_confirmed',false),current_setting('request.sotf_authority_token'))$sql$,'22023','sotf_v1:invalid_input','unconfirmed outcomes cannot be saved');
+select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb || jsonb_build_object('request_id','74000000-0000-4000-8000-000000000051','run_id','74000000-0000-4000-8000-000000000052','provider_content','forbidden'),current_setting('request.sotf_authority_token'))$sql$,'22023','sotf_v1:invalid_input','extra provider data is rejected by the exact contract');
 reset role;
 
 set local role authenticated;
@@ -272,7 +277,7 @@ set local role authenticated;
 select set_config('request.jwt.claims',current_setting('request.sotf_mcp_claims'),true);
 select is(workspace.sotf_v1_access_state()->>'state','entitlement_required','cancellation removes current workflow authority immediately');
 select throws_ok($sql$select workspace.sotf_v1_list_daily_brief_outcomes('1.0.0')$sql$,'42501','sotf_v1:entitlement_required','cancellation denies durable intelligence reads');
-select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb)$sql$,'42501','sotf_v1:entitlement_required','cancellation denies exact-replay and new write access');
+select throws_ok($sql$select workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_outcome')::jsonb,current_setting('request.sotf_authority_token'))$sql$,'42501','sotf_v1:entitlement_required','cancellation denies exact-replay and new write access');
 reset role;
 select is((select count(*) from workspace_private.sotf_daily_brief_outcomes where workspace_id='74aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),1::bigint,'cancellation preserves data for separate retention and export policy');
 

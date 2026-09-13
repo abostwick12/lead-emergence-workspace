@@ -40,7 +40,7 @@ const surfaces = [
 ];
 const dbTest = readFileSync(join(root, "supabase/tests/database/sotf_v1_time_zone_identifier_contract.sql"), "utf8");
 const corpus = JSON.parse(dbTest.split("$time_zone_corpus$")[1]);
-assert.equal(corpus.length, 43);
+assert.equal(corpus.length, 47);
 
 function bearer() {
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -77,7 +77,7 @@ const report = {
   head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
   started: new Date().toISOString(),
   contract: "exact 418-name IANA 2025b JavaScript/PostgreSQL runtime intersection",
-  cases: [], handler: { accept: 0, deny: 0 }, rpc: { accept: 0, deny: 0 }, failure: null,
+  cases: [], handler: { accept: 0, deny: 0 }, rpc: { accept: 0, deny: 0 }, boundary: null, failure: null,
 };
 const connections = [];
 let loader;
@@ -100,9 +100,10 @@ async function append(command) {
   revision = result.state.revision;
 }
 
-const outcome = (row) => ({
+const outcome = (row, authorityToken) => ({
   schema_version: "1", request_id: randomUUID(), run_id: randomUUID(),
   workflow_id: "transition.daily_brief", workflow_version: "1.0.0", expected_state_revision: revision,
+  expected_authority_token: authorityToken,
   brief_date: localDate(row.accepted ? row.raw : "America/Chicago"), time_zone: row.raw,
   host: "chatgpt", execution_mode: "A", data_class: "ordinary_transition_operations", user_confirmed: true,
   status: "degraded", connector_results: { calendar_read: "not_requested", email_read: "not_requested" },
@@ -115,7 +116,10 @@ async function assertDualDeny(label, payload) {
   const handlerResult = await call("sotf_record_daily_brief_outcome", payload);
   assert.notEqual(content(handlerResult)?.status, "ok", label + " handler must deny");
   assert.deepEqual(snapshot(), before, label + " handler denial must not mutate");
-  const rpcResult = await db.rpc("sotf_v1_record_daily_brief_outcome", { outcome: payload });
+  const { expected_authority_token, ...storedOutcome } = payload;
+  const rpcResult = await db.rpc("sotf_v1_record_daily_brief_outcome", {
+    outcome: storedOutcome, p_expected_authority_token: expected_authority_token,
+  });
   assert(rpcResult.error, label + " authenticated RPC must deny");
   assert.equal(rpcResult.error.code, "22023", label + " RPC must fail as invalid input");
   assert.deepEqual(snapshot(), before, label + " RPC denial must not mutate");
@@ -131,7 +135,10 @@ async function assertDualAccept(label, payload) {
   const afterHandler = snapshot();
   assert.equal(afterHandler[surfaces[0]].count, before[surfaces[0]].count + 1, label + " persists once");
   for (const table of surfaces.slice(1)) assert.deepEqual(afterHandler[table], before[table], label + " does not alter " + table);
-  const rpcResult = await db.rpc("sotf_v1_record_daily_brief_outcome", { outcome: payload });
+  const { expected_authority_token, ...storedOutcome } = payload;
+  const rpcResult = await db.rpc("sotf_v1_record_daily_brief_outcome", {
+    outcome: storedOutcome, p_expected_authority_token: expected_authority_token,
+  });
   assert.ifError(rpcResult.error);
   assert.equal(rpcResult.data?.replayed, true, label + " exact RPC retry must replay");
   assert.deepEqual(snapshot(), afterHandler, label + " replay must not duplicate");
@@ -167,6 +174,7 @@ try {
   });
   const { createSotfStore } = await loader.ssrLoadModule(root + "/lib/sotf/server.ts");
   const { registerSotfV1Tools } = await loader.ssrLoadModule(root + "/lib/sotf/v1-mcp.ts");
+  const { dailyBriefWindow } = await loader.ssrLoadModule(root + "/lib/sotf/daily-brief-v1.ts");
   store = createSotfStore(db);
   const server = new McpServer({ name: "time-zone-identifier-parity", version: "1" });
   registerSotfV1Tools(server, db, { releaseEnabled: true });
@@ -179,12 +187,55 @@ try {
 
   await append({ type: "start_transition", timing: "Synthetic", question: "Which direction?", weeklyHours: 8, criteria: [], hypotheses: [] });
   for (const row of corpus) {
-    const payload = outcome(row);
+    let authorityToken = "sha256:" + "0".repeat(64);
+    if (row.accepted) {
+      const state = content(await call("sotf_get_daily_brief_state", {
+        workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+        brief_date: localDate(row.raw), time_zone: row.raw,
+      }));
+      assert.equal(state?.status, "ok", "accepted zone must retrieve database authority: " + row.raw);
+      authorityToken = state.data.authority.authority_token;
+    }
+    const payload = outcome(row, authorityToken);
     const decision = row.accepted
       ? await assertDualAccept("[SOTF-TIME-ZONE:" + row.id + "]", payload)
       : await assertDualDeny("[SOTF-TIME-ZONE:" + row.id + "]", payload);
     report.cases.push({ id: row.id, description: row.description, raw: row.raw, ...decision });
   }
+
+  const exactInput = {
+    workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+    brief_date: "2026-09-13", time_zone: "America/Asuncion",
+  };
+  const nodeWindow = dailyBriefWindow(exactInput.brief_date, exactInput.time_zone, new Date("2026-09-13T12:00:00.000Z"));
+  const databaseWindowEnd = sql("select to_char(('2026-09-15'::timestamp at time zone 'America/Asuncion') at time zone 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"')");
+  assert.equal(nodeWindow.window_end, "2026-09-15T03:00:00.000Z", "preserve the reported Node/ICU reproduction");
+  assert.equal(databaseWindowEnd, "2026-09-15T04:00:00.000Z", "preserve the reported PostgreSQL reproduction");
+  await append({
+    type: "record_meeting", meeting: {
+      id: "asuncion-exact-boundary", title: "Exact Asuncion boundary meeting", hypothesisIds: [], kind: "networking",
+      startsAt: "2026-09-15T03:15:00.000Z", endsAt: "2026-09-15T03:45:00.000Z",
+      status: "accepted", provider: "manual", objective: "Exercise the exact database boundary",
+    },
+  });
+  const exactState = content(await call("sotf_get_daily_brief_state", exactInput));
+  assert.equal(exactState?.status, "ok", "exact Asuncion state read must succeed");
+  assert.equal(exactState.data.projection.window_end, databaseWindowEnd);
+  assert(exactState.data.projection.meetings.some((meeting) => meeting.id === "asuncion-exact-boundary"),
+    "application projection must consume the database boundary and include the exact meeting");
+  const exactPayload = {
+    ...outcome({ raw: "America/Asuncion", accepted: true }, exactState.data.authority.authority_token),
+    brief_date: exactInput.brief_date,
+    selected_le_refs: [{ entity_type: "meeting", entity_id: "asuncion-exact-boundary" }],
+    priority_count: 1,
+  };
+  const exactDecision = await assertDualAccept("[SOTF-BOUNDARY:ASUNCION-EXACT]", exactPayload);
+  report.boundary = {
+    node: { version: process.version, icu: process.versions.icu, tzdb: process.versions.tz, window_end: nodeWindow.window_end },
+    postgres: { version: sql("show server_version"), tzdb: execFileSync(docker, ["exec", "supabase_db_lead-emergence-workspace-local", "sh", "-lc", "head -n 1 /usr/share/zoneinfo/tzdata.zi"], { encoding: "utf8" }).trim(), window_end: databaseWindowEnd },
+    meeting: { starts_at: "2026-09-15T03:15:00.000Z", ends_at: "2026-09-15T03:45:00.000Z" },
+    application_projection: "ELIGIBLE", ...exactDecision,
+  };
   report.completed = new Date().toISOString();
 } catch (error) {
   report.failure = { message: error.message, stack: error.stack };

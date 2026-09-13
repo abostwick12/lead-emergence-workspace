@@ -74,7 +74,7 @@ const report = {
   corpusCases:corpus.length,results:[],application:{accept:0,deny:0},rpc:{accept:0,deny:0},failure:null
 };
 const connections = [];
-let loader,realHost,applicationHost,store,revision=0,applicationWrites=0,initialized=false;
+let loader,realHost,applicationHost,store,revision=0,authorityToken="sha256:"+"0".repeat(64),applicationWrites=0,initialized=false;
 const content = result => result.structuredContent;
 async function call(host,name,args={}) {
   try { return await host.callTool({name,arguments:args}); }
@@ -101,6 +101,7 @@ const hypothesis = (id,statusValue="continue") => ({
 });
 const candidate = (reference,truncated) => ({
   schema_version:"1",request_id:randomUUID(),run_id:randomUUID(),...input,expected_state_revision:revision,
+  expected_authority_token:authorityToken,
   host:"chatgpt",execution_mode:"A",data_class:"ordinary_transition_operations",user_confirmed:true,
   status:"degraded",connector_results:{calendar_read:"not_requested",email_read:"not_requested"},
   degradation_reasons:truncated ? ["state_truncated"] : [],
@@ -120,7 +121,8 @@ async function actualDeny(label,payload) {
   const handler = await call(realHost,"sotf_record_daily_brief_outcome",payload);
   assert.notEqual(content(handler)?.status,"ok",label + " handler must deny");
   assert.deepEqual(snapshot(),before,label + " handler denial must have no side effect");
-  const rpc = await db.rpc("sotf_v1_record_daily_brief_outcome",{outcome:payload});
+  const {expected_authority_token,...storedOutcome} = payload;
+  const rpc = await db.rpc("sotf_v1_record_daily_brief_outcome",{outcome:storedOutcome,p_expected_authority_token:expected_authority_token});
   assert(rpc.error,label + " authenticated RPC must deny");
   assert.equal(rpc.error.code,"22023");
   assert.deepEqual(snapshot(),before,label + " RPC denial must have no side effect");
@@ -134,7 +136,8 @@ async function actualAccept(label,payload) {
   const after = snapshot();
   assert.equal(after[surfaces[0]].count,before[surfaces[0]].count+1,label + " persists exactly one outcome");
   for (const table of surfaces.slice(1)) assert.deepEqual(after[table],before[table],label + " does not alter " + table);
-  const rpc = await db.rpc("sotf_v1_record_daily_brief_outcome",{outcome:payload});
+  const {expected_authority_token,...storedOutcome} = payload;
+  const rpc = await db.rpc("sotf_v1_record_daily_brief_outcome",{outcome:storedOutcome,p_expected_authority_token:expected_authority_token});
   assert.ifError(rpc.error);
   assert.equal(rpc.data?.saved,true);
   assert.equal(rpc.data?.replayed,true);
@@ -191,14 +194,16 @@ try {
     assert.deepEqual(fullSql,row.expected,row.id + " SQL full order");
     const projected = content(await call(realHost,"sotf_get_daily_brief_state",input));
     assert.equal(projected.status,"ok");
+    authorityToken = projected.data.authority.authority_token;
+    const projection = projected.data.projection;
     const derived = semantics();
     const expectedBounded = row.expected.slice(0,3),expectedOmitted = row.expected.slice(3);
-    assert.deepEqual(projected.data.hypotheses.map(item => item.id),expectedBounded,row.id + " handler membership");
+    assert.deepEqual(projection.hypotheses.map(item => item.id),expectedBounded,row.id + " handler membership");
     const eligible = derived.eligible_refs.filter(ref => ref.entity_type === "hypothesis").map(ref => ref.entity_id);
     assert.deepEqual(eligible,expectedBounded,row.id + " SQL membership");
-    assert.equal(projected.data.omitted_counts.hypotheses,expectedOmitted.length,row.id + " handler omitted count");
+    assert.equal(projection.omitted_counts.hypotheses,expectedOmitted.length,row.id + " handler omitted count");
     const truncated = row.expected.length > 3;
-    assert.equal(projected.data.truncated_sections.includes("hypotheses"),truncated,row.id + " handler truncation");
+    assert.equal(projection.truncated_sections.includes("hypotheses"),truncated,row.id + " handler truncation");
     assert.equal(derived.truncated_sections.includes("hypotheses"),truncated,row.id + " SQL truncation");
     assert.deepEqual(eligible,expectedBounded,row.id + " governed eligible membership");
 
@@ -211,7 +216,7 @@ try {
     await actualDeny(row.id + " omitted ref",outside);
     report.results.push({
       id:row.id,description:row.description,sourceOrder:source,expectedFull:row.expected,
-      handlerProjected:projected.data.hypotheses.map(item => item.id),rpcEligible:eligible,
+      handlerProjected:projection.hypotheses.map(item => item.id),rpcEligible:eligible,
       omitted:expectedOmitted,truncated,inside:{id:expectedBounded[0],result:"ACCEPT / ACCEPT"},
       outside:{id:outsideId,result:"DENY / DENY"},insertionOrder:index % 2 ? "reverse" : "listed"
     });

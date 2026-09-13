@@ -25,6 +25,7 @@ export const dailyBriefOutcomeSchema = z.strictObject({
   workflow_id: z.literal(SOTF_DAILY_BRIEF_WORKFLOW_ID),
   workflow_version: z.literal(SOTF_DAILY_BRIEF_VERSION),
   expected_state_revision: z.number().int().min(0).max(2000),
+  expected_authority_token: z.string().regex(/^sha256:[0-9a-f]{64}$/),
   brief_date: z.string().date(),
   time_zone: timeZone,
   host: z.literal("chatgpt"),
@@ -66,6 +67,28 @@ export const dailyBriefOutcomeSchema = z.strictObject({
 export type DailyBriefStateInput = z.infer<typeof dailyBriefStateInputSchema>;
 export type DailyBriefOutcome = z.infer<typeof dailyBriefOutcomeSchema>;
 
+export const dailyBriefProjectionAuthoritySchema = z.strictObject({
+  authority_version: z.literal("1"),
+  authority_token: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  authority_local_day: z.string().date(),
+  workspace_id: z.string().uuid(),
+  workflow_id: z.literal(SOTF_DAILY_BRIEF_WORKFLOW_ID),
+  workflow_version: z.literal(SOTF_DAILY_BRIEF_VERSION),
+  state_revision: z.number().int().min(0).max(2000),
+  as_of: z.string().datetime({ offset: true }),
+  brief_date: z.string().date(),
+  time_zone: timeZone,
+  window_start: z.string().datetime({ offset: true }),
+  window_end: z.string().datetime({ offset: true }),
+  eligible_refs: z.array(z.strictObject({
+    entity_type: z.enum(["criterion", "opportunity", "commitment", "meeting", "hypothesis"]),
+    entity_id: id,
+  })),
+  truncated_sections: z.array(z.enum(["chapter", "criteria", "opportunities", "commitments", "meetings", "hypotheses", "recent_outcomes"])),
+});
+
+export type DailyBriefProjectionAuthority = z.infer<typeof dailyBriefProjectionAuthoritySchema>;
+
 export type DailyBriefOutcomeReceipt = {
   outcome_id: string;
   request_id: string;
@@ -98,8 +121,22 @@ export function projectDailyBriefState(
   input: DailyBriefStateInput,
   recentOutcomes: DailyBriefOutcomeReceipt[] = [],
   now = new Date(),
+  authority?: DailyBriefProjectionAuthority,
 ) {
-  const window = dailyBriefWindow(input.brief_date, input.time_zone, now);
+  if (authority && (authority.workspace_id !== workspaceId
+    || authority.workflow_id !== input.workflow_id
+    || authority.workflow_version !== input.workflow_version
+    || authority.brief_date !== input.brief_date
+    || authority.time_zone !== input.time_zone
+    || authority.state_revision !== state.revision)) {
+    throw new Error("The database authority does not match the requested SOTF projection.");
+  }
+  const window = authority ? {
+    brief_date: input.brief_date,
+    end_date: addLocalDays(input.brief_date, 2),
+    window_start: authority.window_start,
+    window_end: authority.window_end,
+  } : dailyBriefWindow(input.brief_date, input.time_zone, now);
   if (!state.chapter) throw new DailyBriefContractError("transition_not_started", "Start the ordinary transition chapter before requesting a daily brief.");
 
   const truncated = new Set<string>();
@@ -188,7 +225,7 @@ export function projectDailyBriefState(
     workflow_id: SOTF_DAILY_BRIEF_WORKFLOW_ID,
     workflow_version: SOTF_DAILY_BRIEF_VERSION,
     state_revision: state.revision,
-    as_of: now.toISOString(),
+    as_of: authority?.as_of ?? now.toISOString(),
     brief_date: input.brief_date,
     time_zone: input.time_zone,
     window_start: window.window_start,
@@ -211,7 +248,9 @@ export function projectDailyBriefState(
 
   enforceProjectionByteLimit(projection, truncated);
   projection.truncated_sections = [...truncated].sort(compareSotfV1CanonicalText);
-  return dailyBriefStateProjectionSchema.parse(projection);
+  const parsed = dailyBriefStateProjectionSchema.parse(projection);
+  if (authority) assertProjectionMatchesAuthority(parsed, authority);
+  return parsed;
 }
 
 export function dailyBriefWindow(briefDate: string, timeZone: string, now = new Date()) {
@@ -231,6 +270,28 @@ export function dailyBriefWindow(briefDate: string, timeZone: string, now = new 
     email_window_start: zonedMidnight(parseDate(addLocalDays(briefDate, -6)), timeZone).toISOString(),
     email_window_end: zonedMidnight(parseDate(addLocalDays(briefDate, 1)), timeZone).toISOString(),
   };
+}
+
+function assertProjectionMatchesAuthority(
+  projection: z.infer<typeof dailyBriefStateProjectionSchema>,
+  authority: DailyBriefProjectionAuthority,
+) {
+  const projectedRefs = [
+    ...projection.criteria.map((item) => ({ entity_type: "criterion" as const, entity_id: item.id })),
+    ...projection.opportunities.map((item) => ({ entity_type: "opportunity" as const, entity_id: item.id })),
+    ...projection.commitments.map((item) => ({ entity_type: "commitment" as const, entity_id: item.id })),
+    ...projection.meetings.map((item) => ({ entity_type: "meeting" as const, entity_id: item.id })),
+    ...projection.hypotheses.map((item) => ({ entity_type: "hypothesis" as const, entity_id: item.id })),
+  ].sort((left, right) => compareSotfV1CanonicalText(left.entity_type, right.entity_type)
+    || compareSotfV1CanonicalText(left.entity_id, right.entity_id));
+  const authorityRefs = [...authority.eligible_refs].sort((left, right) => compareSotfV1CanonicalText(left.entity_type, right.entity_type)
+    || compareSotfV1CanonicalText(left.entity_id, right.entity_id));
+  if (projection.window_start !== authority.window_start
+    || projection.window_end !== authority.window_end
+    || JSON.stringify(projectedRefs) !== JSON.stringify(authorityRefs)
+    || JSON.stringify(projection.truncated_sections) !== JSON.stringify(authority.truncated_sections)) {
+    throw new Error("The application projection diverged from database authority.");
+  }
 }
 
 export function isDailyBriefReferenceEligible(

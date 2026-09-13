@@ -712,8 +712,11 @@ select set_config('request.sotf_unicode_outcome',jsonb_build_object(
 
 select is(current_user::text,'authenticated','Unicode RPC tests use authenticated role');
 select is(pg_temp.unicode_semantics()->'truncated_sections','["commitments"]'::jsonb,'300 supplementary scalars derive state_truncated at RPC');
+select set_config('request.sotf_unicode_authority_token',workspace.sotf_v1_get_daily_brief_authority(
+  'transition.daily_brief','1.0.0',current_setting('request.sotf_unicode_outcome')::jsonb ->> 'brief_date','America/Chicago'
+) ->> 'authority_token',true);
 select set_config('request.sotf_unicode_before',pg_temp.unicode_snapshot()::text,true);
-select throws_ok(format('select workspace.sotf_v1_record_daily_brief_outcome(%L::jsonb)',current_setting('request.sotf_unicode_outcome')),
+select throws_ok(format('select workspace.sotf_v1_record_daily_brief_outcome(%L::jsonb,%L)',current_setting('request.sotf_unicode_outcome'),current_setting('request.sotf_unicode_authority_token')),
  '22023','sotf_v1:invalid_input','reproduced bypass cannot save an outcome');
 select throws_ok(format('select workspace.sotf_v1_probe_daily_brief_outcome(%L::jsonb)',current_setting('request.sotf_unicode_outcome')),
  '22023','sotf_v1:invalid_input','independent probe denies the same Unicode bypass');
@@ -721,17 +724,17 @@ select is(pg_temp.unicode_snapshot(),current_setting('request.sotf_unicode_befor
  'denial leaves outcomes, receipts, ordinary events, state revision, audits and authority unchanged');
 select set_config('request.sotf_unicode_outcome',(current_setting('request.sotf_unicode_outcome')::jsonb ||
  jsonb_build_object('status','degraded','degradation_reasons',jsonb_build_array('state_truncated')))::text,true);
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_unicode_outcome')::jsonb)->>'replayed','false',
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_unicode_outcome')::jsonb,current_setting('request.sotf_unicode_authority_token'))->>'replayed','false',
  'valid supplementary state persists with correct metadata');
 select set_config('request.sotf_unicode_saved',pg_temp.unicode_snapshot()::text,true);
-select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_unicode_outcome')::jsonb)->>'replayed','true',
+select is(workspace.sotf_v1_record_daily_brief_outcome(current_setting('request.sotf_unicode_outcome')::jsonb,current_setting('request.sotf_unicode_authority_token'))->>'replayed','true',
  'valid supplementary outcome exact retry is idempotent');
 select is(pg_temp.unicode_snapshot(),current_setting('request.sotf_unicode_saved')::jsonb,'exact retry changes no durable surface');
-select throws_ok(format('select workspace.sotf_v1_record_daily_brief_outcome(%L::jsonb)',
- (current_setting('request.sotf_unicode_outcome')::jsonb || jsonb_build_object('request_id',gen_random_uuid(),'run_id',gen_random_uuid(),'host',null))::text),
+select throws_ok(format('select workspace.sotf_v1_record_daily_brief_outcome(%L::jsonb,%L)',
+ (current_setting('request.sotf_unicode_outcome')::jsonb || jsonb_build_object('request_id',gen_random_uuid(),'run_id',gen_random_uuid(),'host',null))::text,current_setting('request.sotf_unicode_authority_token')),
  '22023','sotf_v1:invalid_input','host NULL remains fail closed with Unicode state');
-select throws_ok(format('select workspace.sotf_v1_record_daily_brief_outcome(%L::jsonb)',
- (current_setting('request.sotf_unicode_outcome')::jsonb || jsonb_build_object('request_id',gen_random_uuid(),'run_id',gen_random_uuid(),'state_truncated',true,'truncated_sections','[]'::jsonb))::text),
+select throws_ok(format('select workspace.sotf_v1_record_daily_brief_outcome(%L::jsonb,%L)',
+ (current_setting('request.sotf_unicode_outcome')::jsonb || jsonb_build_object('request_id',gen_random_uuid(),'run_id',gen_random_uuid(),'state_truncated',true,'truncated_sections','[]'::jsonb))::text,current_setting('request.sotf_unicode_authority_token')),
  '22023','sotf_v1:invalid_input','prior true plus empty sections forgery remains denied');
 select is(pg_temp.unicode_snapshot(),current_setting('request.sotf_unicode_saved')::jsonb,'regression denials leave the success receipt and every other surface unchanged');
 reset role;
