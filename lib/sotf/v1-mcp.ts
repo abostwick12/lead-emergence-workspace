@@ -20,11 +20,12 @@ import {
   sotfV1BundleManifestSchema,
   sotfV1WorkflowContractSchema,
 } from "./workflow-catalog";
+import { sotfV1AuthorityIdentifierSchema } from "./v1-text";
 
 const oauth = { securitySchemes: [{ type: "oauth2", scopes: ["openid", "email", "profile"] }] } as const;
 const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
-const catalogId = z.string().trim().min(1).max(100);
-const semanticVersion = z.string().trim().regex(/^\d+\.\d+\.\d+$/).max(32);
+const catalogId = sotfV1AuthorityIdentifierSchema(100);
+const semanticVersion = sotfV1AuthorityIdentifierSchema(32).pipe(z.string().regex(/^\d+\.\d+\.\d+$/));
 const bundleSummarySchema = z.strictObject({
   bundle_key: z.literal("sotf_transition"), bundle_version: z.literal("1.0.0"),
   display_name: z.string().min(1).max(240),

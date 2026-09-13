@@ -2,6 +2,45 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+test("locks exact SOTF authority-reference parsing across MCP and RPC boundaries", async () => {
+  const migration = await readFile("supabase/migrations/20260913150000_sotf_v1_reference_parsing_parity.sql", "utf8");
+  const dbTest = await readFile("supabase/tests/database/sotf_v1_reference_parsing_parity.sql", "utf8");
+  const tsTest = await readFile("tests/sotf-v1-reference-parsing-parity.test.ts", "utf8");
+  const runner = await readFile("scripts/test-sotf-v1-reference-parsing-local.mjs", "utf8");
+  const helper = await readFile("lib/sotf/v1-text.ts", "utf8");
+  const dailyBrief = await readFile("lib/sotf/daily-brief-v1.ts", "utf8");
+  const mcp = await readFile("lib/sotf/v1-mcp.ts", "utf8");
+  const contract = await readFile("docs/architecture/sotf-v1-contracts.md", "utf8");
+  const packageJson = await readFile("package.json", "utf8");
+  const corpus = JSON.parse(dbTest.split("$parsing$")[1]);
+
+  assert.ok(corpus.length >= 15);
+  assert.equal(new Set(corpus.map((row) => row.id)).size, corpus.length);
+  assert.deepEqual(corpus.filter((row) => row.accepted).map((row) => row.raw), ["a-b"]);
+  for (const required of [" a-b ", "\ta-b", "a-b\n", "\u00a0a-b\u00a0", "\u3000a-b\u3000", "a\u2010b", "A-B"]) {
+    assert.ok(corpus.some((row) => row.raw === required), "missing exact-reference case " + JSON.stringify(required));
+  }
+  assert.match(helper, /sotfV1AuthorityIdentifierSchema/);
+  assert.doesNotMatch(helper.slice(helper.indexOf("export function sotfV1AuthorityIdentifierSchema")), /\.trim\(|\.toLowerCase\(|\.normalize\(/);
+  assert.match(dailyBrief, /const id = sotfV1AuthorityIdentifierSchema\(100\)/);
+  assert.match(dailyBrief, /const timeZone = sotfV1AuthorityIdentifierSchema\(80\)/);
+  assert.match(mcp, /const catalogId = sotfV1AuthorityIdentifierSchema\(100\)/);
+  assert.match(mcp, /const semanticVersion = sotfV1AuthorityIdentifierSchema\(32\)/);
+  assert.match(migration, /create function workspace_private\.sotf_v1_reference_is_eligible/);
+  assert.match(migration, /eligible_refs @> jsonb_build_array\(reference\)/);
+  assert.doesNotMatch(migration, /\btrim\s*\(|\blower\s*\(|\bnormalize\s*\(/i);
+  assert.match(migration, /revoke all on function workspace_private\.sotf_v1_reference_is_eligible[\s\S]*from public,anon,authenticated/);
+  assert.match(contract, /exact decoded-string matching/i);
+  assert.match(contract, /reject leading or trailing whitespace, case changes, Unicode normalization/i);
+  for (const consumer of [tsTest, runner]) assert.match(consumer, /sotf_v1_reference_parsing_parity\.sql/);
+  assert.match(runner, /sotf_v1_record_daily_brief_outcome/);
+  assert.match(runner, /padded IANA time zone/);
+  assert.match(runner, /prior NULL\/type regression/);
+  assert.match(runner, /prior semantic contradiction regression/);
+  assert.match(packageJson, /test:sotf:reference:local/);
+  assert.match(packageJson, /sotf_v1_reference_parsing_parity\.sql/);
+});
+
 test("locks locale-independent SOTF ordering and one executable authority corpus across runtimes", async () => {
   const migration = await readFile("supabase/migrations/20260913110000_sotf_v1_canonical_ordering_parity.sql","utf8");
   const projection = await readFile("lib/sotf/daily-brief-v1.ts","utf8");

@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { dimensionSchema, type PilotState } from "./contracts";
 import { SOTF_DAILY_BRIEF_VERSION, SOTF_DAILY_BRIEF_WORKFLOW_ID } from "./workflow-catalog";
-import { clipSotfV1Text, compareSotfV1CanonicalText, SOTF_V1_PROJECTION_TEXT_LIMIT, sotfV1TextSchema, sotfV1TextUnits } from "./v1-text";
+import { clipSotfV1Text, compareSotfV1CanonicalText, SOTF_V1_PROJECTION_TEXT_LIMIT, sotfV1AuthorityIdentifierSchema, sotfV1TextSchema, sotfV1TextUnits } from "./v1-text";
 
-const id = z.string().trim().pipe(sotfV1TextSchema(100, 1));
+const id = sotfV1AuthorityIdentifierSchema(100);
+const timeZone = sotfV1AuthorityIdentifierSchema(80);
 const outcomeConnectorState = z.enum(["used", "not_available", "failed", "not_requested"]);
 const degradationReason = z.enum([
   "calendar_unavailable", "calendar_failed", "email_unavailable", "email_failed", "state_truncated",
@@ -13,7 +14,7 @@ export const dailyBriefStateInputSchema = z.strictObject({
   workflow_id: z.literal(SOTF_DAILY_BRIEF_WORKFLOW_ID),
   workflow_version: z.literal(SOTF_DAILY_BRIEF_VERSION),
   brief_date: z.string().date(),
-  time_zone: z.string().trim().min(1).max(80),
+  time_zone: timeZone,
 });
 
 export const dailyBriefOutcomeSchema = z.strictObject({
@@ -24,7 +25,7 @@ export const dailyBriefOutcomeSchema = z.strictObject({
   workflow_version: z.literal(SOTF_DAILY_BRIEF_VERSION),
   expected_state_revision: z.number().int().min(0).max(2000),
   brief_date: z.string().date(),
-  time_zone: z.string().trim().min(1).max(80),
+  time_zone: timeZone,
   host: z.literal("chatgpt"),
   execution_mode: z.literal("A"),
   data_class: z.literal("ordinary_transition_operations"),

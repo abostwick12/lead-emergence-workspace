@@ -56,3 +56,10 @@ export function sotfV1TextSchema(maximum: number, minimum = 0) {
   // MCP JSON Schema export, adding the common decoded-text representability rule.
   return z.string().min(minimum).max(maximum).refine(isSotfV1Text, "Use well-formed text without NUL.");
 }
+
+// Authority identifiers are already canonical values supplied by an LE
+// projection or catalog. Validate the decoded string exactly and never trim,
+// case-fold, normalize, or otherwise rewrite it before an authority check.
+export function sotfV1AuthorityIdentifierSchema(maximum: number, minimum = 1) {
+  return sotfV1TextSchema(maximum, minimum);
+}
