@@ -2,6 +2,46 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+test("locks locale-independent SOTF ordering and one executable authority corpus across runtimes", async () => {
+  const migration = await readFile("supabase/migrations/20260913110000_sotf_v1_canonical_ordering_parity.sql","utf8");
+  const projection = await readFile("lib/sotf/daily-brief-v1.ts","utf8");
+  const helper = await readFile("lib/sotf/v1-text.ts","utf8");
+  const contract = await readFile("docs/architecture/sotf-v1-contracts.md","utf8");
+  const dbTest = await readFile("supabase/tests/database/sotf_v1_canonical_ordering_parity.sql","utf8");
+  const tsTest = await readFile("tests/sotf-v1-canonical-ordering-parity.test.ts","utf8");
+  const runner = await readFile("scripts/test-sotf-v1-canonical-ordering-local.mjs","utf8");
+  const corpus = JSON.parse(dbTest.split("$ordering$")[1]);
+  assert.ok(corpus.length >= 20);
+  assert.equal(new Set(corpus.map(row => row.id)).size,corpus.length);
+  assert.deepEqual(corpus.find(row => row.id === "O31").ids,[
+    "0","1","01","10","a","A","a-b","a_b","a.b","a/b","a:b","a b","a+b","a#b","a@b"
+  ]);
+  assert.match(helper,/new TextEncoder\(\)/);
+  assert.match(helper,/leftBytes\[index\] - rightBytes\[index\]/);
+  assert.doesNotMatch(projection,/localeCompare/);
+  for (const sort of [
+    /importance - a\.importance \|\| compareSotfV1CanonicalText\(a\.id, b\.id\)/,
+    /a\.deadline \?\? "".*compareSotfV1CanonicalText\(a\.id, b\.id\)/,
+    /a\.due \?\? "".*compareSotfV1CanonicalText\(a\.id, b\.id\)/,
+    /a\.startsAt, b\.startsAt.*compareSotfV1CanonicalText\(a\.id, b\.id\)/,
+    /compareSotfV1CanonicalText\(a\.id, b\.id\).*3, "hypotheses"/,
+    /compareSotfV1CanonicalText\(b\.recorded_at, a\.recorded_at\).*compareSotfV1CanonicalText\(b\.outcome_id, a\.outcome_id\)/,
+    /rank\[a\.reason_code\].*compareSotfV1CanonicalText\(a\.order, b\.order\)/
+  ]) assert.match(projection,sort);
+  assert.match(migration,/create function workspace_private\.sotf_v1_order_key/);
+  assert.match(migration,/convert_to\(value,'UTF8'\)/);
+  assert.doesNotMatch(migration,/\bcollate\b/i);
+  assert.match(migration,/create or replace function workspace\.sotf_v1_list_daily_brief_outcomes/);
+  assert.ok((migration.match(/workspace_private\.sotf_v1_order_key/g) ?? []).length >= 20);
+  assert.match(contract,/unsigned UTF-8 bytes of the decoded, well-formed string/);
+  assert.match(contract,/do not normalize identifiers/i);
+  for (const consumer of [tsTest,runner]) assert.match(consumer,/sotf_v1_canonical_ordering_parity\.sql/);
+  assert.match(dbTest,/authenticated write boundary/);
+  assert.match(runner,/isolatedApplicationDecision/);
+  assert.match(runner,/actualDeny/);
+  assert.match(runner,/actualAccept/);
+});
+
 test("locks SOTF Unicode measurement and executable shared corpus across both runtimes", async () => {
   const migration = await readFile("supabase/migrations/20260912190000_sotf_v1_unicode_truncation_parity.sql","utf8");
   const sotfV1DailyBrief = await readFile("lib/sotf/daily-brief-v1.ts","utf8");

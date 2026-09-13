@@ -5,6 +5,22 @@ import { z } from "zod";
 // characters, normalized text, or grapheme clusters. PostgreSQL has the same
 // contract in sotf_v1_text_units / sotf_v1_text_prefix.
 export const SOTF_V1_PROJECTION_TEXT_LIMIT = 500;
+const sotfV1Utf8Encoder = new TextEncoder();
+
+// Authority-sensitive bounded membership uses decoded UTF-8 bytes as its
+// canonical text order. This is deliberately independent of OS/runtime locale,
+// ICU, and database collation. Distinct decoded strings are not normalized.
+export function compareSotfV1CanonicalText(left: string, right: string) {
+  if (!isSotfV1Text(left) || !isSotfV1Text(right)) {
+    throw new Error("SOTF v1 canonical ordering requires well-formed text without NUL.");
+  }
+  const leftBytes = sotfV1Utf8Encoder.encode(left);
+  const rightBytes = sotfV1Utf8Encoder.encode(right);
+  for (let index = 0; index < Math.min(leftBytes.length, rightBytes.length); index += 1) {
+    if (leftBytes[index] !== rightBytes[index]) return leftBytes[index] - rightBytes[index];
+  }
+  return leftBytes.length - rightBytes.length;
+}
 
 export function isSotfV1Text(value: string) {
   for (const character of value) {

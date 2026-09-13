@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { dimensionSchema, type PilotState } from "./contracts";
 import { SOTF_DAILY_BRIEF_VERSION, SOTF_DAILY_BRIEF_WORKFLOW_ID } from "./workflow-catalog";
-import { clipSotfV1Text, SOTF_V1_PROJECTION_TEXT_LIMIT, sotfV1TextSchema, sotfV1TextUnits } from "./v1-text";
+import { clipSotfV1Text, compareSotfV1CanonicalText, SOTF_V1_PROJECTION_TEXT_LIMIT, sotfV1TextSchema, sotfV1TextUnits } from "./v1-text";
 
 const id = z.string().trim().pipe(sotfV1TextSchema(100, 1));
 const outcomeConnectorState = z.enum(["used", "not_available", "failed", "not_requested"]);
@@ -116,7 +116,7 @@ export function projectDailyBriefState(
   };
 
   const criteria = take([...state.criteria]
-    .sort((a, b) => b.importance - a.importance || a.id.localeCompare(b.id)), 20, "criteria")
+    .sort((a, b) => b.importance - a.importance || compareSotfV1CanonicalText(a.id, b.id)), 20, "criteria")
     .map((item) => ({
       id: item.id,
       label: item.label,
@@ -129,7 +129,7 @@ export function projectDailyBriefState(
 
   const opportunities = take(state.opportunities
     .filter((item) => !["decline", "pause"].includes(item.status) && item.deadline && item.deadline < window.end_date)
-    .sort((a, b) => (a.deadline ?? "").localeCompare(b.deadline ?? "") || a.id.localeCompare(b.id)), 10, "opportunities")
+    .sort((a, b) => compareSotfV1CanonicalText(a.deadline ?? "", b.deadline ?? "") || compareSotfV1CanonicalText(a.id, b.id)), 10, "opportunities")
     .map((item) => ({
       id: item.id,
       company: item.company,
@@ -141,7 +141,7 @@ export function projectDailyBriefState(
 
   const commitments = take(state.commitments
     .filter((item) => ["open", "blocked"].includes(item.status) && item.due && item.due < window.end_date)
-    .sort((a, b) => (a.due ?? "").localeCompare(b.due ?? "") || a.id.localeCompare(b.id)), 10, "commitments")
+    .sort((a, b) => compareSotfV1CanonicalText(a.due ?? "", b.due ?? "") || compareSotfV1CanonicalText(a.id, b.id)), 10, "commitments")
     .map((item) => ({
       id: item.id,
       title: item.title,
@@ -154,7 +154,7 @@ export function projectDailyBriefState(
   const meetings = take(state.meetings
     .filter((item) => ["planned", "accepted"].includes(item.status)
       && item.startsAt < window.window_end && item.endsAt > window.window_start)
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id)), 10, "meetings")
+    .sort((a, b) => compareSotfV1CanonicalText(a.startsAt, b.startsAt) || compareSotfV1CanonicalText(a.id, b.id)), 10, "meetings")
     .map((item) => ({
       id: item.id,
       title: item.title,
@@ -166,7 +166,7 @@ export function projectDailyBriefState(
 
   const hypotheses = take(state.hypotheses
     .filter((item) => ["continue", "refine"].includes(item.status))
-    .sort((a, b) => a.id.localeCompare(b.id)), 3, "hypotheses")
+    .sort((a, b) => compareSotfV1CanonicalText(a.id, b.id)), 3, "hypotheses")
     .map((item) => ({
       id: item.id,
       proposition: item.proposition,
@@ -178,7 +178,7 @@ export function projectDailyBriefState(
 
   const outcomes = take(recentOutcomes
     .filter((item) => item.workflow_id === SOTF_DAILY_BRIEF_WORKFLOW_ID && item.workflow_version === SOTF_DAILY_BRIEF_VERSION)
-    .sort((a, b) => b.recorded_at.localeCompare(a.recorded_at) || b.outcome_id.localeCompare(a.outcome_id)), 3, "recent_outcomes");
+    .sort((a, b) => compareSotfV1CanonicalText(b.recorded_at, a.recorded_at) || compareSotfV1CanonicalText(b.outcome_id, a.outcome_id)), 3, "recent_outcomes");
 
   const projection = {
     projection_version: "1" as const,
@@ -203,12 +203,12 @@ export function projectDailyBriefState(
     hypotheses,
     suggestions: buildSuggestions(input.brief_date, opportunities, commitments, meetings, hypotheses),
     recent_outcomes: outcomes,
-    truncated_sections: [...truncated].sort(),
+    truncated_sections: [...truncated].sort(compareSotfV1CanonicalText),
     omitted_counts: omitted,
   };
 
   enforceProjectionByteLimit(projection, truncated);
-  projection.truncated_sections = [...truncated].sort();
+  projection.truncated_sections = [...truncated].sort(compareSotfV1CanonicalText);
   return dailyBriefStateProjectionSchema.parse(projection);
 }
 
@@ -272,7 +272,7 @@ function buildSuggestions(
   for (const item of opportunities) values.push({ source_ref: { entity_type: "opportunity", entity_id: item.id }, reason_code: "deadline_soon", epistemic_status: "derived", order: `${item.deadline ?? "9999"}:${item.id}` });
   for (const item of hypotheses) values.push({ source_ref: { entity_type: "hypothesis", entity_id: item.id }, reason_code: "learning_step", epistemic_status: "derived", order: `9999:${item.id}` });
   const rank: Record<string, number> = { overdue: 0, meeting_soon: 1, deadline_soon: 2, due_soon: 3, learning_step: 4 };
-  return values.sort((a, b) => rank[a.reason_code] - rank[b.reason_code] || a.order.localeCompare(b.order))
+  return values.sort((a, b) => rank[a.reason_code] - rank[b.reason_code] || compareSotfV1CanonicalText(a.order, b.order))
     .slice(0, 3).map(({ order: _order, ...item }) => item);
 }
 
@@ -287,7 +287,7 @@ function enforceProjectionByteLimit(projection: {
       projection[section].pop();
       projection.omitted_counts[section] += 1;
       truncated.add(section);
-      projection.truncated_sections = [...truncated].sort();
+      projection.truncated_sections = [...truncated].sort(compareSotfV1CanonicalText);
     }
   }
   const available = new Set<string>();
