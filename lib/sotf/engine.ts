@@ -1,5 +1,6 @@
 import { commandEnvelopeSchema, type CommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
 import { assessOpportunity, requireRecord } from "./intelligence";
+import { clipSotfV1Text } from "./v1-text";
 
 export class RevisionConflict extends Error { constructor() { super("Your SOTF Bundle changed in another session. Refresh and review the current state before retrying."); } }
 function upsert<T extends { id: string }>(records: T[], item: T) { const index = records.findIndex((record) => record.id === item.id); if (index < 0) records.push(item); else records[index] = item; }
@@ -86,7 +87,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     case "decide_opportunity": {
       const item = opportunity(command.opportunityId);
       item.status = command.decision; item.decision = { rationale: command.rationale, nextAction: command.nextAction, revisitWhen: command.revisitWhen, at: now, due: command.due, assessmentRevision: state.revision };
-      saveCommitment({ id: `${item.id}:decision-next-step`, title: command.nextAction.slice(0, 240), owner: "Fellow", due: command.due, definitionOfDone: command.nextAction, reviewTrigger: command.revisitWhen, opportunityId: item.id });
+      saveCommitment({ id: `${item.id}:decision-next-step`, title: clipSotfV1Text(command.nextAction, 240), owner: "Fellow", due: command.due, definitionOfDone: command.nextAction, reviewTrigger: command.revisitWhen, opportunityId: item.id });
       const next = requireRecord(state.commitments, `${item.id}:decision-next-step`, "Commitment");
       next.status = "open"; next.result = undefined;
       if (["pause", "decline"].includes(command.decision)) {
@@ -117,7 +118,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       upsert(state.meetings, { ...value, id: targetId, debrief: current?.debrief });
       state.actions.filter((item) => item.kind === "calendar_invite" && item.meetingId === targetId && ["draft", "approved_for_manual_execution", "failed"].includes(item.state) && item.meetingStamp !== meetingStamp(targetId)).forEach((item) => { item.state = "superseded"; item.approvedAt = undefined; item.updatedAt = now; });
       if (value.status === "cancelled") state.commitments.filter((item) => item.meetingId === targetId && item.id.endsWith(":prepare")).forEach((item) => { item.status = "cancelled"; item.updatedAt = now; });
-      else if (["planned", "accepted"].includes(value.status)) saveCommitment({ id: `${targetId}:prepare`, title: `Prepare: ${value.title}`.slice(0, 240), owner: "Fellow", due: value.startsAt.slice(0, 10), definitionOfDone: `Review the person, prior interactions, and questions needed to resolve: ${value.objective}`, reviewTrigger: "Meeting time, purpose, or participant changes", meetingId: targetId, personId: value.personId, opportunityId: value.opportunityId }, current?.status === "cancelled" || Boolean(current && (current.startsAt !== value.startsAt || current.objective !== value.objective)));
+      else if (["planned", "accepted"].includes(value.status)) saveCommitment({ id: `${targetId}:prepare`, title: clipSotfV1Text(`Prepare: ${value.title}`, 240), owner: "Fellow", due: value.startsAt.slice(0, 10), definitionOfDone: `Review the person, prior interactions, and questions needed to resolve: ${value.objective}`, reviewTrigger: "Meeting time, purpose, or participant changes", meetingId: targetId, personId: value.personId, opportunityId: value.opportunityId }, current?.status === "cancelled" || Boolean(current && (current.startsAt !== value.startsAt || current.objective !== value.objective)));
       summary = `${value.status === "cancelled" ? "Cancelled" : current ? "Reconciled" : "Recorded"} meeting: ${value.title}`; break;
     }
     case "debrief_meeting": {
@@ -161,7 +162,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       const item = state.applications.find((item) => item.opportunityId === command.opportunityId);
       if (!item) throw new Error("Record the actual submission before updating its outcome.");
       item.status = command.outcome; item.outcome = { reason: command.reason, source: command.source, nextAction: command.nextAction, at: now };
-      saveCommitment({ id: command.opportunityId + ":application-next-step", title: command.nextAction.slice(0, 240), owner: "Fellow", definitionOfDone: command.nextAction, reviewTrigger: "New employer feedback or the next preparation decision", opportunityId: command.opportunityId }, true);
+      saveCommitment({ id: command.opportunityId + ":application-next-step", title: clipSotfV1Text(command.nextAction, 240), owner: "Fellow", definitionOfDone: command.nextAction, reviewTrigger: "New employer feedback or the next preparation decision", opportunityId: command.opportunityId }, true);
       summary = `Application ${command.outcome}: ${command.reason}. Next: ${command.nextAction}`; break;
     }
     case "record_interview": {
@@ -170,7 +171,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       if (state.interviews.some((item) => item.id === value.id)) throw new Error("This interview debrief is already recorded.");
       value.evidence.forEach((item) => addEvidence({ ...item, opportunityId: value.opportunityId }));
       state.interviews.push({ ...value, recordedAt: now });
-      saveCommitment({ id: `${value.id}:prepare-next`, title: value.nextPreparation.slice(0, 240), owner: "Fellow", definitionOfDone: value.nextPreparation, reviewTrigger: "Before the next interview round", opportunityId: value.opportunityId });
+      saveCommitment({ id: `${value.id}:prepare-next`, title: clipSotfV1Text(value.nextPreparation, 240), owner: "Fellow", definitionOfDone: value.nextPreparation, reviewTrigger: "Before the next interview round", opportunityId: value.opportunityId });
       summary = `Interview learning recorded: ${value.round}. ${value.nextPreparation}`; break;
     }
     case "record_offer": {

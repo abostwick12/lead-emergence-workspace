@@ -2,6 +2,33 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+test("locks SOTF Unicode measurement and executable shared corpus across both runtimes", async () => {
+  const migration = await readFile("supabase/migrations/20260912190000_sotf_v1_unicode_truncation_parity.sql","utf8");
+  const sotfV1DailyBrief = await readFile("lib/sotf/daily-brief-v1.ts","utf8");
+  const helper = await readFile("lib/sotf/v1-text.ts","utf8");
+  const engine = await readFile("lib/sotf/engine.ts","utf8");
+  const dbTest = await readFile("supabase/tests/database/sotf_v1_unicode_truncation_parity.sql","utf8");
+  const tsTest = await readFile("tests/sotf-v1-unicode-truncation-parity.test.ts","utf8");
+  const runner = await readFile("scripts/test-sotf-v1-unicode-local.mjs","utf8");
+  const corpus = JSON.parse(dbTest.split("$unicode$")[1]);
+  assert.ok(corpus.length >= 40);
+  assert.equal(new Set(corpus.map(row => row.id)).size,corpus.length);
+  assert.match(helper,/UTF-16/);
+  assert.equal((engine.match(/title: clipSotfV1Text\(/g) ?? []).length,4);
+  assert.equal((sotfV1DailyBrief.match(/clip\([^,\n]+, SOTF_V1_PROJECTION_TEXT_LIMIT/g) ?? []).length,8);
+  assert.match(sotfV1DailyBrief,/sotfV1TextUnits\(value\)/);
+  assert.match(sotfV1DailyBrief,/clipSotfV1Text\(value, maximum\)/);
+  assert.doesNotMatch(sotfV1DailyBrief,/value\.length|value\.slice\(/);
+  const authority = migration.slice(migration.indexOf("create or replace function"));
+  assert.doesNotMatch(authority,/char_length\(|\bleft\(/);
+  assert.match(authority,/sotf_v1_text_units\(reference ->> 'entity_id'\)/);
+  assert.match(migration,/revoke all on function workspace_private\.sotf_v1_text_units/);
+  for (const consumer of [tsTest,runner]) assert.match(consumer,/sotf_v1_unicode_truncation_parity\.sql/);
+  assert.match(runner,/sotf_v1_record_daily_brief_outcome/);
+  assert.match(runner,/afterRpc/);
+});
+
+
 const sql = await readFile("supabase/migrations/20260820000000_workspace_foundation.sql", "utf8");
 const productizationSql = await readFile("supabase/migrations/20260822044610_workspace_productization.sql", "utf8");
 const clockPreferencesSql = await readFile("supabase/migrations/20260821172607_workspace_clock_preferences.sql", "utf8");

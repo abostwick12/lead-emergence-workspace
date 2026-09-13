@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { dimensionSchema, type PilotState } from "./contracts";
 import { SOTF_DAILY_BRIEF_VERSION, SOTF_DAILY_BRIEF_WORKFLOW_ID } from "./workflow-catalog";
+import { clipSotfV1Text, SOTF_V1_PROJECTION_TEXT_LIMIT, sotfV1TextSchema, sotfV1TextUnits } from "./v1-text";
 
-const id = z.string().trim().min(1).max(100);
+const id = z.string().trim().pipe(sotfV1TextSchema(100, 1));
 const outcomeConnectorState = z.enum(["used", "not_available", "failed", "not_requested"]);
 const degradationReason = z.enum([
   "calendar_unavailable", "calendar_failed", "email_unavailable", "email_failed", "state_truncated",
@@ -104,9 +105,9 @@ export function projectDailyBriefState(
     criteria: 0, opportunities: 0, commitments: 0, meetings: 0, hypotheses: 0, recent_outcomes: 0,
   };
   const clip = (value: string, maximum: number, section: ProjectionSection | "chapter") => {
-    if (value.length <= maximum) return value;
+    if (sotfV1TextUnits(value) <= maximum) return value;
     truncated.add(section);
-    return value.slice(0, maximum);
+    return clipSotfV1Text(value, maximum);
   };
   const take = <T>(items: T[], maximum: number, section: ProjectionSection) => {
     omitted[section] += Math.max(0, items.length - maximum);
@@ -120,7 +121,7 @@ export function projectDailyBriefState(
       id: item.id,
       label: item.label,
       dimension: item.dimension,
-      desired: clip(item.desired, 500, "criteria"),
+      desired: clip(item.desired, SOTF_V1_PROJECTION_TEXT_LIMIT, "criteria"),
       non_negotiable: item.nonNegotiable,
       importance: item.importance,
       confirmed: true as const,
@@ -135,7 +136,7 @@ export function projectDailyBriefState(
       role: item.role,
       status: item.status,
       deadline: item.deadline ?? null,
-      next_action: item.decision?.nextAction ? clip(item.decision.nextAction, 500, "opportunities") : null,
+      next_action: item.decision?.nextAction ? clip(item.decision.nextAction, SOTF_V1_PROJECTION_TEXT_LIMIT, "opportunities") : null,
     }));
 
   const commitments = take(state.commitments
@@ -146,8 +147,8 @@ export function projectDailyBriefState(
       title: item.title,
       due: item.due ?? null,
       status: item.status,
-      definition_of_done: clip(item.definitionOfDone, 500, "commitments"),
-      review_trigger: clip(item.reviewTrigger, 500, "commitments"),
+      definition_of_done: clip(item.definitionOfDone, SOTF_V1_PROJECTION_TEXT_LIMIT, "commitments"),
+      review_trigger: clip(item.reviewTrigger, SOTF_V1_PROJECTION_TEXT_LIMIT, "commitments"),
     }));
 
   const meetings = take(state.meetings
@@ -160,7 +161,7 @@ export function projectDailyBriefState(
       starts_at: item.startsAt,
       ends_at: item.endsAt,
       status: item.status,
-      objective: clip(item.objective, 500, "meetings"),
+      objective: clip(item.objective, SOTF_V1_PROJECTION_TEXT_LIMIT, "meetings"),
     }));
 
   const hypotheses = take(state.hypotheses
@@ -169,8 +170,8 @@ export function projectDailyBriefState(
     .map((item) => ({
       id: item.id,
       proposition: item.proposition,
-      next_experiment: clip(item.nextExperiment, 500, "hypotheses"),
-      review_trigger: clip(item.reviewTrigger, 500, "hypotheses"),
+      next_experiment: clip(item.nextExperiment, SOTF_V1_PROJECTION_TEXT_LIMIT, "hypotheses"),
+      review_trigger: clip(item.reviewTrigger, SOTF_V1_PROJECTION_TEXT_LIMIT, "hypotheses"),
       status: item.status,
       epistemic_status: "provisional" as const,
     }));
@@ -191,7 +192,7 @@ export function projectDailyBriefState(
     window_start: window.window_start,
     window_end: window.window_end,
     chapter: {
-      question: clip(state.chapter.question, 500, "chapter"),
+      question: clip(state.chapter.question, SOTF_V1_PROJECTION_TEXT_LIMIT, "chapter"),
       phase: state.chapter.phase,
       weekly_hours: state.chapter.weeklyHours,
     },
@@ -202,7 +203,7 @@ export function projectDailyBriefState(
     hypotheses,
     suggestions: buildSuggestions(input.brief_date, opportunities, commitments, meetings, hypotheses),
     recent_outcomes: outcomes,
-    truncated_sections: [] as string[],
+    truncated_sections: [...truncated].sort(),
     omitted_counts: omitted,
   };
 
@@ -278,7 +279,7 @@ function buildSuggestions(
 function enforceProjectionByteLimit(projection: {
   criteria: unknown[]; opportunities: unknown[]; commitments: unknown[]; meetings: unknown[];
   hypotheses: unknown[]; recent_outcomes: unknown[]; suggestions: Array<{ source_ref: { entity_type: string; entity_id: string } }>;
-  omitted_counts: Record<ProjectionSection, number>;
+  omitted_counts: Record<ProjectionSection, number>; truncated_sections: string[];
 }, truncated: Set<string>) {
   const order: ProjectionSection[] = ["recent_outcomes", "hypotheses", "meetings", "commitments", "opportunities", "criteria"];
   for (const section of order) {
@@ -286,6 +287,7 @@ function enforceProjectionByteLimit(projection: {
       projection[section].pop();
       projection.omitted_counts[section] += 1;
       truncated.add(section);
+      projection.truncated_sections = [...truncated].sort();
     }
   }
   const available = new Set<string>();
@@ -368,28 +370,28 @@ export const dailyBriefStateProjectionSchema = z.strictObject({
   brief_date: z.string().date(), time_zone: z.string().min(1).max(80),
   window_start: z.string().datetime({ offset: true }), window_end: z.string().datetime({ offset: true }),
   chapter: z.strictObject({
-    question: z.string().max(500), phase: z.enum(["exploring", "transitioning", "professional_work"]),
+    question: sotfV1TextSchema(SOTF_V1_PROJECTION_TEXT_LIMIT), phase: z.enum(["exploring", "transitioning", "professional_work"]),
     weekly_hours: z.number().min(1).max(80),
   }),
   criteria: z.array(z.strictObject({
-    id, label: z.string().min(1).max(240), dimension: dimensionSchema, desired: z.string().max(500),
+    id, label: sotfV1TextSchema(240, 1), dimension: dimensionSchema, desired: sotfV1TextSchema(SOTF_V1_PROJECTION_TEXT_LIMIT),
     non_negotiable: z.boolean(), importance: z.number().int().min(1).max(5), confirmed: z.literal(true),
   })).max(20),
   opportunities: z.array(z.strictObject({
-    id, company: z.string().min(1).max(240), role: z.string().min(1).max(240),
+    id, company: sotfV1TextSchema(240, 1), role: sotfV1TextSchema(240, 1),
     status: z.enum(["exploring", "pursue", "investigate"]), deadline: z.string().date().nullable(),
-    next_action: z.string().max(500).nullable(),
+    next_action: sotfV1TextSchema(SOTF_V1_PROJECTION_TEXT_LIMIT).nullable(),
   })).max(10),
   commitments: z.array(z.strictObject({
-    id, title: z.string().min(1).max(240), due: z.string().date().nullable(), status: z.enum(["open", "blocked"]),
-    definition_of_done: z.string().max(500), review_trigger: z.string().max(500),
+    id, title: sotfV1TextSchema(240, 1), due: z.string().date().nullable(), status: z.enum(["open", "blocked"]),
+    definition_of_done: sotfV1TextSchema(SOTF_V1_PROJECTION_TEXT_LIMIT), review_trigger: sotfV1TextSchema(SOTF_V1_PROJECTION_TEXT_LIMIT),
   })).max(10),
   meetings: z.array(z.strictObject({
-    id, title: z.string().min(1).max(240), starts_at: z.string().datetime({ offset: true }),
-    ends_at: z.string().datetime({ offset: true }), status: z.enum(["planned", "accepted"]), objective: z.string().max(500),
+    id, title: sotfV1TextSchema(240, 1), starts_at: z.string().datetime({ offset: true }),
+    ends_at: z.string().datetime({ offset: true }), status: z.enum(["planned", "accepted"]), objective: sotfV1TextSchema(SOTF_V1_PROJECTION_TEXT_LIMIT),
   })).max(10),
   hypotheses: z.array(z.strictObject({
-    id, proposition: z.string().min(1).max(240), next_experiment: z.string().max(500), review_trigger: z.string().max(500),
+    id, proposition: sotfV1TextSchema(240, 1), next_experiment: sotfV1TextSchema(SOTF_V1_PROJECTION_TEXT_LIMIT), review_trigger: sotfV1TextSchema(SOTF_V1_PROJECTION_TEXT_LIMIT),
     status: z.enum(["continue", "refine"]), epistemic_status: z.literal("provisional"),
   })).max(3),
   suggestions: z.array(z.strictObject({

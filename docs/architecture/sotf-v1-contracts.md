@@ -147,6 +147,18 @@ Store outcomes as a bounded ordinary metadata journal separate from the existing
 
 After `state_changed`, read current state and regenerate the brief/preview. Use new IDs only after definitive rejection and renewed approval. After uncertainty, retain exact input and IDs and offer an explicit retry while currently authorized; if still unavailable, show unresolved save status. Do not automatically post a cached offline outcome after access returns. Lost-ID recovery can display recent receipts but cannot justify a new duplicate insertion.
 
+## Canonical v1 text measurement
+
+SOTF v1 measures decoded, well-formed text in **UTF-16 code units**, without Unicode normalization. This clarifies previously unspecified “characters” while preserving the deployed application/schema limits and all ASCII thresholds: 500 units per clipped projection field, 240 for projected short/generated titles, and 100 for selected-reference IDs. A supplementary scalar consumes two units; BMP scalars, combining marks, variation selectors, and ZWJ each consume one. Composed and decomposed text need not have equal lengths. Clip to the longest whole-scalar prefix within the existing budget; never emit half a surrogate pair. NUL and unpaired surrogates cannot be represented in PostgreSQL text and are rejected, not repaired.
+
+The eight clipped fields are chapter question, criterion desired result, opportunity next action, commitment definition of done and review trigger, meeting objective, and hypothesis next experiment and review trigger. Generated commitment titles use the same prefix rule at their existing 240-unit bound. Both application projection and independent authenticated-RPC reconstruction must use the named v1 measurement/prefix helpers. Outcome reference IDs retain their 100-unit bound at both authorities.
+
+UTF-8 bytes remain a separate serialized transport/storage budget: the complete projection, including truncation metadata, is at most 65,536 bytes; PostgreSQL outcome JSON text is at most 8,192 bytes. Quotes, backslashes, tabs, CR/LF and JSON Unicode escapes are decoded before text measurement. Equivalent decoded text must yield the same classification regardless of wire representation. JSON Schema character limits alone are not the additional UTF-16 semantic contract.
+
+A projection is truncated if any field, row-count, or byte-budget clipping occurred. Its server-derived `truncated_sections` must agree with whether the governed outcome declares `state_truncated` in `degradation_reasons`. Outcomes do not accept caller-supplied `state_truncated` booleans or `truncated_sections` arrays. Missing/counterfeit metadata denies atomically. Exact already-saved retries remain subject to current authority and retain their original receipt.
+
+This is a bounded deterministic compatibility clarification, not grapheme-aware editing, provider ingestion, a new threshold, a new workflow version, or rollout authorization.
+
 ## Degradation and subscription behavior
 
 An active grant enables fresh retrieval. A healthy list with no eligible grant is empty; direct gated retrieval fails with `entitlement_required`. Future-start, expired, revoked, or suspended access never serves a contract from previous entitlement state. Service/authority failure is distinguishable from a known missing grant and fails closed.
