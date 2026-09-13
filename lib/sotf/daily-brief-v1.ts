@@ -139,7 +139,17 @@ export function projectDailyBriefState(
   } : dailyBriefWindow(input.brief_date, input.time_zone, now);
   if (!state.chapter) throw new DailyBriefContractError("transition_not_started", "Start the ordinary transition chapter before requesting a daily brief.");
 
-  const truncated = new Set<string>();
+  const truncated = new Set<string>(authority?.truncated_sections ?? []);
+  const authoritativeRefs = authority
+    ? new Set(authority.eligible_refs.map((reference) => `${reference.entity_type}:${reference.entity_id}`))
+    : null;
+  const governed = <T extends { id: string }>(
+    entityType: DailyBriefProjectionAuthority["eligible_refs"][number]["entity_type"],
+    items: T[],
+    applicationCandidates: T[],
+  ) => items.filter((item) => authoritativeRefs
+    ? authoritativeRefs.has(`${entityType}:${item.id}`)
+    : applicationCandidates.some((candidate) => candidate.id === item.id));
   const omitted: Record<ProjectionSection, number> = {
     criteria: 0, opportunities: 0, commitments: 0, meetings: 0, hypotheses: 0, recent_outcomes: 0,
   };
@@ -148,14 +158,15 @@ export function projectDailyBriefState(
     truncated.add(section);
     return clipSotfV1Text(value, maximum);
   };
-  const take = <T>(items: T[], maximum: number, section: ProjectionSection) => {
-    omitted[section] += Math.max(0, items.length - maximum);
-    if (items.length > maximum) truncated.add(section);
+  const take = <T>(items: T[], maximum: number, section: ProjectionSection, candidateCount = items.length) => {
+    omitted[section] += Math.max(0, candidateCount - maximum);
+    if (candidateCount > maximum) truncated.add(section);
     return items.slice(0, maximum);
   };
 
-  const criteria = take([...state.criteria]
-    .sort((a, b) => b.importance - a.importance || compareSotfV1CanonicalText(a.id, b.id)), 20, "criteria")
+  const criteriaCandidates = [...state.criteria];
+  const criteria = take(governed("criterion", [...state.criteria], criteriaCandidates)
+    .sort((a, b) => b.importance - a.importance || compareSotfV1CanonicalText(a.id, b.id)), 20, "criteria", criteriaCandidates.length)
     .map((item) => ({
       id: item.id,
       label: item.label,
@@ -166,9 +177,10 @@ export function projectDailyBriefState(
       confirmed: true as const,
     }));
 
-  const opportunities = take(state.opportunities
-    .filter((item) => !["decline", "pause"].includes(item.status) && item.deadline && item.deadline < window.end_date)
-    .sort((a, b) => compareSotfV1CanonicalText(a.deadline ?? "", b.deadline ?? "") || compareSotfV1CanonicalText(a.id, b.id)), 10, "opportunities")
+  const opportunityCandidates = state.opportunities
+    .filter((item) => !["decline", "pause"].includes(item.status) && item.deadline && item.deadline < window.end_date);
+  const opportunities = take(governed("opportunity", state.opportunities, opportunityCandidates)
+    .sort((a, b) => compareSotfV1CanonicalText(a.deadline ?? "", b.deadline ?? "") || compareSotfV1CanonicalText(a.id, b.id)), 10, "opportunities", opportunityCandidates.length)
     .map((item) => ({
       id: item.id,
       company: item.company,
@@ -178,9 +190,10 @@ export function projectDailyBriefState(
       next_action: item.decision?.nextAction ? clip(item.decision.nextAction, SOTF_V1_PROJECTION_TEXT_LIMIT, "opportunities") : null,
     }));
 
-  const commitments = take(state.commitments
-    .filter((item) => ["open", "blocked"].includes(item.status) && item.due && item.due < window.end_date)
-    .sort((a, b) => compareSotfV1CanonicalText(a.due ?? "", b.due ?? "") || compareSotfV1CanonicalText(a.id, b.id)), 10, "commitments")
+  const commitmentCandidates = state.commitments
+    .filter((item) => ["open", "blocked"].includes(item.status) && item.due && item.due < window.end_date);
+  const commitments = take(governed("commitment", state.commitments, commitmentCandidates)
+    .sort((a, b) => compareSotfV1CanonicalText(a.due ?? "", b.due ?? "") || compareSotfV1CanonicalText(a.id, b.id)), 10, "commitments", commitmentCandidates.length)
     .map((item) => ({
       id: item.id,
       title: item.title,
@@ -190,10 +203,11 @@ export function projectDailyBriefState(
       review_trigger: clip(item.reviewTrigger, SOTF_V1_PROJECTION_TEXT_LIMIT, "commitments"),
     }));
 
-  const meetings = take(state.meetings
+  const meetingCandidates = state.meetings
     .filter((item) => ["planned", "accepted"].includes(item.status)
-      && item.startsAt < window.window_end && item.endsAt > window.window_start)
-    .sort((a, b) => compareSotfV1CanonicalText(a.startsAt, b.startsAt) || compareSotfV1CanonicalText(a.id, b.id)), 10, "meetings")
+      && item.startsAt < window.window_end && item.endsAt > window.window_start);
+  const meetings = take(governed("meeting", state.meetings, meetingCandidates)
+    .sort((a, b) => compareSotfV1CanonicalText(a.startsAt, b.startsAt) || compareSotfV1CanonicalText(a.id, b.id)), 10, "meetings", meetingCandidates.length)
     .map((item) => ({
       id: item.id,
       title: item.title,
@@ -203,9 +217,10 @@ export function projectDailyBriefState(
       objective: clip(item.objective, SOTF_V1_PROJECTION_TEXT_LIMIT, "meetings"),
     }));
 
-  const hypotheses = take(state.hypotheses
-    .filter((item) => ["continue", "refine"].includes(item.status))
-    .sort((a, b) => compareSotfV1CanonicalText(a.id, b.id)), 3, "hypotheses")
+  const hypothesisCandidates = state.hypotheses
+    .filter((item) => ["continue", "refine"].includes(item.status));
+  const hypotheses = take(governed("hypothesis", state.hypotheses, hypothesisCandidates)
+    .sort((a, b) => compareSotfV1CanonicalText(a.id, b.id)), 3, "hypotheses", hypothesisCandidates.length)
     .map((item) => ({
       id: item.id,
       proposition: item.proposition,

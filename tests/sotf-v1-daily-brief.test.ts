@@ -84,6 +84,87 @@ describe("SOTF v1 bounded daily-brief state", () => {
     expect(projection.meetings).toEqual([expect.objectContaining({ id: "asuncion-boundary" })]);
   });
 
+  it("uses database membership when sub-millisecond timestamps collapse in application presentation", () => {
+    const boundedState = state();
+    boundedState.revision = 9;
+    boundedState.criteria = [];
+    boundedState.opportunities = [];
+    boundedState.commitments = [];
+    boundedState.hypotheses = [];
+    const fractions = ["000000", "000001", "000499", "000500", "000999", "001000", "001001"];
+    boundedState.meetings = fractions.map((fraction) => ({
+      id: `fraction-${fraction}`,
+      title: `Fraction ${fraction}`,
+      kind: "networking" as const,
+      startsAt: "2026-09-12T23:59:00.000Z",
+      endsAt: new Date(`2026-09-13T00:00:00.${fraction}Z`).toISOString(),
+      status: "accepted" as const,
+      provider: "manual" as const,
+      objective: "Exercise database-owned timestamp membership",
+      hypothesisIds: [],
+    }));
+    const eligible = fractions.slice(1).map((fraction) => ({
+      entity_type: "meeting" as const,
+      entity_id: `fraction-${fraction}`,
+    }));
+    const authority: DailyBriefProjectionAuthority = {
+      authority_version: "1",
+      authority_token: `sha256:${"b".repeat(64)}`,
+      authority_local_day: "2026-09-13",
+      workspace_id: workspaceId,
+      workflow_id: "transition.daily_brief",
+      workflow_version: "1.0.0",
+      state_revision: 9,
+      as_of: "2026-09-13T12:00:00.000Z",
+      brief_date: "2026-09-13",
+      time_zone: "UTC",
+      window_start: "2026-09-13T00:00:00.000Z",
+      window_end: "2026-09-15T00:00:00.000Z",
+      eligible_refs: eligible,
+      truncated_sections: [],
+    };
+
+    const projection = projectDailyBriefState(boundedState, workspaceId, {
+      workflow_id: "transition.daily_brief",
+      workflow_version: "1.0.0",
+      brief_date: "2026-09-13",
+      time_zone: "UTC",
+    }, [], new Date(authority.as_of), authority);
+
+    expect(projection.meetings.map((meeting) => meeting.id)).toEqual(eligible.map((reference) => reference.entity_id));
+    expect(projection.meetings.find((meeting) => meeting.id === "fraction-000500")?.ends_at)
+      .toBe("2026-09-13T00:00:00.000Z");
+    expect(projection.meetings.some((meeting) => meeting.id === "fraction-000000")).toBe(false);
+  });
+
+  it("does not let a locally plausible timestamp add a reference excluded by database authority", () => {
+    const boundedState = state();
+    boundedState.revision = 10;
+    boundedState.criteria = [];
+    boundedState.opportunities = [];
+    boundedState.commitments = [];
+    boundedState.hypotheses = [];
+    boundedState.meetings = [{
+      id: "locally-plausible", title: "Locally plausible", kind: "networking",
+      startsAt: "2026-09-13T00:00:00.001Z", endsAt: "2026-09-13T00:30:00.000Z",
+      status: "accepted", provider: "manual", objective: "Must follow database membership", hypothesisIds: [],
+    }];
+    const authority: DailyBriefProjectionAuthority = {
+      authority_version: "1", authority_token: `sha256:${"c".repeat(64)}`,
+      authority_local_day: "2026-09-13", workspace_id: workspaceId,
+      workflow_id: "transition.daily_brief", workflow_version: "1.0.0", state_revision: 10,
+      as_of: "2026-09-13T12:00:00.000Z", brief_date: "2026-09-13", time_zone: "UTC",
+      window_start: "2026-09-13T00:00:00.000Z", window_end: "2026-09-15T00:00:00.000Z",
+      eligible_refs: [], truncated_sections: [],
+    };
+
+    const projection = projectDailyBriefState(boundedState, workspaceId, {
+      workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+      brief_date: "2026-09-13", time_zone: "UTC",
+    }, [], new Date(authority.as_of), authority);
+    expect(projection.meetings).toEqual([]);
+  });
+
   it("marks bounded truncation and never emits more than the contract limits", () => {
     const large = state();
     large.criteria = Array.from({ length: 25 }, (_, index) => ({

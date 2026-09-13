@@ -9,6 +9,21 @@ import { createWorkspaceMcpServer } from "@/lib/workspace/mcp-server";
 const workspaceId = "73000000-0000-4000-8000-000000000001";
 const authorityToken = `sha256:${"a".repeat(64)}`;
 const closeables: Array<{ close: () => Promise<void> }> = [];
+type OperationBatchFixture = {
+  workspace_id: string;
+  revision: number;
+  events: Array<{
+    revision: number;
+    recorded_at: string;
+    envelope: {
+      requestId: string;
+      expectedRevision: number;
+      userConfirmed: boolean;
+      dataClass: string;
+      command: Record<string, unknown>;
+    };
+  }>;
+};
 
 afterEach(async () => {
   vi.unstubAllEnvs();
@@ -30,7 +45,7 @@ function data(result: Awaited<ReturnType<Client["callTool"]>>) {
   return result.structuredContent as { schema_version: string; status: string; code?: string; data?: Record<string, unknown> };
 }
 
-function operationBatch() {
+function operationBatch(): OperationBatchFixture {
   return {
     workspace_id: workspaceId, revision: 1,
     events: [{
@@ -117,6 +132,64 @@ describe("SOTF v1 MCP contract", () => {
     } });
     expect(JSON.stringify(data(result))).not.toContain("events");
     expect(JSON.stringify(data(result))).not.toContain("envelope");
+  });
+
+  it("returns DB-authorized membership when replay loses sub-millisecond presentation precision", async () => {
+    const batch = operationBatch();
+    batch.revision = 2;
+    batch.events.push({
+      revision: 2,
+      recorded_at: "2026-09-13T00:01:00.000Z",
+      envelope: {
+        requestId: "73000000-0000-4000-8000-000000000015",
+        expectedRevision: 1,
+        userConfirmed: true,
+        dataClass: "ordinary_transition_operations",
+        command: {
+          type: "record_meeting",
+          meeting: {
+            id: "precision-boundary",
+            title: "Precision boundary",
+            hypothesisIds: [],
+            kind: "networking",
+            startsAt: "2026-09-12T23:59:00.000Z",
+            endsAt: "2026-09-13T00:00:00.000500Z",
+            status: "accepted",
+            provider: "manual",
+            objective: "Use PostgreSQL membership",
+          },
+        },
+      },
+    });
+    const databaseAuthority = authority({
+      state_revision: 2,
+      authority_local_day: "2026-09-13",
+      brief_date: "2026-09-13",
+      time_zone: "UTC",
+      window_start: "2026-09-13T00:00:00.000Z",
+      window_end: "2026-09-15T00:00:00.000Z",
+      eligible_refs: [
+        { entity_type: "commitment", entity_id: "precision-boundary:prepare" },
+        { entity_type: "meeting", entity_id: "precision-boundary" },
+      ],
+    });
+    const rpc = vi.fn(async (name: string) => {
+      if (name === "sotf_v1_access_state") return { data: { state: "active", workspace_id: workspaceId, capabilities: ["core_workspace", "workspace_mcp", "career", "daily_brief", "agentic_workflows"] }, error: null };
+      if (name === "sotf_read_operations") return { data: batch, error: null };
+      if (name === "sotf_v1_list_daily_brief_outcomes") return { data: [], error: null };
+      if (name === "sotf_v1_get_daily_brief_authority") return { data: databaseAuthority, error: null };
+      return { data: null, error: { code: "unexpected", message: name } };
+    });
+    const client = await connect(rpc);
+    const result = await client.callTool({ name: "sotf_get_daily_brief_state", arguments: {
+      workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+      brief_date: "2026-09-13", time_zone: "UTC",
+    } });
+
+    expect(data(result)).toMatchObject({ status: "ok", data: { projection: {
+      state_revision: 2,
+      meetings: [{ id: "precision-boundary", ends_at: "2026-09-13T00:00:00.000Z" }],
+    } } });
   });
 
   it("saves one confirmed metadata outcome and maps an exact retry to replay", async () => {

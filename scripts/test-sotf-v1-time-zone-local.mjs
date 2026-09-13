@@ -77,7 +77,8 @@ const report = {
   head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
   started: new Date().toISOString(),
   contract: "exact 418-name IANA 2025b JavaScript/PostgreSQL runtime intersection",
-  cases: [], handler: { accept: 0, deny: 0 }, rpc: { accept: 0, deny: 0 }, boundary: null, failure: null,
+  cases: [], handler: { accept: 0, deny: 0 }, rpc: { accept: 0, deny: 0 },
+  boundary: null, precision: null, failure: null,
 };
 const connections = [];
 let loader;
@@ -141,10 +142,12 @@ async function assertDualAccept(label, payload) {
   });
   assert.ifError(rpcResult.error);
   assert.equal(rpcResult.data?.replayed, true, label + " exact RPC retry must replay");
+  assert.deepEqual(rpcResult.data?.receipt, content(handlerResult)?.data?.receipt,
+    label + " application and RPC receipts must be identical");
   assert.deepEqual(snapshot(), afterHandler, label + " replay must not duplicate");
   report.handler.accept += 1;
   report.rpc.accept += 1;
-  return { handler: "ACCEPT", rpc: "ACCEPT", persistence: "ONE_OUTCOME_EXACT_REPLAY" };
+  return { handler: "ACCEPT", rpc: "ACCEPT", persistence: "ONE_OUTCOME_EXACT_REPLAY", receipt: "IDENTICAL" };
 }
 
 const savedSettings = JSON.parse(sql("select jsonb_object_agg(setting_key,setting_value) from workspace_private.product_settings where setting_key in ('sotf_v1_daily_brief_enabled','mcp_dynamic_admission_enabled','mcp_resource_uri')"));
@@ -235,6 +238,67 @@ try {
     postgres: { version: sql("show server_version"), tzdb: execFileSync(docker, ["exec", "supabase_db_lead-emergence-workspace-local", "sh", "-lc", "head -n 1 /usr/share/zoneinfo/tzdata.zi"], { encoding: "utf8" }).trim(), window_end: databaseWindowEnd },
     meeting: { starts_at: "2026-09-15T03:15:00.000Z", ends_at: "2026-09-15T03:45:00.000Z" },
     application_projection: "ELIGIBLE", ...exactDecision,
+  };
+
+  const precisionDay = localDate("UTC");
+  const precisionInput = {
+    workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+    brief_date: precisionDay, time_zone: "UTC",
+  };
+  const precisionStart = new Date(Date.parse(`${precisionDay}T00:00:00.000Z`) - 60_000).toISOString();
+  const precisionRawEnd = `${precisionDay}T00:00:00.000500Z`;
+  const precisionRequestId = randomUUID();
+  const precisionAppend = await db.rpc("sotf_append_operation", { operation: {
+    requestId: precisionRequestId, expectedRevision: revision, userConfirmed: true,
+    dataClass: "ordinary_transition_operations",
+    command: { type: "record_meeting", meeting: {
+      id: "precision-boundary", title: "Synthetic precision boundary", hypothesisIds: [], kind: "networking",
+      startsAt: precisionStart, endsAt: precisionRawEnd, status: "accepted", provider: "manual",
+      objective: "Exercise PostgreSQL-native timestamp precision",
+    } },
+  } });
+  assert.ifError(precisionAppend.error);
+  revision = precisionAppend.data.revision;
+  const storedRawEnd = sql(
+    "select envelope #>> '{command,meeting,endsAt}' from workspace_private.sotf_operation_events"
+      + " where workspace_id='" + workspace + "' and request_id='" + precisionRequestId + "'",
+  );
+  const serializedBatch = await db.rpc("sotf_read_operations");
+  assert.ifError(serializedBatch.error);
+  const serializedRawEnd = serializedBatch.data.events.find((event) => event.envelope.requestId === precisionRequestId)
+    ?.envelope.command.meeting.endsAt;
+  const replayedState = await store.read();
+  const applicationEnd = replayedState.state.meetings.find((meeting) => meeting.id === "precision-boundary")?.endsAt;
+  assert.equal(storedRawEnd, precisionRawEnd, "PostgreSQL JSON retains the exact six-digit timestamp");
+  assert.equal(serializedRawEnd, precisionRawEnd, "PostgREST/RPC serialization retains the exact six-digit timestamp");
+  assert.equal(applicationEnd, `${precisionDay}T00:00:00.000Z`,
+    "application presentation normalization documents the millisecond representation");
+
+  const precisionState = content(await call("sotf_get_daily_brief_state", precisionInput));
+  assert.equal(precisionState?.status, "ok", "DB-authorized sub-millisecond state read must succeed");
+  assert(precisionState.data.projection.meetings.some((meeting) => meeting.id === "precision-boundary"),
+    "application projection must consume the database membership");
+  const precisionAuthority = await db.rpc("sotf_v1_get_daily_brief_authority", {
+    p_workflow_id: precisionInput.workflow_id, p_workflow_version: precisionInput.workflow_version,
+    p_brief_date: precisionInput.brief_date, p_time_zone: precisionInput.time_zone,
+  });
+  assert.ifError(precisionAuthority.error);
+  assert(precisionAuthority.data.eligible_refs.some((reference) =>
+    reference.entity_type === "meeting" && reference.entity_id === "precision-boundary"));
+  const precisionPayload = {
+    ...outcome({ raw: "UTC", accepted: true }, precisionState.data.authority.authority_token),
+    brief_date: precisionDay,
+    selected_le_refs: [{ entity_type: "meeting", entity_id: "precision-boundary" }],
+    priority_count: 1,
+  };
+  const precisionDecision = await assertDualAccept("[SOTF-PRECISION:.000500Z]", precisionPayload);
+  report.precision = {
+    raw_database_timestamp: storedRawEnd,
+    rpc_serialized_timestamp: serializedRawEnd,
+    application_representation: applicationEnd,
+    database_eligibility: "ELIGIBLE",
+    application_projection: "ELIGIBLE_FROM_DB_AUTHORITY",
+    ...precisionDecision,
   };
   report.completed = new Date().toISOString();
 } catch (error) {

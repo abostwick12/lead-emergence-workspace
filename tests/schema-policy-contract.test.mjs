@@ -76,6 +76,32 @@ test("makes PostgreSQL the sole governed SOTF civil-time boundary authority", as
   assert.match(packageJson, /sotf_v1_time_zone_boundary_authority\.sql/);
 });
 
+test("keeps PostgreSQL authoritative when application timestamp presentation loses precision", async () => {
+  const dailyBrief = await readFile("lib/sotf/daily-brief-v1.ts", "utf8");
+  const contracts = await readFile("lib/sotf/contracts.ts", "utf8");
+  const dbTest = await readFile("supabase/tests/database/sotf_v1_timestamp_precision_authority.sql", "utf8");
+  const runner = await readFile("scripts/test-sotf-v1-time-zone-local.mjs", "utf8");
+  const contract = await readFile("docs/architecture/sotf-v1-contracts.md", "utf8");
+  const packageJson = await readFile("package.json", "utf8");
+
+  assert.match(contracts, /new Date\(value\)\.toISOString\(\)/);
+  assert.match(dailyBrief, /authoritativeRefs[\s\S]*authority\.eligible_refs/);
+  assert.match(dailyBrief, /governed\("meeting", state\.meetings/);
+  assert.match(dailyBrief, /authoritativeRefs\.has/);
+  assert.match(dbTest, /\.000000Z/);
+  assert.match(dbTest, /\.000001Z/);
+  assert.match(dbTest, /\.000499Z/);
+  assert.match(dbTest, /\.000500Z/);
+  assert.match(dbTest, /\.000999Z/);
+  assert.match(dbTest, /\.001000Z/);
+  assert.match(dbTest, /\.001001Z/);
+  assert.match(runner, /rpc_serialized_timestamp/);
+  assert.match(runner, /ELIGIBLE_FROM_DB_AUTHORITY/);
+  assert.match(contract, /presentation-normalized timestamp/);
+  assert.match(contract, /eligible-reference membership is authoritative/);
+  assert.match(packageJson, /sotf_v1_timestamp_precision_authority\.sql/);
+});
+
 test("locks exact SOTF authority-reference parsing across MCP and RPC boundaries", async () => {
   const migration = await readFile("supabase/migrations/20260913150000_sotf_v1_reference_parsing_parity.sql", "utf8");
   const dbTest = await readFile("supabase/tests/database/sotf_v1_reference_parsing_parity.sql", "utf8");
