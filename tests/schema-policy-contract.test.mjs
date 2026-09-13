@@ -2,6 +2,49 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+test("locks one exact canonical SOTF time-zone contract across JavaScript and PostgreSQL", async () => {
+  const migration = await readFile("supabase/migrations/20260913200000_sotf_v1_time_zone_identifier_contract.sql", "utf8");
+  const contract = JSON.parse(await readFile("lib/sotf/v1-canonical-time-zones.json", "utf8"));
+  const helper = await readFile("lib/sotf/v1-time-zones.ts", "utf8");
+  const dailyBrief = await readFile("lib/sotf/daily-brief-v1.ts", "utf8");
+  const dbTest = await readFile("supabase/tests/database/sotf_v1_time_zone_identifier_contract.sql", "utf8");
+  const runner = await readFile("scripts/test-sotf-v1-time-zone-local.mjs", "utf8");
+  const packageJson = await readFile("package.json", "utf8");
+  const sqlTimeZones = JSON.parse(migration.split("$time_zones$")[1]);
+  const corpus = JSON.parse(dbTest.split("$time_zone_corpus$")[1]);
+
+  assert.equal(contract.tzdb_version, "2025b");
+  assert.equal(contract.time_zones.length, 418);
+  assert.equal(new Set(contract.time_zones).size, 418);
+  assert.deepEqual(contract.excluded_unavailable_identifiers, ["America/Coyhaique"]);
+  assert.deepEqual(sqlTimeZones, contract.time_zones);
+  assert.deepEqual(corpus.filter((row) => row.raw === "posix/America/Chicago").map((row) => row.accepted), [false]);
+  for (const modernPrimary of ["Asia/Kolkata", "Europe/Kyiv", "America/Nuuk"]) {
+    assert.ok(contract.time_zones.includes(modernPrimary));
+  }
+  for (const alias of ["US/Central", "CST6CDT", "Etc/UTC", "Asia/Calcutta", "Europe/Kiev", "America/Godthab"]) {
+    assert.ok(!contract.time_zones.includes(alias));
+  }
+  assert.match(helper, /new Set<string>\(SOTF_V1_CANONICAL_TIME_ZONES\)/);
+  assert.match(helper, /sotfV1CanonicalTimeZoneSchema/);
+  assert.doesNotMatch(helper, /\.trim\(|\.toLowerCase\(|\.normalize\(/);
+  assert.match(dailyBrief, /const timeZone = sotfV1CanonicalTimeZoneSchema/);
+  assert.match(dailyBrief, /isSotfV1CanonicalTimeZone\(timeZone\)/);
+  assert.match(migration, /create table workspace_private\.sotf_v1_canonical_time_zones/);
+  assert.match(migration, /workspace_private\.sotf_v1_time_zone_is_canonical\(outcome ->> 'time_zone'\)/);
+  assert.match(migration, /sotf_daily_brief_outcomes_canonical_time_zone/);
+  assert.match(migration, /enable row level security/);
+  assert.match(migration, /revoke all on table workspace_private\.sotf_v1_canonical_time_zones from public,anon,authenticated/);
+  assert.match(migration, /revoke all on function workspace_private\.sotf_v1_time_zone_is_canonical[\s\S]*from public,anon,authenticated/);
+  const validator = migration.slice(migration.indexOf("create or replace function workspace_private.validate_sotf_v1_daily_brief_outcome"));
+  assert.doesNotMatch(validator, /pg_timezone_names/);
+  assert.match(runner, /sotf_v1_record_daily_brief_outcome/);
+  assert.match(runner, /time-zone runner must remain on loopback/);
+  assert.match(runner, /handler: \{ accept: 0, deny: 0 \}, rpc: \{ accept: 0, deny: 0 \}/);
+  assert.match(packageJson, /sotf_v1_time_zone_identifier_contract\.sql/);
+  assert.match(packageJson, /test:sotf:time-zone:local/);
+});
+
 test("locks exact SOTF authority-reference parsing across MCP and RPC boundaries", async () => {
   const migration = await readFile("supabase/migrations/20260913150000_sotf_v1_reference_parsing_parity.sql", "utf8");
   const dbTest = await readFile("supabase/tests/database/sotf_v1_reference_parsing_parity.sql", "utf8");
@@ -23,7 +66,7 @@ test("locks exact SOTF authority-reference parsing across MCP and RPC boundaries
   assert.match(helper, /sotfV1AuthorityIdentifierSchema/);
   assert.doesNotMatch(helper.slice(helper.indexOf("export function sotfV1AuthorityIdentifierSchema")), /\.trim\(|\.toLowerCase\(|\.normalize\(/);
   assert.match(dailyBrief, /const id = sotfV1AuthorityIdentifierSchema\(100\)/);
-  assert.match(dailyBrief, /const timeZone = sotfV1AuthorityIdentifierSchema\(80\)/);
+  assert.match(dailyBrief, /const timeZone = sotfV1CanonicalTimeZoneSchema/);
   assert.match(mcp, /const catalogId = sotfV1AuthorityIdentifierSchema\(100\)/);
   assert.match(mcp, /const semanticVersion = sotfV1AuthorityIdentifierSchema\(32\)/);
   assert.match(migration, /create function workspace_private\.sotf_v1_reference_is_eligible/);

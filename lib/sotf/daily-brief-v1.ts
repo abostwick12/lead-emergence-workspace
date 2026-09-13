@@ -2,9 +2,10 @@ import { z } from "zod";
 import { dimensionSchema, type PilotState } from "./contracts";
 import { SOTF_DAILY_BRIEF_VERSION, SOTF_DAILY_BRIEF_WORKFLOW_ID } from "./workflow-catalog";
 import { clipSotfV1Text, compareSotfV1CanonicalText, SOTF_V1_PROJECTION_TEXT_LIMIT, sotfV1AuthorityIdentifierSchema, sotfV1TextSchema, sotfV1TextUnits } from "./v1-text";
+import { isSotfV1CanonicalTimeZone, sotfV1CanonicalTimeZoneSchema } from "./v1-time-zones";
 
 const id = sotfV1AuthorityIdentifierSchema(100);
-const timeZone = sotfV1AuthorityIdentifierSchema(80);
+const timeZone = sotfV1CanonicalTimeZoneSchema;
 const outcomeConnectorState = z.enum(["used", "not_available", "failed", "not_requested"]);
 const degradationReason = z.enum([
   "calendar_unavailable", "calendar_failed", "email_unavailable", "email_failed", "state_truncated",
@@ -315,6 +316,9 @@ function parseDate(value: string) {
 }
 
 function assertTimeZone(timeZone: string) {
+  if (!isSotfV1CanonicalTimeZone(timeZone)) {
+    throw new DailyBriefContractError("invalid_input", "Use a canonical SOTF v1 IANA time zone.");
+  }
   try { new Intl.DateTimeFormat("en-US", { timeZone }).format(); }
   catch { throw new DailyBriefContractError("invalid_input", "Use a supported IANA time zone."); }
 }
@@ -357,7 +361,7 @@ export const dailyBriefOutcomeReceiptSchema = z.strictObject({
   outcome_id: z.string().uuid(), request_id: z.string().uuid(), run_id: z.string().uuid(),
   workflow_id: z.literal(SOTF_DAILY_BRIEF_WORKFLOW_ID), workflow_version: z.literal(SOTF_DAILY_BRIEF_VERSION),
   state_revision: z.number().int().min(0).max(2000), recorded_at: z.string().datetime({ offset: true }),
-  brief_date: z.string().date(), time_zone: z.string().min(1).max(80), status: z.enum(["completed", "degraded"]),
+  brief_date: z.string().date(), time_zone: timeZone, status: z.enum(["completed", "degraded"]),
   connector_results: z.strictObject({ calendar_read: outcomeConnectorState, email_read: outcomeConnectorState }),
   degradation_reasons: z.array(degradationReason).max(5), selected_le_refs: z.array(z.strictObject({ entity_type: z.enum(["criterion", "opportunity", "commitment", "meeting", "hypothesis"]), entity_id: id })).max(3),
   priority_count: z.number().int().min(0).max(3), usefulness: z.enum(["useful", "not_useful", "not_rated"]),
@@ -368,7 +372,7 @@ export const dailyBriefStateProjectionSchema = z.strictObject({
   projection_version: z.literal("1"), workspace_id: z.string().uuid(),
   workflow_id: z.literal(SOTF_DAILY_BRIEF_WORKFLOW_ID), workflow_version: z.literal(SOTF_DAILY_BRIEF_VERSION),
   state_revision: z.number().int().min(0).max(2000), as_of: z.string().datetime({ offset: true }),
-  brief_date: z.string().date(), time_zone: z.string().min(1).max(80),
+  brief_date: z.string().date(), time_zone: timeZone,
   window_start: z.string().datetime({ offset: true }), window_end: z.string().datetime({ offset: true }),
   chapter: z.strictObject({
     question: sotfV1TextSchema(SOTF_V1_PROJECTION_TEXT_LIMIT), phase: z.enum(["exploring", "transitioning", "professional_work"]),

@@ -149,7 +149,7 @@ describe("SOTF v1 exact authority-reference parsing", () => {
     expect(dailyBriefStateInputSchema.safeParse({
       workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
       brief_date: "2026-09-13", time_zone: " America/Chicago ",
-    }).success).toBe(true);
+    }).success).toBe(false);
     const rpc = vi.fn(async (name: string) => {
       if (name === "sotf_v1_access_state") return { data: { state: "active", workspace_id: workspaceId, capabilities: ["core_workspace", "workspace_mcp", "career", "daily_brief", "agentic_workflows"] }, error: null };
       return { data: null, error: { code: "unexpected", message: name } };
