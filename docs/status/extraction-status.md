@@ -541,3 +541,36 @@ baseline already has those objects and URI.
 Before any execution, the generated read-only preflight must still match this
 baseline and the remaining identity, OAuth, Vercel, and acceptance gates must
 be recorded. Every external provider remains default-off in the package.
+
+## SOTF V1 personal-pilot activation owner gate — 2026-09-14
+
+Status: **Owner authorization received; read-only hosted preflight completed;
+activation stopped before mutation at the backup/recovery gate.**
+
+Andrew authorized the minimum hosted changes needed to activate only his
+accepted SOTF V1 personal pilot from software checkpoint
+`88dedf0b12f491daae088c78a0c15be340493d10` and acceptance-evidence checkpoint
+`182b7e10cc4219df75d7705e5f9b4379cabb31ae`. The authorization fixes
+`cirqqhuvzekbvysiyedg` as the canonical shared Workspace database/Auth target,
+preserves the currently deployed Ministry-backed OAuth topology, and appoints
+the Ministry repository as the migration operator. It authorizes the exact
+missing accepted SOTF migration delta, deployment of the accepted Workspace
+runtime, Andrew-only Workspace/plan/bootstrap and `sotf_transition` entitlement,
+`SOTF_PILOT_ENABLED=true`, and a narrow synthetic-data authenticated
+Workspace/Lewis smoke test including revocation and restoration.
+
+The gate excludes Consulting changes, unrelated Ministry or Entry changes, a
+new production stack, unrelated migrations or cleanup, other users, external
+connectors, Professional Context/P2, and commercial release. Entry may be
+touched only if required to preserve or verify Andrew's existing login/handoff
+identity.
+
+The live migration ledger contains `20260902162536` and `20260906120000`.
+The exact missing delta is the eight accepted migrations from
+`20260911143000` through `20260914010000`. No migration has been applied by
+this activation run. The provider backup API returned no listed backup and
+reported PITR disabled. A logical export was not started because the approved
+backup destination and handling of sensitive shared-production contents still
+require explicit authorization. No hosted mutation may begin until a concrete
+recoverable checkpoint is recorded. Full evidence and the exact resume point
+are in `docs/testing/sotf-v1-personal-pilot-hosted-activation.md`.
