@@ -66,20 +66,45 @@ The read-only Supabase backup inventory for `cirqqhuvzekbvysiyedg` returned:
 - `pitr_enabled: false`
 - `walg_enabled: true`
 
-Therefore no provider-managed recovery identifier was available to record. A
-supported logical backup of roles, schema, data, and `supabase_migrations`
-history was prepared as the fallback plan, but execution was rejected before
-process start because exporting sensitive shared-production contents to a local
-Documents destination was not explicitly authorized. The proposed destination
-was not created and no database contents were exported.
+Therefore no provider-managed recovery identifier was available. Andrew then
+explicitly authorized one logical export to
+`C:\Users\awbostwick\Documents\Lead Emergence Backups\SOTF V1\` and authorized
+the sensitive shared-production contents required for recovery.
 
-The activation can resume only after one of these is supplied:
+Before writing, the destination was verified as the direct Windows Documents
+known folder rather than a reparse point or redirected OneDrive location.
+Google Drive's root-preference database contained no configured mirror roots,
+and the destination is outside the OneDrive and iCloud Drive roots. The sync
+coverage gate passed.
 
-1. an existing provider-managed backup/recovery identifier that is verified for
-   this target; or
-2. explicit approval to export a logical backup to a named secure destination,
-   including permission to store the shared-production roles, schema, data, and
-   migration history there and restrict access to Andrew's Windows account.
+Recovery identifier:
+`sotf-v1-preactivation-cirqqhuvzekbvysiyedg-20260914T140354Z`
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `roles.sql` | 506 | `088c1773b83a9729e74b30611675c4fd95d39a629360934ec97ac09645876e29` |
+| `schema.sql` | 1,638,162 | `47aa204107c788d1510a6c915687c3593d17c01210c4e50032f896185ee238c0` |
+| `data.sql` | 2,488,641 | `ce601c8cf201baad232a07f211c239e6405c50b12b66d773ad12b96c6f23d316` |
+| `migration-history-schema.sql` | 1,116 | `ae56295c7e66a8b46ab50df6f00cf57f7866f2478a17fbe3910d9def39e836ab` |
+| `migration-history-data.sql` | 1,208,805 | `d63fea84f22c27ec5f10c08406bdaefdf0d85dc1d67fb263584f602f1db272fc` |
+| `manifest.json` | 3,082 | `c260fa15aa7fd77093bacb30201bdf31b4bf848b29ad2dac321437c8aa5d93ed` |
+
+All expected artifacts exist and are non-empty. Non-mutating validation found
+the expected Supabase/PostgreSQL SQL structures, COPY terminators where
+applicable, no NUL bytes, and the preflight migration state: `20260902162536`
+and `20260906120000` present, with all eight pending versions absent. Production
+rows were not printed into this evidence.
+
+The data dump reported circular foreign-key dependencies in existing non-SOTF
+tables. The manifest therefore requires a reviewed constraint-safe restore
+sequence on an isolated recovery target. This warning does not affect dump
+readability or completeness; it prevents treating a naive ordered replay as a
+validated restore procedure.
+
+Inherited ACL access was removed recursively. Full control is limited to
+`SENSENET\awbostwick` and `NT AUTHORITY\SYSTEM`; seven files/directories were
+processed with zero ACL failures. The backup was not uploaded, synchronized,
+published, committed, or transmitted.
 
 Once established, rollback remains: disable the feature flag, revoke only
 Andrew's SOTF entitlement, restore the prior immutable Workspace deployment,
@@ -96,13 +121,11 @@ down-migration.
 - Deployments: zero
 - Pushes, PRs, and merges: zero
 - Entry, Consulting, and unrelated Ministry changes: zero
-- Backup/export files created: zero
+- Backup/export files created: one authorized local recovery set; no remote copy
 
-## Classification and exact resume point
+## Activation resume point
 
-**ACTIVATION BLOCKED — rollback evidence unavailable**
-
-Resume at the backup/recovery step. Do not repeat migration discovery unless the
-live ledger changes. After a checkpoint is recorded, apply only the eight-file
-delta above, then proceed with the accepted deployment, Andrew-only bootstrap,
-feature activation, and the authorized narrow authenticated smoke test.
+The backup/recovery gate is satisfied. Recheck the live ledger immediately
+before mutation. If unchanged, apply only the eight-file delta above, then
+proceed with the accepted deployment, Andrew-only bootstrap, feature activation,
+and the authorized narrow authenticated smoke test.

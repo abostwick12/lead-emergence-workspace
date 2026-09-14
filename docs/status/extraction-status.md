@@ -545,7 +545,7 @@ be recorded. Every external provider remains default-off in the package.
 ## SOTF V1 personal-pilot activation owner gate — 2026-09-14
 
 Status: **Owner authorization received; read-only hosted preflight completed;
-activation stopped before mutation at the backup/recovery gate.**
+pre-activation logical recovery checkpoint validated.**
 
 Andrew authorized the minimum hosted changes needed to activate only his
 accepted SOTF V1 personal pilot from software checkpoint
@@ -569,8 +569,10 @@ The live migration ledger contains `20260902162536` and `20260906120000`.
 The exact missing delta is the eight accepted migrations from
 `20260911143000` through `20260914010000`. No migration has been applied by
 this activation run. The provider backup API returned no listed backup and
-reported PITR disabled. A logical export was not started because the approved
-backup destination and handling of sensitive shared-production contents still
-require explicit authorization. No hosted mutation may begin until a concrete
-recoverable checkpoint is recorded. Full evidence and the exact resume point
-are in `docs/testing/sotf-v1-personal-pilot-hosted-activation.md`.
+reported PITR disabled. Andrew separately authorized a logical export to the
+local, non-synchronized backup area. Roles, schema, data, and migration history
+were exported, structurally validated, hashed, and restricted to Andrew's
+Windows account and SYSTEM. The canonical recovery identifier is
+`sotf-v1-preactivation-cirqqhuvzekbvysiyedg-20260914T140354Z`. Full evidence
+and the exact activation state are in
+`docs/testing/sotf-v1-personal-pilot-hosted-activation.md`.
