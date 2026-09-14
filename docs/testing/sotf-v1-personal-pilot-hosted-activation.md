@@ -175,3 +175,26 @@ credential was invented or bypassed. After Andrew completes that login, the
 remaining authorized sequence is: Entry consent/callback, canonical Personal
 Workspace bootstrap, Andrew-only `sotf_transition` assignment, narrow
 Workspace/Lewis smoke, and entitlement revocation/restoration.
+
+## Post-handoff authentication recheck
+
+After Andrew reported completing interactive sign-in, the retained Chrome tab
+was re-read and the production `/workspace` route was requested directly. It
+again redirected to `/login?next=%2Fworkspace`. Starting a fresh Workspace
+handoff produced a new Entry authorization request but again reached the Entry
+login form rather than an authenticated consent or callback.
+
+The canonical production Auth record was then re-read. It remained the same
+previously identified user, with `last_sign_in_at` unchanged at
+`2026-08-28 16:06:57.013978+00`, only the built-in `email` identity, and no
+Personal Workspace, membership, or plan. A second Andrew-scoped Auth search
+found no newly created or alternate Andrew account. No entitlement or other
+hosted row was changed during this recheck.
+
+This is a reproducible session-boundary blocker, not evidence of an
+authorization or migration defect. The exact retained browser tab is waiting
+at the normal Entry login form for the current Workspace OAuth request. The
+supported callback must complete in that same browser session before
+`ensure_personal_workspace()` can verify a trusted Entry identity and create
+Andrew's Personal Workspace. The activation remains fail closed: active
+`sotf_transition` entitlements are still zero for Andrew and every other user.
