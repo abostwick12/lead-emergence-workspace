@@ -128,18 +128,50 @@ down-migration.
 
 - Hosted database mutations: the exact eight-migration SOTF V1 delta applied
 - Hosted Auth/entitlement mutations: zero
-- Hosted environment changes: zero
-- Deployments: zero
-- Pushes, PRs, and merges: zero at this evidence checkpoint
+- Hosted environment changes: `SOTF_PILOT_ENABLED` changed from `false` to
+  `true` for the Workspace Production environment
+- Deployments: accepted activation branch deployed and promoted to Production
+- Pushes: `codex/sotf-v1-personal-pilot-activation` published; PRs and merges:
+  zero
 - Entry, Consulting, and unrelated Ministry changes: zero
 - Backup/export files created: one authorized local recovery set; no remote copy
 
+## Accepted Workspace production deployment
+
+The accepted activation branch was published at
+`ca41212355fba6fb2ad216b0d010531a3fdab2b7`. A runtime-only diff against
+`88dedf0b12f491daae088c78a0c15be340493d10` is empty; intervening commits are
+documentation evidence only. Vercel built preview deployment
+`FdmB3X8PRyVp19X1f6vTtEJVoXQW`, then rebuilt it with the Production environment
+as deployment `GkGmJQBFzWjxqTtqW8Lw5AVV3vAo`. The production build completed
+Ready in 35 seconds and was promoted to the project production domains.
+
+Before the build, the existing Production `SOTF_PILOT_ENABLED` value was read
+as `false`, changed to `true`, saved successfully, and re-read as `true`.
+Vercel required a new build for that configuration change; the production
+deployment above is that new build.
+
+No merge with `main` was performed. A proposed local merge with current `main`
+was rejected by the execution safety layer and was not attempted again; no
+merge state was created.
+
+## Andrew identity and entitlement preflight
+
+The canonical hosted Auth user was resolved to one Andrew account. Before
+bootstrap, that account had no Personal Workspace, active owner membership, or
+Personal plan row. Its only current Auth identity is the built-in email
+identity; no trusted Lead Emergence Entry identity is yet linked. The
+`ensure_personal_workspace()` authority therefore correctly cannot be invoked
+until the normal Entry OAuth handoff completes. The active
+`sotf_transition`-entitlement inventory is `0` for Andrew and `0` for all other
+users, so enabling the environment gate did not expose SOTF to another account.
+
 ## Activation resume point
 
-The backup/recovery and migration gates are satisfied. Proceed with direct
-publication and deployment of the accepted Workspace runtime, then Andrew-only
-bootstrap, feature activation, and the authorized narrow authenticated smoke
-test. A proposed local merge with current `main` was rejected by the execution
-safety layer and was not attempted again; no merge state was created. The
-runtime deployment must therefore use the accepted branch directly rather than
-altering `main`.
+The normal production flow reaches the Lead Emergence login at
+`entry.leademergence.com` and is waiting for Andrew's interactive password
+entry. Password-manager contents were not accessed and no authentication
+credential was invented or bypassed. After Andrew completes that login, the
+remaining authorized sequence is: Entry consent/callback, canonical Personal
+Workspace bootstrap, Andrew-only `sotf_transition` assignment, narrow
+Workspace/Lewis smoke, and entitlement revocation/restoration.
