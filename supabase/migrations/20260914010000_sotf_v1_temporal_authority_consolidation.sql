@@ -144,6 +144,8 @@ begin
   from pg_catalog.pg_proc
   where oid = 'workspace_private.sotf_v1_daily_brief_projection_semantics(uuid,date,text)'::regprocedure;
   body := replace(body,E'\r\n',E'\n');
+  old_return := replace(old_return,E'\r\n',E'\n');
+  new_return := replace(new_return,E'\r\n',E'\n');
   if body is null or position(old_return in body) = 0
   then
     raise exception 'sotf_v1:unexpected_projection_authority_source' using errcode = '55000';

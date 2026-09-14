@@ -93,6 +93,10 @@ test("keeps PostgreSQL authoritative when application timestamp presentation los
   assert.doesNotMatch(engine, /endsAt\s*<=\s*value\.startsAt|submittedAt\s*>\s*now|observedAt\s*>\s*now/);
   assert.match(temporalMigration, /end_at <= start_at[\s\S]*non_positive_meeting_interval/);
   assert.match(temporalMigration, /submitted_at > new\.recorded_at/);
+  assert.match(temporalMigration, /body := replace\(body,E'\\r\\n',E'\\n'\);/);
+  assert.match(temporalMigration, /old_return := replace\(old_return,E'\\r\\n',E'\\n'\);/);
+  assert.match(temporalMigration, /new_return := replace\(new_return,E'\\r\\n',E'\\n'\);/);
+  assert.match(temporalMigration, /position\(old_return in body\) = 0[\s\S]*unexpected_projection_authority_source/);
   assert.match(temporalMigration, /return projection \|\| jsonb_build_object\('eligible_refs',eligible_refs\)/);
   assert.match(temporalMigration, /'projection_fingerprint'[\s\S]*'projection', projection/);
   assert.match(mcp, /consumeDailyBriefProjectionAuthority\(authority, access\.workspace_id, parsed\)/);
