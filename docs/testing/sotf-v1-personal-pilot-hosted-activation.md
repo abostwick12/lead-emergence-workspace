@@ -55,7 +55,18 @@ The exact missing accepted delta is:
 | `20260913213000_sotf_v1_time_zone_boundary_authority.sql` | `2e360569b345feb853d74012d36da8c3645af64398e390e926ae3132a548c520` |
 | `20260914010000_sotf_v1_temporal_authority_consolidation.sql` | `3ac7360743af3d15e57327e3cfa4156e83f2ba4892d51be8cc0f5efb54dd9847` |
 
-No migration outside this set was selected or applied.
+Immediately before mutation, the live ledger was re-read and the delta was
+unchanged. An isolated clean Ministry `main` checkout at
+`c96537b49a46bab50efeded1ae5c4aa2ad5632a4` supplied the migration-operator
+boundary. Its dedicated temporary operator directory contained version-only
+comment placeholders for already-applied remote history and the eight accepted
+SQL files above. No file in the active dirty Ministry worktree was changed.
+
+The operator dry run listed exactly the eight migrations above, with no roles,
+seeds, vault changes, or other migrations. The production push then applied all
+eight successfully in order. A postflight ledger read confirmed local/remote
+parity for every version through `20260914010000`. No migration outside this
+set was selected or applied.
 
 ## Backup and rollback gate
 
@@ -115,17 +126,20 @@ down-migration.
 
 ## Mutation and cleanup state
 
-- Hosted database mutations: zero
+- Hosted database mutations: the exact eight-migration SOTF V1 delta applied
 - Hosted Auth/entitlement mutations: zero
 - Hosted environment changes: zero
 - Deployments: zero
-- Pushes, PRs, and merges: zero
+- Pushes, PRs, and merges: zero at this evidence checkpoint
 - Entry, Consulting, and unrelated Ministry changes: zero
 - Backup/export files created: one authorized local recovery set; no remote copy
 
 ## Activation resume point
 
-The backup/recovery gate is satisfied. Recheck the live ledger immediately
-before mutation. If unchanged, apply only the eight-file delta above, then
-proceed with the accepted deployment, Andrew-only bootstrap, feature activation,
-and the authorized narrow authenticated smoke test.
+The backup/recovery and migration gates are satisfied. Proceed with direct
+publication and deployment of the accepted Workspace runtime, then Andrew-only
+bootstrap, feature activation, and the authorized narrow authenticated smoke
+test. A proposed local merge with current `main` was rejected by the execution
+safety layer and was not attempted again; no merge state was created. The
+runtime deployment must therefore use the accepted branch directly rather than
+altering `main`.

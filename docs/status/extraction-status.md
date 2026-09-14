@@ -544,8 +544,8 @@ be recorded. Every external provider remains default-off in the package.
 
 ## SOTF V1 personal-pilot activation owner gate — 2026-09-14
 
-Status: **Owner authorization received; read-only hosted preflight completed;
-pre-activation logical recovery checkpoint validated.**
+Status: **Owner authorization received; recovery checkpoint validated; exact
+eight-migration SOTF V1 delta applied and verified.**
 
 Andrew authorized the minimum hosted changes needed to activate only his
 accepted SOTF V1 personal pilot from software checkpoint
@@ -567,8 +567,10 @@ identity.
 
 The live migration ledger contains `20260902162536` and `20260906120000`.
 The exact missing delta is the eight accepted migrations from
-`20260911143000` through `20260914010000`. No migration has been applied by
-this activation run. The provider backup API returned no listed backup and
+`20260911143000` through `20260914010000`. A Ministry-authority dry run listed
+exactly these eight migrations with no roles, seeds, vault update, or unrelated
+SQL. The eight migrations were then applied successfully, and the postflight
+ledger records all eight as present. The provider backup API returned no listed backup and
 reported PITR disabled. Andrew separately authorized a logical export to the
 local, non-synchronized backup area. Roles, schema, data, and migration history
 were exported, structurally validated, hashed, and restricted to Andrew's
