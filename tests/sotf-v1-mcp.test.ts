@@ -59,6 +59,21 @@ function operationBatch(): OperationBatchFixture {
   };
 }
 
+function databaseProjection(overrides: Record<string, unknown> = {}) {
+  return {
+    projection_version: "1", workspace_id: workspaceId,
+    workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+    state_revision: 1, as_of: "2026-09-11T12:00:00.000Z", brief_date: "2026-09-11",
+    time_zone: "America/Chicago", window_start: "2026-09-11T05:00:00.000Z",
+    window_end: "2026-09-13T05:00:00.000Z",
+    chapter: { question: "Which work should I test?", phase: "exploring", weekly_hours: 8 },
+    criteria: [], opportunities: [], commitments: [], meetings: [], hypotheses: [], suggestions: [],
+    recent_outcomes: [], truncated_sections: [],
+    omitted_counts: { criteria: 0, opportunities: 0, commitments: 0, meetings: 0, hypotheses: 0, recent_outcomes: 0 },
+    ...overrides,
+  };
+}
+
 function authority(overrides: Record<string, unknown> = {}) {
   return {
     authority_version: "1", authority_token: authorityToken, authority_local_day: "2026-09-11",
@@ -66,6 +81,7 @@ function authority(overrides: Record<string, unknown> = {}) {
     state_revision: 1, as_of: "2026-09-11T12:00:00.000Z", brief_date: "2026-09-11",
     time_zone: "America/Chicago", window_start: "2026-09-11T05:00:00.000Z",
     window_end: "2026-09-13T05:00:00.000Z", eligible_refs: [], truncated_sections: [],
+    projection_fingerprint: `sha256:${"b".repeat(64)}`, projection: databaseProjection(),
     ...overrides,
   };
 }
@@ -132,6 +148,8 @@ describe("SOTF v1 MCP contract", () => {
     } });
     expect(JSON.stringify(data(result))).not.toContain("events");
     expect(JSON.stringify(data(result))).not.toContain("envelope");
+    expect(rpc.mock.calls.some(([name]) => name === "sotf_read_operations")).toBe(false);
+    expect(rpc.mock.calls.some(([name]) => name === "sotf_v1_list_daily_brief_outcomes")).toBe(false);
   });
 
   it("returns DB-authorized membership when replay loses sub-millisecond presentation precision", async () => {
@@ -163,6 +181,7 @@ describe("SOTF v1 MCP contract", () => {
     });
     const databaseAuthority = authority({
       state_revision: 2,
+      as_of: "2026-09-13T00:01:00.000Z",
       authority_local_day: "2026-09-13",
       brief_date: "2026-09-13",
       time_zone: "UTC",
@@ -172,6 +191,26 @@ describe("SOTF v1 MCP contract", () => {
         { entity_type: "commitment", entity_id: "precision-boundary:prepare" },
         { entity_type: "meeting", entity_id: "precision-boundary" },
       ],
+      projection: databaseProjection({
+        state_revision: 2,
+        as_of: "2026-09-13T00:01:00.000Z",
+        brief_date: "2026-09-13",
+        time_zone: "UTC",
+        window_start: "2026-09-13T00:00:00.000Z",
+        window_end: "2026-09-15T00:00:00.000Z",
+        commitments: [{
+          id: "precision-boundary:prepare", title: "Prepare for Precision boundary", due: "2026-09-12",
+          status: "open", definition_of_done: "Preparation complete", review_trigger: "Before meeting",
+        }],
+        meetings: [{
+          id: "precision-boundary", title: "Precision boundary", starts_at: "2026-09-12T23:59:00.000Z",
+          ends_at: "2026-09-13T00:00:00.000500Z", status: "accepted", objective: "Use PostgreSQL membership",
+        }],
+        suggestions: [{
+          source_ref: { entity_type: "meeting", entity_id: "precision-boundary" },
+          reason_code: "meeting_soon", epistemic_status: "derived",
+        }],
+      }),
     });
     const rpc = vi.fn(async (name: string) => {
       if (name === "sotf_v1_access_state") return { data: { state: "active", workspace_id: workspaceId, capabilities: ["core_workspace", "workspace_mcp", "career", "daily_brief", "agentic_workflows"] }, error: null };
@@ -188,7 +227,7 @@ describe("SOTF v1 MCP contract", () => {
 
     expect(data(result)).toMatchObject({ status: "ok", data: { projection: {
       state_revision: 2,
-      meetings: [{ id: "precision-boundary", ends_at: "2026-09-13T00:00:00.000Z" }],
+      meetings: [{ id: "precision-boundary", ends_at: "2026-09-13T00:00:00.000500Z" }],
     } } });
   });
 

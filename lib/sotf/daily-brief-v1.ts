@@ -85,6 +85,8 @@ export const dailyBriefProjectionAuthoritySchema = z.strictObject({
     entity_id: id,
   })),
   truncated_sections: z.array(z.enum(["chapter", "criteria", "opportunities", "commitments", "meetings", "hypotheses", "recent_outcomes"])),
+  projection_fingerprint: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  projection: z.unknown(),
 });
 
 export type DailyBriefProjectionAuthority = z.infer<typeof dailyBriefProjectionAuthoritySchema>;
@@ -115,6 +117,31 @@ export class DailyBriefContractError extends Error {
   }
 }
 
+/** Consume the closed PostgreSQL projection without recreating governed facts. */
+export function consumeDailyBriefProjectionAuthority(
+  authority: DailyBriefProjectionAuthority,
+  workspaceId: string,
+  input: DailyBriefStateInput,
+) {
+  const projection = dailyBriefStateProjectionSchema.parse(authority.projection);
+  if (authority.workspace_id !== workspaceId
+    || authority.workflow_id !== input.workflow_id
+    || authority.workflow_version !== input.workflow_version
+    || authority.brief_date !== input.brief_date
+    || authority.time_zone !== input.time_zone
+    || projection.workspace_id !== workspaceId
+    || projection.workflow_id !== input.workflow_id
+    || projection.workflow_version !== input.workflow_version
+    || projection.brief_date !== input.brief_date
+    || projection.time_zone !== input.time_zone
+    || projection.as_of !== authority.as_of
+    || projection.state_revision !== authority.state_revision) {
+    throw new Error("The database authority does not match the requested SOTF projection.");
+  }
+  assertProjectionMatchesAuthority(projection, authority);
+  return projection;
+}
+
 export function projectDailyBriefState(
   state: PilotState,
   workspaceId: string,
@@ -123,33 +150,11 @@ export function projectDailyBriefState(
   now = new Date(),
   authority?: DailyBriefProjectionAuthority,
 ) {
-  if (authority && (authority.workspace_id !== workspaceId
-    || authority.workflow_id !== input.workflow_id
-    || authority.workflow_version !== input.workflow_version
-    || authority.brief_date !== input.brief_date
-    || authority.time_zone !== input.time_zone
-    || authority.state_revision !== state.revision)) {
-    throw new Error("The database authority does not match the requested SOTF projection.");
-  }
-  const window = authority ? {
-    brief_date: input.brief_date,
-    end_date: addLocalDays(input.brief_date, 2),
-    window_start: authority.window_start,
-    window_end: authority.window_end,
-  } : dailyBriefWindow(input.brief_date, input.time_zone, now);
+  if (authority) return consumeDailyBriefProjectionAuthority(authority, workspaceId, input);
+  const window = dailyBriefWindow(input.brief_date, input.time_zone, now);
   if (!state.chapter) throw new DailyBriefContractError("transition_not_started", "Start the ordinary transition chapter before requesting a daily brief.");
 
-  const truncated = new Set<string>(authority?.truncated_sections ?? []);
-  const authoritativeRefs = authority
-    ? new Set(authority.eligible_refs.map((reference) => `${reference.entity_type}:${reference.entity_id}`))
-    : null;
-  const governed = <T extends { id: string }>(
-    entityType: DailyBriefProjectionAuthority["eligible_refs"][number]["entity_type"],
-    items: T[],
-    applicationCandidates: T[],
-  ) => items.filter((item) => authoritativeRefs
-    ? authoritativeRefs.has(`${entityType}:${item.id}`)
-    : applicationCandidates.some((candidate) => candidate.id === item.id));
+  const truncated = new Set<string>();
   const omitted: Record<ProjectionSection, number> = {
     criteria: 0, opportunities: 0, commitments: 0, meetings: 0, hypotheses: 0, recent_outcomes: 0,
   };
@@ -165,7 +170,7 @@ export function projectDailyBriefState(
   };
 
   const criteriaCandidates = [...state.criteria];
-  const criteria = take(governed("criterion", [...state.criteria], criteriaCandidates)
+  const criteria = take(criteriaCandidates
     .sort((a, b) => b.importance - a.importance || compareSotfV1CanonicalText(a.id, b.id)), 20, "criteria", criteriaCandidates.length)
     .map((item) => ({
       id: item.id,
@@ -179,7 +184,7 @@ export function projectDailyBriefState(
 
   const opportunityCandidates = state.opportunities
     .filter((item) => !["decline", "pause"].includes(item.status) && item.deadline && item.deadline < window.end_date);
-  const opportunities = take(governed("opportunity", state.opportunities, opportunityCandidates)
+  const opportunities = take(opportunityCandidates
     .sort((a, b) => compareSotfV1CanonicalText(a.deadline ?? "", b.deadline ?? "") || compareSotfV1CanonicalText(a.id, b.id)), 10, "opportunities", opportunityCandidates.length)
     .map((item) => ({
       id: item.id,
@@ -192,7 +197,7 @@ export function projectDailyBriefState(
 
   const commitmentCandidates = state.commitments
     .filter((item) => ["open", "blocked"].includes(item.status) && item.due && item.due < window.end_date);
-  const commitments = take(governed("commitment", state.commitments, commitmentCandidates)
+  const commitments = take(commitmentCandidates
     .sort((a, b) => compareSotfV1CanonicalText(a.due ?? "", b.due ?? "") || compareSotfV1CanonicalText(a.id, b.id)), 10, "commitments", commitmentCandidates.length)
     .map((item) => ({
       id: item.id,
@@ -206,7 +211,7 @@ export function projectDailyBriefState(
   const meetingCandidates = state.meetings
     .filter((item) => ["planned", "accepted"].includes(item.status)
       && item.startsAt < window.window_end && item.endsAt > window.window_start);
-  const meetings = take(governed("meeting", state.meetings, meetingCandidates)
+  const meetings = take(meetingCandidates
     .sort((a, b) => compareSotfV1CanonicalText(a.startsAt, b.startsAt) || compareSotfV1CanonicalText(a.id, b.id)), 10, "meetings", meetingCandidates.length)
     .map((item) => ({
       id: item.id,
@@ -219,7 +224,7 @@ export function projectDailyBriefState(
 
   const hypothesisCandidates = state.hypotheses
     .filter((item) => ["continue", "refine"].includes(item.status));
-  const hypotheses = take(governed("hypothesis", state.hypotheses, hypothesisCandidates)
+  const hypotheses = take(hypothesisCandidates
     .sort((a, b) => compareSotfV1CanonicalText(a.id, b.id)), 3, "hypotheses", hypothesisCandidates.length)
     .map((item) => ({
       id: item.id,
@@ -240,7 +245,7 @@ export function projectDailyBriefState(
     workflow_id: SOTF_DAILY_BRIEF_WORKFLOW_ID,
     workflow_version: SOTF_DAILY_BRIEF_VERSION,
     state_revision: state.revision,
-    as_of: authority?.as_of ?? now.toISOString(),
+    as_of: now.toISOString(),
     brief_date: input.brief_date,
     time_zone: input.time_zone,
     window_start: window.window_start,
@@ -264,7 +269,6 @@ export function projectDailyBriefState(
   enforceProjectionByteLimit(projection, truncated);
   projection.truncated_sections = [...truncated].sort(compareSotfV1CanonicalText);
   const parsed = dailyBriefStateProjectionSchema.parse(projection);
-  if (authority) assertProjectionMatchesAuthority(parsed, authority);
   return parsed;
 }
 

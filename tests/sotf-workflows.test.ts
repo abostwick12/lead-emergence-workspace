@@ -91,7 +91,7 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
     h.run({ type: "record_meeting", meeting });
     const prep = prepareMeeting(h.state, "conversation");
     expect(prep.questions.length).toBeGreaterThanOrEqual(5); expect(prep.questions.length).toBeLessThanOrEqual(8);
-    expect(prep.meeting.startsAt).toBe("2026-09-06T14:00:00.000Z");
+    expect(prep.meeting.startsAt).toBe("2026-09-06T09:00:00-05:00");
     h.run({ type: "debrief_meeting", meetingId: "conversation", said: "The team owns delivery decisions", inferred: "This may fit my preference for ownership", unresolved: ["Manager escalation style"], evidence: [{ id: "debrief-evidence", statement: "The practitioner described owning delivery decisions", source: { kind: "practitioner", reference: "Fictional Morgan, meeting notes", observedAt: "2026-09-06", scope: "This team" }, direction: "supporting", dimension: "environment", criterionId: "authority", score: 8, reliability: "high" }], commitments: [promise], introductions: ["Morgan offered a manager introduction; not yet completed"], nextTouch: "2026-09-09" }, "2026-09-06T15:00:00.000Z");
     expect(h.state.evidence[0]).toMatchObject({ review: "pending", meetingId: "conversation", personId: "person", opportunityId: "role", hypothesisIds: ["direction"] });
     expect(h.state.actions.find((item) => item.meetingId === "conversation")?.state).toBe("draft");
@@ -111,6 +111,21 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
     h.run({ type: "record_meeting", meeting: { ...meeting, status: "cancelled" } });
     expect(h.state.commitments.find((item) => item.id === "conversation:prepare")?.status).toBe("cancelled");
     expect(() => h.run({ type: "record_meeting", meeting: { ...meeting, sourceEventId: "another-event" } })).toThrow("provider identity");
+  });
+
+  it("replays exact database timestamp strings without deriving interval authority in JavaScript", () => {
+    const h = harness();
+    const exact = {
+      id: "microsecond-conversation", title: "Exact database interval", hypothesisIds: [],
+      kind: "networking", startsAt: "2026-09-13T00:00:00.000001Z",
+      endsAt: "2026-09-13T00:00:00.000500Z", status: "accepted",
+      provider: "manual", objective: "Preserve PostgreSQL temporal authority",
+    };
+    h.run({ type: "record_meeting", meeting: exact });
+    const recovered = replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state;
+    expect(recovered.meetings.at(-1)).toMatchObject(exact);
+    expect(recovered.receipts.at(-1)?.command).toContain('"startsAt":"2026-09-13T00:00:00.000001Z"');
+    expect(new Date(exact.startsAt).toISOString()).toBe(new Date(exact.endsAt).toISOString());
   });
 
   it("requires exact current approval and reconciles uncertain results before retrying", () => {

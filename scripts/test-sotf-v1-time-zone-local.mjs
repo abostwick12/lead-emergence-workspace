@@ -271,8 +271,8 @@ try {
   const applicationEnd = replayedState.state.meetings.find((meeting) => meeting.id === "precision-boundary")?.endsAt;
   assert.equal(storedRawEnd, precisionRawEnd, "PostgreSQL JSON retains the exact six-digit timestamp");
   assert.equal(serializedRawEnd, precisionRawEnd, "PostgREST/RPC serialization retains the exact six-digit timestamp");
-  assert.equal(applicationEnd, `${precisionDay}T00:00:00.000Z`,
-    "application presentation normalization documents the millisecond representation");
+  assert.equal(applicationEnd, precisionRawEnd,
+    "canonical application replay transports the exact database timestamp");
 
   const precisionState = content(await call("sotf_get_daily_brief_state", precisionInput));
   assert.equal(precisionState?.status, "ok", "DB-authorized sub-millisecond state read must succeed");
@@ -299,6 +299,65 @@ try {
     database_eligibility: "ELIGIBLE",
     application_projection: "ELIGIBLE_FROM_DB_AUTHORITY",
     ...precisionDecision,
+  };
+
+  const temporalStart = `${precisionDay}T00:00:00.000001Z`;
+  const temporalEnd = `${precisionDay}T00:00:00.000500Z`;
+  const temporalRequestId = randomUUID();
+  const temporalAppend = await db.rpc("sotf_append_operation", { operation: {
+    requestId: temporalRequestId, expectedRevision: revision, userConfirmed: true,
+    dataClass: "ordinary_transition_operations",
+    command: { type: "record_meeting", meeting: {
+      id: "positive-499-microseconds", title: "Positive 499 microsecond interval",
+      hypothesisIds: [], kind: "networking", startsAt: temporalStart, endsAt: temporalEnd,
+      status: "accepted", provider: "manual",
+      objective: "Prove canonical replay preserves PostgreSQL temporal authority",
+    } },
+  } });
+  assert.ifError(temporalAppend.error);
+  revision = temporalAppend.data.revision;
+  const temporalReplay = await store.read();
+  const temporalMeeting = temporalReplay.state.meetings.find((meeting) => meeting.id === "positive-499-microseconds");
+  assert.equal(temporalMeeting?.startsAt, temporalStart);
+  assert.equal(temporalMeeting?.endsAt, temporalEnd);
+  assert.equal(new Date(temporalStart).toISOString(), new Date(temporalEnd).toISOString(),
+    "the regression must remain entirely within one JavaScript millisecond");
+  const temporalState = content(await call("sotf_get_daily_brief_state", precisionInput));
+  assert.equal(temporalState?.status, "ok", "positive 499 microsecond bounded-state read must succeed");
+  const temporalProjection = temporalState.data.projection.meetings.find((meeting) => meeting.id === "positive-499-microseconds");
+  assert.equal(temporalProjection?.starts_at, temporalStart);
+  assert.equal(temporalProjection?.ends_at, temporalEnd);
+  const temporalPayload = {
+    ...outcome({ raw: "UTC", accepted: true }, temporalState.data.authority.authority_token),
+    brief_date: precisionDay,
+    selected_le_refs: [{ entity_type: "meeting", entity_id: "positive-499-microseconds" }],
+    priority_count: 1,
+  };
+  const temporalDecision = await assertDualAccept("[SOTF-TEMPORAL:POSITIVE-499US]", temporalPayload);
+  const rejected = [];
+  for (const [id, startsAt, endsAt] of [
+    ["zero", temporalEnd, temporalEnd],
+    ["negative-1", temporalEnd, `${precisionDay}T00:00:00.000499Z`],
+    ["negative-499", temporalEnd, temporalStart],
+  ]) {
+    const before = snapshot();
+    const result = await db.rpc("sotf_append_operation", { operation: {
+      requestId: randomUUID(), expectedRevision: revision, userConfirmed: true,
+      dataClass: "ordinary_transition_operations",
+      command: { type: "record_meeting", meeting: {
+        id: `rejected-${id}`, title: `Rejected ${id}`, hypothesisIds: [], kind: "networking",
+        startsAt, endsAt, status: "accepted", provider: "manual", objective: "Reject non-positive DB interval",
+      } },
+    } });
+    assert.equal(result.error?.code, "22023", `${id} must fail at PostgreSQL authority`);
+    assert.deepEqual(snapshot(), before, `${id} rejection must not mutate`);
+    rejected.push({ id, database: "DENY", persistence: "UNCHANGED" });
+  }
+  report.temporal = {
+    exact_start: temporalStart, exact_end: temporalEnd, database_interval_microseconds: "499",
+    database_interval_valid: true, database_membership: "ELIGIBLE",
+    application_transport: temporalProjection, canonical_replay: "EXACT",
+    mcp_state: "SUCCESS", ...temporalDecision, rejected,
   };
   report.completed = new Date().toISOString();
 } catch (error) {

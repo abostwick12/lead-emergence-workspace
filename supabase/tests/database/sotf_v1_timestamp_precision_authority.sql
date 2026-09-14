@@ -173,6 +173,7 @@ select is(workspace.sotf_v1_record_daily_brief_outcome(
   current_setting('request.precision_authority')::jsonb ->> 'authority_token'
 )->>'replayed','true','exact .000500Z retry returns the original receipt');
 select is(pg_temp.precision_outcome_count(),1,'precision retry does not duplicate persistence');
+select set_config('request.precision_authority',pg_temp.precision_authority()::text,true);
 
 select throws_ok(format(
   'select workspace.sotf_v1_record_daily_brief_outcome(%L::jsonb,%L)',

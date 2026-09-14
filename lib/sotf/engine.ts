@@ -1,4 +1,4 @@
-import { commandEnvelopeSchema, type CommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
+import { commandEnvelopeSchema, exactTimestampSchema, type CommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
 import { assessOpportunity, requireRecord } from "./intelligence";
 import { clipSotfV1Text } from "./v1-text";
 
@@ -18,7 +18,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
   if (envelope.expectedRevision !== previous.revision) throw new RevisionConflict();
   const state = structuredClone(previous);
   const command = envelope.command;
-  now = new Date(now).toISOString();
+  now = exactTimestampSchema.parse(now);
   const opportunity = (id: string) => requireRecord(state.opportunities, id, "Opportunity");
   const person = (id: string) => requireRecord(state.people, id, "Person");
   const meeting = (id: string) => requireRecord(state.meetings, id, "Meeting");
@@ -34,7 +34,6 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
   });
   const addEvidence = (value: Omit<Evidence, "createdAt" | "review">) => {
     links(value); if (value.criterionId) requireRecord(state.criteria, value.criterionId, "Criterion");
-    if (value.source.observedAt > now.slice(0, 10)) throw new Error("Evidence cannot have a future observation date.");
     if (state.evidence.some((item) => item.id === value.id)) throw new Error("Evidence is append-only. Add a new evidence record rather than overwriting a prior observation.");
     if (value.score !== undefined && !value.dimension) throw new Error("A score must name the dimension it assesses.");
     if (value.criterionId && state.criteria.find((item) => item.id === value.criterionId)?.dimension !== value.dimension) throw new Error("Evidence must use the criterion's dimension.");
@@ -107,7 +106,6 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     }
     case "record_meeting": {
       const value = command.meeting; links(value);
-      if (value.endsAt <= value.startsAt) throw new Error("The meeting must end after it starts.");
       if (value.provider !== "manual" && !value.sourceEventId) throw new Error("Provider meetings need their canonical event ID for reconciliation.");
       const canonical = value.sourceEventId ? state.meetings.find((item) => item.provider === value.provider && item.sourceEventId === value.sourceEventId) : undefined;
       if (canonical && canonical.id !== value.id && state.meetings.some((item) => item.id === value.id)) throw new Error("This event conflicts with another meeting. Reconcile the existing meeting IDs before continuing.");
@@ -154,7 +152,6 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       if (state.applications.some((item) => item.opportunityId === command.opportunityId)) throw new Error("Submission is already recorded. Resume its application workflow.");
       const materials = command.materialIds.map((id) => requireRecord(state.materials, id, "Submitted material"));
       if (materials.some((item) => item.opportunityId !== command.opportunityId)) throw new Error("Submitted materials must belong to this opportunity.");
-      if (command.submittedAt > now) throw new Error("A future submission cannot be marked applied.");
       state.applications.push({ opportunityId: command.opportunityId, submittedAt: command.submittedAt, receipt: command.receipt, materials: structuredClone(materials), status: "applied" });
       summary = `Actual submission confirmed: ${opportunity(command.opportunityId).company}`; break;
     }

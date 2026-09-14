@@ -8,7 +8,13 @@ const short = z.string().trim().min(1).max(240);
 const text = z.string().trim().min(1).max(5000);
 const note = z.string().trim().max(5000).default("");
 const date = z.string().date();
-const timestamp = z.string().datetime({ offset: true }).transform((value) => new Date(value).toISOString());
+// Persisted instants are exact opaque authority values. PostgreSQL validates
+// their temporal meaning at the event boundary; JavaScript must not reduce
+// database microseconds to milliseconds while parsing or replaying them.
+export const exactTimestampSchema = z.string()
+  .datetime({ offset: true })
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/);
+const timestamp = exactTimestampSchema;
 const ids = z.array(id).max(100).default([]);
 export const publicUrl = z.string().url().refine((value) => ["https:", "http:"].includes(new URL(value).protocol), "Use an HTTP or HTTPS source URL.");
 export const criterionSchema = z.strictObject({ id, label: short, dimension: dimensionSchema, desired: text, nonNegotiable: z.boolean().default(false), importance: z.number().int().min(1).max(5).default(3), confirmed: z.literal(true) });

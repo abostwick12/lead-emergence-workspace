@@ -62,9 +62,9 @@ test("makes PostgreSQL the sole governed SOTF civil-time boundary authority", as
   assert.match(migration, /lock_sotf_v1_authority\(target_workspace\)[\s\S]*authority_token'[\s\S]*state_changed/);
   assert.doesNotMatch(migration, /p_window_start|p_window_end/);
   assert.match(mcp, /readDailyBriefAuthority\(client, parsed\)/);
-  assert.match(mcp, /projectDailyBriefState\(state, workspaceId, parsed, outcomes, new Date\(authority\.as_of\), authority\)/);
+  assert.match(mcp, /consumeDailyBriefProjectionAuthority\(authority, access\.workspace_id, parsed\)/);
   assert.doesNotMatch(mcp, /dailyBriefWindow/);
-  assert.match(dailyBrief, /authority \? \{[\s\S]*window_start: authority\.window_start/);
+  assert.match(dailyBrief, /dailyBriefStateProjectionSchema\.parse\(authority\.projection\)/);
   assert.match(dailyBrief, /assertProjectionMatchesAuthority/);
   assert.match(dbTest, /America\/Asuncion/);
   assert.match(dbTest, /America\/Chicago/);
@@ -79,15 +79,25 @@ test("makes PostgreSQL the sole governed SOTF civil-time boundary authority", as
 test("keeps PostgreSQL authoritative when application timestamp presentation loses precision", async () => {
   const dailyBrief = await readFile("lib/sotf/daily-brief-v1.ts", "utf8");
   const contracts = await readFile("lib/sotf/contracts.ts", "utf8");
+  const engine = await readFile("lib/sotf/engine.ts", "utf8");
+  const mcp = await readFile("lib/sotf/v1-mcp.ts", "utf8");
+  const temporalMigration = await readFile("supabase/migrations/20260914010000_sotf_v1_temporal_authority_consolidation.sql", "utf8");
+  const temporalDbTest = await readFile("supabase/tests/database/sotf_v1_temporal_authority_consolidation.sql", "utf8");
   const dbTest = await readFile("supabase/tests/database/sotf_v1_timestamp_precision_authority.sql", "utf8");
   const runner = await readFile("scripts/test-sotf-v1-time-zone-local.mjs", "utf8");
   const contract = await readFile("docs/architecture/sotf-v1-contracts.md", "utf8");
   const packageJson = await readFile("package.json", "utf8");
 
-  assert.match(contracts, /new Date\(value\)\.toISOString\(\)/);
-  assert.match(dailyBrief, /authoritativeRefs[\s\S]*authority\.eligible_refs/);
-  assert.match(dailyBrief, /governed\("meeting", state\.meetings/);
-  assert.match(dailyBrief, /authoritativeRefs\.has/);
+  assert.match(contracts, /exactTimestampSchema[\s\S]*\.datetime\(\{ offset: true \}\)[\s\S]*\\d\{1,6\}/);
+  assert.doesNotMatch(contracts, /new Date\(value\)\.toISOString\(\)/);
+  assert.doesNotMatch(engine, /endsAt\s*<=\s*value\.startsAt|submittedAt\s*>\s*now|observedAt\s*>\s*now/);
+  assert.match(temporalMigration, /end_at <= start_at[\s\S]*non_positive_meeting_interval/);
+  assert.match(temporalMigration, /submitted_at > new\.recorded_at/);
+  assert.match(temporalMigration, /return projection \|\| jsonb_build_object\('eligible_refs',eligible_refs\)/);
+  assert.match(temporalMigration, /'projection_fingerprint'[\s\S]*'projection', projection/);
+  assert.match(mcp, /consumeDailyBriefProjectionAuthority\(authority, access\.workspace_id, parsed\)/);
+  assert.doesNotMatch(mcp, /createSotfStore\(client\)\.read\(\)[\s\S]*readDailyBriefAuthority/);
+  assert.match(dailyBrief, /const projection = dailyBriefStateProjectionSchema\.parse\(authority\.projection\)/);
   assert.match(dbTest, /\.000000Z/);
   assert.match(dbTest, /\.000001Z/);
   assert.match(dbTest, /\.000499Z/);
@@ -95,11 +105,17 @@ test("keeps PostgreSQL authoritative when application timestamp presentation los
   assert.match(dbTest, /\.000999Z/);
   assert.match(dbTest, /\.001000Z/);
   assert.match(dbTest, /\.001001Z/);
+  for (const duration of ["1 microsecond", "2 microsecond", "10 microsecond", "99 microsecond", "100 microsecond", "499 microsecond", "500 microsecond", "501 microsecond", "999 microsecond", "1 millisecond", "just over 1 millisecond"]) {
+    assert.match(temporalDbTest, new RegExp(duration.replaceAll(" ", "\\s+")));
+  }
+  assert.match(temporalDbTest, /exactly zero microseconds is rejected/);
+  assert.match(temporalDbTest, /negative 1 microsecond is rejected/);
+  assert.match(temporalDbTest, /negative 499 microseconds is rejected/);
   assert.match(runner, /rpc_serialized_timestamp/);
   assert.match(runner, /ELIGIBLE_FROM_DB_AUTHORITY/);
-  assert.match(contract, /presentation-normalized timestamp/);
   assert.match(contract, /eligible-reference membership is authoritative/);
   assert.match(packageJson, /sotf_v1_timestamp_precision_authority\.sql/);
+  assert.match(packageJson, /sotf_v1_temporal_authority_consolidation\.sql/);
 });
 
 test("locks exact SOTF authority-reference parsing across MCP and RPC boundaries", async () => {

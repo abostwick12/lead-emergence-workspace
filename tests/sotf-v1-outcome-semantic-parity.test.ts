@@ -72,6 +72,29 @@ function outcome(revision: number, sequence: number) {
   };
 }
 
+function authorityProjection(
+  revision: number,
+  eligibleRefs: Array<{ entity_type: string; entity_id: string }>,
+  truncatedSections: string[],
+) {
+  return {
+    projection_version: "1", workspace_id: workspaceId,
+    workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+    state_revision: revision, as_of: "2026-09-12T12:00:00.000Z", brief_date: "2026-09-11",
+    time_zone: "America/Chicago", window_start: "2026-09-11T05:00:00.000Z",
+    window_end: "2026-09-13T05:00:00.000Z",
+    chapter: { question: "Which work should I test?", phase: "exploring", weekly_hours: 8 },
+    criteria: [], opportunities: [],
+    commitments: eligibleRefs.filter((reference) => reference.entity_type === "commitment").map((reference) => ({
+      id: reference.entity_id, title: "Synthetic commitment", due: "2026-09-11", status: "open",
+      definition_of_done: "Synthetic completion", review_trigger: "Before local noon",
+    })),
+    meetings: [], hypotheses: [], suggestions: [], recent_outcomes: [],
+    truncated_sections: truncatedSections,
+    omitted_counts: { criteria: 0, opportunities: 0, commitments: 0, meetings: 0, hypotheses: 0, recent_outcomes: 0 },
+  };
+}
+
 describe("SOTF v1 outcome semantic parity", () => {
   it("feeds the authenticated RPC corpus through the MCP/application validator", async () => {
     vi.useFakeTimers();
@@ -141,6 +164,8 @@ describe("SOTF v1 outcome semantic parity", () => {
           time_zone: "America/Chicago", window_start: "2026-09-11T05:00:00.000Z",
           window_end: "2026-09-13T05:00:00.000Z", eligible_refs: eligibleRefs,
           truncated_sections: hasLongCommitment ? ["commitments"] : [],
+          projection_fingerprint: `sha256:${"d".repeat(64)}`,
+          projection: authorityProjection(batch.revision, eligibleRefs, hasLongCommitment ? ["commitments"] : []),
         }, error: null };
         if (name === "sotf_v1_record_daily_brief_outcome") {
           recordCalls += 1;

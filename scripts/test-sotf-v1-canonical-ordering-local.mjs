@@ -210,6 +210,9 @@ try {
     const inside = candidate(expectedBounded[0],truncated);
     assert.equal(await isolatedApplicationDecision(inside),true,row.id + " application accepts included ref");
     await actualAccept(row.id + " included ref",inside);
+    const refreshed = content(await call(realHost,"sotf_get_daily_brief_state",input));
+    assert.equal(refreshed.status,"ok",row.id + " authority refresh after accepted outcome");
+    authorityToken = refreshed.data.authority.authority_token;
     const outsideId = expectedOmitted[0] ?? "not-present-" + row.id;
     const outside = candidate(outsideId,truncated);
     assert.equal(await isolatedApplicationDecision(outside),false,row.id + " application denies omitted ref");

@@ -17,6 +17,31 @@ function state(): PilotState {
   };
 }
 
+function databaseProjection(input: {
+  revision: number; date: string; zone: string; start: string; end: string;
+  meetings: Array<{ id: string; title: string; startsAt: string; endsAt: string; status: PilotState["meetings"][number]["status"]; objective: string }>;
+}) {
+  return {
+    projection_version: "1" as const, workspace_id: workspaceId,
+    workflow_id: "transition.daily_brief" as const, workflow_version: "1.0.0" as const,
+    state_revision: input.revision, as_of: "2026-09-13T12:00:00.000Z",
+    brief_date: input.date, time_zone: input.zone, window_start: input.start, window_end: input.end,
+    chapter: { question: "Which work is worth testing?", phase: "exploring" as const, weekly_hours: 8 },
+    criteria: [], opportunities: [], commitments: [],
+    meetings: input.meetings.map((item) => ({
+      id: item.id, title: item.title, starts_at: item.startsAt, ends_at: item.endsAt,
+      status: item.status as "planned" | "accepted", objective: item.objective,
+    })),
+    hypotheses: [],
+    suggestions: input.meetings.slice(0, 3).map((item) => ({
+      source_ref: { entity_type: "meeting" as const, entity_id: item.id },
+      reason_code: "meeting_soon" as const, epistemic_status: "derived" as const,
+    })),
+    recent_outcomes: [], truncated_sections: [],
+    omitted_counts: { criteria: 0, opportunities: 0, commitments: 0, meetings: 0, hypotheses: 0, recent_outcomes: 0 },
+  };
+}
+
 describe("SOTF v1 bounded daily-brief state", () => {
   it("uses the requested IANA zone across a DST-shortened local window", () => {
     expect(dailyBriefWindow("2026-03-08", "America/Chicago", now)).toEqual({
@@ -75,6 +100,12 @@ describe("SOTF v1 bounded daily-brief state", () => {
       window_end: "2026-09-15T04:00:00.000Z",
       eligible_refs: [{ entity_type: "meeting", entity_id: "asuncion-boundary" }],
       truncated_sections: [],
+      projection_fingerprint: `sha256:${"d".repeat(64)}`,
+      projection: databaseProjection({
+        revision: 8, date: "2026-09-13", zone: "America/Asuncion",
+        start: "2026-09-13T04:00:00.000Z", end: "2026-09-15T04:00:00.000Z",
+        meetings: boundedState.meetings,
+      }),
     };
     const projection = projectDailyBriefState(boundedState, workspaceId, {
       workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
@@ -97,7 +128,7 @@ describe("SOTF v1 bounded daily-brief state", () => {
       title: `Fraction ${fraction}`,
       kind: "networking" as const,
       startsAt: "2026-09-12T23:59:00.000Z",
-      endsAt: new Date(`2026-09-13T00:00:00.${fraction}Z`).toISOString(),
+      endsAt: `2026-09-13T00:00:00.${fraction}Z`,
       status: "accepted" as const,
       provider: "manual" as const,
       objective: "Exercise database-owned timestamp membership",
@@ -122,6 +153,12 @@ describe("SOTF v1 bounded daily-brief state", () => {
       window_end: "2026-09-15T00:00:00.000Z",
       eligible_refs: eligible,
       truncated_sections: [],
+      projection_fingerprint: `sha256:${"e".repeat(64)}`,
+      projection: databaseProjection({
+        revision: 9, date: "2026-09-13", zone: "UTC",
+        start: "2026-09-13T00:00:00.000Z", end: "2026-09-15T00:00:00.000Z",
+        meetings: boundedState.meetings.slice(1),
+      }),
     };
 
     const projection = projectDailyBriefState(boundedState, workspaceId, {
@@ -133,7 +170,7 @@ describe("SOTF v1 bounded daily-brief state", () => {
 
     expect(projection.meetings.map((meeting) => meeting.id)).toEqual(eligible.map((reference) => reference.entity_id));
     expect(projection.meetings.find((meeting) => meeting.id === "fraction-000500")?.ends_at)
-      .toBe("2026-09-13T00:00:00.000Z");
+      .toBe("2026-09-13T00:00:00.000500Z");
     expect(projection.meetings.some((meeting) => meeting.id === "fraction-000000")).toBe(false);
   });
 
@@ -156,6 +193,12 @@ describe("SOTF v1 bounded daily-brief state", () => {
       as_of: "2026-09-13T12:00:00.000Z", brief_date: "2026-09-13", time_zone: "UTC",
       window_start: "2026-09-13T00:00:00.000Z", window_end: "2026-09-15T00:00:00.000Z",
       eligible_refs: [], truncated_sections: [],
+      projection_fingerprint: `sha256:${"f".repeat(64)}`,
+      projection: databaseProjection({
+        revision: 10, date: "2026-09-13", zone: "UTC",
+        start: "2026-09-13T00:00:00.000Z", end: "2026-09-15T00:00:00.000Z",
+        meetings: [],
+      }),
     };
 
     const projection = projectDailyBriefState(boundedState, workspaceId, {

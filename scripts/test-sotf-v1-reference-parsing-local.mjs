@@ -204,6 +204,13 @@ try {
     const decision = row.accepted
       ? await assertDualAccept("[SOTF-REFERENCE:" + row.id + "]", payload)
       : await assertDualDeny("[SOTF-REFERENCE:" + row.id + "]", payload);
+    if (row.accepted) {
+      const refreshed = content(await call("sotf_get_daily_brief_state", {
+        workflow_id: "transition.daily_brief", workflow_version: "1.0.0", brief_date: date, time_zone: "America/Chicago",
+      }));
+      assert.equal(refreshed.status, "ok", "authority refresh after accepted exact reference");
+      authorityToken = refreshed.data.authority.authority_token;
+    }
     report.cases.push({
       id: row.id, description: row.description, raw: row.raw,
       canonicalParsed: row.accepted ? row.raw : "INVALID", ...decision,

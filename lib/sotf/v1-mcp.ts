@@ -7,10 +7,9 @@ import {
   dailyBriefProjectionAuthoritySchema,
   dailyBriefStateProjectionSchema,
   dailyBriefStateInputSchema,
+  consumeDailyBriefProjectionAuthority,
   DailyBriefContractError,
-  projectDailyBriefState,
 } from "./daily-brief-v1";
-import { createSotfStore } from "./server";
 import {
   getSotfV1Bundle,
   getSotfV1Workflow,
@@ -164,14 +163,9 @@ export function registerSotfV1Tools(
     if (access.state !== "active") return accessFailure(access);
     const workflow = getSotfV1Workflow(parsed.workflow_id, parsed.workflow_version);
     if (!workflow.ok) return fail(workflow.code, false);
-    const [{ state, workspaceId }, outcomes, authority] = await Promise.all([
-      createSotfStore(client).read(),
-      readOutcomes(client, parsed.workflow_version),
-      readDailyBriefAuthority(client, parsed),
-    ]);
-    if (workspaceId !== access.workspace_id) return fail("access_denied", false);
-    if (state.revision !== authority.state_revision) return fail("state_changed", false);
-    const projection = projectDailyBriefState(state, workspaceId, parsed, outcomes, new Date(authority.as_of), authority);
+    const authority = await readDailyBriefAuthority(client, parsed);
+    if (authority.workspace_id !== access.workspace_id) return fail("access_denied", false);
+    const projection = consumeDailyBriefProjectionAuthority(authority, access.workspace_id, parsed);
     return ok({
       projection,
       authority: {
@@ -237,11 +231,6 @@ async function resolveAccess(client: SupabaseClient<any, any, any, any, any>, re
   } catch {
     return { state: "service_unavailable" as const };
   }
-}
-
-async function readOutcomes(client: SupabaseClient<any, any, any, any, any>, workflowVersion: string) {
-  const value = await callRpc(client, "sotf_v1_list_daily_brief_outcomes", { p_workflow_version: workflowVersion });
-  return parseReadResult(z.array(dailyBriefOutcomeReceiptSchema).max(3), value);
 }
 
 async function readDailyBriefAuthority(

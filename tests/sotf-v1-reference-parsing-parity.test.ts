@@ -95,6 +95,24 @@ function successfulReceipt(saved: ReturnType<typeof outcome>) {
   };
 }
 
+function authorityProjection() {
+  return {
+    projection_version: "1", workspace_id: workspaceId,
+    workflow_id: "transition.daily_brief", workflow_version: "1.0.0",
+    state_revision: 5, as_of: "2026-09-13T12:00:00.000Z", brief_date: "2026-09-13",
+    time_zone: "America/Chicago", window_start: "2026-09-13T05:00:00.000Z",
+    window_end: "2026-09-15T05:00:00.000Z",
+    chapter: { question: "Which direction?", phase: "exploring", weekly_hours: 8 },
+    criteria: [], opportunities: [], commitments: [], meetings: [],
+    hypotheses: [{
+      id: "a-b", proposition: "Synthetic a-b", next_experiment: "Run a synthetic test",
+      review_trigger: "After the test", status: "continue", epistemic_status: "provisional",
+    }],
+    suggestions: [], recent_outcomes: [], truncated_sections: ["hypotheses"],
+    omitted_counts: { criteria: 0, opportunities: 0, commitments: 0, meetings: 0, hypotheses: 0, recent_outcomes: 0 },
+  };
+}
+
 describe("SOTF v1 exact authority-reference parsing", () => {
   it("shares at least fifteen genuinely distinct decoded-string attacks", () => {
     expect(corpus.length).toBeGreaterThanOrEqual(15);
@@ -134,6 +152,8 @@ describe("SOTF v1 exact authority-reference parsing", () => {
           window_end: "2026-09-15T05:00:00.000Z",
           eligible_refs: [{ entity_type: "hypothesis", entity_id: "a-b" }],
           truncated_sections: ["hypotheses"],
+          projection_fingerprint: `sha256:${"c".repeat(64)}`,
+          projection: authorityProjection(),
         }, error: null };
         if (name === "sotf_v1_record_daily_brief_outcome") {
           recordCalls += 1;
