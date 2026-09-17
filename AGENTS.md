@@ -37,6 +37,16 @@ For local-only documentation, formatting, isolated refactors already approved, o
 
 If the refresh contradicts the assigned task, stop and report the contradiction before changing anything.
 
+### Protocol skills for every coding session
+
+At the start of every Lead Emergence coding session, read and apply all three canonical protocol skills:
+
+- `agent-skills/state-refresh/SKILL.md`
+- `agent-skills/assumption-challenge/SKILL.md`
+- `agent-skills/scope-lock/SKILL.md`
+
+Use their required blocks and stop conditions when they apply. `state-refresh` governs live checks only when live state materially matters; it does not authorize production queries for documentation-only work, formatting, or isolated local source inspection.
+
 ## 3. Evidence discipline
 
 Tag **decision-critical diagnostic claims** as:
