@@ -1,3 +1,5 @@
+# HISTORICAL. Do not use for current diagnosis. See docs/status/PRODUCTION_STATE.md.
+
 # SOTF Bundle product execution
 
 Status: implementation in progress; no hosted deployment or protected context activation.

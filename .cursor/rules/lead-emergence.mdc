@@ -1,0 +1,5 @@
+---
+description: Lead Emergence canonical agent instructions
+alwaysApply: true
+---
+Read and follow root `AGENTS.md` first. It is the canonical platform-independent mandate. Use the canonical files and protocol skills referenced by `AGENTS.md`; do not maintain a Cursor-specific policy fork.
