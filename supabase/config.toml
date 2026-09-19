@@ -41,3 +41,8 @@ allow_dynamic_registration = true
 [auth.hook.custom_access_token]
 enabled = true
 uri = "pg-functions://postgres/workspace_private/custom_access_token_hook"
+
+[functions.personal-authority-projection]
+# This endpoint authenticates the exact raw body with the dedicated HMAC
+# protocol; it deliberately does not accept ordinary user JWTs.
+verify_jwt = false

@@ -36,6 +36,9 @@ const integrationCredentialRoute = await readFile("app/api/integrations/[provide
 const setupPage = await readFile("components/workspace-setup.tsx", "utf8");
 const mcpRoute = await readFile("app/api/mcp/route.ts", "utf8");
 const mcpResourceAdmissionSql = await readFile("supabase/migrations/20260901150529_workspace_mcp_resource_admission.sql", "utf8");
+const sharedOauthIntegrationSql = await readFile("supabase/migrations/20260914120000_workspace_shared_oauth_binding.sql", "utf8");
+const mcpAuth = await readFile("lib/workspace/mcp-auth.ts", "utf8");
+const mcpClaims = await readFile("lib/workspace/mcp-claims.ts", "utf8");
 const bundleEntitlementSql = await readFile("supabase/migrations/20260902162536_bundle_entitlement_foundation.sql", "utf8");
 const bundleAssignmentRoute = await readFile("app/api/operator/bundles/assign/route.ts", "utf8");
 const bundleInviteRoute = await readFile("app/api/operator/bundles/invites/route.ts", "utf8");
@@ -113,11 +116,22 @@ test("uses one shared resumable configuration model for AI and native setup", ()
 test("binds MCP OAuth tokens to the canonical resource and denies ordinary RLS traversal", () => {
   assert.match(configToml, /\[auth\.oauth_server\]/);
   assert.match(configToml, /allow_dynamic_registration = true/);
-  assert.match(productizationSql, /claims := pg_catalog\.jsonb_set\(claims, '\{aud\}'/);
-  assert.match(productizationSql, /claims := pg_catalog\.jsonb_set\(claims, '\{workspace_mcp\}'/);
+  assert.match(sharedOauthIntegrationSql, /private\.custom_access_token_hook\(\$1\)/);
+  assert.match(sharedOauthIntegrationSql, /to_regprocedure\('private\.custom_access_token_hook\(jsonb\)'\) is null/);
+  assert.match(sharedOauthIntegrationSql, /original_claims - array\[/);
+  assert.match(sharedOauthIntegrationSql, /'le_session_class'.+'le_product'.+'le_binding_version'.+'resource'.+'workspace_mcp'/s);
+  assert.doesNotMatch(sharedOauthIntegrationSql, /jsonb_build_object\s*\(\s*'le_session_class'/i);
   assert.match(productizationSql, /nullif\(auth\.jwt\(\) ->> 'client_id', ''\) is null/);
   assert.match(productizationSql, /workspace_private\.require_mcp_workspace\(\)/);
   assert.match(productizationSql, /workspace_private\.has_personal_capability\(target_workspace_id, 'workspace_mcp'\)/);
+  assert.match(sharedOauthIntegrationSql, /workspace_private\.is_valid_mcp_request\(\)/);
+  assert.match(sharedOauthIntegrationSql, /grant execute on function workspace\.mcp_verify_current_authority\(\)\s+to authenticated/i);
+  assert.match(mcpAuth, /isCanonicalWorkspaceMcpClaims/);
+  assert.match(mcpAuth, /supabase\.rpc\("mcp_verify_current_authority"\)/);
+  assert.match(mcpAuth, /authority\.error \|\| authority\.data !== true/);
+  for (const claim of ["le_session_class", "le_product", "le_binding_version", "aud", "resource", "workspace_mcp", "session_id", "client_id", "iss"]) {
+    assert.match(mcpClaims, new RegExp(`claims\\.${claim}`));
+  }
   assert.match(mcpRoute, /WWW-Authenticate/);
   assert.match(mcpRoute, /WebStandardStreamableHTTPServerTransport/);
 });

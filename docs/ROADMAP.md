@@ -15,6 +15,24 @@ Everything that does not move that sentence closer to true is out of implementat
 - Every task gets a budget. At half the budget without a verified observable, stop and narrow or escalate.
 - `DECISION` items require Andrew’s input. Agents do not decide them.
 
+## Current implementation status — 2026-09-19
+
+**Phase 1: ACCEPTED.** Its final disposition is:
+
+- 1.1 Production Custom Access Token hook — DONE
+- 1.2 OAuth completion authority — DONE
+- 1.3 Completion exception — CLOSED, NOT TRIGGERED
+- 1.4 Lewis authorization — DONE
+- 1.5 Grant, binding, session — DONE
+- 1.6 Token/admission — CLOSED, NOT TRIGGERED; operationally proven by successful authenticated Workspace MCP execution
+- 1.7 Real ChatGPT → Lewis → Workspace MCP call — PASSED
+
+The accepted production observable was ChatGPT → Developer Mode Lewis → Workspace MCP → `get_onboarding_state`, which returned `state=workspace_ready`, `setup_method=native`, `completed_areas=[]`, `next_useful_area=responsibilities`, `selected_assistant=chatgpt`, and `onboarding_complete=true`.
+
+**Phase 2.1 Account provisioning: ACCEPTED / CLOSED.** A clean non-Andrew production identity completed signup, verified Entry identity, automatic PERSONAL access, Workspace OAuth handoff, Personal Workspace ownership, and a functional first-use onboarding screen without manual operator provisioning.
+
+**Phase 2: CURRENT.** The current step is **2.2 Billing & entitlement — CURRENT / NEXT**. No Phase 2.2 implementation has begun.
+
 ---
 
 # Phase 0 — Ground truth
@@ -80,6 +98,8 @@ Lewis is the delivery mechanism for the Individual product. The goal is not mere
 
 **Not closed:** if the above is not true by the session budget, the next task is instrumentation/localization only. No new architecture or migration without a falsifying observable proving the current supported path cannot work.
 
+**Status:** ACCEPTED on 2026-09-18 through the Developer Mode Lewis validation recorded in `docs/status/PRODUCTION_STATE.md`.
+
 ### Scope limits
 
 - Zero speculative migrations.
@@ -98,25 +118,13 @@ A person other than Andrew signs up and lands on a functional first screen as ow
 
 **Acceptance:** from a clean browser, a non-Andrew test user creates an account and reaches a working first screen. Production shows their user, their workspace, and their owner membership.
 
-## 2.2 Tenant isolation proof
+**Status:** ACCEPTED / CLOSED on 2026-09-19. The accepted production journey and tenant-state evidence are recorded in `docs/status/PRODUCTION_STATE.md`.
 
-Create two real test accounts.
+## 2.2 Billing & entitlement
 
-**Acceptance:** authenticated account A attempts to read account B’s data through the real production path and is denied. Record the sanitized request/response evidence in `PRODUCTION_STATE.md` or a linked evidence artifact.
+**Status:** CURRENT / NEXT. No implementation has begun.
 
-No external paid client is onboarded before this passes.
-
-## 2.3 Non-Andrew Lewis value proof
-
-A person other than Andrew connects their own ChatGPT to their own Lead Emergence workspace without Andrew manually editing production state.
-
-**DECISION:** state in one sentence the recurring outcome Lead Emergence makes sufficiently better, easier, faster, more reliable, or more valuable that the client is willing to pay rather than assemble the pieces manually.
-
-**Acceptance:** the non-Andrew user completes one real piece of work through Lewis and says the result would be worth paying for. Production evidence shows the connection/session belongs to that user and the result uses only their workspace authority.
-
-## 2.4 Minimum launch safety and commercial gate
-
-Do not turn this into enterprise compliance. Establish the minimum conditions required to responsibly take money from an external client.
+Payment captures successfully, entitlement changes from payment state, cancellation behaves as stated, and failed payment behaves as stated.
 
 ### Required commercial decisions
 
@@ -138,10 +146,6 @@ Do not turn this into enterprise compliance. Establish the minimum conditions re
 
 Mature alerting and restore rehearsal remain Phase 3 work.
 
-## 2.5 Billing and first paid charge
-
-Payment captures successfully, entitlement changes from payment state, cancellation behaves as stated, and failed payment behaves as stated.
-
 **Acceptance:**
 
 - one real charge is processed end to end;
@@ -151,7 +155,23 @@ Payment captures successfully, entitlement changes from payment state, cancellat
 
 **First external paid customer charge is permitted only after 2.1–2.4 pass.**
 
-## 2.6 Connection lifecycle
+## 2.3 Tenant isolation
+
+Create two real test accounts.
+
+**Acceptance:** authenticated account A attempts to read account B’s data through the real production path and is denied. Record the sanitized request/response evidence in `PRODUCTION_STATE.md` or a linked evidence artifact.
+
+No external paid client is onboarded before this passes.
+
+## 2.4 Core customer loop
+
+A person other than Andrew connects their own ChatGPT to their own Lead Emergence workspace without Andrew manually editing production state.
+
+**DECISION:** state in one sentence the recurring outcome Lead Emergence makes sufficiently better, easier, faster, more reliable, or more valuable that the client is willing to pay rather than assemble the pieces manually.
+
+**Acceptance:** the non-Andrew user completes one real piece of work through Lewis and says the result would be worth paying for. Production evidence shows the connection/session belongs to that user and the result uses only their workspace authority.
+
+## 2.5 Connection lifecycle
 
 Connect, see, revoke, reconnect, offboard.
 
@@ -165,7 +185,7 @@ Connect, see, revoke, reconnect, offboard.
 
 Document the token-expiration/revocation window and decide whether it is acceptable for a cancelled/offboarded account.
 
-## 2.7 Operator basics
+## 2.6 Operator basics
 
 Andrew can:
 

@@ -541,3 +541,48 @@ baseline already has those objects and URI.
 Before any execution, the generated read-only preflight must still match this
 baseline and the remaining identity, OAuth, Vercel, and acceptance gates must
 be recorded. Every external provider remains default-off in the package.
+
+## Owner gate — pre-consent routing-only repair — 2026-09-16 UTC
+
+The owner's authorization in this task permits one additive migration through
+the existing designated Ministry authority, targeting shared Auth project
+`cirqqhuvzekbvysiyedg` (`emergence-ministry-platform`). The existing operator's
+linked project reference was verified before execution. This is not an Entry
+or Workspace-foundation migration and does not authorize either target's data changes.
+
+Authorized source: Ministry worktree migration
+`20260916014819_oauth_preconsent_routing_only.sql`, SHA256
+`452ac7feb0e86588ae16030c3f8aa9ce87ca914420a3e9ef45c3fdd6c46aeba1`.
+Only `workspace.resolve_oauth_consent_product(text)` may change. Valid pending,
+unexpired, unassigned requests may classify a canonical product from Auth
+client/request authority; assigned requests retain authenticated-owner matching.
+No request assignment, consent approval, grants, bindings, identity, entitlement,
+operator authority, OAuth configuration, Site URL, client records, or Vercel
+deployment changes are authorized by the SQL repair.
+
+Before hosted mutation: actual PL/pgSQL focused tests passed 46/46; existing
+classifier/continuation tests passed 19/19; schema checks passed 31/31; runtime
+boundaries passed across 84 files. The focused migration security gate proves
+the owner-selection predicate is the only function-body change and ACL,
+security-definer mode, volatility, search path, and completion remain unchanged.
+An extra verifier for older September 1 migration packages has a pre-existing
+reviewed-hash mismatch even in committed bytes; those unrelated packages are
+excluded from this repair and have not been changed. No broad app suite was
+rerun for this SQL-only boundary.
+
+Execution is restricted to this single migration with exact ledger postflight.
+Then one fresh Connect of existing replacement app
+`asdk_app_6aa985ed182c8191898f4a1ffcb2f588`, normal authentication/consent, and
+one read-only replacement status call are authorized. Synthetic SOTF read-only
+retrieval is conditional on successful activation. Existing product and tenant
+authority checks must remain intact. No commit, push, or deployment is authorized.
+
+Postflight: the Ministry operator applied only migration `20260916014819`
+(`oauth_preconsent_routing_only`); the exact ledger entry was verified. Of 86
+inspected functions, only the authorized classifier changed, with ACL and
+security settings unchanged. The single fresh replacement Connect reached
+canonical Workspace login while its Auth request was pending and unassigned.
+Normal sign-in then dropped the consent continuation and landed at `/workspace`.
+Activation is blocked at that served login link; no consent approval, Lewis
+status invocation, SOTF retrieval, or deployment repair was performed. Evidence:
+`.oauth-hotfix-ministry/docs/testing/oauth-preconsent-routing-repair.md`.

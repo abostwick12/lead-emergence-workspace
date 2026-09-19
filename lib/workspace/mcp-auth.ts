@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createWorkspaceBearerClient, workspaceSupabaseUrl } from "@/lib/supabase/server";
+import { isCanonicalWorkspaceMcpClaims } from "@/lib/workspace/mcp-claims";
 import { normalizeMcpResourceUri } from "@/lib/workspace/mcp-uri";
 
 export function workspaceMcpResourceUri() {
@@ -51,11 +52,12 @@ export async function authenticateMcpRequest(request: Request) {
   const { data, error } = await supabase.auth.getUser(accessToken);
   if (error || !data.user) return null;
   const claims = decodeClaims(accessToken);
-  const audience = claims?.aud;
-  const intendedAudience = workspaceMcpResourceUri();
-  const audienceMatches = typeof audience === "string" ? audience === intendedAudience : Array.isArray(audience) && audience.includes(intendedAudience);
-  if (!claims || claims.sub !== data.user.id || !audienceMatches || claims.workspace_mcp !== true || typeof claims.client_id !== "string" || !claims.client_id) return null;
-  if (typeof claims.exp !== "number" || claims.exp * 1000 <= Date.now()) return null;
+  const resource = workspaceMcpResourceUri();
+  const issuer = `${workspaceSupabaseUrl().replace(/\/$/, "")}/auth/v1`;
+  if (!claims || !isCanonicalWorkspaceMcpClaims(claims, { userId: data.user.id, resource, issuer })) return null;
+
+  const authority = await supabase.rpc("mcp_verify_current_authority");
+  if (authority.error || authority.data !== true) return null;
   return { accessToken, user: data.user, claims, supabase };
 }
 

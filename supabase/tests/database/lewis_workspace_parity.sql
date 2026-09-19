@@ -9,6 +9,20 @@ insert into auth.users (
   ('00000000-0000-0000-0000-000000000000', '71111111-1111-4111-8111-111111111111', 'authenticated', 'authenticated', 'parity.alice@example.invalid', '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now()),
   ('00000000-0000-0000-0000-000000000000', '72222222-2222-4222-8222-222222222222', 'authenticated', 'authenticated', 'parity.bob@example.invalid', '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now());
 
+-- Stage 2's durable client/product/session contract is now the sole source
+-- of OAuth authority. This parity fixture therefore supplies real fixture
+-- clients, sessions, and bindings rather than the superseded marker-only MCP
+-- claim accepted before the shared authority migration.
+insert into auth.oauth_clients (
+  id, registration_type, client_type, token_endpoint_auth_method,
+  redirect_uris, grant_types, created_at, updated_at
+) values
+  ('7c111111-1111-4111-8111-111111111111', 'dynamic', 'public', 'none', 'https://client.example.invalid/callback', 'authorization_code,refresh_token', now(), now()),
+  ('7c222222-2222-4222-8222-222222222222', 'dynamic', 'public', 'none', 'https://client.example.invalid/callback', 'authorization_code,refresh_token', now(), now());
+insert into auth.sessions (id, user_id, oauth_client_id, created_at, updated_at, aal) values
+  ('7d111111-1111-4111-8111-111111111111', '71111111-1111-4111-8111-111111111111', '7c111111-1111-4111-8111-111111111111', now(), now(), 'aal1'),
+  ('7d222222-2222-4222-8222-222222222222', '72222222-2222-4222-8222-222222222222', '7c222222-2222-4222-8222-222222222222', now(), now(), 'aal1');
+
 insert into workspace.user_profiles (user_id, display_name) values
   ('71111111-1111-4111-8111-111111111111', 'Parity Alice'),
   ('72222222-2222-4222-8222-222222222222', 'Parity Bob');
@@ -61,6 +75,14 @@ insert into workspace_private.mcp_oauth_resource_grants (user_id, client_id, res
   ('71111111-1111-4111-8111-111111111111', '7c111111-1111-4111-8111-111111111111', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']),
   ('72222222-2222-4222-8222-222222222222', '7c222222-2222-4222-8222-222222222222', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']);
 
+update private.oauth_product_binding_control set enabled = true;
+insert into private.oauth_product_client_bindings (
+  client_id, contract_key, product_key, resource_uri, audience_uri,
+  status, source_authorization_id, bound_by_user_id
+) values
+  ('7c111111-1111-4111-8111-111111111111', 'workspace', 'workspace', 'https://workspace.leademergence.com/api/mcp', 'https://workspace.leademergence.com/api/mcp', 'ACTIVE', 'parity-alice-fixture', '71111111-1111-4111-8111-111111111111'),
+  ('7c222222-2222-4222-8222-222222222222', 'workspace', 'workspace', 'https://workspace.leademergence.com/api/mcp', 'https://workspace.leademergence.com/api/mcp', 'ACTIVE', 'parity-bob-fixture', '72222222-2222-4222-8222-222222222222');
+
 select set_config(
   'request.test_mcp_resource_uri',
   (select setting_value from workspace_private.product_settings where setting_key = 'mcp_resource_uri'),
@@ -79,9 +101,15 @@ select set_config(
   pg_catalog.jsonb_build_object(
     'sub', '71111111-1111-4111-8111-111111111111',
     'role', 'authenticated',
+    'iss', 'https://cirqqhuvzekbvysiyedg.supabase.co/auth/v1',
     'aud', current_setting('request.test_mcp_resource_uri'),
+    'resource', current_setting('request.test_mcp_resource_uri'),
     'client_id', '7c111111-1111-4111-8111-111111111111',
-    'workspace_mcp', 'true',
+    'session_id', '7d111111-1111-4111-8111-111111111111',
+    'le_session_class', 'mcp_oauth',
+    'le_product', 'workspace',
+    'le_binding_version', 1,
+    'workspace_mcp', true,
     'iat', 1900000000
   )::text,
   true
@@ -254,9 +282,15 @@ select set_config(
   pg_catalog.jsonb_build_object(
     'sub', '71111111-1111-4111-8111-111111111111',
     'role', 'authenticated',
+    'iss', 'https://cirqqhuvzekbvysiyedg.supabase.co/auth/v1',
     'aud', current_setting('request.test_mcp_resource_uri'),
+    'resource', current_setting('request.test_mcp_resource_uri'),
     'client_id', 'unrecognized-client',
-    'workspace_mcp', 'true',
+    'session_id', '7d111111-1111-4111-8111-111111111111',
+    'le_session_class', 'mcp_oauth',
+    'le_product', 'workspace',
+    'le_binding_version', 1,
+    'workspace_mcp', true,
     'iat', 1900000000
   )::text,
   true

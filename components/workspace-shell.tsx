@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, BrainCircuit, BriefcaseBusiness, Compass, Crosshair, Menu, Moon, PackageOpen, Plug, Radar, Settings, Target, X } from "lucide-react";
 import { QuickCaptureDialog } from "@/components/quick-capture-dialog";
+import { CapabilityLockedState } from "@/components/capability-locked-state";
 import { WorkspaceProvider, useWorkspace } from "@/components/workspace-provider";
 import { WorkspaceClocks, WorkspaceHeaderDate } from "@/components/workspace-clocks";
 import { capabilityEnabled } from "@/lib/workspace/capabilities";
@@ -17,7 +18,7 @@ const operationalLinks = [
 const workspaceLinks = [["/workspace/memory", "Memory", BrainCircuit], ["/workspace/integrations", "Connections", Plug]] as const;
 
 function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactNode; sotfPilotEnabled: boolean }) {
-  const { ready, user, workspace, onboarding, plan, capabilities, sotfAccess, error, signOut } = useWorkspace();
+  const { ready, user, workspace, accessState, onboarding, plan, capabilities, sotfAccess, error, signOut } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -60,6 +61,14 @@ function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactN
   if (!ready) return <main className="auth-page"><p className="muted">Loading your private workspace…</p></main>;
   if (!user) return null;
   if (error || !workspace) return <main className="auth-page"><div className="auth-card"><h1>Workspace unavailable</h1><p className="error">{error || "Workspace provisioning did not complete."}</p></div></main>;
+  if (accessState && !accessState.access_allowed) {
+    const title = accessState.reason === "BILLING_ACTION_REQUIRED"
+      ? "Payment action required"
+      : accessState.reason === "SUBSCRIPTION_ENDED"
+        ? "Subscription ended"
+        : "Workspace access suspended";
+    return <main className="main"><CapabilityLockedState title={title} benefit="Your Personal Workspace and membership remain intact." suspended /></main>;
+  }
   if (!onboarding) return <main className="auth-page"><p className="muted">Loading your Workspace setup…</p></main>;
   if (!onboardingComplete && !setupRoute) return <main className="auth-page"><p className="muted">Resuming your Workspace setup…</p></main>;
   if (setupRoute) return <div className="setup-shell"><main className="setup-main">{children}</main></div>;

@@ -5,6 +5,12 @@ select no_plan();
 insert into auth.users(instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) values
 ('00000000-0000-0000-0000-000000000000','60111111-1111-4111-8111-111111111111','authenticated','authenticated','sotf.synthetic.a@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
 ('00000000-0000-0000-0000-000000000000','60222222-2222-4222-8222-222222222222','authenticated','authenticated','sotf.synthetic.b@example.invalid','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now());
+-- The synthetic MCP session below is tied to the Stage 2 durable binding
+-- contract. Marker-only MCP claims are deliberately rejected by that contract.
+insert into auth.oauth_clients(id,registration_type,client_type,token_endpoint_auth_method,redirect_uris,grant_types,created_at,updated_at) values
+('60cccccc-cccc-4ccc-8ccc-cccccccccccc','dynamic','public','none','https://client.example.invalid/callback','authorization_code,refresh_token',now(),now());
+insert into auth.sessions(id,user_id,oauth_client_id,created_at,updated_at,aal) values
+('60dddddd-dddd-4ddd-8ddd-dddddddddddd','60111111-1111-4111-8111-111111111111','60cccccc-cccc-4ccc-8ccc-cccccccccccc',now(),now(),'aal1');
 insert into workspace.user_profiles(user_id,display_name) values
 ('60111111-1111-4111-8111-111111111111','Synthetic fellow A'),('60222222-2222-4222-8222-222222222222','Synthetic fellow B');
 insert into workspace.workspaces(id,workspace_type,name,owner_user_id) values
@@ -80,7 +86,11 @@ update workspace_private.product_settings set setting_value='true' where setting
 update workspace_private.product_settings set setting_value='https://workspace.leademergence.com/api/mcp' where setting_key='mcp_resource_uri';
 insert into workspace_private.mcp_oauth_resource_grants(user_id,client_id,resource_uri,granted_scopes)
 select '60111111-1111-4111-8111-111111111111','60cccccc-cccc-4ccc-8ccc-cccccccccccc',setting_value,array['openid','email','profile'] from workspace_private.product_settings where setting_key='mcp_resource_uri';
-select set_config('request.sotf_mcp_claims',jsonb_build_object('sub','60111111-1111-4111-8111-111111111111','role','authenticated','aud',(select setting_value from workspace_private.product_settings where setting_key='mcp_resource_uri'),'client_id','60cccccc-cccc-4ccc-8ccc-cccccccccccc','workspace_mcp','true','iat',floor(extract(epoch from clock_timestamp())))::text,true);
+update private.oauth_product_binding_control set enabled = true;
+insert into private.oauth_product_client_bindings(client_id,contract_key,product_key,resource_uri,audience_uri,status,source_authorization_id,bound_by_user_id)
+select '60cccccc-cccc-4ccc-8ccc-cccccccccccc','workspace','workspace',setting_value,setting_value,'ACTIVE','synthetic-sotf-mcp','60111111-1111-4111-8111-111111111111'
+from workspace_private.product_settings where setting_key='mcp_resource_uri';
+select set_config('request.sotf_mcp_claims',jsonb_build_object('sub','60111111-1111-4111-8111-111111111111','role','authenticated','iss','https://cirqqhuvzekbvysiyedg.supabase.co/auth/v1','aud',(select setting_value from workspace_private.product_settings where setting_key='mcp_resource_uri'),'resource',(select setting_value from workspace_private.product_settings where setting_key='mcp_resource_uri'),'client_id','60cccccc-cccc-4ccc-8ccc-cccccccccccc','session_id','60dddddd-dddd-4ddd-8ddd-dddddddddddd','le_session_class','mcp_oauth','le_product','workspace','le_binding_version',1,'workspace_mcp',true,'iat',floor(extract(epoch from clock_timestamp())))::text,true);
 set local role authenticated;
 select set_config('request.jwt.claims',current_setting('request.sotf_mcp_claims'),true);
 select is(workspace.sotf_has_access(),true,'an entitled connected MCP session receives SOTF discovery');

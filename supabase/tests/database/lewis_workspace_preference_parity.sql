@@ -9,6 +9,19 @@ insert into auth.users (
   ('00000000-0000-0000-0000-000000000000', '91111111-1111-4111-8111-111111111111', 'authenticated', 'authenticated', 'preferences.alice@example.invalid', '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now()),
   ('00000000-0000-0000-0000-000000000000', '92222222-2222-4222-8222-222222222222', 'authenticated', 'authenticated', 'preferences.bob@example.invalid', '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now());
 
+-- The shared Stage 2 authority contract requires a durable client binding and
+-- a matching Auth session; marker-only OAuth fixture claims are intentionally
+-- no longer sufficient.
+insert into auth.oauth_clients (
+  id, registration_type, client_type, token_endpoint_auth_method,
+  redirect_uris, grant_types, created_at, updated_at
+) values
+  ('9d111111-1111-4111-8111-111111111111', 'dynamic', 'public', 'none', 'https://client.example.invalid/callback', 'authorization_code,refresh_token', now(), now()),
+  ('9d222222-2222-4222-8222-222222222222', 'dynamic', 'public', 'none', 'https://client.example.invalid/callback', 'authorization_code,refresh_token', now(), now()),
+  ('9d333333-3333-4333-8333-333333333333', 'dynamic', 'public', 'none', 'https://client.example.invalid/callback', 'authorization_code,refresh_token', now(), now());
+insert into auth.sessions (id, user_id, oauth_client_id, created_at, updated_at, aal) values
+  ('9e111111-1111-4111-8111-111111111111', '91111111-1111-4111-8111-111111111111', '9d111111-1111-4111-8111-111111111111', now(), now(), 'aal1');
+
 insert into workspace.user_profiles (user_id, display_name, clock_timezones) values
   ('91111111-1111-4111-8111-111111111111', 'Preference Alice', array['America/New_York', 'America/Chicago', 'America/Los_Angeles']),
   ('92222222-2222-4222-8222-222222222222', 'Preference Bob', array['Europe/London', 'Europe/Paris', 'Europe/Rome']);
@@ -38,6 +51,15 @@ insert into workspace_private.mcp_oauth_resource_grants (user_id, client_id, res
   ('91111111-1111-4111-8111-111111111111', '9d222222-2222-4222-8222-222222222222', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']),
   ('92222222-2222-4222-8222-222222222222', '9d333333-3333-4333-8333-333333333333', 'https://workspace.leademergence.com/api/mcp', array['openid', 'email', 'profile']);
 
+update private.oauth_product_binding_control set enabled = true;
+insert into private.oauth_product_client_bindings (
+  client_id, contract_key, product_key, resource_uri, audience_uri,
+  status, source_authorization_id, bound_by_user_id
+) values
+  ('9d111111-1111-4111-8111-111111111111', 'workspace', 'workspace', 'https://workspace.leademergence.com/api/mcp', 'https://workspace.leademergence.com/api/mcp', 'ACTIVE', 'preferences-alice-chatgpt-fixture', '91111111-1111-4111-8111-111111111111'),
+  ('9d222222-2222-4222-8222-222222222222', 'workspace', 'workspace', 'https://workspace.leademergence.com/api/mcp', 'https://workspace.leademergence.com/api/mcp', 'ACTIVE', 'preferences-alice-claude-fixture', '91111111-1111-4111-8111-111111111111'),
+  ('9d333333-3333-4333-8333-333333333333', 'workspace', 'workspace', 'https://workspace.leademergence.com/api/mcp', 'https://workspace.leademergence.com/api/mcp', 'ACTIVE', 'preferences-bob-claude-fixture', '92222222-2222-4222-8222-222222222222');
+
 select set_config(
   'request.test_mcp_resource_uri',
   (select setting_value from workspace_private.product_settings where setting_key = 'mcp_resource_uri'),
@@ -53,9 +75,15 @@ select set_config(
   pg_catalog.jsonb_build_object(
     'sub', '91111111-1111-4111-8111-111111111111',
     'role', 'authenticated',
+    'iss', 'https://cirqqhuvzekbvysiyedg.supabase.co/auth/v1',
     'aud', current_setting('request.test_mcp_resource_uri'),
+    'resource', current_setting('request.test_mcp_resource_uri'),
     'client_id', '9d111111-1111-4111-8111-111111111111',
-    'workspace_mcp', 'true',
+    'session_id', '9e111111-1111-4111-8111-111111111111',
+    'le_session_class', 'mcp_oauth',
+    'le_product', 'workspace',
+    'le_binding_version', 1,
+    'workspace_mcp', true,
     'iat', 1700000000
   )::text,
   true
