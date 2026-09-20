@@ -1,8 +1,10 @@
 const TIMESTAMP_WINDOW_SECONDS = 300;
+const MAX_PROJECTION_BODY_BYTES = 8 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HEX_SHA256_PATTERN = /^[0-9a-f]{64}$/i;
 
 type ProjectionKind = "BILLING" | "NON_BILLING_AUTHORITY";
+type ProjectionData = Record<string, string | boolean | null>;
 
 export type ProjectionEnvelope = {
   protocol_version: "1";
@@ -11,7 +13,7 @@ export type ProjectionEnvelope = {
   projection_version: number;
   canonical_user_id: string;
   projected_at: string;
-  projection_data: Record<string, unknown>;
+  projection_data: ProjectionData;
 };
 
 type ProjectionHandlerDependencies = {
@@ -19,6 +21,13 @@ type ProjectionHandlerDependencies = {
   apply: (envelope: ProjectionEnvelope) => Promise<unknown>;
   now?: () => number;
 };
+
+export class ProjectionConflictError extends Error {
+  constructor() {
+    super("Projection conflict.");
+    this.name = "ProjectionConflictError";
+  }
+}
 
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -39,7 +48,7 @@ function isNullableTimestamp(value: unknown) {
   return value === null || isIsoTimestamp(value);
 }
 
-function validProjectionData(kind: ProjectionKind, data: unknown): data is Record<string, unknown> {
+function validProjectionData(kind: ProjectionKind, data: unknown): data is ProjectionData {
   if (!data || typeof data !== "object" || Array.isArray(data)) return false;
   const value = data as Record<string, unknown>;
   if (kind === "BILLING") {
@@ -140,6 +149,36 @@ async function verifySignature(secret: string, timestamp: string, rawBody: strin
   );
 }
 
+async function readProjectionBody(request: Request): Promise<string | null> {
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength && /^\d+$/.test(declaredLength) && Number(declaredLength) > MAX_PROJECTION_BODY_BYTES) {
+    return null;
+  }
+  if (!request.body) return "";
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalLength += value.byteLength;
+    if (totalLength > MAX_PROJECTION_BODY_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+
+  const body = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(body);
+}
+
 export function createPersonalAuthorityProjectionHandler({
   secret,
   apply,
@@ -161,7 +200,8 @@ export function createPersonalAuthorityProjectionHandler({
       return json(401, { error: "PROJECTION_TIMESTAMP_REJECTED" });
     }
 
-    const rawBody = await request.text();
+    const rawBody = await readProjectionBody(request);
+    if (rawBody === null) return json(413, { error: "PROJECTION_PAYLOAD_TOO_LARGE" });
     if (!await verifySignature(secret, timestamp, rawBody, signature)) {
       return json(401, { error: "PROJECTION_SIGNATURE_REJECTED" });
     }
@@ -172,10 +212,13 @@ export function createPersonalAuthorityProjectionHandler({
     try {
       const result = await apply(envelope);
       return json(200, { accepted: true, result });
-    } catch {
-      return json(409, { error: "PROJECTION_REJECTED" });
+    } catch (error) {
+      if (error instanceof ProjectionConflictError) {
+        return json(409, { error: "PROJECTION_REJECTED" });
+      }
+      return json(503, { error: "PROJECTION_TEMPORARILY_UNAVAILABLE" });
     }
   };
 }
 
-export { TIMESTAMP_WINDOW_SECONDS };
+export { MAX_PROJECTION_BODY_BYTES, TIMESTAMP_WINDOW_SECONDS };

@@ -11,6 +11,13 @@ port = 56422
 shadow_port = 56420
 major_version = 15
 
+[db.pooler]
+enabled = true
+port = 56429
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
 [studio]
 port = 56423
 

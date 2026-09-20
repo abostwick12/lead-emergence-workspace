@@ -67,7 +67,8 @@ function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactN
       : accessState.reason === "SUBSCRIPTION_ENDED"
         ? "Subscription ended"
         : "Workspace access suspended";
-    return <main className="main"><CapabilityLockedState title={title} benefit="Your Personal Workspace and membership remain intact." suspended /></main>;
+    const recoveryAction = <div><p>Billing management is not available from this locked Workspace yet. Sign out to leave this session or use another account.</p>{signOutError ? <p className="error" role="alert">{signOutError}</p> : null}<button className="button secondary" disabled={signingOut} onClick={() => void handleSignOut()}>{signingOut ? "Signing out…" : "Sign out or switch accounts"}</button></div>;
+    return <main className="main"><CapabilityLockedState title={title} benefit="Your Personal Workspace and membership remain intact." suspended recoveryAction={recoveryAction} /></main>;
   }
   if (!onboarding) return <main className="auth-page"><p className="muted">Loading your Workspace setup…</p></main>;
   if (!onboardingComplete && !setupRoute) return <main className="auth-page"><p className="muted">Resuming your Workspace setup…</p></main>;

@@ -1,7 +1,11 @@
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { createPersonalAuthorityProjectionHandler } from "../supabase/functions/personal-authority-projection/handler";
+import {
+  createPersonalAuthorityProjectionHandler,
+  MAX_PROJECTION_BODY_BYTES,
+  ProjectionConflictError,
+} from "../supabase/functions/personal-authority-projection/handler";
 
 const secret = "slice-d-local-test-secret-with-32-characters";
 const now = Date.parse("2026-09-19T18:00:00.000Z");
@@ -118,9 +122,57 @@ describe("PERSONAL authority projection Edge Function", () => {
     expect(workspaceEnvironment).not.toMatch(/^SUPABASE_SERVICE_ROLE_KEY=/m);
   });
 
+  it("maps a deterministic projection conflict to 409", async () => {
+    const handler = createPersonalAuthorityProjectionHandler({
+      secret,
+      apply: vi.fn().mockRejectedValue(new ProjectionConflictError()),
+      now: () => now,
+    });
+    const response = await handler(signedRequest(JSON.stringify(envelope)));
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "PROJECTION_REJECTED" });
+  });
+
+  it("maps an unclassified operational failure to a retryable 503 without details", async () => {
+    const handler = createPersonalAuthorityProjectionHandler({
+      secret,
+      apply: vi.fn().mockRejectedValue(new Error("database host leaked detail")),
+      now: () => now,
+    });
+    const response = await handler(signedRequest(JSON.stringify(envelope)));
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "PROJECTION_TEMPORARILY_UNAVAILABLE" });
+  });
+
+  it("rejects an oversized declared body before projection processing", async () => {
+    const rawBody = JSON.stringify(envelope);
+    const apply = vi.fn();
+    const request = signedRequest(rawBody);
+    request.headers.set("content-length", String(MAX_PROJECTION_BODY_BYTES + 1));
+    const handler = createPersonalAuthorityProjectionHandler({ secret, apply, now: () => now });
+    const response = await handler(request);
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toEqual({ error: "PROJECTION_PAYLOAD_TOO_LARGE" });
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it("rejects oversized actual bytes when Content-Length is absent", async () => {
+    const rawBody = "x".repeat(MAX_PROJECTION_BODY_BYTES + 1);
+    const apply = vi.fn();
+    const request = signedRequest(rawBody);
+    request.headers.delete("content-length");
+    const handler = createPersonalAuthorityProjectionHandler({ secret, apply, now: () => now });
+    const response = await handler(request);
+    expect(response.status).toBe(413);
+    expect(apply).not.toHaveBeenCalled();
+  });
+
   it("does not provide a Stripe secret to the Edge Function", () => {
     const edgeSource = readFileSync("supabase/functions/personal-authority-projection/index.ts", "utf8");
     expect(edgeSource).not.toContain("STRIPE_SECRET");
     expect(edgeSource).not.toContain("STRIPE_WEBHOOK");
+    expect(edgeSource).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(edgeSource).toContain("WORKSPACE_PROJECTION_DB_URL");
+    expect(edgeSource).toContain("prepare: false");
   });
 });

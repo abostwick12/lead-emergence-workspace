@@ -1,5 +1,5 @@
 begin;
-select plan(52);
+select plan(63);
 
 select is(
   (select setting_value from workspace_private.product_settings
@@ -21,7 +21,12 @@ select is(has_function_privilege(
   'service_role',
   'workspace.apply_personal_authority_projection(text,uuid,text,bigint,uuid,timestamptz,jsonb)',
   'execute'
-), true, 'The Edge Function service role can invoke the single projection RPC');
+), false, 'The service role cannot invoke the Edge projection RPC');
+select is(has_function_privilege(
+  'workspace_projection_writer',
+  'workspace.apply_personal_authority_projection(text,uuid,text,bigint,uuid,timestamptz,jsonb)',
+  'execute'
+), true, 'The dedicated writer can invoke the single projection RPC');
 select is(has_function_privilege(
   'authenticated',
   'workspace.apply_personal_authority_projection(text,uuid,text,bigint,uuid,timestamptz,jsonb)',
@@ -32,10 +37,28 @@ select is(has_function_privilege(
   'workspace.apply_personal_authority_projection(text,uuid,text,bigint,uuid,timestamptz,jsonb)',
   'execute'
 ), false, 'Anonymous callers cannot invoke the projection RPC');
-select is(has_schema_privilege('service_role','workspace','usage'),true,
-  'The Edge Function service role has only the required schema usage path');
-select is(has_schema_privilege('service_role','workspace','create'),false,
-  'The correction grants no schema create privilege');
+select is(has_schema_privilege('workspace_projection_writer','workspace','usage'),true,
+  'The dedicated writer has the required schema usage path');
+select is(has_schema_privilege('workspace_projection_writer','workspace','create'),false,
+  'The dedicated writer has no schema create privilege');
+select is((select rolcanlogin from pg_roles where rolname = 'workspace_projection_owner'), false,
+  'The projection owner cannot log in');
+select is((select rolcanlogin from pg_roles where rolname = 'workspace_projection_writer'), true,
+  'The projection writer is the dedicated login identity');
+select is((select rolsuper or rolcreatedb or rolcreaterole or rolreplication or rolbypassrls
+  from pg_roles where rolname = 'workspace_projection_writer'), false,
+  'The projection writer has no elevated role attributes');
+select is(has_table_privilege('workspace_projection_writer',
+  'workspace_private.personal_billing_projections','select,insert,update,delete'),false,
+  'The projection writer has no direct billing projection table privilege');
+select is(has_table_privilege('workspace_projection_writer',
+  'workspace_private.personal_access_authority_projections','select,insert,update,delete'),false,
+  'The projection writer has no direct non-billing projection table privilege');
+select is(has_function_privilege(
+  'workspace_projection_writer',
+  'workspace.mcp_verify_current_authority()',
+  'execute'
+), false, 'The projection writer cannot invoke unrelated Workspace RPCs');
 select ok(not exists (
   select 1
   from pg_proc as function_record,
@@ -45,7 +68,9 @@ select ok(not exists (
     and acl.privilege_type = 'EXECUTE'
 ), 'PUBLIC cannot invoke the projection RPC');
 
-set local role service_role;
+grant workspace_projection_writer to postgres;
+grant usage on schema extensions to workspace_projection_writer;
+set local role workspace_projection_writer;
 select results_eq(
   $$select (workspace.apply_personal_authority_projection(
       '1',
@@ -68,7 +93,7 @@ select results_eq(
   'Sponsored authority is stored separately from billing'
 );
 
-set local role service_role;
+set local role workspace_projection_writer;
 select results_eq(
   $$select (workspace.apply_personal_authority_projection(
       '1','00000000-0000-4000-8000-00000000d102','NON_BILLING_AUTHORITY',9,
@@ -86,7 +111,7 @@ select is(
   'ACTIVE',
   'A stale projection cannot overwrite newer authority'
 );
-set local role service_role;
+set local role workspace_projection_writer;
 select results_eq(
   $$select (workspace.apply_personal_authority_projection(
       '1','00000000-0000-4000-8000-00000000d101','NON_BILLING_AUTHORITY',10,
@@ -117,7 +142,7 @@ select results_eq(
   $$select (workspace.apply_personal_authority_projection(
       '1','00000000-0000-4000-8000-00000000d105','BILLING',20,
       '00000000-0000-4000-8000-00000000d001','2026-09-19 18:04:00+00',
-      '{"effective_state":"ACTIVE","trial_started_at":null,"trial_ends_at":null,"current_period_started_at":null,"current_period_ends_at":null,"grace_until":null,"cancel_at_period_end":false,"payment_method_required":false}'::jsonb
+      '{"effective_state":"ACTIVE","trial_started_at":null,"trial_ends_at":null,"current_period_started_at":null,"current_period_ends_at":"2026-09-20T00:00:00Z","grace_until":null,"cancel_at_period_end":false,"payment_method_required":false}'::jsonb
     )->>'projection_result')$$,
   array['APPLIED'],
   'The same fixed RPC applies a normalized billing projection'
@@ -135,14 +160,32 @@ where setting_key = 'phase_2_2_billing_enforcement_enabled';
 
 select is(workspace_private.has_effective_personal_access_for_canonical(
   '00000000-0000-4000-8000-00000000d001','2026-09-19 18:05:00+00'), true,
-  'ACTIVE billing allows access');
+  'ACTIVE before its period boundary allows access');
+select is(workspace_private.has_effective_personal_access_for_canonical(
+  '00000000-0000-4000-8000-00000000d001','2026-09-20 00:00:00+00'), false,
+  'ACTIVE at its period boundary denies access');
+select workspace_private.apply_personal_billing_projection(
+  '00000000-0000-4000-8000-00000000d002','ACTIVE',null,null,null,null,null,false,false,
+  1,'00000000-0000-4000-8000-00000000d202','2026-09-19 18:05:30+00');
+select is(workspace_private.has_effective_personal_access_for_canonical(
+  '00000000-0000-4000-8000-00000000d002','2026-09-19 18:06:00+00'), false,
+  'ACTIVE with a missing period boundary denies access');
 
 select workspace_private.apply_personal_billing_projection(
   '00000000-0000-4000-8000-00000000d001','TRIALING',null,'2026-09-26 00:00:00+00',null,null,null,false,true,
   21,'00000000-0000-4000-8000-00000000d106','2026-09-19 18:06:00+00');
 select is(workspace_private.has_effective_personal_access_for_canonical(
   '00000000-0000-4000-8000-00000000d001','2026-09-19 18:07:00+00'), true,
-  'TRIALING billing allows access');
+  'TRIALING before its trial boundary allows access');
+select is(workspace_private.has_effective_personal_access_for_canonical(
+  '00000000-0000-4000-8000-00000000d001','2026-09-26 00:00:00+00'), false,
+  'TRIALING at its trial boundary denies access');
+select workspace_private.apply_personal_billing_projection(
+  '00000000-0000-4000-8000-00000000d003','TRIALING',null,null,null,null,null,false,true,
+  1,'00000000-0000-4000-8000-00000000d203','2026-09-19 18:06:30+00');
+select is(workspace_private.has_effective_personal_access_for_canonical(
+  '00000000-0000-4000-8000-00000000d003','2026-09-19 18:07:00+00'), false,
+  'TRIALING with a missing trial boundary denies access');
 
 select workspace_private.apply_personal_billing_projection(
   '00000000-0000-4000-8000-00000000d001','PAYMENT_GRACE',null,null,null,null,'2026-09-20 00:00:00+00',false,true,
@@ -210,7 +253,7 @@ select is(workspace_private.has_effective_personal_access_for_canonical(
   '00000000-0000-4000-8000-00000000d001','2026-09-19 18:21:00+00'), true,
   'ACTIVE internal operator authority allows access');
 
-set local role service_role;
+set local role workspace_projection_writer;
 select throws_ok(
   $$select workspace.apply_personal_authority_projection(
       '1','00000000-0000-4000-8000-00000000d115','NON_BILLING_AUTHORITY',30,
@@ -230,6 +273,8 @@ select throws_ok(
   'LEGACY_PREBILLING cannot be projected as access'
 );
 reset role;
+revoke usage on schema extensions from workspace_projection_writer;
+revoke workspace_projection_writer from postgres;
 
 select workspace_private.apply_personal_access_authority_projection(
   '00000000-0000-4000-8000-00000000d001','INTERNAL_OPERATOR','SUSPENDED','operator_allowlist',32,
@@ -250,7 +295,7 @@ select is(workspace_private.has_effective_personal_access_for_canonical(
   '00000000-0000-4000-8000-00000000d001','2026-09-19 18:29:00+00'), true,
   'Suspended billing plus active internal authority allows');
 select workspace_private.apply_personal_billing_projection(
-  '00000000-0000-4000-8000-00000000d001','ACTIVE',null,null,null,null,null,false,false,
+  '00000000-0000-4000-8000-00000000d001','ACTIVE',null,null,null,'2026-09-20 00:00:00+00',null,false,false,
   36,'00000000-0000-4000-8000-00000000d121','2026-09-19 18:30:00+00');
 select workspace_private.apply_personal_access_authority_projection(
   '00000000-0000-4000-8000-00000000d001','INTERNAL_OPERATOR','REVOKED','operator_allowlist',37,
@@ -368,7 +413,7 @@ select workspace_private.apply_personal_access_authority_projection(
   '00000000-0000-4000-8000-00000000d001','SPONSORED_ACCESS','REVOKED','family_comp_2026',40,
   '00000000-0000-4000-8000-00000000d125','2026-09-19 18:36:00+00');
 select workspace_private.apply_personal_billing_projection(
-  '00000000-0000-4000-8000-00000000d001','ACTIVE',null,null,null,null,null,false,false,
+  '00000000-0000-4000-8000-00000000d001','ACTIVE',null,null,null,'2099-01-01 00:00:00+00',null,false,false,
   41,'00000000-0000-4000-8000-00000000d126','2026-09-19 18:37:00+00');
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"00000000-0000-4000-8000-00000000d201","role":"authenticated","aud":"authenticated"}',true);
