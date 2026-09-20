@@ -1,5 +1,5 @@
 begin;
-select plan(63);
+select plan(74);
 
 select is(
   (select setting_value from workspace_private.product_settings
@@ -22,6 +22,30 @@ select is(has_function_privilege(
   'workspace.apply_personal_authority_projection(text,uuid,text,bigint,uuid,timestamptz,jsonb)',
   'execute'
 ), false, 'The service role cannot invoke the Edge projection RPC');
+select is(has_schema_privilege('service_role','workspace','usage'),false,
+  'The service role no longer retains temporary Workspace schema usage');
+select is(has_table_privilege('service_role',
+  'workspace_private.personal_billing_projections','select'),false,
+  'The service role cannot read billing projections directly');
+select is(has_table_privilege('service_role',
+  'workspace_private.personal_billing_projections','insert,update'),false,
+  'The service role cannot write billing projections directly');
+select is(has_table_privilege('service_role',
+  'workspace_private.personal_access_authority_projections','select'),false,
+  'The service role cannot read non-billing authority projections directly');
+select is(has_table_privilege('service_role',
+  'workspace_private.personal_access_authority_projections','insert,update'),false,
+  'The service role cannot write non-billing authority projections directly');
+select is(has_function_privilege(
+  'service_role',
+  'workspace_private.apply_personal_billing_projection(uuid,workspace_private.personal_billing_effective_state,timestamptz,timestamptz,timestamptz,timestamptz,timestamptz,boolean,boolean,bigint,text,timestamptz)',
+  'execute'
+), false, 'The service role cannot invoke the private billing projection function');
+select is(has_function_privilege(
+  'service_role',
+  'workspace_private.apply_personal_access_authority_projection(uuid,workspace_private.personal_access_authority_kind,workspace_private.personal_access_authority_status,text,bigint,uuid,timestamptz)',
+  'execute'
+), false, 'The service role cannot invoke the private authority projection function');
 select is(has_function_privilege(
   'workspace_projection_writer',
   'workspace.apply_personal_authority_projection(text,uuid,text,bigint,uuid,timestamptz,jsonb)',
@@ -43,11 +67,21 @@ select is(has_schema_privilege('workspace_projection_writer','workspace','create
   'The dedicated writer has no schema create privilege');
 select is((select rolcanlogin from pg_roles where rolname = 'workspace_projection_owner'), false,
   'The projection owner cannot log in');
+select is((select rolinherit from pg_roles where rolname = 'workspace_projection_owner'), false,
+  'The projection owner does not inherit privileges');
+select is((select rolsuper or rolcreatedb or rolcreaterole or rolreplication or rolbypassrls
+  from pg_roles where rolname = 'workspace_projection_owner'), false,
+  'The projection owner has no elevated role attributes');
 select is((select rolcanlogin from pg_roles where rolname = 'workspace_projection_writer'), true,
   'The projection writer is the dedicated login identity');
+select is((select rolinherit from pg_roles where rolname = 'workspace_projection_writer'), false,
+  'The projection writer does not inherit privileges');
 select is((select rolsuper or rolcreatedb or rolcreaterole or rolreplication or rolbypassrls
   from pg_roles where rolname = 'workspace_projection_writer'), false,
   'The projection writer has no elevated role attributes');
+select is((select count(*) from pg_auth_members
+  where member = 'workspace_projection_writer'::regrole), 0::bigint,
+  'The projection writer has no role memberships');
 select is(has_table_privilege('workspace_projection_writer',
   'workspace_private.personal_billing_projections','select,insert,update,delete'),false,
   'The projection writer has no direct billing projection table privilege');
