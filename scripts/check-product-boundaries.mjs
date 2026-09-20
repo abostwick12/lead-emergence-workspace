@@ -1,7 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 
-const roots = ["app", "components", "lib"];
+const roots = ["app", "components", "lib", "supabase/functions"];
 const forbidden = [/from\s+["'][^"']*(?:emergence-ministry|consulting-os|\/ministry\/|\/consulting\/)[^"']*["']/i, /SUPABASE_SERVICE_ROLE_KEY/, /getSupabaseAdminClient/];
 const files = [];
 async function collect(path) {

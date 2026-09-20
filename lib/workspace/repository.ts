@@ -24,6 +24,12 @@ import type {
 } from "@/lib/workspace/types";
 import { normalizeClockTimeZones, type ClockTimeZones } from "@/lib/workspace/timezones";
 
+export type PersonalAccessState = {
+  enforcement_enabled: boolean;
+  access_allowed: boolean;
+  reason: "LEGACY_PHASE_2_1" | "ACCESS_ACTIVE" | "BILLING_ACTION_REQUIRED" | "ACCESS_SUSPENDED" | "SUBSCRIPTION_ENDED";
+};
+
 function required<T>(data: T | null, error: { message: string } | null): T {
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Workspace record was not returned.");
@@ -273,6 +279,12 @@ export async function getPersonalPlan(workspaceId: string): Promise<PersonalPlan
     .eq("workspace_id", workspaceId)
     .single();
   return required(data as PersonalPlanRecord | null, error);
+}
+
+export async function getPersonalAccessState(): Promise<PersonalAccessState> {
+  const { data, error } = await getWorkspaceClient().rpc("get_personal_access_state");
+  if (error || !data) throw new Error(error?.message || "Workspace access state was not returned.");
+  return data as PersonalAccessState;
 }
 
 export async function listPlanCapabilities(planKey: string): Promise<PlanCapabilityRecord[]> {

@@ -11,6 +11,13 @@ port = 56422
 shadow_port = 56420
 major_version = 15
 
+[db.pooler]
+enabled = true
+port = 56429
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
 [studio]
 port = 56423
 
@@ -41,3 +48,8 @@ allow_dynamic_registration = true
 [auth.hook.custom_access_token]
 enabled = true
 uri = "pg-functions://postgres/workspace_private/custom_access_token_hook"
+
+[functions.personal-authority-projection]
+# This endpoint authenticates the exact raw body with the dedicated HMAC
+# protocol; it deliberately does not accept ordinary user JWTs.
+verify_jwt = false

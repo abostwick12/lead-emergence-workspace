@@ -12,6 +12,7 @@ const configToml = await readFile("supabase/config.toml", "utf8");
 const workspaceResolver = await readFile("lib/workspace/provision.ts", "utf8");
 const workspaceProvider = await readFile("components/workspace-provider.tsx", "utf8");
 const workspaceShell = await readFile("components/workspace-shell.tsx", "utf8");
+const capabilityLockedState = await readFile("components/capability-locked-state.tsx", "utf8");
 const loginPage = await readFile("app/login/page.tsx", "utf8");
 const envExample = await readFile(".env.example", "utf8");
 const nextConfig = await readFile("next.config.mjs", "utf8");
@@ -45,6 +46,8 @@ const sotfOperationsSql = await readFile("supabase/migrations/20260906120000_sot
 const sotfWorkspacePage = await readFile("app/workspace/sotf/page.tsx", "utf8");
 const sotfProfessionalContext = await readFile("lib/sotf/professional-context.ts", "utf8");
 const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
+const projectionEdgeEntrypoint = await readFile("supabase/functions/personal-authority-projection/index.ts", "utf8");
+const projectionHardeningSql = await readFile("supabase/migrations/20260919233000_phase_2_2_projection_review_hardening.sql", "utf8");
 const tenantTables = ["projects", "tasks", "notes", "meetings", "decisions", "commitments", "files", "capture_inbox", "job_applications", "memory_entries", "ai_conversations", "daily_briefings", "knowledge_sources", "knowledge_items", "weekly_feeds", "weekly_feed_items"];
 
 test("uses dedicated exposed and private schemas", () => {
@@ -177,7 +180,26 @@ test("signs out the current browser session before returning to login", () => {
   assert.match(workspaceProvider, /if \(signOutError\) throw signOutError;/);
   assert.match(workspaceShell, /await signOut\(\);\s*window\.location\.replace\("\/login"\);/);
   assert.match(workspaceShell, /disabled=\{signingOut\}/);
+  const lockedBranch = workspaceShell.match(/if \(accessState && !accessState\.access_allowed\)[\s\S]*?if \(!onboarding\)/)?.[0] ?? "";
+  assert.match(lockedBranch, /recoveryAction/);
+  assert.match(lockedBranch, /Sign out or switch accounts/);
+  assert.match(lockedBranch, /handleSignOut\(\)/);
+  assert.doesNotMatch(lockedBranch, /workspace\/settings#plan/);
+  assert.match(capabilityLockedState, /recoveryAction \?\? <Link href="\/workspace\/settings#plan">/);
   assert.match(globalCss, /\.sidebar \{[^}]*position: sticky;[^}]*height: 100vh;[^}]*overflow-y: auto;/);
+});
+
+test("uses a dedicated least-privilege projection writer without service-role runtime authority", () => {
+  assert.match(projectionHardeningSql, /create role workspace_projection_owner nologin noinherit/i);
+  assert.match(projectionHardeningSql, /create role workspace_projection_writer login noinherit/i);
+  assert.match(projectionHardeningSql, /security definer/i);
+  assert.match(projectionHardeningSql, /owner to workspace_projection_owner/i);
+  assert.match(projectionHardeningSql, /grant usage on schema workspace to workspace_projection_writer/i);
+  assert.match(projectionHardeningSql, /grant execute on function workspace\.apply_personal_authority_projection[\s\S]*to workspace_projection_writer/i);
+  assert.doesNotMatch(projectionEdgeEntrypoint, /SUPABASE_SERVICE_ROLE_KEY|createClient\(/i);
+  assert.match(projectionEdgeEntrypoint, /WORKSPACE_PROJECTION_DB_URL/);
+  assert.match(projectionEdgeEntrypoint, /npm:postgres@3\.4\.9/);
+  assert.match(projectionEdgeEntrypoint, /prepare: false/);
 });
 
 test("preserves only an allowlisted Workspace pathname across login", () => {

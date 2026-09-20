@@ -6,6 +6,7 @@ import { getWorkspaceClient } from "@/lib/supabase/client";
 import { resolvePersonalWorkspace } from "@/lib/workspace/provision";
 import {
   getClockTimeZones,
+  getPersonalAccessState,
   getLeaderModeEntitlement,
   getOnboarding,
   getPersonalPlan,
@@ -14,6 +15,7 @@ import {
   listPlanCapabilities,
   saveClockTimeZones
 } from "@/lib/workspace/repository";
+import type { PersonalAccessState } from "@/lib/workspace/repository";
 import { EMPTY_CAPABILITIES, resolveCapabilities, type CapabilityResolution } from "@/lib/workspace/capabilities";
 import { DEFAULT_CLOCK_TIMEZONES, normalizeClockTimeZones, type ClockTimeZones } from "@/lib/workspace/timezones";
 import type { ConfigurationItem, OnboardingRecord, PersonalPlanRecord, WorkspaceRecord } from "@/lib/workspace/types";
@@ -22,6 +24,7 @@ type WorkspaceContextValue = {
   ready: boolean;
   user: User | null;
   workspace: WorkspaceRecord | null;
+  accessState: PersonalAccessState | null;
   onboarding: OnboardingRecord | null;
   plan: PersonalPlanRecord | null;
   capabilities: CapabilityResolution;
@@ -41,6 +44,7 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceRecord | null>(null);
+  const [accessState, setAccessState] = useState<PersonalAccessState | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingRecord | null>(null);
   const [plan, setPlan] = useState<PersonalPlanRecord | null>(null);
   const [capabilities, setCapabilities] = useState<CapabilityResolution>({ ...EMPTY_CAPABILITIES });
@@ -76,6 +80,11 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
         if (!data.user) return;
         if (live) setUser(data.user);
         const personalWorkspace = await resolvePersonalWorkspace(data.user);
+        const currentAccessState = await getPersonalAccessState();
+        if (!live) return;
+        setWorkspace(personalWorkspace);
+        setAccessState(currentAccessState);
+        if (!currentAccessState.access_allowed) return;
         const storedClockTimeZones = await getClockTimeZones(data.user.id).catch((clockError: unknown) => {
           if (live) setClockPreferencesError(clockError instanceof Error ? clockError.message : "Could not load clock preferences.");
           return [...DEFAULT_CLOCK_TIMEZONES] as ClockTimeZones;
@@ -83,7 +92,6 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
         if (!live) return;
         await loadProductState(personalWorkspace);
         if (!live) return;
-        setWorkspace(personalWorkspace);
         setClockTimeZones(storedClockTimeZones);
       } catch (caught) {
         if (live) setError(caught instanceof Error ? caught.message : "Could not load Workspace.");
@@ -96,6 +104,7 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
       if (!session?.user) {
         setUser(null);
         setWorkspace(null);
+        setAccessState(null);
         setOnboarding(null);
         setPlan(null);
         setCapabilities({ ...EMPTY_CAPABILITIES });
@@ -112,13 +121,17 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
   }, [loadProductState]);
 
   const refreshProductState = useCallback(async () => {
-    if (workspace) await loadProductState(workspace);
+    if (!workspace) return;
+    const currentAccessState = await getPersonalAccessState();
+    setAccessState(currentAccessState);
+    if (currentAccessState.access_allowed) await loadProductState(workspace);
   }, [workspace, loadProductState]);
 
   const value = useMemo<WorkspaceContextValue>(() => ({
     ready,
     user,
     workspace,
+    accessState,
     onboarding,
     plan,
     capabilities,
@@ -149,6 +162,7 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
       if (signOutError) throw signOutError;
       setUser(null);
       setWorkspace(null);
+      setAccessState(null);
       setOnboarding(null);
       setPlan(null);
       setCapabilities({ ...EMPTY_CAPABILITIES });
@@ -157,7 +171,7 @@ export function WorkspaceProvider({ children, sotfPilotEnabled = false }: { chil
       setClockTimeZones([...DEFAULT_CLOCK_TIMEZONES]);
       setClockPreferencesError(null);
     }
-  }), [ready, user, workspace, onboarding, plan, capabilities, sotfAccess, configuration, error, clockTimeZones, clockPreferencesError, refreshProductState]);
+  }), [ready, user, workspace, accessState, onboarding, plan, capabilities, sotfAccess, configuration, error, clockTimeZones, clockPreferencesError, refreshProductState]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
