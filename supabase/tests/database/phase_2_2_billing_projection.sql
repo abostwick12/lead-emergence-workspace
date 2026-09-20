@@ -27,8 +27,8 @@ select is(
     'workspace_private.apply_personal_billing_projection(uuid,workspace_private.personal_billing_effective_state,timestamptz,timestamptz,timestamptz,timestamptz,timestamptz,boolean,boolean,bigint,text,timestamptz)',
     'execute'
   ),
-  true,
-  'Only the service role receives the projection write contract'
+  false,
+  'The service role cannot invoke the private billing projection function'
 );
 select is(
   has_function_privilege(
@@ -60,7 +60,6 @@ select
   (select count(*) from workspace.workspaces) as workspace_count,
   (select count(*) from workspace.workspace_memberships) as membership_count;
 
-set local role service_role;
 select results_eq(
   $$select projection_result || ':' || effective_version::text
     from workspace_private.apply_personal_billing_projection(
@@ -78,9 +77,8 @@ select results_eq(
       '2026-09-19 18:00:00+00'
     )$$,
   array['APPLIED:2'],
-  'A service writer can apply a normalized projection'
+  'The private projection function applies a normalized projection for its database owner'
 );
-reset role;
 
 select results_eq(
   $$select effective_state::text || ':' || source_billing_version::text
@@ -90,7 +88,6 @@ select results_eq(
   'The normalized state and source version are stored without Stripe identifiers'
 );
 
-set local role service_role;
 select results_eq(
   $$select projection_result || ':' || effective_version::text
     from workspace_private.apply_personal_billing_projection(
@@ -110,7 +107,6 @@ select results_eq(
   array['STALE_IGNORED:2'],
   'A stale projection is ignored'
 );
-reset role;
 
 select results_eq(
   $$select effective_state::text || ':' || source_event_id
@@ -120,7 +116,6 @@ select results_eq(
   'A stale projection cannot overwrite newer state'
 );
 
-set local role service_role;
 select results_eq(
   $$select projection_result || ':' || effective_version::text
     from workspace_private.apply_personal_billing_projection(
@@ -159,7 +154,6 @@ select throws_ok(
   'Projection version conflict.',
   'An equal version with different content is rejected'
 );
-reset role;
 
 select is(
   (select count(*) from workspace.workspaces),
@@ -216,7 +210,6 @@ values (
   'active'
 );
 
-set local role service_role;
 select results_eq(
   $$select projection_result || ':' || effective_version::text
     from workspace_private.apply_personal_billing_projection(
@@ -255,7 +248,6 @@ select throws_ok(
   null,
   'A source event ID cannot be applied to two canonical users'
 );
-reset role;
 
 set local role authenticated;
 select set_config(
