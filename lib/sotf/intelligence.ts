@@ -24,11 +24,11 @@ export type Assessment = { opportunityId: string; eligibility: "eligible" | "unr
 const dimensionQuestions: Record<Dimension, string> = {
   experience: "Which accomplishments would demonstrate success in the first six months, and what proof is missing?",
   actual_work: "What decisions would this role own, and what did a typical week look like for its current or previous holder?",
-  culture: "Can a practitioner describe a recent disagreement, decision, and escalation in this specific team?",
+  culture: "Ask a practitioner about a recent disagreement, the decision that followed, and how this team handled it.",
   values: "What happens when the team's stated values conflict with a delivery or commercial deadline?",
   environment: "How do the manager, team structure, pace, and working arrangements affect day-to-day autonomy?",
   trajectory: "What did people in this role go on to do, and which capabilities became more portable?",
-  lifestyle: "Which travel, location, schedule, benefits, and compensation terms are established rather than estimated?"
+  lifestyle: "Which travel, location, schedule, benefits, and compensation terms are confirmed rather than estimated?"
 };
 function credible(evidence: Evidence): boolean { return evidence.review === "accepted" && !["inference", "community"].includes(evidence.source.kind); }
 
@@ -52,7 +52,7 @@ export function assessOpportunity(state: PilotState, opportunityId: string): Ass
       contextImpact.push(`Your confirmed criterion “${criterion.label}: ${criterion.desired}” changes this assessment: ${conflict.statement}${support ? ` Conflicting support also exists: ${support.statement}` : ""}`);
       if (criterion.nonNegotiable && credible(conflict) && conflict.reliability === "high" && !support) blockers.push(`Non-negotiable conflict — ${criterion.label}: ${conflict.statement}`);
     } else if (support) contextImpact.push(`Your confirmed criterion “${criterion.label}: ${criterion.desired}” is supported by: ${support.statement}`);
-    else if (criterion.nonNegotiable) criterionUnknowns.push(`Resolve your non-negotiable criterion: ${criterion.label} — ${criterion.desired}`);
+    else if (criterion.nonNegotiable) criterionUnknowns.push(`Resolve this non-negotiable criterion: ${criterion.label} — ${criterion.desired}`);
   }
   if (!state.criteria.length) contextImpact.push("No operational criteria have been confirmed. This assessment cannot yet explain personal fit. Protected Professional Context is unavailable in this pilot slice.");
   const vector = (Object.keys(DIMENSIONS) as Dimension[]).map((dimension): VectorRow => {
@@ -77,10 +77,10 @@ export function assessOpportunity(state: PilotState, opportunityId: string): Ass
   const enoughFit = ["experience", "actual_work"].every((dimension) => vector.some((row) => row.dimension === dimension && row.score !== null && row.score >= 5 && row.confidence !== "low"));
   const recommendation = blockers.length ? "NO" : eligibility === "eligible" && state.criteria.length > 0 && !unanswered.length && !weak.length && enoughFit ? "GO" : "MAYBE";
   const unknowns = [...new Set([...unanswered, ...fitUnknowns])];
-  const nextInvestigation = blockers[0] ? `Resolve whether this condition can change before further investment: ${blockers[0]}` : unknowns[0] ?? "Validate remaining team-specific assumptions with a practitioner before committing more time.";
+  const nextInvestigation = blockers[0] ? `Resolve whether this condition can change before investing more time: ${blockers[0]}` : unknowns[0] ?? "Ask a practitioner to test the remaining team-specific assumptions before you commit more time.";
   const reasons = recommendation === "NO" ? ["A verified requirement or confirmed non-negotiable conflicts with this opportunity. Strong scores cannot offset it.", ...blockers]
     : recommendation === "GO" ? ["Eligibility is established and reviewed evidence supports experience and actual work. Continue proportionate investigation of the remaining unknowns."]
-      : ["This opportunity needs a targeted investigation before a confident pursuit decision.", ...unanswered.slice(0, 2), ...weak.map((row) => `${row.label} has material conflicting evidence.`)];
+      : ["This opportunity needs one focused investigation before you decide.", ...unanswered.slice(0, 2), ...weak.map((row) => `${row.label} has material conflicting evidence.`)];
   return { opportunityId, eligibility, recommendation, confidence: blockers.length || vector.filter((row) => row.confidence === "high").length >= 4 ? "high" : enoughFit ? "medium" : "low", vector, blockers, unknowns, reasons, contextImpact, nextInvestigation,
     questions: [...new Set([nextInvestigation, ...vector.filter((row) => row.score === null || row.conflicting.length).map((row) => dimensionQuestions[row.dimension])])].slice(0, 8),
     positioning: recallStories(state, `${opportunity.role} ${opportunity.description} ${opportunity.actualWork}`),
@@ -99,9 +99,9 @@ export function prepareMeeting(state: PilotState, meetingId: string) {
   const person = state.people.find((item) => item.id === meeting.personId);
   const opportunity = state.opportunities.find((item) => item.id === meeting.opportunityId);
   const prior = state.meetings.filter((item) => item.id !== meetingId && Boolean(meeting.personId) && item.personId === meeting.personId && item.debrief && item.startsAt < meeting.startsAt);
-  const questions = [...new Set([`What would help us resolve: ${meeting.objective}`, ...(opportunity ? assessOpportunity(state, opportunity.id).questions : []), "What changes are most affecting the work your team does?", "What surprised you about the actual day-to-day work?", "Which decisions can someone in this role make independently?", "What would you suggest I test or demonstrate next?", "Which work samples, resources, or practitioner conversations would help me learn more?"])].slice(0, 8);
+  const questions = [...new Set([`What would we need to learn to answer: ${meeting.objective}`, ...(opportunity ? assessOpportunity(state, opportunity.id).questions : []), "What changes are most affecting the work your team does?", "What surprised you about the day-to-day work?", "Which decisions can someone in this role make independently?", "What would you suggest I test or demonstrate next?", "Which work samples, resources, or conversations would help me learn more?"])].slice(0, 8);
   return { meeting, person: person ?? null, company: opportunity?.company ?? person?.company ?? "Company context not supplied", functionContext: opportunity?.actualWork || person?.role || "Ask for function context", priorInteractions: prior.map((item) => ({ title: item.title, at: item.startsAt, said: item.debrief!.said })), hypotheses: meeting.hypothesisIds.map((id) => hypothesisLearning(state, id)), objective: meeting.objective, alreadyKnown: state.evidence.filter((item) => item.review === "accepted" && ((meeting.opportunityId && item.opportunityId === meeting.opportunityId) || (meeting.personId && item.personId === meeting.personId))), questions,
-    introduction: `I'm exploring ${meeting.hypothesisIds.map((id) => state.hypotheses.find((item) => item.id === id)?.proposition).filter(Boolean).join(" and ") || "my next professional chapter"}. I'd value your perspective on ${meeting.objective.toLowerCase()}.`,
+    introduction: `I’m looking at ${meeting.hypothesisIds.map((id) => state.hypotheses.find((item) => item.id === id)?.proposition).filter(Boolean).join(" and ") || "my next professional chapter"}. Could you help me understand ${meeting.objective.toLowerCase()}?`,
     avoid: ["Do not ask for confidential employer information.", "Do not assume an introduction or referral has been agreed.", "Avoid asking questions already answered in the prior interaction notes."], commitments: state.commitments.filter((item) => (item.meetingId === meetingId || (meeting.personId && item.personId === meeting.personId)) && item.status !== "cancelled") };
 }
 
@@ -112,7 +112,7 @@ export function prepareCoaching(state: PilotState, since?: string) {
   const developments = state.evidence.filter((item) => item.review === "accepted" && (item.reviewedAt ?? item.createdAt) > last);
   const decisions = state.opportunities.filter((item) => ["exploring", "investigate", "pause"].includes(item.status)).map((item) => ({ opportunity: item, assessment: assessOpportunity(state, item.id) }));
   return { since: last, changed, completed: commitments.filter((item) => item.status === "done"), stuck: commitments.filter((item) => item.status === "blocked"), openCommitments: commitments.filter((item) => item.status === "open"), developments, hypotheses: state.hypotheses.map((item) => hypothesisLearning(state, item.id)), decisions,
-    agenda: [...decisions.slice(0, 2).map((item) => `${item.opportunity.company}: ${item.assessment.nextInvestigation}`), ...commitments.filter((item) => item.status === "blocked").slice(0, 2).map((item) => `Unblock ${item.title}`), "Which hypothesis should I test next, and what should I stop doing?"],
+    agenda: [...decisions.slice(0, 2).map((item) => `${item.opportunity.company}: ${item.assessment.nextInvestigation}`), ...commitments.filter((item) => item.status === "blocked").slice(0, 2).map((item) => `Unblock ${item.title}`), "Which direction should I test next, and what should I stop doing?"],
     shareable: { generatedFrom: "Selected ordinary transition operations only; review before sharing", summary: state.chapter?.question ?? "Set the next transition question", completed: commitments.filter((item) => item.status === "done").map((item) => item.title), decisions: decisions.map((item) => `${item.opportunity.company} — ${item.opportunity.role}`), nextExperiments: state.hypotheses.filter((item) => item.status === "continue" || item.status === "refine").map((item) => item.nextExperiment) } };
 }
 
@@ -148,7 +148,7 @@ export function prepareInterview(state: PilotState, opportunityId: string, conte
     selfAssessment: prior.map((item) => ({ round: item.round, assessment: item.selfAssessment, nextPreparation: item.nextPreparation })),
     questionsToPractice: [...new Set([...missingExamples.map((item) => "Show a specific example of: " + item), ...opportunity.requirements.slice(0, 3).map((item) => "What evidence demonstrates: " + item.label), "Describe your own contribution to a consequential delivery decision. What did you own, and what did others own?", "Tell me about a disagreement. What changed because of your actions?", "What did you learn from a result that fell short?"])].slice(0, 7),
     questionsForInterviewer: assessment.questions.slice(0, 5),
-    practiceInstructions: "Practice one question at a time in ChatGPT. Give an unscripted answer; compare it with the approved story evidence. Separate clarity, specificity, personal contribution, and missing proof. Never invent metrics or employer feedback.",
+    practiceInstructions: "Practice one question at a time in ChatGPT. Answer in your own words, then compare it with the approved story evidence. Check clarity, specificity, your contribution, and missing proof. Never invent metrics or employer feedback.",
     nextPreparation: prior.at(-1)?.nextPreparation ?? "Choose two relevant stories, establish your contribution, and resolve the most consequential unknown about the work." };
 }
 
