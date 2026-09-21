@@ -101,7 +101,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     }
     case "prepare_outreach": {
       const contact = person(command.personId);
-      draft({ kind: "email", recipient: contact.email ?? contact.name, subject: `A question about ${contact.role || "your work"}`, body: `Hi ${contact.name},\n\n${contact.overlap ? `${contact.overlap}\n\n` : ""}I'm exploring my next professional chapter. ${contact.whyNow}\n\nI'd value a brief conversation to learn: ${contact.objective}\n\nWould you be open to a short conversation? Thank you for considering it.`, personId: contact.id });
+      draft({ kind: "email", recipient: contact.email ?? contact.name, subject: `A question about ${contact.role || "your work"}`, body: `Hi ${contact.name},\n\n${contact.overlap ? `${contact.overlap}\n\n` : ""}I’m looking into my next professional chapter. ${contact.whyNow}\n\nCould I ask you a few questions so I can ${contact.objective.toLowerCase()}?\n\nWould you be open to a short conversation? Thank you for considering it.`, personId: contact.id });
       summary = `Outreach prepared for ${contact.name}; nothing sent.`; break;
     }
     case "record_meeting": {
