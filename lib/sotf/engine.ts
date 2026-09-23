@@ -4,6 +4,13 @@ import { assessOpportunity, requireRecord } from "./intelligence";
 export class RevisionConflict extends Error { constructor() { super("Your SOTF Bundle changed in another session. Refresh and review the current state before retrying."); } }
 function upsert<T extends { id: string }>(records: T[], item: T) { const index = records.findIndex((record) => record.id === item.id); if (index < 0) records.push(item); else records[index] = item; }
 function uniqueIds(records: { id: string }[]) { if (new Set(records.map((item) => item.id)).size !== records.length) throw new Error("Each record needs a distinct ID."); }
+const networkingProgress = ["identified", "attempted", "connection_accepted", "replied", "conversation_scheduled", "conversation_completed"] as const;
+function advanceNetworking(person: PilotState["people"][number], status: typeof networkingProgress[number], now: string) {
+  if (!person.networking) return;
+  const current = networkingProgress.indexOf(person.networking.status as typeof networkingProgress[number]);
+  const next = networkingProgress.indexOf(status);
+  if (current < 0 || next > current) person.networking = { ...person.networking, status, statusUpdatedAt: now };
+}
 
 /** Only ordinary, explicitly confirmed operational data enters this engine. Protected context has no persistence fallback. */
 export function applyCommand(previous: PilotState, input: CommandEnvelope, now = new Date().toISOString()): PilotState {
@@ -96,12 +103,25 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     }
     case "save_person": {
       links(command.person); const current = state.people.find((item) => item.id === command.person.id);
-      upsert(state.people, { ...command.person, firstContact: current?.firstContact, lastInteraction: current?.lastInteraction });
+      const networking = command.person.networking ? { ...command.person.networking, statusUpdatedAt: current?.networking?.status === command.person.networking.status ? current.networking.statusUpdatedAt ?? now : now } : undefined;
+      upsert(state.people, { ...command.person, networking, firstContact: current?.firstContact, lastInteraction: current?.lastInteraction });
       summary = `${command.person.name} matters now: ${command.person.whyNow}`; break;
     }
     case "prepare_outreach": {
       const contact = person(command.personId);
-      draft({ kind: "email", recipient: contact.email ?? contact.name, subject: `A question about ${contact.role || "your work"}`, body: `Hi ${contact.name},\n\n${contact.overlap ? `${contact.overlap}\n\n` : ""}I’m looking into my next professional chapter. ${contact.whyNow}\n\nCould I ask you a few questions so I can ${contact.objective.toLowerCase()}?\n\nWould you be open to a short conversation? Thank you for considering it.`, personId: contact.id });
+      const networking = contact.networking;
+      if (networking?.pathway === "research_wait") throw new Error("This candidate is marked for more research. Record a supported next move before drafting outreach.");
+      const transition = state.chapter && /air force/i.test(`${state.chapter.timing} ${state.chapter.question}`) ? "I’m getting close to retiring from the Air Force" : "I’m exploring my next professional chapter";
+      const directBody = `Hi ${contact.name},\n\n${transition}, and I’m curious about the work you do${contact.role ? ` as ${contact.role}` : ""}. ${contact.overlap ? `${contact.overlap} ` : ""}I’d enjoy learning more about ${contact.objective.toLowerCase()}.`;
+      if (networking?.pathway === "thoughtful_comment" && command.stage === "initial") {
+        draft({ kind: "public_comment", recipient: contact.name, subject: "Thoughtful public comment", body: `I appreciated your perspective on ${contact.whyNow.toLowerCase()}. ${networking.contributionAngle} Thanks for giving me something useful to think about.`, personId: contact.id }, "public-comment");
+      } else if (networking?.pathway === "thoughtful_comment") {
+        draft({ kind: "direct_message", recipient: contact.name, subject: "Follow up after public conversation", body: `Hi ${contact.name},\n\nI appreciated the exchange on your post. ${transition}, and I’m curious about ${contact.objective.toLowerCase()}. I’d enjoy learning more when it is convenient.`, personId: contact.id }, "private-follow-up");
+      } else if (networking?.pathway === "warm_introduction") {
+        draft({ kind: "email", recipient: contact.introductionPath || contact.name, subject: `Possible introduction to ${contact.name}`, body: `Hi,\n\nWould you be comfortable introducing me to ${contact.name}? ${transition}, and I’m curious about ${contact.objective.toLowerCase()}. ${networking.contributionAngle} No pressure if the timing or fit is not right.`, personId: contact.id }, "warm-introduction");
+      } else {
+        draft({ kind: networking ? "direct_message" : "email", recipient: contact.email ?? contact.name, subject: `A question about ${contact.role || "your work"}`, body: directBody, personId: contact.id });
+      }
       summary = `Outreach prepared for ${contact.name}; nothing sent.`; break;
     }
     case "record_meeting": {
@@ -115,6 +135,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       if (current?.debrief && (value.status !== "completed" || value.startsAt !== current.startsAt || value.endsAt !== current.endsAt || value.personId !== current.personId || value.opportunityId !== current.opportunityId)) throw new Error("A completed meeting's occurrence and learning links cannot be rewritten by a calendar refresh.");
       const targetId = current?.id ?? value.id;
       upsert(state.meetings, { ...value, id: targetId, debrief: current?.debrief });
+      if (value.personId && ["planned", "accepted"].includes(value.status)) advanceNetworking(person(value.personId), "conversation_scheduled", now);
       state.actions.filter((item) => item.kind === "calendar_invite" && item.meetingId === targetId && ["draft", "approved_for_manual_execution", "failed"].includes(item.state) && item.meetingStamp !== meetingStamp(targetId)).forEach((item) => { item.state = "superseded"; item.approvedAt = undefined; item.updatedAt = now; });
       if (value.status === "cancelled") state.commitments.filter((item) => item.meetingId === targetId && item.id.endsWith(":prepare")).forEach((item) => { item.status = "cancelled"; item.updatedAt = now; });
       else if (["planned", "accepted"].includes(value.status)) saveCommitment({ id: `${targetId}:prepare`, title: `Prepare: ${value.title}`.slice(0, 240), owner: "Fellow", due: value.startsAt.slice(0, 10), definitionOfDone: `Review the person, prior interactions, and questions needed to resolve: ${value.objective}`, reviewTrigger: "Meeting time, purpose, or participant changes", meetingId: targetId, personId: value.personId, opportunityId: value.opportunityId }, current?.status === "cancelled" || Boolean(current && (current.startsAt !== value.startsAt || current.objective !== value.objective)));
@@ -129,7 +150,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       command.commitments.forEach((value) => saveCommitment({ ...value, meetingId: item.id, personId: value.personId ?? item.personId, opportunityId: value.opportunityId ?? item.opportunityId }));
       state.commitments.filter((value) => value.id === `${item.id}:prepare`).forEach((value) => { value.status = "done"; value.result = "Meeting completed and debrief recorded."; value.updatedAt = now; });
       if (item.personId) {
-        const contact = person(item.personId); contact.lastInteraction = item.startsAt; contact.firstContact ??= item.startsAt; if (command.nextTouch) contact.nextTouch = command.nextTouch;
+        const contact = person(item.personId); contact.lastInteraction = item.startsAt; contact.firstContact ??= item.startsAt; if (command.nextTouch) contact.nextTouch = command.nextTouch; advanceNetworking(contact, "conversation_completed", now);
         draft({ kind: "email", recipient: contact.email ?? contact.name, subject: `Thank you — ${item.title}`.slice(0, 240), body: `Hi ${contact.name},\n\nThank you for the conversation. What I took from it: ${command.said}\n\n${command.commitments.length ? `My next step is ${command.commitments[0].title}.` : "I appreciate your perspective as I consider my next step."}`, personId: contact.id, meetingId: item.id }, "thank-you");
       }
       summary = `${item.title}: debrief recorded, ${command.evidence.length} evidence item(s) awaiting review, follow-through prepared.`; break;
@@ -214,6 +235,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       if (item.state !== "approved_for_manual_execution" && !(item.state === "uncertain" && command.outcome === "manually_completed")) throw new Error("Only an approved action can receive an execution result.");
       item.state = command.outcome; item.receipt = command.receipt; item.updatedAt = now;
       if (command.outcome === "manually_completed" && item.personId) { const contact = person(item.personId); contact.firstContact ??= now; contact.lastInteraction = now; }
+      if (command.outcome === "manually_completed" && item.personId) advanceNetworking(person(item.personId), "attempted", now);
       summary = `Action ${command.outcome}: ${command.receipt}`; break;
     }
     case "retry_action": {

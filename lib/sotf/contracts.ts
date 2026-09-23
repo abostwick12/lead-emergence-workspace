@@ -17,7 +17,25 @@ export const sourceSchema = z.strictObject({ kind: z.enum(["job_post", "company_
 export const evidenceSchema = z.strictObject({ id, statement: text, source: sourceSchema, direction: z.enum(["supporting", "conflicting", "neutral"]), dimension: dimensionSchema.optional(), opportunityId: id.optional(), hypothesisIds: ids, personId: id.optional(), meetingId: id.optional(), reliability: z.enum(["low", "medium", "high"]), criterionId: id.optional(), score: z.number().int().min(0).max(10).optional(), explanation: note });
 export const requirementSchema = z.strictObject({ id, label: short, category: z.enum(["mandatory", "preferred", "clearance", "education", "certification", "authorization", "experience", "location", "travel"]), mandatory: z.boolean(), status: z.enum(["met", "unknown", "not_met"]).default("unknown"), evidenceIds: ids });
 export const opportunitySchema = z.strictObject({ id, company: short, role: short, url: publicUrl.optional(), description: z.string().trim().max(24000).default(""), hypothesisIds: ids, requirements: z.array(requirementSchema).max(40).default([]), deadline: date.optional(), actualWork: note, decisionQuestion: short.default("Should I invest time pursuing this role?") });
-export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional() });
+export const networkingPathwaySchema = z.enum(["direct_outreach", "thoughtful_comment", "warm_introduction", "research_wait"]);
+export const networkingStatusSchema = z.enum(["identified", "attempted", "connection_accepted", "replied", "conversation_scheduled", "conversation_completed", "no_response", "follow_up_due"]);
+export const lampContextSchema = z.strictObject({
+  list: text,
+  alumniAffinity: note,
+  motivation: text,
+  posting: note
+});
+export const networkingCandidateSchema = z.strictObject({
+  weekOf: date,
+  sourceUrl: publicUrl,
+  whyPerson: text,
+  lamp: lampContextSchema,
+  contributionAngle: text,
+  recommendedNextAction: text,
+  pathway: networkingPathwaySchema,
+  status: networkingStatusSchema.default("identified")
+});
+export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional(), networking: networkingCandidateSchema.optional() });
 export const meetingSchema = z.strictObject({ id, title: short, personId: id.optional(), opportunityId: id.optional(), hypothesisIds: ids, kind: z.enum(["networking", "coaching", "interview", "mentor"]), startsAt: timestamp, endsAt: timestamp, status: z.enum(["planned", "accepted", "completed", "cancelled"]).default("planned"), provider: z.enum(["manual", "google_calendar", "outlook"]).default("manual"), sourceEventId: id.optional(), objective: text });
 export const commitmentSchema = z.strictObject({ id, title: short, owner: short.default("Fellow"), due: date.optional(), definitionOfDone: text, reviewTrigger: text, personId: id.optional(), meetingId: id.optional(), opportunityId: id.optional(), hypothesisId: id.optional() });
 export const storySchema = z.strictObject({ id, title: short, situation: text, contribution: text, scope: text, actions: text, outcome: text, skills: z.array(short).min(1).max(20), evidenceIds: ids, approvedLanguage: text, uncertainNumbers: z.array(short).max(10).default([]), confirmed: z.literal(true) });
@@ -36,7 +54,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("resolve_requirement"), opportunityId: id, requirementId: id, status: z.enum(["met", "unknown", "not_met"]), evidenceIds: ids }),
   z.strictObject({ type: z.literal("decide_opportunity"), opportunityId: id, decision: z.enum(["pursue", "investigate", "decline", "pause"]), rationale: text, nextAction: text, revisitWhen: text, due: date.optional() }),
   z.strictObject({ type: z.literal("save_person"), person: personSchema }),
-  z.strictObject({ type: z.literal("prepare_outreach"), personId: id }),
+  z.strictObject({ type: z.literal("prepare_outreach"), personId: id, stage: z.enum(["initial", "private_follow_up"]).default("initial") }),
   z.strictObject({ type: z.literal("record_meeting"), meeting: meetingSchema }),
   z.strictObject({ type: z.literal("debrief_meeting"), meetingId: id, said: text, inferred: note, unresolved: z.array(short).max(15), evidence: z.array(evidenceSchema).max(15), commitments: z.array(commitmentSchema).max(15), introductions: z.array(short).max(10).default([]), nextTouch: date.optional() }),
   z.strictObject({ type: z.literal("save_commitment"), commitment: commitmentSchema }),
@@ -49,7 +67,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("record_offer"), offer: offerSchema }),
   z.strictObject({ type: z.literal("accept_offer"), offerId: id, rationale: text, confirmedAccepted: z.literal(true), startDate: date, checkpoints: z.array(checkpointSchema).min(3).max(15) }),
   z.strictObject({ type: z.literal("review_week"), learned: text, start: text, stop: text, change: text, hypothesisUpdates: z.array(hypothesisSchema).max(5), commitments: z.array(commitmentSchema).max(10) }),
-  z.strictObject({ type: z.literal("prepare_action"), kind: z.enum(["email", "calendar_invite", "coach_share"]), recipient: short, subject: short, body: text, personId: id.optional(), meetingId: id.optional() }),
+  z.strictObject({ type: z.literal("prepare_action"), kind: z.enum(["email", "calendar_invite", "coach_share", "public_comment", "direct_message"]), recipient: short, subject: short, body: text, personId: id.optional(), meetingId: id.optional() }),
   z.strictObject({ type: z.literal("approve_action"), actionId: id, exactRevision: z.number().int().min(1) }),
   z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text }),
   z.strictObject({ type: z.literal("record_action_result"), actionId: id, outcome: z.enum(["manually_completed", "failed", "uncertain"]), receipt: text }),
@@ -63,7 +81,7 @@ export type Criterion = z.infer<typeof criterionSchema>;
 export type Hypothesis = z.infer<typeof hypothesisSchema> & { updatedAt: string };
 export type Evidence = z.infer<typeof evidenceSchema> & { review: "pending" | "accepted" | "rejected"; reviewedAt?: string; reviewRationale?: string; createdAt: string; criterionDesired?: string };
 export type Opportunity = z.infer<typeof opportunitySchema> & { status: "exploring" | "pursue" | "investigate" | "decline" | "pause"; decision?: { rationale: string; nextAction: string; revisitWhen: string; at: string; due?: string; assessmentRevision: number }; createdAt: string };
-export type Person = z.infer<typeof personSchema> & { firstContact?: string; lastInteraction?: string };
+export type Person = z.infer<typeof personSchema> & { firstContact?: string; lastInteraction?: string; networking?: z.infer<typeof networkingCandidateSchema> & { statusUpdatedAt?: string } };
 export type Meeting = z.infer<typeof meetingSchema> & { debrief?: { said: string; inferred: string; unresolved: string[]; introductions: string[]; at: string } };
 export type Commitment = z.infer<typeof commitmentSchema> & { status: "open" | "done" | "blocked" | "cancelled"; result?: string; createdAt: string; updatedAt: string };
 export type Story = z.infer<typeof storySchema> & { createdAt: string; updatedAt: string };
@@ -71,7 +89,7 @@ export type Material = z.infer<typeof materialSchema> & { version: number; creat
 export type Application = { opportunityId: string; submittedAt: string; receipt: string; materials: Material[]; status: "applied" | "rejected" | "withdrawn" | "interview" | "offer"; outcome?: { reason: string; source: string; at: string; nextAction: string } };
 export type Interview = z.infer<typeof interviewSchema> & { recordedAt: string };
 export type Offer = z.infer<typeof offerSchema> & { accepted?: { rationale: string; startDate: string; at: string } };
-export type OutboundAction = { id: string; kind: "email" | "calendar_invite" | "coach_share"; recipient: string; subject: string; body: string; personId?: string; meetingId?: string; revision: number; state: "draft" | "approved_for_manual_execution" | "manually_completed" | "failed" | "uncertain" | "superseded"; meetingStamp?: string; receipt?: string; updatedAt: string; approvedAt?: string };
+export type OutboundAction = { id: string; kind: "email" | "calendar_invite" | "coach_share" | "public_comment" | "direct_message"; recipient: string; subject: string; body: string; personId?: string; meetingId?: string; revision: number; state: "draft" | "approved_for_manual_execution" | "manually_completed" | "failed" | "uncertain" | "superseded"; meetingStamp?: string; receipt?: string; updatedAt: string; approvedAt?: string };
 export type PilotState = {
   schemaVersion: 1; revision: number;
   chapter: { timing: string; question: string; weeklyHours: number; phase: "exploring" | "transitioning" | "professional_work"; startedAt: string; nextFocus?: string; reflection?: string; carryForward?: string[] } | null;

@@ -130,8 +130,65 @@ export function dailyBrief(state: PilotState, now: string): BriefItem[] {
   return items.filter((item) => ![...meetingActions].some((meetingId) => item.id === "commitment:" + meetingId + ":prepare")).sort((a, b) => b.urgency - a.urgency || a.id.localeCompare(b.id)).slice(0, 3);
 }
 
+const networkingResponseStatuses = new Set(["connection_accepted", "replied", "conversation_scheduled", "conversation_completed"]);
+const networkingConversationStatuses = new Set(["conversation_scheduled", "conversation_completed"]);
+const networkingMatureStatuses = new Set([...networkingResponseStatuses, "no_response"]);
+
+export function latestNetworkingWeek(state: PilotState) {
+  return state.people.map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
+}
+
+export function networkingStrategy(state: PilotState, weekOf = latestNetworkingWeek(state), now = new Date().toISOString()) {
+  const target = 25;
+  const conversionTarget = 0.2;
+  const candidates = state.people.filter((item) => item.networking && (!weekOf || item.networking.weekOf === weekOf));
+  const candidateIds = new Set(candidates.map((item) => item.id));
+  const attempts = state.actions.filter((item) => item.personId && candidateIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind));
+  const firstAttempt = new Map<string, string>();
+  attempts.forEach((item) => { if (item.personId && (!firstAttempt.has(item.personId) || item.updatedAt < firstAttempt.get(item.personId)!)) firstAttempt.set(item.personId, item.updatedAt); });
+  const maturityCutoff = new Date(new Date(now).valueOf() - 7 * 86400000).toISOString();
+  const mature = candidates.filter((item) => {
+    const attemptedAt = firstAttempt.get(item.id);
+    return Boolean(attemptedAt && (attemptedAt <= maturityCutoff || networkingMatureStatuses.has(item.networking!.status)));
+  });
+  const conversations = candidates.filter((item) => networkingConversationStatuses.has(item.networking!.status));
+  const conversion = mature.length ? mature.filter((item) => networkingConversationStatuses.has(item.networking!.status)).length / mature.length : null;
+  const group = (key: (candidate: typeof candidates[number]) => string) => [...new Set(candidates.map(key))].map((name) => {
+    const cohort = candidates.filter((item) => key(item) === name);
+    const attempted = cohort.filter((item) => firstAttempt.has(item.id));
+    const responses = attempted.filter((item) => networkingResponseStatuses.has(item.networking!.status));
+    return { name, attempted: attempted.length, responses: responses.length, responseRate: attempted.length ? responses.length / attempted.length : null };
+  }).sort((left, right) => right.responses - left.responses || (right.responseRate ?? -1) - (left.responseRate ?? -1) || left.name.localeCompare(right.name));
+  const categories = group((item) => item.networking!.lamp.list);
+  const pathways = group((item) => item.networking!.pathway);
+  const bestCategory = categories.find((item) => item.responses > 0);
+  const bestPathway = pathways.find((item) => item.responses > 0);
+  const adjustments = mature.length === 0
+    ? ["Keep the current targeting mix until at least one attempted cohort matures; recent silence is not a failed conversion."]
+    : conversion !== null && conversion >= conversionTarget
+      ? [`Continue the strongest observed category${bestCategory ? ` (${bestCategory.name})` : ""} and pathway${bestPathway ? ` (${bestPathway.name.replaceAll("_", " ")})` : ""}; both recommendations come from recorded responses.`]
+      : bestCategory || bestPathway
+        ? [`Increase next week's share of ${bestCategory?.name ?? "the best recorded category"} through ${bestPathway?.name.replaceAll("_", " ") ?? "the best recorded pathway"}; it produced the clearest recorded response signal.`, "Keep other categories in the queue as comparison cohorts rather than declaring them ineffective from recent silence."]
+        : ["No attempted category or pathway has produced a recorded response yet. Improve documented affinity and contribution angles, then wait for cohorts to mature before changing the mix."];
+  return {
+    weekOf: weekOf ?? null,
+    target,
+    conversionTarget,
+    queued: candidates.length,
+    queueRemaining: Math.max(0, target - candidates.length),
+    attemptsMade: firstAttempt.size,
+    conversationsGenerated: conversations.length,
+    matureCohortSize: mature.length,
+    matureCohortConversionRate: conversion,
+    categories,
+    pathways,
+    adjustments,
+    candidates: candidates.map((item) => ({ person: item, rationale: { whyPerson: item.networking!.whyPerson, whyNow: item.whyNow, lamp: item.networking!.lamp, affinityOverlap: item.overlap, contributionAngle: item.networking!.contributionAngle, learningObjective: item.objective, recommendedNextAction: item.networking!.recommendedNextAction, pathway: item.networking!.pathway } }))
+  };
+}
+
 export function weeklyReview(state: PilotState, since: string) {
-  return { questions: ["What did I learn about the work and environment I want?", "Which hypotheses strengthened or weakened, and which conversations changed my thinking?", "Which opportunities were strongest, and why did I decline others?", "Where did relationships deepen; who needs follow-through?", "What did application and interview feedback reveal about evidence or skills?", "What should I start, stop, or change next week?"], ...prepareCoaching(state, since), declined: state.opportunities.filter((item) => item.status === "decline"), applicationOutcomes: state.applications.filter((item) => item.outcome && item.outcome.at >= since), interviewLearning: state.interviews.filter((item) => item.recordedAt >= since), priorReviews: state.weeklyReviews.slice(-3) };
+  return { questions: ["What did I learn about the work and environment I want?", "Which hypotheses strengthened or weakened, and which conversations changed my thinking?", "Which opportunities were strongest, and why did I decline others?", "Where did relationships deepen; who needs follow-through?", "What did application and interview feedback reveal about evidence or skills?", "What should I start, stop, or change next week?"], ...prepareCoaching(state, since), networking: networkingStrategy(state, latestNetworkingWeek(state)), declined: state.opportunities.filter((item) => item.status === "decline"), applicationOutcomes: state.applications.filter((item) => item.outcome && item.outcome.at >= since), interviewLearning: state.interviews.filter((item) => item.recordedAt >= since), priorReviews: state.weeklyReviews.slice(-3) };
 }
 
 /** Preparation uses supplied round/context and real prior feedback; it invents no interviewer facts. */

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { commandEnvelopeSchema, emptyPilotState, type PilotState } from "@/lib/sotf/contracts";
 import { applyCommand, resumeTransition, RevisionConflict } from "@/lib/sotf/engine";
-import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
+import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
 import { OperationNotApplied, replayEvents, SotfStore, type WorkflowEvent } from "@/lib/sotf/persistence";
 import { invitationDraft, proposeConversationTimes } from "@/lib/sotf/scheduling";
 
@@ -140,6 +140,58 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
     expect(prepareMeeting(h.state, "unrelated").priorInteractions).toEqual([]);
     expect(prepareMeeting(h.state, "unrelated").commitments.some((item) => item.id === "promise")).toBe(false);
     expect(dailyBrief(h.state, "2026-09-07T12:00:00Z").length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("SOTF networking strategy v1", () => {
+  it("builds a transparent 25-person queue, tracks mature cohorts, and reuses the conversation loop", () => {
+    const h = harness();
+    const people = Array.from({ length: 25 }, (_, index) => {
+      const number = index + 1;
+      return { id: `candidate-${number}`, name: `Fictional candidate ${number}`, company: `Fictional company ${number}`, role: "Program leader", source: "Synthetic public research", overlap: number % 2 ? "No overlap claimed" : "Confirmed fictional veteran affinity", whyNow: "Recent public work makes the operating model timely to understand", objective: "Learn which decisions this role owns", introductionPath: number === 3 ? "Fictional mutual contact" : "", hypothesisIds: ["direction"], nextTouch: "2026-09-15", networking: { weekOf: "2026-09-01", sourceUrl: `https://example.org/people/${number}`, whyPerson: "Public work shows direct experience with the question being tested", lamp: { list: number <= 10 ? "technical program leadership" : "operations leadership", alumniAffinity: number % 2 ? "" : "fictional veteran affinity", motivation: "The organization exposes the kind of delivery decisions being explored", posting: number % 3 ? "related role signal" : "practitioner learning path" }, contributionAngle: "Offer a scoped cross-team delivery perspective while staying curious", recommendedNextAction: number === 2 ? "Comment thoughtfully, then follow up privately only after a genuine exchange" : "Send a short curiosity-led note", pathway: number === 2 ? "thoughtful_comment" : number === 3 ? "warm_introduction" : number === 7 ? "research_wait" : "direct_outreach", status: "identified" } };
+    });
+    people.forEach((person) => h.run({ type: "save_person", person }));
+    expect(networkingStrategy(h.state, "2026-09-01", "2026-09-06T12:00:00Z")).toMatchObject({ target: 25, conversionTarget: 0.2, queued: 25, queueRemaining: 0, attemptsMade: 0, matureCohortSize: 0 });
+    expect(networkingStrategy(h.state, "2026-09-01").candidates[0].rationale).toMatchObject({ whyPerson: expect.any(String), lamp: { list: expect.any(String) }, contributionAngle: expect.any(String), learningObjective: expect.any(String), recommendedNextAction: expect.any(String) });
+
+    for (const person of people.slice(0, 5)) {
+      h.run({ type: "prepare_outreach", personId: person.id, stage: "initial" });
+      const action = h.state.actions.at(-1)!;
+      h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+      h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic user verified the manual action" });
+      if (person.id !== "candidate-1") h.run({ type: "save_person", person: { ...person, networking: { ...person.networking, status: "no_response" } } }, "2026-09-14T12:00:00Z");
+    }
+    expect(h.state.actions.find((item) => item.personId === "candidate-1")?.body).not.toContain("Air Force");
+    expect(h.state.actions.find((item) => item.personId === "candidate-2")?.kind).toBe("public_comment");
+    h.run({ type: "prepare_outreach", personId: "candidate-2", stage: "private_follow_up" });
+    expect(h.state.actions.at(-1)?.kind).toBe("direct_message");
+    expect(() => h.run({ type: "prepare_outreach", personId: "candidate-7", stage: "initial" })).toThrow("more research");
+
+    h.run({ type: "save_person", person: { ...people[0], networking: { ...people[0].networking, status: "replied" } } }, "2026-09-07T12:00:00Z");
+    h.run({ type: "record_meeting", meeting: { ...meeting, id: "network-conversation", personId: "candidate-1", opportunityId: undefined, provider: "manual", sourceEventId: undefined } }, "2026-09-08T12:00:00Z");
+    const strategy = networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+    expect(strategy).toMatchObject({ attemptsMade: 5, conversationsGenerated: 1, matureCohortSize: 5, matureCohortConversionRate: 0.2 });
+    expect(strategy.categories.find((item) => item.name === "technical program leadership")).toMatchObject({ responses: 1 });
+    expect(strategy.pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 1 });
+    expect(strategy.adjustments.join(" ")).toContain("recorded");
+    expect(prepareMeeting(h.state, "network-conversation").person?.id).toBe("candidate-1");
+    h.run({ type: "debrief_meeting", meetingId: "network-conversation", said: "The practitioner described bounded team decisions", inferred: "The operating model may fit", unresolved: [], evidence: [], commitments: [], introductions: [], nextTouch: "2026-09-20" }, "2026-09-08T13:00:00Z");
+    expect(h.state.people.find((item) => item.id === "candidate-1")?.networking?.status).toBe("conversation_completed");
+    expect(h.state.actions.some((item) => item.personId === "candidate-1" && item.subject.startsWith("Thank you"))).toBe(true);
+    h.run({ type: "review_week", learned: "One mature cohort converted at the target", start: "Use the strongest recorded category", stop: "Judging recent silence", change: networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z").adjustments[0], hypothesisUpdates: [], commitments: [] }, "2026-09-15T12:00:00Z");
+    expect(h.state.weeklyReviews.at(-1)?.change).toContain("recorded");
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state.people).toHaveLength(25);
+  });
+
+  it("does not count yesterday's unanswered attempt as a mature failed conversion", () => {
+    const h = harness();
+    const person = { id: "recent", name: "Recent fictional contact", company: "Fictional company", role: "Leader", source: "Synthetic research", overlap: "", whyNow: "A recent public signal", objective: "Learn about the work", introductionPath: "", hypothesisIds: ["direction"], networking: { weekOf: "2026-09-08", sourceUrl: "https://example.org/recent", whyPerson: "Direct experience", lamp: { list: "recent cohort", alumniAffinity: "", motivation: "Relevant work", posting: "" }, contributionAngle: "Offer a delivery perspective", recommendedNextAction: "Send a short note", pathway: "direct_outreach", status: "identified" } };
+    h.run({ type: "save_person", person }, "2026-09-14T10:00:00Z");
+    h.run({ type: "prepare_outreach", personId: person.id, stage: "initial" }, "2026-09-14T10:01:00Z");
+    const action = h.state.actions.at(-1)!;
+    h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision }, "2026-09-14T10:02:00Z");
+    h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic manual action" }, "2026-09-14T10:03:00Z");
+    expect(networkingStrategy(h.state, "2026-09-08", "2026-09-15T10:03:00Z")).toMatchObject({ attemptsMade: 1, matureCohortSize: 0, matureCohortConversionRate: null });
   });
 });
 

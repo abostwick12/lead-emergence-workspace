@@ -23,7 +23,7 @@ describe('reviewed scheduling', () => {
   it('supersedes an old invitation approval after a reschedule and reconciles uncertain sends first', () => {
     let state = createPreviewState();
     const run = (command: unknown) => { state = applyCommand(state, commandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: 'ordinary_transition_operations', command }), now); };
-    const meeting = state.meetings[0];
+    const meeting = state.meetings.find((item) => item.status === 'accepted' && item.personId)!;
     run(invitationDraft(state, meeting.id)); const original = state.actions.at(-1)!;
     run({ type: 'approve_action', actionId: original.id, exactRevision: 1 });
     const { debrief: _debrief, ...value } = meeting; void _debrief;
