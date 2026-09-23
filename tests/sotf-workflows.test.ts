@@ -144,6 +144,18 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
 });
 
 describe("SOTF networking strategy v1", () => {
+  it("preserves networking metadata when an ordinary person update omits it", () => {
+    const h = harness();
+    const networking = { weekOf: "2026-09-01", sourceUrl: "https://example.org/people/morgan", whyPerson: "Public work shows direct experience with the question being tested", lamp: { list: "technical program leadership", alumniAffinity: "fictional veteran affinity", motivation: "The organization exposes the kind of delivery decisions being explored", posting: "related role signal" }, contributionAngle: "Offer a scoped cross-team delivery perspective while staying curious", recommendedNextAction: "Send a short curiosity-led note", pathway: "direct_outreach", status: "identified" } as const;
+
+    h.run({ type: "save_person", person: { ...contact, networking } });
+    h.run({ type: "save_person", person: { ...contact, role: "Senior Program Lead" } }, "2026-09-07T12:00:00Z");
+    expect(h.state.people[0]).toMatchObject({ role: "Senior Program Lead", networking });
+
+    h.run({ type: "save_person", person: { ...contact, role: "Senior Program Lead", networking: { ...networking, status: "replied", recommendedNextAction: "Prepare for the scheduled conversation" } } }, "2026-09-08T12:00:00Z");
+    expect(h.state.people[0].networking).toMatchObject({ status: "replied", recommendedNextAction: "Prepare for the scheduled conversation" });
+  });
+
   it("builds a transparent 25-person queue, tracks mature cohorts, and reuses the conversation loop", () => {
     const h = harness();
     const people = Array.from({ length: 25 }, (_, index) => {
