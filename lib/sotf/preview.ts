@@ -23,11 +23,50 @@ export function createPreviewState(): PilotState {
   }
   run({ type: "resolve_requirement", opportunityId: "northstar", requirementId: "delivery", status: "met", evidenceIds: ["proof"] });
   run({ type: "decide_opportunity", opportunityId: "northstar", decision: "investigate", rationale: "Strong delivery fit; decision authority still needs testing", nextAction: "Ask Morgan which decisions the role owns", revisitWhen: "A practitioner clarifies actual decision authority" });
-  run({ type: "save_person", person: { id: "morgan", name: "Morgan — fictional contact", company: "Northstar", role: "Program practitioner", source: "Fictional fellow-provided introduction", overlap: "We met at a fictional professional workshop.", whyNow: "Can explain how program decisions are made in this team", objective: "Distinguish ownership from coordination", introductionPath: "An existing workshop conversation", opportunityId: "northstar", hypothesisIds: ["program"], nextTouch: "2026-09-08" } });
-  run({ type: "prepare_outreach", personId: "morgan" });
+  const candidates = Array.from({ length: 25 }, (_, index) => {
+    const number = index + 1;
+    const pathway = number === 2 ? "thoughtful_comment" : number === 3 ? "warm_introduction" : number % 7 === 0 ? "research_wait" : "direct_outreach";
+    const category = number % 3 === 0 ? "Veteran-friendly operations" : number % 3 === 1 ? "Technical program leadership" : "Mission-driven technology";
+    return {
+      id: number === 1 ? "morgan" : `network-person-${number}`,
+      name: number === 1 ? "Morgan — fictional contact" : `Fictional candidate ${number}`,
+      company: number === 1 ? "Northstar" : `Fictional organization ${number}`,
+      role: number === 1 ? "Program practitioner" : number % 2 ? "Operations leader" : "Technical program leader",
+      source: "Synthetic public-company research for preview only",
+      overlap: number === 1 ? "We met at a fictional professional workshop." : number % 4 === 0 ? "A confirmed fictional veteran-community overlap." : "No personal overlap claimed; the work itself is the reason to learn.",
+      whyNow: number === 1 ? "Can explain how program decisions are made in this team" : "Recent public work makes this a useful time to understand the role and operating context",
+      objective: number === 1 ? "Distinguish ownership from coordination" : "Learn which decisions the role owns and what strong contribution looks like",
+      introductionPath: pathway === "warm_introduction" ? "A fictional mutual professional contact" : "",
+      opportunityId: number === 1 ? "northstar" : undefined,
+      hypothesisIds: [number % 2 ? "program" : "operations"],
+      nextTouch: number <= 5 ? "2026-09-15" : undefined,
+      networking: {
+        weekOf: "2026-09-01",
+        sourceUrl: `https://example.com/networking/candidate-${number}`,
+        whyPerson: number === 1 ? "Morgan works close enough to the decisions to explain the actual operating model" : "This person has direct public evidence of doing the work being explored",
+        lamp: { list: category, alumniAffinity: number % 4 === 0 ? "Fictional veteran community" : "", motivation: "The organization's public work aligns with the transition hypothesis being tested", posting: number % 2 ? "Related public role signal" : "No posting required; practitioner learning path" },
+        contributionAngle: "Offer a useful perspective from leading cross-team delivery while staying curious about the civilian context",
+        recommendedNextAction: pathway === "thoughtful_comment" ? "Contribute one specific public comment, then follow up privately only if the exchange is genuine" : pathway === "warm_introduction" ? "Ask the mutual contact for a low-pressure introduction" : pathway === "research_wait" ? "Research the person's recent work before deciding whether contact would be useful" : "Send a short curiosity-led connection note",
+        pathway,
+        status: "identified"
+      }
+    };
+  });
+  candidates.forEach((person) => run({ type: "save_person", person }));
+  for (const person of candidates.slice(0, 5)) {
+    run({ type: "prepare_outreach", personId: person.id, stage: "initial" });
+    const action = state.actions.at(-1)!;
+    run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+    run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic preview: user manually completed the outreach outside Workspace." });
+    if (person.id !== "morgan") run({ type: "save_person", person: { ...person, networking: { ...person.networking, status: "no_response" } } });
+  }
+  run({ type: "save_person", person: { ...candidates[0], networking: { ...candidates[0].networking, status: "replied" } } });
+  run({ type: "save_person", person: { ...candidates[1], networking: { ...candidates[1].networking, status: "replied" } } });
+  run({ type: "prepare_outreach", personId: candidates[1].id, stage: "private_follow_up" });
   run({ type: "record_meeting", meeting: { id: "coaching-session", title: "SOTF coaching session", hypothesisIds: ["program"], kind: "coaching", startsAt: "2026-09-05T16:00:00Z", endsAt: "2026-09-05T17:00:00Z", status: "completed", objective: "Test the work before judging the title" } });
   run({ type: "debrief_meeting", meetingId: "coaching-session", said: "Your coach challenged you to test what you would own day to day instead of judging the opportunity by how the role sounds.", inferred: "The next useful evidence is one concrete example of a decision the program lead owns.", unresolved: ["Which decisions does the program lead make without approval?"], introductions: [], nextTouch: undefined, evidence: [], commitments: [{ id: "coaching-next-step", title: "Ask Morgan for one decision the program lead owns", owner: "Fellow", due: "2026-09-07", definitionOfDone: "From your last coaching session: record one concrete example of a decision the program lead owns.", reviewTrigger: "Return to the question if Morgan can only describe coordination, not decision ownership." }] });
   run({ type: "record_meeting", meeting: { id: "conversation", title: "Understand the work with Morgan", personId: "morgan", opportunityId: "northstar", hypothesisIds: ["program"], kind: "networking", startsAt: "2026-09-08T15:00:00Z", endsAt: "2026-09-08T15:30:00Z", status: "accepted", objective: "Learn which decisions this role actually owns" } });
+  run({ type: "review_week", learned: "One of five mature fictional attempts progressed to a real conversation; technical program leadership produced the response.", start: "Prioritize the strongest recorded category while preserving comparison cohorts.", stop: "Treating recent silence as a failed conversion.", change: "Use the recorded category and pathway response counts to shape the next 25-person queue.", hypothesisUpdates: [], commitments: [] });
   run({ type: "save_story", story: { id: "delivery-story", title: "Unblocking cross-team delivery", situation: "A fictional project had conflicting priorities across three teams.", contribution: "Facilitated the dependency review and negotiated a shared sequence.", scope: "Three teams; decision approval remained with the accountable leads.", actions: "Mapped dependencies, clarified owners, and tested a revised delivery sequence.", outcome: "The teams agreed on a workable plan; no unverified improvement percentage is claimed.", skills: ["stakeholder alignment", "delivery", "ambiguity"], evidenceIds: ["proof"], approvedLanguage: "Coordinated three teams to resolve delivery dependencies and agree on a shared plan.", uncertainNumbers: ["Time savings have not been verified"], confirmed: true } });
   return state;
 }

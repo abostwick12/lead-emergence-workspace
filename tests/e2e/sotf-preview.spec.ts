@@ -26,6 +26,49 @@ test("a confirmed criterion changes the decision and keeps the evidence visible"
   expect(errors).toEqual([]);
 });
 
+test("networking strategy shows a transparent 25-person cohort and evidence-led adjustment", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Build 25 useful connection attempts." })).toBeVisible();
+  await expect(page.getByText("25 / 25", { exact: true })).toBeVisible();
+  await expect(page.getByText("5", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("20%", { exact: true })).toBeVisible();
+  const morgan = page.locator("article").filter({ has: page.getByRole("heading", { name: "Morgan — fictional contact", exact: true }) });
+  await expect(morgan.getByText("Why this person?", { exact: true })).toBeVisible();
+  await expect(morgan.getByText("LAMP — List", { exact: true })).toBeVisible();
+  await expect(morgan.getByText("Contribution angle", { exact: true })).toBeVisible();
+  await expect(page.getByText(/both recommendations come from recorded responses/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Thoughtful public comment", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Follow up after public conversation", exact: true })).toBeVisible();
+  await page.screenshot({ path: `test-results/sotf-networking-${test.info().project.name}.png`, fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+});
+
+test("networking view supports the full manual action lifecycle", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const candidate = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) });
+  await candidate.getByRole("button", { name: "Prepare outreach", exact: true }).click();
+
+  const reviewQueue = page.locator("section").filter({ has: page.getByRole("heading", { name: "Follow-through to review", exact: true }) });
+  const action = reviewQueue.locator("article").filter({ hasText: "To: Fictional candidate 6" });
+  await action.getByRole("button", { name: "Review exact draft", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Recipient")).toHaveValue("Fictional candidate 6");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  await action.getByRole("button", { name: "Approve this exact draft for manual use", exact: true }).click();
+  await action.getByRole("button", { name: "Record a verified result", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("What did you verify?").fill("Synthetic user verified the manual outreach outside Workspace.");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  const verified = page.locator("details").filter({ hasText: "Networking drafts and verified actions" }).locator("article").filter({ hasText: "Fictional candidate 6" });
+  await expect(verified.getByText("direct message · manually completed", { exact: true })).toBeVisible();
+  await expect(verified.getByText("Synthetic user verified the manual outreach outside Workspace.", { exact: true })).toBeVisible();
+  await expect(candidate.getByText("attempted · direct outreach", { exact: true })).toBeVisible();
+});
+
 test("a conversation leaves linked evidence, follow-through, and a next touch", async ({ page }) => {
   const accountRequests: string[] = [];
   page.on("request", (request) => { if (request.url().includes("/api/sotf") || request.url().includes("supabase")) accountRequests.push(request.url()); });
@@ -66,7 +109,7 @@ test("a conversation leaves linked evidence, follow-through, and a next touch", 
 
 test("scheduling prepares reviewed times and an invitation without account access", async ({ page }) => {
   await page.getByRole('button', { name: 'People', exact: true }).click();
-  await page.getByRole('button', { name: 'Find a time', exact: true }).click();
+  await page.locator('article').filter({ has: page.getByRole('heading', { name: 'Morgan — fictional contact', exact: true }) }).getByRole('button', { name: 'Find a time', exact: true }).click();
   const dialog=page.getByRole('dialog');
   await dialog.getByLabel('Availability source').fill('Fictional reply and my calendar, explicitly checked');
   const date=new Date(Date.now()+3*86400000).toISOString().slice(0,10);

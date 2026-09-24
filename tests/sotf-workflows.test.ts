@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { commandEnvelopeSchema, emptyPilotState, type PilotState } from "@/lib/sotf/contracts";
 import { applyCommand, resumeTransition, RevisionConflict } from "@/lib/sotf/engine";
-import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
+import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
 import { OperationNotApplied, replayEvents, SotfStore, type WorkflowEvent } from "@/lib/sotf/persistence";
 import { invitationDraft, proposeConversationTimes } from "@/lib/sotf/scheduling";
 
@@ -34,6 +34,17 @@ function harness() {
   run({ type: "start_transition", timing: "Exploring over the next six months", question: "Which work gives me meaningful ownership?", weeklyHours: 8, criteria: [criterion], hypotheses: [hypothesis] });
   run({ type: "record_opportunity", opportunity: role });
   return { get state() { return state; }, events, run, accept };
+}
+
+function networkingCandidate(id: string, name: string, list: string, pathway: "direct_outreach" | "warm_introduction" = "direct_outreach") {
+  return { ...contact, id, name, networking: { weekOf: "2026-09-01", sourceUrl: `https://example.org/people/${id}`, whyPerson: "Public work shows direct experience", lamp: { list, alumniAffinity: "", motivation: "Relevant work", posting: "" }, contributionAngle: "Offer a delivery perspective", recommendedNextAction: "Send a short note", pathway, status: "identified" as const } };
+}
+
+function recordVerifiedOutreach(h: ReturnType<typeof harness>, personId: string) {
+  h.run({ type: "prepare_outreach", personId });
+  const action = h.state.actions.at(-1)!;
+  h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+  h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic user verified the manual action" });
 }
 
 describe("SOTF opportunity learning and continuity", () => {
@@ -140,6 +151,228 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
     expect(prepareMeeting(h.state, "unrelated").priorInteractions).toEqual([]);
     expect(prepareMeeting(h.state, "unrelated").commitments.some((item) => item.id === "promise")).toBe(false);
     expect(dailyBrief(h.state, "2026-09-07T12:00:00Z").length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("SOTF networking strategy v1", () => {
+  it("preserves networking metadata when an ordinary person update omits it", () => {
+    const h = harness();
+    const networking = { weekOf: "2026-09-01", sourceUrl: "https://example.org/people/morgan", whyPerson: "Public work shows direct experience with the question being tested", lamp: { list: "technical program leadership", alumniAffinity: "fictional veteran affinity", motivation: "The organization exposes the kind of delivery decisions being explored", posting: "related role signal" }, contributionAngle: "Offer a scoped cross-team delivery perspective while staying curious", recommendedNextAction: "Send a short curiosity-led note", pathway: "direct_outreach", status: "identified" } as const;
+
+    h.run({ type: "save_person", person: { ...contact, networking } });
+    h.run({ type: "save_person", person: { ...contact, role: "Senior Program Lead" } }, "2026-09-07T12:00:00Z");
+    expect(h.state.people[0]).toMatchObject({ role: "Senior Program Lead", networking });
+
+    h.run({ type: "save_person", person: { ...contact, role: "Senior Program Lead", networking: { ...networking, status: "replied", recommendedNextAction: "Prepare for the scheduled conversation" } } }, "2026-09-08T12:00:00Z");
+    expect(h.state.people[0].networking).toMatchObject({ status: "replied", recommendedNextAction: "Prepare for the scheduled conversation" });
+  });
+
+  it("reconciles cancellation, reactivation, remaining meetings, and completed conversations", () => {
+    const h = harness();
+    const person = { ...contact, id: "cancelled-candidate", networking: { weekOf: "2026-09-01", sourceUrl: "https://example.org/people/cancelled", whyPerson: "Public work shows direct experience", lamp: { list: "technical program leadership", alumniAffinity: "", motivation: "Relevant work", posting: "" }, contributionAngle: "Offer a delivery perspective", recommendedNextAction: "Send a short note", pathway: "direct_outreach", status: "identified" } } as const;
+    const conversation = { ...meeting, id: "cancelled-networking", personId: person.id, opportunityId: undefined, provider: "manual", sourceEventId: undefined } as const;
+    const strategy = () => networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+
+    h.run({ type: "save_person", person });
+    h.run({ type: "prepare_outreach", personId: person.id });
+    const action = h.state.actions.at(-1)!;
+    h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+    h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic user verified the manual action" });
+    h.run({ type: "record_meeting", meeting: conversation }, "2026-09-07T12:00:00Z");
+    expect(h.state.people[0].networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-07T12:00:00.000Z" });
+    expect(strategy()).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+
+    h.run({ type: "record_meeting", meeting: { ...conversation, status: "cancelled" } }, "2026-09-08T12:00:00Z");
+    expect(h.state.people[0].networking).toMatchObject({ status: "follow_up_due", statusUpdatedAt: "2026-09-08T12:00:00.000Z" });
+    expect(strategy()).toMatchObject({ conversationsGenerated: 0, matureCohortConversionRate: 0 });
+    expect(strategy().categories.find((item) => item.name === "technical program leadership")).toMatchObject({ responses: 0 });
+    expect(strategy().pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 0 });
+
+    const alternate = { ...conversation, id: "alternate-networking" };
+    h.run({ type: "record_meeting", meeting: conversation }, "2026-09-09T12:00:00Z");
+    expect(h.state.people[0].networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-09T12:00:00.000Z" });
+    expect(strategy()).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+
+    h.run({ type: "record_meeting", meeting: alternate }, "2026-09-10T12:00:00Z");
+    h.run({ type: "record_meeting", meeting: { ...conversation, status: "cancelled" } }, "2026-09-11T12:00:00Z");
+    expect(h.state.people[0].networking?.status).toBe("conversation_scheduled");
+    expect(strategy().conversationsGenerated).toBe(1);
+
+    h.run({ type: "debrief_meeting", meetingId: alternate.id, said: "The practitioner described bounded team decisions", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] }, "2026-09-12T12:00:00Z");
+    const later = { ...conversation, id: "post-completion-networking" };
+    h.run({ type: "record_meeting", meeting: later }, "2026-09-13T12:00:00Z");
+    h.run({ type: "record_meeting", meeting: { ...later, status: "cancelled" } }, "2026-09-14T12:00:00Z");
+    expect(h.state.people[0].networking?.status).toBe("conversation_completed");
+    expect(strategy()).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+    expect(strategy().categories.find((item) => item.name === "technical program leadership")).toMatchObject({ responses: 1 });
+    expect(strategy().pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 1 });
+  });
+
+  it("preserves the conversation response when a provider completes a meeting before debrief", () => {
+    const h = harness();
+    const person = networkingCandidate("provider-completed", "Fictional Provider Completed", "program leadership");
+    const conversation = { ...meeting, id: "provider-completed-meeting", personId: person.id, opportunityId: undefined, provider: "manual", sourceEventId: undefined } as const;
+    const strategy = () => networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+
+    h.run({ type: "save_person", person });
+    recordVerifiedOutreach(h, person.id);
+    h.run({ type: "record_meeting", meeting: conversation }, "2026-09-07T12:00:00Z");
+    expect(h.state.people.find((item) => item.id === person.id)?.networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-07T12:00:00.000Z" });
+
+    h.run({ type: "record_meeting", meeting: { ...conversation, status: "completed" } }, "2026-09-08T12:00:00Z");
+    expect(h.state.meetings.find((item) => item.id === conversation.id)).toMatchObject({ status: "completed", debrief: undefined });
+    expect(h.state.people.find((item) => item.id === person.id)?.networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-07T12:00:00.000Z" });
+    expect(strategy()).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+    expect(strategy().categories.find((item) => item.name === "program leadership")).toMatchObject({ responses: 1 });
+    expect(strategy().pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 1 });
+
+    h.run({ type: "debrief_meeting", meetingId: conversation.id, said: "The practitioner described bounded team decisions", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] }, "2026-09-09T12:00:00Z");
+    expect(h.state.people.find((item) => item.id === person.id)?.networking).toMatchObject({ status: "conversation_completed", statusUpdatedAt: "2026-09-09T12:00:00.000Z" });
+  });
+
+  it("reconciles both old and new participants when cancellation removes or changes the link", () => {
+    const h = harness();
+    const previous = networkingCandidate("previous-candidate", "Fictional Previous", "program leadership");
+    const submitted = networkingCandidate("submitted-candidate", "Fictional Submitted", "operations leadership", "warm_introduction");
+    const conversation = { ...meeting, id: "participant-change", personId: previous.id, opportunityId: undefined, provider: "manual", sourceEventId: undefined } as const;
+    const strategy = () => networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+
+    h.run({ type: "save_person", person: previous });
+    h.run({ type: "save_person", person: submitted });
+    recordVerifiedOutreach(h, previous.id);
+    recordVerifiedOutreach(h, submitted.id);
+    h.run({ type: "record_meeting", meeting: conversation }, "2026-09-07T12:00:00Z");
+
+    h.run({ type: "record_meeting", meeting: { ...conversation, personId: undefined, status: "cancelled" } }, "2026-09-08T12:00:00Z");
+    expect(h.state.people.find((item) => item.id === previous.id)?.networking).toMatchObject({ status: "follow_up_due", statusUpdatedAt: "2026-09-08T12:00:00.000Z" });
+    expect(strategy().conversationsGenerated).toBe(0);
+    expect(strategy().categories.find((item) => item.name === "program leadership")).toMatchObject({ responses: 0 });
+
+    h.run({ type: "record_meeting", meeting: conversation }, "2026-09-09T12:00:00Z");
+    h.run({ type: "save_person", person: { ...submitted, networking: { ...submitted.networking, status: "conversation_scheduled" } } }, "2026-09-09T12:30:00Z");
+    h.run({ type: "record_meeting", meeting: { ...conversation, personId: submitted.id, status: "cancelled" } }, "2026-09-10T12:00:00Z");
+
+    expect(h.state.meetings.find((item) => item.id === conversation.id)).toMatchObject({ personId: submitted.id, status: "cancelled" });
+    expect(h.state.people.find((item) => item.id === previous.id)?.networking?.status).toBe("follow_up_due");
+    expect(h.state.people.find((item) => item.id === submitted.id)?.networking).toMatchObject({ status: "follow_up_due", statusUpdatedAt: "2026-09-10T12:00:00.000Z" });
+    expect(strategy().conversationsGenerated).toBe(0);
+    expect(strategy().categories.find((item) => item.name === "program leadership")).toMatchObject({ responses: 0 });
+    expect(strategy().categories.find((item) => item.name === "operations leadership")).toMatchObject({ responses: 0 });
+    expect(strategy().pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 0 });
+    expect(strategy().pathways.find((item) => item.name === "warm_introduction")).toMatchObject({ responses: 0 });
+  });
+
+  it("moves scheduled-conversation attribution when an active meeting participant changes", () => {
+    const h = harness();
+    const previous = networkingCandidate("active-previous", "Fictional Active Previous", "program leadership");
+    const submitted = networkingCandidate("active-submitted", "Fictional Active Submitted", "operations leadership", "warm_introduction");
+    const conversation = { ...meeting, id: "active-participant-change", personId: previous.id, opportunityId: undefined, provider: "manual", sourceEventId: undefined } as const;
+    const strategy = () => networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+
+    h.run({ type: "save_person", person: previous });
+    h.run({ type: "save_person", person: submitted });
+    recordVerifiedOutreach(h, previous.id);
+    recordVerifiedOutreach(h, submitted.id);
+    h.run({ type: "record_meeting", meeting: conversation }, "2026-09-07T12:00:00Z");
+    h.run({ type: "record_meeting", meeting: { ...conversation, personId: submitted.id } }, "2026-09-08T12:00:00Z");
+
+    expect(h.state.meetings.find((item) => item.id === conversation.id)?.personId).toBe(submitted.id);
+    expect(h.state.people.find((item) => item.id === previous.id)?.networking?.status).toBe("follow_up_due");
+    expect(h.state.people.find((item) => item.id === submitted.id)?.networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-08T12:00:00.000Z" });
+    expect(strategy().conversationsGenerated).toBe(1);
+    expect(strategy().categories.find((item) => item.name === "program leadership")).toMatchObject({ responses: 0 });
+    expect(strategy().categories.find((item) => item.name === "operations leadership")).toMatchObject({ responses: 1 });
+    expect(strategy().pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 0 });
+    expect(strategy().pathways.find((item) => item.name === "warm_introduction")).toMatchObject({ responses: 1 });
+  });
+
+  it("removes the scheduled basis when a networking meeting changes kind", () => {
+    const h = harness();
+    const person = networkingCandidate("kind-change", "Fictional Kind Change", "program leadership");
+    const conversation = { ...meeting, id: "kind-change-meeting", personId: person.id, opportunityId: undefined, provider: "manual", sourceEventId: undefined } as const;
+    const strategy = () => networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+
+    h.run({ type: "save_person", person });
+    recordVerifiedOutreach(h, person.id);
+    h.run({ type: "record_meeting", meeting: conversation }, "2026-09-07T12:00:00Z");
+    h.run({ type: "record_meeting", meeting: { ...conversation, kind: "coaching" } }, "2026-09-08T12:00:00Z");
+
+    expect(h.state.meetings.find((item) => item.id === conversation.id)?.kind).toBe("coaching");
+    expect(h.state.people.find((item) => item.id === person.id)?.networking).toMatchObject({ status: "follow_up_due", statusUpdatedAt: "2026-09-08T12:00:00.000Z" });
+    expect(strategy().conversationsGenerated).toBe(0);
+    expect(strategy().categories.find((item) => item.name === "program leadership")).toMatchObject({ responses: 0 });
+    expect(strategy().pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 0 });
+  });
+
+  it("requires a completed public comment and observed exchange before a follow-up message", () => {
+    const h = harness();
+    const networking = { weekOf: "2026-09-01", sourceUrl: "https://example.org/people/comment", whyPerson: "Public work shows direct experience", lamp: { list: "technical program leadership", alumniAffinity: "", motivation: "Relevant work", posting: "practitioner perspective" }, contributionAngle: "Offer a delivery perspective", recommendedNextAction: "Comment thoughtfully, then follow up after a genuine exchange", pathway: "thoughtful_comment", status: "identified" } as const;
+    const person = { ...contact, id: "comment-candidate", networking };
+
+    h.run({ type: "save_person", person });
+    h.run({ type: "prepare_outreach", personId: person.id, stage: "initial" });
+    const comment = h.state.actions.at(-1)!;
+    expect(() => h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" })).toThrow("observed exchange");
+
+    h.run({ type: "approve_action", actionId: comment.id, exactRevision: comment.revision });
+    expect(() => h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" })).toThrow("observed exchange");
+    h.run({ type: "record_action_result", actionId: comment.id, outcome: "manually_completed", receipt: "Synthetic user verified the public comment; no reply observed yet" });
+    expect(() => h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" })).toThrow("observed exchange");
+
+    h.run({ type: "save_person", person: { ...person, networking: { ...networking, status: "replied" } } });
+    h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" });
+    expect(h.state.actions.at(-1)).toMatchObject({ kind: "direct_message", subject: "Follow up after public conversation", body: expect.stringContaining("I appreciated the exchange on your post") });
+  });
+
+  it("builds a transparent 25-person queue, tracks mature cohorts, and reuses the conversation loop", () => {
+    const h = harness();
+    const people = Array.from({ length: 25 }, (_, index) => {
+      const number = index + 1;
+      return { id: `candidate-${number}`, name: `Fictional candidate ${number}`, company: `Fictional company ${number}`, role: "Program leader", source: "Synthetic public research", overlap: number % 2 ? "No overlap claimed" : "Confirmed fictional veteran affinity", whyNow: "Recent public work makes the operating model timely to understand", objective: "Learn which decisions this role owns", introductionPath: number === 3 ? "Fictional mutual contact" : "", hypothesisIds: ["direction"], nextTouch: "2026-09-15", networking: { weekOf: "2026-09-01", sourceUrl: `https://example.org/people/${number}`, whyPerson: "Public work shows direct experience with the question being tested", lamp: { list: number <= 10 ? "technical program leadership" : "operations leadership", alumniAffinity: number % 2 ? "" : "fictional veteran affinity", motivation: "The organization exposes the kind of delivery decisions being explored", posting: number % 3 ? "related role signal" : "practitioner learning path" }, contributionAngle: "Offer a scoped cross-team delivery perspective while staying curious", recommendedNextAction: number === 2 ? "Comment thoughtfully, then follow up privately only after a genuine exchange" : "Send a short curiosity-led note", pathway: number === 2 ? "thoughtful_comment" : number === 3 ? "warm_introduction" : number === 7 ? "research_wait" : "direct_outreach", status: "identified" } };
+    });
+    people.forEach((person) => h.run({ type: "save_person", person }));
+    expect(networkingStrategy(h.state, "2026-09-01", "2026-09-06T12:00:00Z")).toMatchObject({ target: 25, conversionTarget: 0.2, queued: 25, queueRemaining: 0, attemptsMade: 0, matureCohortSize: 0 });
+    expect(networkingStrategy(h.state, "2026-09-01").candidates[0].rationale).toMatchObject({ whyPerson: expect.any(String), lamp: { list: expect.any(String) }, contributionAngle: expect.any(String), learningObjective: expect.any(String), recommendedNextAction: expect.any(String) });
+
+    for (const person of people.slice(0, 5)) {
+      h.run({ type: "prepare_outreach", personId: person.id, stage: "initial" });
+      const action = h.state.actions.at(-1)!;
+      h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+      h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic user verified the manual action" });
+      if (person.id !== "candidate-1") h.run({ type: "save_person", person: { ...person, networking: { ...person.networking, status: "no_response" } } }, "2026-09-14T12:00:00Z");
+    }
+    expect(h.state.actions.find((item) => item.personId === "candidate-1")?.body).not.toContain("Air Force");
+    expect(h.state.actions.find((item) => item.personId === "candidate-2")?.kind).toBe("public_comment");
+    h.run({ type: "save_person", person: { ...people[1], networking: { ...people[1].networking, status: "replied" } } }, "2026-09-15T11:00:00Z");
+    h.run({ type: "prepare_outreach", personId: "candidate-2", stage: "private_follow_up" });
+    expect(h.state.actions.at(-1)?.kind).toBe("direct_message");
+    expect(() => h.run({ type: "prepare_outreach", personId: "candidate-7", stage: "initial" })).toThrow("more research");
+
+    h.run({ type: "save_person", person: { ...people[0], networking: { ...people[0].networking, status: "replied" } } }, "2026-09-07T12:00:00Z");
+    h.run({ type: "record_meeting", meeting: { ...meeting, id: "network-conversation", personId: "candidate-1", opportunityId: undefined, provider: "manual", sourceEventId: undefined } }, "2026-09-08T12:00:00Z");
+    const strategy = networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+    expect(strategy).toMatchObject({ attemptsMade: 5, conversationsGenerated: 1, matureCohortSize: 5, matureCohortConversionRate: 0.2 });
+    expect(strategy.categories.find((item) => item.name === "technical program leadership")).toMatchObject({ responses: 2 });
+    expect(strategy.pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 1 });
+    expect(strategy.adjustments.join(" ")).toContain("recorded");
+    expect(prepareMeeting(h.state, "network-conversation").person?.id).toBe("candidate-1");
+    h.run({ type: "debrief_meeting", meetingId: "network-conversation", said: "The practitioner described bounded team decisions", inferred: "The operating model may fit", unresolved: [], evidence: [], commitments: [], introductions: [], nextTouch: "2026-09-20" }, "2026-09-08T13:00:00Z");
+    expect(h.state.people.find((item) => item.id === "candidate-1")?.networking?.status).toBe("conversation_completed");
+    expect(h.state.actions.some((item) => item.personId === "candidate-1" && item.subject.startsWith("Thank you"))).toBe(true);
+    h.run({ type: "review_week", learned: "One mature cohort converted at the target", start: "Use the strongest recorded category", stop: "Judging recent silence", change: networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z").adjustments[0], hypothesisUpdates: [], commitments: [] }, "2026-09-15T12:00:00Z");
+    expect(h.state.weeklyReviews.at(-1)?.change).toContain("recorded");
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state.people).toHaveLength(25);
+  });
+
+  it("does not count yesterday's unanswered attempt as a mature failed conversion", () => {
+    const h = harness();
+    const person = { id: "recent", name: "Recent fictional contact", company: "Fictional company", role: "Leader", source: "Synthetic research", overlap: "", whyNow: "A recent public signal", objective: "Learn about the work", introductionPath: "", hypothesisIds: ["direction"], networking: { weekOf: "2026-09-08", sourceUrl: "https://example.org/recent", whyPerson: "Direct experience", lamp: { list: "recent cohort", alumniAffinity: "", motivation: "Relevant work", posting: "" }, contributionAngle: "Offer a delivery perspective", recommendedNextAction: "Send a short note", pathway: "direct_outreach", status: "identified" } };
+    h.run({ type: "save_person", person }, "2026-09-14T10:00:00Z");
+    h.run({ type: "prepare_outreach", personId: person.id, stage: "initial" }, "2026-09-14T10:01:00Z");
+    const action = h.state.actions.at(-1)!;
+    h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision }, "2026-09-14T10:02:00Z");
+    h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic manual action" }, "2026-09-14T10:03:00Z");
+    expect(networkingStrategy(h.state, "2026-09-08", "2026-09-15T10:03:00Z")).toMatchObject({ attemptsMade: 1, matureCohortSize: 0, matureCohortConversionRate: null });
   });
 });
 
