@@ -116,6 +116,9 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       if (networking?.pathway === "thoughtful_comment" && command.stage === "initial") {
         draft({ kind: "public_comment", recipient: contact.name, subject: "Thoughtful public comment", body: `I appreciated your perspective on ${contact.whyNow.toLowerCase()}. ${networking.contributionAngle} Thanks for giving me something useful to think about.`, personId: contact.id }, "public-comment");
       } else if (networking?.pathway === "thoughtful_comment") {
+        const commentCompleted = state.actions.some((item) => item.personId === contact.id && item.kind === "public_comment" && item.state === "manually_completed");
+        const exchangeObserved = ["replied", "conversation_scheduled", "conversation_completed"].includes(networking.status);
+        if (!commentCompleted || !exchangeObserved) throw new Error("Record the completed public comment and an observed exchange before preparing a private follow-up.");
         draft({ kind: "direct_message", recipient: contact.name, subject: "Follow up after public conversation", body: `Hi ${contact.name},\n\nI appreciated the exchange on your post. ${transition}, and I’m curious about ${contact.objective.toLowerCase()}. I’d enjoy learning more when it is convenient.`, personId: contact.id }, "private-follow-up");
       } else if (networking?.pathway === "warm_introduction") {
         draft({ kind: "email", recipient: contact.introductionPath || contact.name, subject: `Possible introduction to ${contact.name}`, body: `Hi,\n\nWould you be comfortable introducing me to ${contact.name}? ${transition}, and I’m curious about ${contact.objective.toLowerCase()}. ${networking.contributionAngle} No pressure if the timing or fit is not right.`, personId: contact.id }, "warm-introduction");

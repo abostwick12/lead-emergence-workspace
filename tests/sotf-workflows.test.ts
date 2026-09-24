@@ -177,6 +177,26 @@ describe("SOTF networking strategy v1", () => {
     expect(networkingStrategy(h.state, "2026-09-01")).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
   });
 
+  it("requires a completed public comment and observed exchange before a follow-up message", () => {
+    const h = harness();
+    const networking = { weekOf: "2026-09-01", sourceUrl: "https://example.org/people/comment", whyPerson: "Public work shows direct experience", lamp: { list: "technical program leadership", alumniAffinity: "", motivation: "Relevant work", posting: "practitioner perspective" }, contributionAngle: "Offer a delivery perspective", recommendedNextAction: "Comment thoughtfully, then follow up after a genuine exchange", pathway: "thoughtful_comment", status: "identified" } as const;
+    const person = { ...contact, id: "comment-candidate", networking };
+
+    h.run({ type: "save_person", person });
+    h.run({ type: "prepare_outreach", personId: person.id, stage: "initial" });
+    const comment = h.state.actions.at(-1)!;
+    expect(() => h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" })).toThrow("observed exchange");
+
+    h.run({ type: "approve_action", actionId: comment.id, exactRevision: comment.revision });
+    expect(() => h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" })).toThrow("observed exchange");
+    h.run({ type: "record_action_result", actionId: comment.id, outcome: "manually_completed", receipt: "Synthetic user verified the public comment; no reply observed yet" });
+    expect(() => h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" })).toThrow("observed exchange");
+
+    h.run({ type: "save_person", person: { ...person, networking: { ...networking, status: "replied" } } });
+    h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" });
+    expect(h.state.actions.at(-1)).toMatchObject({ kind: "direct_message", subject: "Follow up after public conversation", body: expect.stringContaining("I appreciated the exchange on your post") });
+  });
+
   it("builds a transparent 25-person queue, tracks mature cohorts, and reuses the conversation loop", () => {
     const h = harness();
     const people = Array.from({ length: 25 }, (_, index) => {
@@ -196,6 +216,7 @@ describe("SOTF networking strategy v1", () => {
     }
     expect(h.state.actions.find((item) => item.personId === "candidate-1")?.body).not.toContain("Air Force");
     expect(h.state.actions.find((item) => item.personId === "candidate-2")?.kind).toBe("public_comment");
+    h.run({ type: "save_person", person: { ...people[1], networking: { ...people[1].networking, status: "replied" } } }, "2026-09-15T11:00:00Z");
     h.run({ type: "prepare_outreach", personId: "candidate-2", stage: "private_follow_up" });
     expect(h.state.actions.at(-1)?.kind).toBe("direct_message");
     expect(() => h.run({ type: "prepare_outreach", personId: "candidate-7", stage: "initial" })).toThrow("more research");
