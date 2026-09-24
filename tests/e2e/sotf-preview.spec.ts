@@ -70,33 +70,41 @@ test("networking view supports the full manual action lifecycle", async ({ page 
 });
 
 test("networking scheduling uses the branded page only after a positive response", async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   const coldCandidate = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) });
   await expect(coldCandidate.getByRole("button", { name: "Prepare scheduling reply", exact: true })).toHaveCount(0);
 
   const repliedCandidate = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 2", exact: true }) });
-  await repliedCandidate.getByRole("button", { name: "Prepare scheduling reply", exact: true }).click();
+  const schedulingButton = repliedCandidate.getByRole("button", { name: "Prepare scheduling reply", exact: true });
+  await expect(schedulingButton).toBeEnabled();
+  await schedulingButton.click();
   const reviewQueue = page.getByRole("heading", { name: "Follow-through to review", exact: true }).locator("..");
   const schedulingDraft = reviewQueue.locator("article").filter({ has: page.getByRole("heading", { name: "Find a time for our conversation", exact: true }) });
   await expect(schedulingDraft).toContainText("/meet/andrew");
   await expect(schedulingDraft).not.toContainText("calendar.app.google");
+  await expect(schedulingDraft).not.toContainText("calendar.google.com");
   await expect(schedulingDraft.getByText("direct message · draft", { exact: true })).toBeVisible();
+  expect(browserErrors).toEqual([]);
 });
 
 test("public Lead Emergence scheduling page hands booking to Google without sign-in", async ({ page }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
   await page.goto("/meet/andrew");
   await expect(page).toHaveURL(/\/meet\/andrew$/);
   await expect(page.getByRole("heading", { name: "Conversation with Andrew Bostwick", exact: true })).toBeVisible();
   await expect(page.getByText(/Google will show available times in your local timezone/i)).toBeVisible();
   const handoff = page.getByRole("link", { name: /View available times in Google Calendar/i });
   await expect(handoff).toBeVisible();
-  await expect(handoff).toHaveAttribute("href", /^https:\/\/(calendar\.app\.google|calendar\.google\.com)\//);
+  await expect(handoff).toHaveAttribute("href", "https://calendar.app.google/syntheticE2EBookingPage");
   await expect(handoff).toHaveAttribute("target", "_blank");
   await page.screenshot({ path: `test-results/sotf-scheduling-handoff-${test.info().project.name}.png`, fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-  expect(errors).toEqual([]);
+  expect(browserErrors).toEqual([]);
 });
 
 test("a conversation leaves linked evidence, follow-through, and a next touch", async ({ page }) => {

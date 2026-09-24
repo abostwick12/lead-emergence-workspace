@@ -9,11 +9,20 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: process.env.E2E_BASE_URL || "http://localhost:3000",
+    baseURL: process.env.E2E_BASE_URL || "http://127.0.0.1:3000",
     channel: "chrome",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure"
+  },
+  webServer: {
+    command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
+    url: "http://127.0.0.1:3000/sotf/preview",
+    reuseExistingServer: false,
+    env: {
+      SOTF_NETWORKING_BOOKING_URL: "https://calendar.app.google/syntheticE2EBookingPage",
+      NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000"
+    }
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], channel: "chrome" } },
