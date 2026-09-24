@@ -131,7 +131,6 @@ export function dailyBrief(state: PilotState, now: string): BriefItem[] {
 }
 
 const networkingResponseStatuses = new Set(["connection_accepted", "replied", "conversation_scheduled", "conversation_completed"]);
-const networkingConversationStatuses = new Set(["conversation_scheduled", "conversation_completed"]);
 const networkingMatureStatuses = new Set([...networkingResponseStatuses, "no_response"]);
 
 export function latestNetworkingWeek(state: PilotState) {
@@ -151,8 +150,9 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
     const attemptedAt = firstAttempt.get(item.id);
     return Boolean(attemptedAt && (attemptedAt <= maturityCutoff || networkingMatureStatuses.has(item.networking!.status)));
   });
-  const conversations = candidates.filter((item) => networkingConversationStatuses.has(item.networking!.status));
-  const conversion = mature.length ? mature.filter((item) => networkingConversationStatuses.has(item.networking!.status)).length / mature.length : null;
+  const conversationIds = new Set(state.meetings.filter((item) => item.kind === "networking" && item.status !== "cancelled" && item.personId && candidateIds.has(item.personId)).map((item) => item.personId!));
+  const conversations = candidates.filter((item) => conversationIds.has(item.id));
+  const conversion = mature.length ? mature.filter((item) => conversationIds.has(item.id)).length / mature.length : null;
   const group = (key: (candidate: typeof candidates[number]) => string) => [...new Set(candidates.map(key))].map((name) => {
     const cohort = candidates.filter((item) => key(item) === name);
     const attempted = cohort.filter((item) => firstAttempt.has(item.id));

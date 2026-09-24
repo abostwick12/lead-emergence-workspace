@@ -156,6 +156,27 @@ describe("SOTF networking strategy v1", () => {
     expect(h.state.people[0].networking).toMatchObject({ status: "replied", recommendedNextAction: "Prepare for the scheduled conversation" });
   });
 
+  it("stops counting a cancelled networking meeting as a generated conversation", () => {
+    const h = harness();
+    const person = { ...contact, id: "cancelled-candidate", networking: { weekOf: "2026-09-01", sourceUrl: "https://example.org/people/cancelled", whyPerson: "Public work shows direct experience", lamp: { list: "technical program leadership", alumniAffinity: "", motivation: "Relevant work", posting: "" }, contributionAngle: "Offer a delivery perspective", recommendedNextAction: "Send a short note", pathway: "direct_outreach", status: "identified" } } as const;
+    const conversation = { ...meeting, id: "cancelled-networking", personId: person.id, opportunityId: undefined, provider: "manual", sourceEventId: undefined } as const;
+
+    h.run({ type: "save_person", person });
+    h.run({ type: "prepare_outreach", personId: person.id });
+    const action = h.state.actions.at(-1)!;
+    h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+    h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic user verified the manual action" });
+    h.run({ type: "record_meeting", meeting: conversation });
+    expect(networkingStrategy(h.state, "2026-09-01")).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+
+    h.run({ type: "record_meeting", meeting: { ...conversation, status: "cancelled" } });
+    expect(networkingStrategy(h.state, "2026-09-01")).toMatchObject({ conversationsGenerated: 0, matureCohortConversionRate: 0 });
+
+    h.run({ type: "record_meeting", meeting: conversation });
+    h.run({ type: "debrief_meeting", meetingId: conversation.id, said: "The practitioner described bounded team decisions", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] });
+    expect(networkingStrategy(h.state, "2026-09-01")).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+  });
+
   it("builds a transparent 25-person queue, tracks mature cohorts, and reuses the conversation loop", () => {
     const h = harness();
     const people = Array.from({ length: 25 }, (_, index) => {
