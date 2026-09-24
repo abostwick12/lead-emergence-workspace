@@ -43,6 +43,32 @@ test("networking strategy shows a transparent 25-person cohort and evidence-led 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
 
+test("networking view supports the full manual action lifecycle", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const candidate = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) });
+  await candidate.getByRole("button", { name: "Prepare outreach", exact: true }).click();
+
+  const reviewQueue = page.locator("section").filter({ has: page.getByRole("heading", { name: "Follow-through to review", exact: true }) });
+  const action = reviewQueue.locator("article").filter({ hasText: "To: Fictional candidate 6" });
+  await action.getByRole("button", { name: "Review exact draft", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Recipient")).toHaveValue("Fictional candidate 6");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  await action.getByRole("button", { name: "Approve this exact draft for manual use", exact: true }).click();
+  await action.getByRole("button", { name: "Record a verified result", exact: true }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByLabel("What did you verify?").fill("Synthetic user verified the manual outreach outside Workspace.");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  const verified = page.locator("details").filter({ hasText: "Networking drafts and verified actions" }).locator("article").filter({ hasText: "Fictional candidate 6" });
+  await expect(verified.getByText("direct message · manually completed", { exact: true })).toBeVisible();
+  await expect(verified.getByText("Synthetic user verified the manual outreach outside Workspace.", { exact: true })).toBeVisible();
+  await expect(candidate.getByText("attempted · direct outreach", { exact: true })).toBeVisible();
+});
+
 test("a conversation leaves linked evidence, follow-through, and a next touch", async ({ page }) => {
   const accountRequests: string[] = [];
   page.on("request", (request) => { if (request.url().includes("/api/sotf") || request.url().includes("supabase")) accountRequests.push(request.url()); });
