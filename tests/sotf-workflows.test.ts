@@ -160,21 +160,39 @@ describe("SOTF networking strategy v1", () => {
     const h = harness();
     const person = { ...contact, id: "cancelled-candidate", networking: { weekOf: "2026-09-01", sourceUrl: "https://example.org/people/cancelled", whyPerson: "Public work shows direct experience", lamp: { list: "technical program leadership", alumniAffinity: "", motivation: "Relevant work", posting: "" }, contributionAngle: "Offer a delivery perspective", recommendedNextAction: "Send a short note", pathway: "direct_outreach", status: "identified" } } as const;
     const conversation = { ...meeting, id: "cancelled-networking", personId: person.id, opportunityId: undefined, provider: "manual", sourceEventId: undefined } as const;
+    const strategy = () => networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
 
     h.run({ type: "save_person", person });
     h.run({ type: "prepare_outreach", personId: person.id });
     const action = h.state.actions.at(-1)!;
     h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
     h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic user verified the manual action" });
-    h.run({ type: "record_meeting", meeting: conversation });
-    expect(networkingStrategy(h.state, "2026-09-01")).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+    h.run({ type: "record_meeting", meeting: conversation }, "2026-09-07T12:00:00Z");
+    expect(h.state.people[0].networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-07T12:00:00.000Z" });
+    expect(strategy()).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
 
-    h.run({ type: "record_meeting", meeting: { ...conversation, status: "cancelled" } });
-    expect(networkingStrategy(h.state, "2026-09-01")).toMatchObject({ conversationsGenerated: 0, matureCohortConversionRate: 0 });
+    h.run({ type: "record_meeting", meeting: { ...conversation, status: "cancelled" } }, "2026-09-08T12:00:00Z");
+    expect(h.state.people[0].networking).toMatchObject({ status: "follow_up_due", statusUpdatedAt: "2026-09-08T12:00:00.000Z" });
+    expect(strategy()).toMatchObject({ conversationsGenerated: 0, matureCohortConversionRate: 0 });
+    expect(strategy().categories.find((item) => item.name === "technical program leadership")).toMatchObject({ responses: 0 });
+    expect(strategy().pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 0 });
 
-    h.run({ type: "record_meeting", meeting: conversation });
-    h.run({ type: "debrief_meeting", meetingId: conversation.id, said: "The practitioner described bounded team decisions", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] });
-    expect(networkingStrategy(h.state, "2026-09-01")).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+    const replacement = { ...conversation, id: "replacement-networking" };
+    const alternate = { ...conversation, id: "alternate-networking" };
+    h.run({ type: "record_meeting", meeting: replacement }, "2026-09-09T12:00:00Z");
+    expect(h.state.people[0].networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-09T12:00:00.000Z" });
+    expect(strategy()).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+
+    h.run({ type: "record_meeting", meeting: alternate }, "2026-09-10T12:00:00Z");
+    h.run({ type: "record_meeting", meeting: { ...replacement, status: "cancelled" } }, "2026-09-11T12:00:00Z");
+    expect(h.state.people[0].networking?.status).toBe("conversation_scheduled");
+    expect(strategy().conversationsGenerated).toBe(1);
+
+    h.run({ type: "debrief_meeting", meetingId: alternate.id, said: "The practitioner described bounded team decisions", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] }, "2026-09-12T12:00:00Z");
+    const later = { ...conversation, id: "post-completion-networking" };
+    h.run({ type: "record_meeting", meeting: later }, "2026-09-13T12:00:00Z");
+    h.run({ type: "record_meeting", meeting: { ...later, status: "cancelled" } }, "2026-09-14T12:00:00Z");
+    expect(h.state.people[0].networking?.status).toBe("conversation_completed");
   });
 
   it("requires a completed public comment and observed exchange before a follow-up message", () => {

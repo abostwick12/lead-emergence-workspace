@@ -139,6 +139,11 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       const targetId = current?.id ?? value.id;
       upsert(state.meetings, { ...value, id: targetId, debrief: current?.debrief });
       if (value.personId && ["planned", "accepted"].includes(value.status)) advanceNetworking(person(value.personId), "conversation_scheduled", now);
+      if (value.kind === "networking" && value.status === "cancelled" && value.personId) {
+        const contact = person(value.personId);
+        const anotherScheduledConversation = state.meetings.some((item) => item.id !== targetId && item.kind === "networking" && item.personId === value.personId && ["planned", "accepted"].includes(item.status));
+        if (contact.networking?.status === "conversation_scheduled" && !anotherScheduledConversation) contact.networking = { ...contact.networking, status: "follow_up_due", statusUpdatedAt: now };
+      }
       state.actions.filter((item) => item.kind === "calendar_invite" && item.meetingId === targetId && ["draft", "approved_for_manual_execution", "failed"].includes(item.state) && item.meetingStamp !== meetingStamp(targetId)).forEach((item) => { item.state = "superseded"; item.approvedAt = undefined; item.updatedAt = now; });
       if (value.status === "cancelled") state.commitments.filter((item) => item.meetingId === targetId && item.id.endsWith(":prepare")).forEach((item) => { item.status = "cancelled"; item.updatedAt = now; });
       else if (["planned", "accepted"].includes(value.status)) saveCommitment({ id: `${targetId}:prepare`, title: `Prepare: ${value.title}`.slice(0, 240), owner: "Fellow", due: value.startsAt.slice(0, 10), definitionOfDone: `Review the person, prior interactions, and questions needed to resolve: ${value.objective}`, reviewTrigger: "Meeting time, purpose, or participant changes", meetingId: targetId, personId: value.personId, opportunityId: value.opportunityId }, current?.status === "cancelled" || Boolean(current && (current.startsAt !== value.startsAt || current.objective !== value.objective)));
