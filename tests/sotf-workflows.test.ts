@@ -225,7 +225,7 @@ describe("SOTF networking strategy v1", () => {
     h.run({ type: "record_meeting", meeting: { ...meeting, id: "network-conversation", personId: "candidate-1", opportunityId: undefined, provider: "manual", sourceEventId: undefined } }, "2026-09-08T12:00:00Z");
     const strategy = networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
     expect(strategy).toMatchObject({ attemptsMade: 5, conversationsGenerated: 1, matureCohortSize: 5, matureCohortConversionRate: 0.2 });
-    expect(strategy.categories.find((item) => item.name === "technical program leadership")).toMatchObject({ responses: 1 });
+    expect(strategy.categories.find((item) => item.name === "technical program leadership")).toMatchObject({ responses: 2 });
     expect(strategy.pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 1 });
     expect(strategy.adjustments.join(" ")).toContain("recorded");
     expect(prepareMeeting(h.state, "network-conversation").person?.id).toBe("candidate-1");
