@@ -137,13 +137,16 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       if (current && (current.provider !== value.provider || current.sourceEventId !== value.sourceEventId)) throw new Error("A meeting's provider identity cannot change. Reconcile the existing event instead.");
       if (current?.debrief && (value.status !== "completed" || value.startsAt !== current.startsAt || value.endsAt !== current.endsAt || value.personId !== current.personId || value.opportunityId !== current.opportunityId)) throw new Error("A completed meeting's occurrence and learning links cannot be rewritten by a calendar refresh.");
       const targetId = current?.id ?? value.id;
+      const affectedPersonIds = new Set<string>();
+      if (current?.personId) affectedPersonIds.add(current.personId);
+      if (value.personId) affectedPersonIds.add(value.personId);
       upsert(state.meetings, { ...value, id: targetId, debrief: current?.debrief });
-      if (value.personId && ["planned", "accepted"].includes(value.status)) advanceNetworking(person(value.personId), "conversation_scheduled", now);
-      if (value.kind === "networking" && value.status === "cancelled" && value.personId) {
-        const contact = person(value.personId);
-        const anotherScheduledConversation = state.meetings.some((item) => item.id !== targetId && item.kind === "networking" && item.personId === value.personId && ["planned", "accepted"].includes(item.status));
-        if (contact.networking?.status === "conversation_scheduled" && !anotherScheduledConversation) contact.networking = { ...contact.networking, status: "follow_up_due", statusUpdatedAt: now };
-      }
+      affectedPersonIds.forEach((personId) => {
+        const contact = person(personId);
+        const hasScheduledConversation = state.meetings.some((item) => item.kind === "networking" && item.personId === personId && ["planned", "accepted"].includes(item.status));
+        if (hasScheduledConversation) advanceNetworking(contact, "conversation_scheduled", now);
+        else if (contact.networking?.status === "conversation_scheduled") contact.networking = { ...contact.networking, status: "follow_up_due", statusUpdatedAt: now };
+      });
       state.actions.filter((item) => item.kind === "calendar_invite" && item.meetingId === targetId && ["draft", "approved_for_manual_execution", "failed"].includes(item.state) && item.meetingStamp !== meetingStamp(targetId)).forEach((item) => { item.state = "superseded"; item.approvedAt = undefined; item.updatedAt = now; });
       if (value.status === "cancelled") state.commitments.filter((item) => item.meetingId === targetId && item.id.endsWith(":prepare")).forEach((item) => { item.status = "cancelled"; item.updatedAt = now; });
       else if (["planned", "accepted"].includes(value.status)) saveCommitment({ id: `${targetId}:prepare`, title: `Prepare: ${value.title}`.slice(0, 240), owner: "Fellow", due: value.startsAt.slice(0, 10), definitionOfDone: `Review the person, prior interactions, and questions needed to resolve: ${value.objective}`, reviewTrigger: "Meeting time, purpose, or participant changes", meetingId: targetId, personId: value.personId, opportunityId: value.opportunityId }, current?.status === "cancelled" || Boolean(current && (current.startsAt !== value.startsAt || current.objective !== value.objective)));
