@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { SotfExperience } from "@/components/sotf/sotf-experience";
+import { networkingBookingConfiguration, networkingSchedulingHandoff } from "@/lib/sotf/booking";
 import { createWorkspaceServerClient } from "@/lib/supabase/server";
 
 export default async function SotfBundlePage() {
@@ -9,5 +10,5 @@ export default async function SotfBundlePage() {
   if (userError || !userData.user) redirect("/login");
   const { data: allowed, error } = await supabase.rpc("sotf_has_access");
   if (error || allowed !== true) notFound();
-  return <SotfExperience mode="connected" />;
+  return <SotfExperience mode="connected" scheduling={networkingSchedulingHandoff(networkingBookingConfiguration())} />;
 }

@@ -374,6 +374,44 @@ describe("SOTF networking strategy v1", () => {
     h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic manual action" }, "2026-09-14T10:03:00Z");
     expect(networkingStrategy(h.state, "2026-09-08", "2026-09-15T10:03:00Z")).toMatchObject({ attemptsMade: 1, matureCohortSize: 0, matureCohortConversionRate: null });
   });
+
+  it("offers the branded scheduling reply only after a positive response and preserves the meeting loop", () => {
+    const h = harness();
+    const person = networkingCandidate("scheduling-candidate", "Fictional scheduling candidate", "program leadership");
+    const brandedUrl = "https://workspace.leademergence.com/meet/andrew";
+    const rawGoogleUrl = "https://calendar.app.google/syntheticBookingPage";
+    h.run({ type: "save_person", person });
+
+    for (const status of ["identified", "attempted", "no_response"] as const) {
+      h.run({ type: "save_person", person: { ...person, networking: { ...person.networking, status } } });
+      expect(() => h.run({ type: "prepare_scheduling_reply", personId: person.id, schedulingUrl: brandedUrl })).toThrow("positive networking reply");
+    }
+
+    h.run({ type: "prepare_outreach", personId: person.id });
+    expect(h.state.actions.at(-1)?.body).not.toContain("/meet/andrew");
+    h.run({ type: "save_person", person: { ...person, networking: { ...person.networking, status: "replied" } } });
+    expect(() => h.run({ type: "prepare_scheduling_reply", personId: person.id, schedulingUrl: rawGoogleUrl })).toThrow("configured Lead Emergence scheduling page");
+
+    const meetingCount = h.state.meetings.length;
+    h.run({ type: "prepare_scheduling_reply", personId: person.id, schedulingUrl: brandedUrl });
+    expect(h.state.meetings).toHaveLength(meetingCount);
+    expect(h.state.actions.at(-1)).toMatchObject({
+      kind: "direct_message",
+      state: "draft",
+      subject: "Find a time for our conversation",
+      body: expect.stringContaining(brandedUrl)
+    });
+    expect(h.state.actions.at(-1)?.body).not.toContain(rawGoogleUrl);
+
+    const bookedMeeting = { ...meeting, id: "booked-networking-conversation", personId: person.id, opportunityId: undefined, provider: "manual" as const, sourceEventId: undefined };
+    h.run({ type: "record_meeting", meeting: bookedMeeting });
+    expect(h.state.commitments.find((item) => item.id === `${bookedMeeting.id}:prepare`)?.status).toBe("open");
+    expect(prepareMeeting(h.state, bookedMeeting.id).person?.id).toBe(person.id);
+    h.run({ type: "debrief_meeting", meetingId: bookedMeeting.id, said: "The fictional practitioner described the work", inferred: "The work may fit", unresolved: [], evidence: [], commitments: [], introductions: [], nextTouch: "2026-09-20" });
+    expect(h.state.people.find((item) => item.id === person.id)?.networking?.status).toBe("conversation_completed");
+    expect(h.state.commitments.find((item) => item.id === `${bookedMeeting.id}:prepare`)?.status).toBe("done");
+    expect(h.state.actions.some((item) => item.meetingId === bookedMeeting.id && item.subject.startsWith("Thank you"))).toBe(true);
+  });
 });
 
 describe("SOTF reusable evidence, applications, and next chapter", () => {
