@@ -56,17 +56,21 @@ describe('SOTF native API and new MCP conversation share one operational history
     expect((await GET(request())).status).toBe(503);
   });
 
-  it('enforces authoritative scheduling configuration across native API and MCP saves', async () => {
+  it('enforces authoritative scheduling configuration and recovers a lost scheduling save reply', async () => {
     vi.stubEnv('SOTF_PILOT_ENABLED','true');
     vi.stubEnv('NEXT_PUBLIC_APP_URL','https://workspace.leademergence.com');
     vi.stubEnv('SOTF_NETWORKING_BOOKING_URL','');
     const batch: EventBatch = { workspace_id: '70000000-0000-4000-8000-000000000001', revision: 0, events: [] };
+    let loseReply = false;
+    let appends = 0;
     transport.rpc.mockImplementation(async (name: string, args?: { operation: CommandEnvelope }) => {
       if (name === 'sotf_read_operations') return { data: structuredClone(batch), error: null };
       if (name !== 'sotf_append_operation' || !args) throw new Error('Unexpected RPC: ' + name);
       const operation = args.operation;
+      appends += 1;
       if (operation.expectedRevision !== batch.revision) return { data: null, error: { code: '40001' } };
       batch.revision += 1; batch.events.push({ revision: batch.revision, envelope: operation, recorded_at: '2026-09-24T12:00:00.000Z' });
+      if (loseReply) { loseReply = false; return { data: null, error: { code: 'network' } }; }
       return { data: { revision: batch.revision }, error: null };
     });
     const envelope = (command: unknown) => commandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: batch.revision, userConfirmed: true, dataClass: 'ordinary_transition_operations', command });
@@ -91,13 +95,34 @@ describe('SOTF native API and new MCP conversation share one operational history
 
     vi.stubEnv('SOTF_NETWORKING_BOOKING_URL','https://calendar.app.google/syntheticAuthoritativeBooking');
     const callerControlledUrl = 'https://attacker.example/meet/andrew';
-    const configured = await POST(request(envelope({ type: 'prepare_scheduling_reply', personId: candidate.id, schedulingUrl: callerControlledUrl })));
-    expect(configured.status).toBe(200);
-    const configuredBody = await configured.json();
-    expect(configuredBody).toMatchObject({ saved: true, state: { revision: 2, actions: [{ state: 'draft', body: expect.stringContaining(plausibleCallerUrl) }] } });
-    expect(configuredBody.state.actions[0].body).not.toContain(callerControlledUrl);
-    expect(configuredBody.state.actions[0].body).not.toContain('calendar.app.google');
+    const original = envelope({ type: 'prepare_scheduling_reply', personId: candidate.id, schedulingUrl: callerControlledUrl });
+    loseReply = true;
+    const lostReply = await POST(request(original));
+    expect(await lostReply.json()).toMatchObject({ saved: null });
+    expect(batch.revision).toBe(2);
+    expect(appends).toBe(2);
     expect(batch.events).toHaveLength(2);
     expect(batch.events[1].envelope.command).toMatchObject({ type: 'prepare_scheduling_reply', schedulingUrl: plausibleCallerUrl });
+
+    vi.stubEnv('SOTF_NETWORKING_BOOKING_URL','');
+    vi.stubEnv('NEXT_PUBLIC_APP_URL','https://changed.example');
+    const recovered = await client.callTool({ name: 'sotf_record_transition_step', arguments: original });
+    expect(recovered.isError).not.toBe(true);
+    expect(recovered.structuredContent).toMatchObject({ saved: true, replayed: true, revision: 2 });
+    expect(JSON.stringify(recovered.structuredContent)).toContain(plausibleCallerUrl);
+    expect(JSON.stringify(recovered.structuredContent)).not.toContain(callerControlledUrl);
+    expect(appends).toBe(2);
+    expect(batch.events).toHaveLength(2);
+    expect(batch.revision).toBe(2);
+
+    vi.stubEnv('SOTF_NETWORKING_BOOKING_URL','https://calendar.app.google/changedBooking');
+    const changedConfigRetry = await POST(request(original));
+    expect(await changedConfigRetry.json()).toMatchObject({ saved: true, replayed: true, state: { revision: 2, actions: [{ body: expect.stringContaining(plausibleCallerUrl) }] } });
+    expect(appends).toBe(2);
+    expect(batch.revision).toBe(2);
+
+    const collision = await POST(request({ ...original, command: { type: 'prepare_scheduling_reply', personId: 'different-candidate', schedulingUrl: callerControlledUrl } }));
+    expect(await collision.json()).toMatchObject({ saved: false, message: expect.stringContaining('different operation') });
+    expect(appends).toBe(2);
   });
 });
