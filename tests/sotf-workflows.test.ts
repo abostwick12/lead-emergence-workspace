@@ -208,6 +208,28 @@ describe("SOTF networking strategy v1", () => {
     expect(strategy().pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 1 });
   });
 
+  it("preserves the conversation response when a provider completes a meeting before debrief", () => {
+    const h = harness();
+    const person = networkingCandidate("provider-completed", "Fictional Provider Completed", "program leadership");
+    const conversation = { ...meeting, id: "provider-completed-meeting", personId: person.id, opportunityId: undefined, provider: "manual", sourceEventId: undefined } as const;
+    const strategy = () => networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+
+    h.run({ type: "save_person", person });
+    recordVerifiedOutreach(h, person.id);
+    h.run({ type: "record_meeting", meeting: conversation }, "2026-09-07T12:00:00Z");
+    expect(h.state.people.find((item) => item.id === person.id)?.networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-07T12:00:00.000Z" });
+
+    h.run({ type: "record_meeting", meeting: { ...conversation, status: "completed" } }, "2026-09-08T12:00:00Z");
+    expect(h.state.meetings.find((item) => item.id === conversation.id)).toMatchObject({ status: "completed", debrief: undefined });
+    expect(h.state.people.find((item) => item.id === person.id)?.networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-07T12:00:00.000Z" });
+    expect(strategy()).toMatchObject({ conversationsGenerated: 1, matureCohortConversionRate: 1 });
+    expect(strategy().categories.find((item) => item.name === "program leadership")).toMatchObject({ responses: 1 });
+    expect(strategy().pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ responses: 1 });
+
+    h.run({ type: "debrief_meeting", meetingId: conversation.id, said: "The practitioner described bounded team decisions", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] }, "2026-09-09T12:00:00Z");
+    expect(h.state.people.find((item) => item.id === person.id)?.networking).toMatchObject({ status: "conversation_completed", statusUpdatedAt: "2026-09-09T12:00:00.000Z" });
+  });
+
   it("reconciles both old and new participants when cancellation removes or changes the link", () => {
     const h = harness();
     const previous = networkingCandidate("previous-candidate", "Fictional Previous", "program leadership");

@@ -143,7 +143,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       upsert(state.meetings, { ...value, id: targetId, debrief: current?.debrief });
       affectedPersonIds.forEach((personId) => {
         const contact = person(personId);
-        const hasScheduledConversation = state.meetings.some((item) => item.kind === "networking" && item.personId === personId && ["planned", "accepted"].includes(item.status));
+        const hasScheduledConversation = state.meetings.some((item) => item.kind === "networking" && item.personId === personId && ["planned", "accepted", "completed"].includes(item.status));
         if (hasScheduledConversation) advanceNetworking(contact, "conversation_scheduled", now);
         else if (contact.networking?.status === "conversation_scheduled") contact.networking = { ...contact.networking, status: "follow_up_due", statusUpdatedAt: now };
       });
