@@ -11,6 +11,11 @@ const date = z.string().date();
 const timestamp = z.string().datetime({ offset: true }).transform((value) => new Date(value).toISOString());
 const ids = z.array(id).max(100).default([]);
 export const publicUrl = z.string().url().refine((value) => ["https:", "http:"].includes(new URL(value).protocol), "Use an HTTP or HTTPS source URL.");
+export const brandedSchedulingUrl = z.string().url().refine((value) => {
+  const url = new URL(value);
+  const local = ["localhost", "127.0.0.1"].includes(url.hostname);
+  return !url.username && !url.password && !url.search && !url.hash && url.pathname === "/meet/andrew" && (url.protocol === "https:" || (local && url.protocol === "http:"));
+}, "Use the configured Lead Emergence scheduling page.");
 export const criterionSchema = z.strictObject({ id, label: short, dimension: dimensionSchema, desired: text, nonNegotiable: z.boolean().default(false), importance: z.number().int().min(1).max(5).default(3), confirmed: z.literal(true) });
 export const hypothesisSchema = z.strictObject({ id, proposition: short, whyPromising: text, assumptions: z.array(short).max(12).default([]), gaps: z.array(short).max(12).default([]), nextExperiment: text, reviewTrigger: text, status: z.enum(["continue", "refine", "split", "pause", "reject"]).default("continue"), confidenceExplanation: text });
 export const sourceSchema = z.strictObject({ kind: z.enum(["job_post", "company_claim", "practitioner", "independent_reporting", "community", "fellow_report", "inference"]), reference: short, url: publicUrl.optional(), observedAt: date, scope: short });
@@ -55,6 +60,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("decide_opportunity"), opportunityId: id, decision: z.enum(["pursue", "investigate", "decline", "pause"]), rationale: text, nextAction: text, revisitWhen: text, due: date.optional() }),
   z.strictObject({ type: z.literal("save_person"), person: personSchema }),
   z.strictObject({ type: z.literal("prepare_outreach"), personId: id, stage: z.enum(["initial", "private_follow_up"]).default("initial") }),
+  z.strictObject({ type: z.literal("prepare_scheduling_reply"), personId: id, schedulingUrl: brandedSchedulingUrl }),
   z.strictObject({ type: z.literal("record_meeting"), meeting: meetingSchema }),
   z.strictObject({ type: z.literal("debrief_meeting"), meetingId: id, said: text, inferred: note, unresolved: z.array(short).max(15), evidence: z.array(evidenceSchema).max(15), commitments: z.array(commitmentSchema).max(15), introductions: z.array(short).max(10).default([]), nextTouch: date.optional() }),
   z.strictObject({ type: z.literal("save_commitment"), commitment: commitmentSchema }),

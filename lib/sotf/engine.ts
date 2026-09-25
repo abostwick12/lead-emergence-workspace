@@ -127,6 +127,18 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       }
       summary = `Outreach prepared for ${contact.name}; nothing sent.`; break;
     }
+    case "prepare_scheduling_reply": {
+      const contact = person(command.personId);
+      if (contact.networking?.status !== "replied") throw new Error("Record a positive networking reply before preparing a scheduling response.");
+      draft({
+        kind: "direct_message",
+        recipient: contact.email ?? contact.name,
+        subject: "Find a time for our conversation",
+        body: `Absolutely — here’s my calendar if it’s easier to grab a time that works for you: ${command.schedulingUrl}`,
+        personId: contact.id
+      }, "scheduling-reply");
+      summary = `Scheduling reply prepared for ${contact.name}; nothing sent or booked.`; break;
+    }
     case "record_meeting": {
       const value = command.meeting; links(value);
       if (value.endsAt <= value.startsAt) throw new Error("The meeting must end after it starts.");

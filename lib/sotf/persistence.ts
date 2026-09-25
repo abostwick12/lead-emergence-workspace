@@ -40,12 +40,13 @@ export class OperationNotApplied extends Error {
 export class SotfStore {
   constructor(private readonly transport: SotfTransport, private readonly clock = () => new Date().toISOString()) {}
   async read() { return replayEvents(await this.transport.read()); }
-  async execute(input: unknown) {
-    const envelope = commandEnvelopeSchema.parse(input);
+  async execute(input: unknown, prepare?: (envelope: CommandEnvelope, state: PilotState) => CommandEnvelope) {
+    let envelope = commandEnvelopeSchema.parse(input);
     let before: Awaited<ReturnType<SotfStore["read"]>>;
     let proposed: PilotState;
     try {
       before = await this.read();
+      if (prepare) envelope = commandEnvelopeSchema.parse(prepare(envelope, before.state));
       proposed = applyCommand(before.state, envelope, this.clock());
     } catch (error) {
       if (error instanceof RevisionConflict) throw error;

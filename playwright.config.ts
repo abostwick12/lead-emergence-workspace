@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const externalBaseURL = process.env.E2E_BASE_URL;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 45_000,
@@ -9,11 +11,20 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: process.env.E2E_BASE_URL || "http://localhost:3000",
+    baseURL: externalBaseURL || "http://127.0.0.1:3000",
     channel: "chrome",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure"
+  },
+  webServer: externalBaseURL ? undefined : {
+    command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
+    url: "http://127.0.0.1:3000/sotf/preview",
+    reuseExistingServer: false,
+    env: {
+      SOTF_NETWORKING_BOOKING_URL: "https://calendar.app.google/syntheticE2EBookingPage",
+      NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000"
+    }
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], channel: "chrome" } },
