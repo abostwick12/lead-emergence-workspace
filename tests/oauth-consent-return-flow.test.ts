@@ -36,7 +36,7 @@ import { GET as finishEntrySignIn } from "@/app/auth/callback/sign-in/route";
 import { ENTRY_RETURN_COOKIE, ENTRY_SIGN_IN_COOKIE } from "@/lib/auth/entry-identity";
 
 describe("OAuth consent continuation through existing Entry sign-in routes", () => {
-  const consentPath = "/oauth/consent?authorization_id=11111111-1111-4111-8111-111111111111";
+  const consentPath = "/oauth/consent?authorization_id=abcdefghijklmnopqrstuvwxyz234567";
 
   beforeEach(() => {
     vi.clearAllMocks();

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeWorkspaceReturnPath, workspaceLoginHref } from "@/lib/workspace/return-path";
 
 describe("Workspace post-login return path", () => {
-  const authorizationId = "11111111-1111-4111-8111-111111111111";
+  const authorizationId = "abcdefghijklmnopqrstuvwxyz234567";
   const consentPath = `/oauth/consent?authorization_id=${authorizationId}`;
 
   it.each([
@@ -35,9 +35,12 @@ describe("Workspace post-login return path", () => {
   it.each([
     "/oauth/consent",
     "/oauth/consent?authorization_id=",
-    "/oauth/consent?authorization_id=not-a-uuid",
-    "/oauth/consent?authorization_id=11111111-1111-1111-8111-111111111111",
-    "/oauth/consent?authorization_id=11111111-1111-4111-1111-111111111111",
+    "/oauth/consent?authorization_id=too-short",
+    "/oauth/consent?authorization_id=abcdefghijklmnopqrstuvwxyz23456",
+    "/oauth/consent?authorization_id=abcdefghijklmnopqrstuvwxyz2345672",
+    "/oauth/consent?authorization_id=11111111-1111-4111-8111-111111111111",
+    "/oauth/consent?authorization_id=ABCDEFGHIJKLMNOPQRSTUVWXYZ234567",
+    "/oauth/consent?authorization_id=abcdefghijklmnopqrstuvwxyz23456-",
     `/oauth/consent?authorization_id=${authorizationId}&next=/workspace`,
     `/oauth/consent?next=/workspace&authorization_id=${authorizationId}`,
     `/oauth/consent?authorization_id=${authorizationId}#fragment`,

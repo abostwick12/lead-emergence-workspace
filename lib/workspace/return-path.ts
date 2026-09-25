@@ -1,6 +1,6 @@
 const DEFAULT_WORKSPACE_PATH = "/workspace";
 const INERT_ORIGIN = "https://workspace-return-path.invalid";
-const OAUTH_CONSENT_CONTINUATION = /^\/oauth\/consent\?authorization_id=([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+const OAUTH_CONSENT_CONTINUATION = /^\/oauth\/consent\?authorization_id=[a-z2-7]{32}$/;
 
 /**
  * Returns a normalized internal post-login path. Workspace queries and fragments
