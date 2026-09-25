@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Bot, Check, ShieldCheck, X } from "lucide-react";
 import { getWorkspaceClient } from "@/lib/supabase/client";
 import { resolvePersonalWorkspace } from "@/lib/workspace/provision";
@@ -15,9 +15,9 @@ type ConsentDetails = {
 
 type ConsentDiagnostic = {
   attempt_id: string;
-  stage: "identity_checked" | "allow_started" | "approval_attempted" | "approval_result" | "approval_exception" | "redirect_selected";
+  sequence: number;
+  stage: "allow_started" | "approval_attempted" | "approval_result" | "approval_exception" | "redirect_selected";
   client_id?: string;
-  identity?: "present" | "absent";
   outcome?: "success" | "error";
   error_code?: string;
   error_type?: "AuthApiError" | "AuthRetryableFetchError" | "AuthSessionMissingError" | "AuthUnknownError" | "TypeError" | "Error" | "OtherError";
@@ -57,7 +57,7 @@ async function emitConsentDiagnostic(event: ConsentDiagnostic) {
       fetch("/api/oauth/consent-diagnostic", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        credentials: "omit",
+        credentials: "same-origin",
         keepalive: true,
         body: JSON.stringify(event),
       }),
@@ -73,17 +73,6 @@ export default function OAuthConsentPage() {
   const [allowed, setAllowed] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const attemptId = useRef<string | null>(null);
-  const identityPresent = useRef(false);
-
-  function diagnose(event: Omit<ConsentDiagnostic, "attempt_id">) {
-    try {
-      attemptId.current ??= crypto.randomUUID();
-      return emitConsentDiagnostic({ attempt_id: attemptId.current, ...event });
-    } catch {
-      return Promise.resolve();
-    }
-  }
 
   useEffect(() => {
     void (async () => {
@@ -91,10 +80,7 @@ export default function OAuthConsentPage() {
       if (!authorizationId) { setError("This assistant authorization request is incomplete."); return; }
       const supabase = getWorkspaceClient();
       const { data: auth, error: authError } = await supabase.auth.getUser();
-      identityPresent.current = !authError && !!auth.user;
-      void diagnose({ stage: "identity_checked", identity: identityPresent.current ? "present" : "absent" });
       if (authError || !auth.user) {
-        await diagnose({ stage: "redirect_selected", branch: "login_redirect" });
         window.location.replace(`/login?next=${encodeURIComponent(`/oauth/consent?authorization_id=${authorizationId}`)}`);
         return;
       }
@@ -106,7 +92,6 @@ export default function OAuthConsentPage() {
       setAllowed(plan.status === "active" && capabilities.workspace_mcp);
       if (!("authorization_id" in authorization.data)) {
         if (!safeOAuthRedirect(authorization.data.redirect_url) || !capabilities.workspace_mcp) { setError("This connection is not available for the current Personal plan."); return; }
-        await diagnose({ stage: "redirect_selected", branch: "already_authorized_redirect" });
         window.location.replace(authorization.data.redirect_url);
         return;
       }
@@ -116,43 +101,42 @@ export default function OAuthConsentPage() {
 
   async function decide(approve: boolean) {
     if (!details || pending) return;
+    let attemptId: string | null = null;
+    if (approve) {
+      try { attemptId = crypto.randomUUID(); } catch { /* Authorization proceeds without diagnostics. */ }
+    }
+    const diagnose = (sequence: number, event: Omit<ConsentDiagnostic, "attempt_id" | "sequence">) =>
+      attemptId ? emitConsentDiagnostic({ attempt_id: attemptId, sequence, ...event }) : Promise.resolve();
     const clientId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(details.client.id)
       ? details.client.id.toLowerCase() : undefined;
-    if (approve) void diagnose({ stage: "allow_started", client_id: clientId, identity: identityPresent.current ? "present" : "absent" });
     setPending(true);
     setError(null);
+    if (approve) await diagnose(0, { stage: "allow_started", client_id: clientId });
     const supabase = getWorkspaceClient();
-    if (approve && allowed) void diagnose({ stage: "approval_attempted", client_id: clientId });
+    if (approve && allowed) await diagnose(1, { stage: "approval_attempted", client_id: clientId });
     let result;
     try {
       result = approve && allowed
         ? await supabase.auth.oauth.approveAuthorization(details.authorization_id, { skipBrowserRedirect: true })
         : await supabase.auth.oauth.denyAuthorization(details.authorization_id, { skipBrowserRedirect: true });
     } catch (caught) {
-      if (approve && allowed) await diagnose({ stage: "approval_exception", client_id: clientId, ...diagnosticError(caught) });
+      if (approve && allowed) await diagnose(2, { stage: "approval_exception", client_id: clientId, ...diagnosticError(caught) });
       throw caught;
     }
-    if (approve && allowed) {
-      const canRedirect = !result.error && !!result.data?.redirect_url && safeOAuthRedirect(result.data.redirect_url);
-      const diagnosticWrites = Promise.all([
-        diagnose({
-          stage: "approval_result",
-          client_id: clientId,
-          outcome: result.error ? "error" : "success",
-          ...(result.error ? diagnosticError(result.error) : {}),
-          redirect_kind: diagnosticRedirectKind(result.data?.redirect_url),
-        }),
-        diagnose({ stage: "redirect_selected", client_id: clientId, branch: canRedirect ? "oauth_redirect" : "stay_on_error" }),
-      ]);
-      if (canRedirect) await diagnosticWrites;
-    }
+    if (approve && allowed) await diagnose(2, {
+      stage: "approval_result",
+      client_id: clientId,
+      outcome: result.error ? "error" : "success",
+      ...(result.error ? diagnosticError(result.error) : {}),
+      redirect_kind: diagnosticRedirectKind(result.data?.redirect_url),
+    });
     if (result.error || !result.data?.redirect_url || !safeOAuthRedirect(result.data.redirect_url)) {
-      if (approve && !allowed) void diagnose({ stage: "redirect_selected", client_id: clientId, branch: "stay_on_error" });
+      if (approve) await diagnose(3, { stage: "redirect_selected", client_id: clientId, branch: "stay_on_error" });
       setError("The authorization decision could not be completed safely.");
       setPending(false);
       return;
     }
-    if (approve && !allowed) await diagnose({ stage: "redirect_selected", client_id: clientId, branch: "oauth_redirect" });
+    if (approve) await diagnose(3, { stage: "redirect_selected", client_id: clientId, branch: "oauth_redirect" });
     window.location.assign(result.data.redirect_url);
   }
 
