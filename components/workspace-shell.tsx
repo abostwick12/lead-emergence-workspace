@@ -15,7 +15,7 @@ const operationalLinks = [
   ["/workspace", "Command Center", Compass], ["/workspace/tasks", "Daily Focus", Target], ["/workspace/career", "Pipeline", BriefcaseBusiness],
   ["/workspace/capture", "Signals", Radar]
 ] as const;
-const workspaceLinks = [["/workspace/memory", "Memory", BrainCircuit], ["/workspace/integrations", "Connections", Plug]] as const;
+const workspaceLinks = [["/workspace/memory", "Memory", BrainCircuit], ["/workspace/integrations", "Connections", Plug], ["/workspace/store", "Store", PackageOpen]] as const;
 
 function ProtectedShell({ children, sotfPilotEnabled }: { children: React.ReactNode; sotfPilotEnabled: boolean }) {
   const { ready, user, workspace, accessState, onboarding, plan, capabilities, sotfAccess, error, signOut } = useWorkspace();
