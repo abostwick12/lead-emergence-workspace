@@ -13,6 +13,61 @@ type ConsentDetails = {
   scope?: string;
 };
 
+type ConsentDiagnostic = {
+  attempt_id: string;
+  sequence: number;
+  stage: "allow_started" | "approval_attempted" | "approval_result" | "approval_exception" | "redirect_selected";
+  client_id?: string;
+  outcome?: "success" | "error";
+  error_code?: string;
+  error_type?: "AuthApiError" | "AuthRetryableFetchError" | "AuthSessionMissingError" | "AuthUnknownError" | "TypeError" | "Error" | "OtherError";
+  error_status?: number;
+  redirect_kind?: "authorization_code" | "oauth_error" | "other" | "missing" | "unsafe";
+  branch?: "oauth_redirect" | "stay_on_error" | "login_redirect" | "already_authorized_redirect";
+};
+
+const diagnosticErrorCode = (value: unknown) =>
+  typeof value === "string" && /^[a-z][a-z0-9_]{0,63}$/.test(value) ? value : "unclassified";
+
+function diagnosticError(error: unknown) {
+  if (!error || typeof error !== "object") return { error_code: "unclassified", error_type: "OtherError" as const };
+  const candidate = error as { code?: unknown; name?: unknown; status?: unknown };
+  const knownTypes = ["AuthApiError", "AuthRetryableFetchError", "AuthSessionMissingError", "AuthUnknownError", "TypeError", "Error"];
+  return {
+    error_code: diagnosticErrorCode(candidate.code),
+    error_type: typeof candidate.name === "string" && knownTypes.includes(candidate.name)
+      ? candidate.name as ConsentDiagnostic["error_type"] : "OtherError" as const,
+    ...(Number.isInteger(candidate.status) && Number(candidate.status) >= 400 && Number(candidate.status) <= 599
+      ? { error_status: Number(candidate.status) }
+      : {}),
+  };
+}
+
+function diagnosticRedirectKind(value: string | undefined): ConsentDiagnostic["redirect_kind"] {
+  if (!value) return "missing";
+  if (!safeOAuthRedirect(value)) return "unsafe";
+  const destination = new URL(value);
+  if (destination.searchParams.has("error")) return "oauth_error";
+  return destination.searchParams.has("code") ? "authorization_code" : "other";
+}
+
+async function emitConsentDiagnostic(event: ConsentDiagnostic) {
+  try {
+    await Promise.race([
+      fetch("/api/oauth/consent-diagnostic", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        keepalive: true,
+        body: JSON.stringify(event),
+      }),
+      new Promise<void>((resolve) => setTimeout(resolve, 750)),
+    ]);
+  } catch {
+    // Diagnostic delivery must not change the customer's authorization decision.
+  }
+}
+
 export default function OAuthConsentPage() {
   const [details, setDetails] = useState<ConsentDetails | null>(null);
   const [allowed, setAllowed] = useState(false);
@@ -46,17 +101,42 @@ export default function OAuthConsentPage() {
 
   async function decide(approve: boolean) {
     if (!details || pending) return;
+    let attemptId: string | null = null;
+    if (approve) {
+      try { attemptId = crypto.randomUUID(); } catch { /* Authorization proceeds without diagnostics. */ }
+    }
+    const diagnose = (sequence: number, event: Omit<ConsentDiagnostic, "attempt_id" | "sequence">) =>
+      attemptId ? emitConsentDiagnostic({ attempt_id: attemptId, sequence, ...event }) : Promise.resolve();
+    const clientId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(details.client.id)
+      ? details.client.id.toLowerCase() : undefined;
     setPending(true);
     setError(null);
+    if (approve) await diagnose(0, { stage: "allow_started", client_id: clientId });
     const supabase = getWorkspaceClient();
-    const result = approve && allowed
-      ? await supabase.auth.oauth.approveAuthorization(details.authorization_id, { skipBrowserRedirect: true })
-      : await supabase.auth.oauth.denyAuthorization(details.authorization_id, { skipBrowserRedirect: true });
+    if (approve && allowed) await diagnose(1, { stage: "approval_attempted", client_id: clientId });
+    let result;
+    try {
+      result = approve && allowed
+        ? await supabase.auth.oauth.approveAuthorization(details.authorization_id, { skipBrowserRedirect: true })
+        : await supabase.auth.oauth.denyAuthorization(details.authorization_id, { skipBrowserRedirect: true });
+    } catch (caught) {
+      if (approve && allowed) await diagnose(2, { stage: "approval_exception", client_id: clientId, ...diagnosticError(caught) });
+      throw caught;
+    }
+    if (approve && allowed) await diagnose(2, {
+      stage: "approval_result",
+      client_id: clientId,
+      outcome: result.error ? "error" : "success",
+      ...(result.error ? diagnosticError(result.error) : {}),
+      redirect_kind: diagnosticRedirectKind(result.data?.redirect_url),
+    });
     if (result.error || !result.data?.redirect_url || !safeOAuthRedirect(result.data.redirect_url)) {
+      if (approve) await diagnose(3, { stage: "redirect_selected", client_id: clientId, branch: "stay_on_error" });
       setError("The authorization decision could not be completed safely.");
       setPending(false);
       return;
     }
+    if (approve) await diagnose(3, { stage: "redirect_selected", client_id: clientId, branch: "oauth_redirect" });
     window.location.assign(result.data.redirect_url);
   }
 
