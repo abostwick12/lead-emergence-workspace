@@ -1,11 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const fixture = vi.hoisted(() => ({ entitlement: {} as Record<string, unknown> }));
+const fixture = vi.hoisted(() => ({
+  entitlement: {} as Record<string, unknown>,
+  sotfRpc: vi.fn()
+}));
 vi.mock("@/lib/workspace/bundle-server", () => ({
   readBearerToken: vi.fn(() => "synthetic-session"),
-  authenticatedBundleClient: vi.fn(async () => ({ client: {} })),
+  authenticatedBundleClient: vi.fn(async () => ({ client: { rpc: fixture.sotfRpc } })),
   bundleRpc: vi.fn(async () => fixture.entitlement),
   bundleErrorResponse: vi.fn(() => Response.json({ message: "Could not resolve this bundle." }, { status: 400 }))
 }));
@@ -19,12 +22,15 @@ const request = (bundleKey: string) => GET(
 );
 
 beforeEach(() => {
+  vi.stubEnv("SOTF_PILOT_ENABLED", "true");
+  fixture.sotfRpc.mockReset().mockResolvedValue({ data: true, error: null });
   fixture.entitlement = {
     bundle_key: "sotf_transition",
     state: "active",
     entitled: true
   };
 });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("SOTF exact release delivery", () => {
   it("returns the validated 1.0.0 artifact only after an active SOTF entitlement", async () => {
@@ -39,6 +45,25 @@ describe("SOTF exact release delivery", () => {
       manifest: { identity: { key: "sotf_transition", version: "1.0.0" } },
       uiManifest: { bundleKey: "sotf_transition" }
     });
+    expect(fixture.sotfRpc).toHaveBeenCalledExactlyOnceWith("sotf_has_access");
+  });
+
+  it("does not return a release when the SOTF pilot is disabled", async () => {
+    vi.stubEnv("SOTF_PILOT_ENABLED", "false");
+    expect(await (await request("sotf_transition")).json()).not.toHaveProperty("release");
+    expect(fixture.sotfRpc).not.toHaveBeenCalled();
+  });
+
+  it("does not return a release for a future-start grant", async () => {
+    fixture.entitlement = {
+      bundle_key: "sotf_transition",
+      state: "active",
+      entitled: true,
+      starts_at: "2100-01-01T00:00:00.000Z"
+    };
+    fixture.sotfRpc.mockResolvedValue({ data: false, error: null });
+    expect(await (await request("sotf_transition")).json()).not.toHaveProperty("release");
+    expect(fixture.sotfRpc).toHaveBeenCalledExactlyOnceWith("sotf_has_access");
   });
 
   it("does not return a release for an inactive or mismatched entitlement", async () => {
@@ -52,5 +77,6 @@ describe("SOTF exact release delivery", () => {
   it("preserves the existing response for other bundle keys", async () => {
     fixture.entitlement = { bundle_key: "other_bundle", state: "active", entitled: true };
     expect(await (await request("other_bundle")).json()).toEqual({ entitlement: fixture.entitlement });
+    expect(fixture.sotfRpc).not.toHaveBeenCalled();
   });
 });

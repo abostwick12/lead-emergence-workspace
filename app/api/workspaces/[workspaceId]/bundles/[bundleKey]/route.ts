@@ -1,6 +1,7 @@
 import type { BundleEntitlementResolution } from "@/lib/workspace/bundle-contract";
 import { authenticatedBundleClient, bundleErrorResponse, bundleRpc, readBearerToken } from "@/lib/workspace/bundle-server";
 import { resolveSotfRelease } from "@/lib/workspace/sotf-release";
+import { resolveSotfMcpAccess } from "@/app/api/mcp/route";
 
 export async function GET(
   request: Request,
@@ -19,6 +20,7 @@ export async function GET(
       && entitlement.bundle_key === bundleKey
       && entitlement.state === "active"
       && entitlement.entitled
+      && await resolveSotfMcpAccess(client)
     ) {
       return Response.json({ entitlement, release: resolveSotfRelease() });
     }
