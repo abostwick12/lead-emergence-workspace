@@ -1,0 +1,204 @@
+{
+  "schemaVersion": "1.0",
+  "identity": {
+    "key": "sotf_transition",
+    "version": "1.0.0",
+    "displayName": "SOTF Bundle",
+    "description": "A structured transition operating loop for clarifying direction, testing opportunities, preparing consequential conversations, and learning from evidence.",
+    "kind": "functional"
+  },
+  "experience": {
+    "promise": "Turn an uncertain transition into a small, evidence-grounded next move and a learning loop the user controls.",
+    "firstRunOutcome": "A current transition hypothesis, the evidence behind it, and one reviewable next action.",
+    "timeToFirstValueMinutes": 10,
+    "successSignals": [
+      {
+        "id": "sotf.signal.next_move_selected",
+        "description": "The user accepts or revises one evidence-grounded next move."
+      },
+      {
+        "id": "sotf.signal.hypothesis_updated",
+        "description": "New evidence confirms, weakens, or replaces a user-owned transition hypothesis."
+      }
+    ],
+    "qualityGates": {
+      "evidenceRequired": true,
+      "provenanceRequired": true,
+      "mutationConfirmationRequired": true
+    }
+  },
+  "capabilities": [
+    {
+      "id": "career",
+      "version": "1.0.0",
+      "description": "Frame transition direction, opportunities, decisions, experiments, and next moves.",
+      "domain": "career",
+      "operations": ["read", "propose"],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "daily_brief",
+      "version": "1.0.0",
+      "description": "Prepare a bounded daily transition brief from authorized current evidence.",
+      "domain": "career",
+      "operations": ["read", "propose", "notify"],
+      "taskMetadataShareable": true
+    },
+    {
+      "id": "memory",
+      "version": "1.0.0",
+      "description": "Propose durable transition facts and learning while keeping inference distinct from confirmed memory.",
+      "domain": "career",
+      "operations": ["read", "propose"],
+      "taskMetadataShareable": false
+    },
+    {
+      "id": "workspace_mcp",
+      "version": "1.0.0",
+      "description": "Describe host-mediated transition reads and proposals without embedding a provider or authorization implementation.",
+      "domain": "career",
+      "operations": ["read", "propose", "execute"],
+      "taskMetadataShareable": false
+    },
+    {
+      "id": "agentic_workflows",
+      "version": "1.0.0",
+      "description": "Define reviewable recurring transition workflows with explicit user control.",
+      "domain": "career",
+      "operations": ["read", "propose", "automate"],
+      "taskMetadataShareable": true
+    }
+  ],
+  "skills": [
+    {
+      "id": "sotf.skill.transition_loop",
+      "path": "./plugins/lead-emergence-sotf/skills/sotf-transition-loop/",
+      "capabilityIds": ["career", "daily_brief", "memory", "workspace_mcp", "agentic_workflows"],
+      "triggers": [
+        "help me navigate this transition",
+        "assess this opportunity",
+        "prepare my transition brief"
+      ],
+      "outcome": "A clearly labeled hypothesis, evidence assessment, and smallest useful next move."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "sotf.workflow.clarify_direction",
+      "version": "1.0.0",
+      "name": "Clarify transition direction",
+      "capabilityIds": ["career", "memory"],
+      "providerRequirementIds": [],
+      "inputScopes": ["sotf.user_input", "sotf.confirmed_memory"],
+      "outputScopes": ["sotf.transition_hypotheses", "sotf.next_moves"],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 10
+    },
+    {
+      "id": "sotf.workflow.assess_opportunity",
+      "version": "1.0.0",
+      "name": "Assess an opportunity",
+      "capabilityIds": ["career", "workspace_mcp"],
+      "providerRequirementIds": [],
+      "inputScopes": ["sotf.opportunity", "sotf.authorized_evidence"],
+      "outputScopes": ["sotf.opportunity_assessments", "sotf.next_moves"],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 10
+    },
+    {
+      "id": "sotf.workflow.prepare_conversation",
+      "version": "1.0.0",
+      "name": "Prepare a consequential conversation",
+      "capabilityIds": ["career", "workspace_mcp"],
+      "providerRequirementIds": [],
+      "inputScopes": ["sotf.conversation_context", "sotf.authorized_evidence"],
+      "outputScopes": ["sotf.conversation_briefs"],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 8
+    },
+    {
+      "id": "sotf.workflow.daily_brief",
+      "version": "1.0.0",
+      "name": "Prepare a daily transition brief",
+      "capabilityIds": ["daily_brief", "career"],
+      "providerRequirementIds": [],
+      "inputScopes": ["sotf.current_commitments", "sotf.current_evidence"],
+      "outputScopes": ["sotf.daily_briefs"],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 5
+    },
+    {
+      "id": "sotf.workflow.weekly_learning",
+      "version": "1.0.0",
+      "name": "Review weekly transition learning",
+      "capabilityIds": ["career", "memory", "agentic_workflows"],
+      "providerRequirementIds": [],
+      "inputScopes": ["sotf.hypotheses", "sotf.experiments", "sotf.evidence"],
+      "outputScopes": ["sotf.learning_reviews", "sotf.memory_proposals"],
+      "mode": "propose",
+      "evidenceRequired": true,
+      "targetUserMinutes": 15
+    }
+  ],
+  "providerRequirements": [],
+  "appRequirements": [],
+  "hostPrerequisites": [
+    {
+      "id": "core_workspace",
+      "minimumContractVersion": "1.0.0",
+      "required": true,
+      "purpose": "Supplies verified identity, tenant/workspace authority, persistence, entitlement input, and host-mediated execution. It is not granted by this bundle."
+    }
+  ],
+  "permissions": {
+    "dataScopes": [
+      "sotf.transition_hypotheses",
+      "sotf.opportunities",
+      "sotf.conversation_briefs",
+      "sotf.daily_briefs",
+      "sotf.learning_reviews",
+      "sotf.confirmed_memory"
+    ],
+    "contextScopes": ["sotf.transition_context", "sotf.user_preferences"],
+    "crossDomainAccess": []
+  },
+  "automations": [
+    {
+      "id": "sotf.automation.daily_brief",
+      "workflowId": "sotf.workflow.daily_brief",
+      "triggerKinds": ["manual", "schedule"],
+      "notificationPolicy": "meaningful_change",
+      "requiresUserApproval": true
+    },
+    {
+      "id": "sotf.automation.weekly_learning",
+      "workflowId": "sotf.workflow.weekly_learning",
+      "triggerKinds": ["manual", "schedule"],
+      "notificationPolicy": "meaningful_change",
+      "requiresUserApproval": true
+    }
+  ],
+  "attentionTypes": [
+    {
+      "id": "sotf.attention.next_move_due",
+      "description": "A user-confirmed transition next move is due or blocked.",
+      "defaultPriority": "normal",
+      "evidenceRequired": true
+    },
+    {
+      "id": "sotf.attention.hypothesis_changed",
+      "description": "New evidence materially changes a current transition hypothesis.",
+      "defaultPriority": "high",
+      "evidenceRequired": true
+    }
+  ],
+  "uiManifestPath": "./bundles/sotf-transition/ui-manifest.json",
+  "distribution": {
+    "pluginName": "lead-emergence-sotf",
+    "marketplacePath": "./.agents/plugins/marketplace.json"
+  }
+}

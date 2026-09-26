@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "1.0",
+  "bundleKey": "sotf_transition",
+  "workspaceRoute": {
+    "route": "/workspace/sotf",
+    "label": "SOTF"
+  },
+  "primaryNavigation": [
+    {
+      "id": "sotf.nav.home",
+      "label": "SOTF",
+      "route": "/workspace/sotf",
+      "order": 70,
+      "capabilityId": "career",
+      "icon": "compass"
+    }
+  ],
+  "secondaryNavigation": [
+    {
+      "id": "sotf.nav.opportunities",
+      "label": "Opportunities",
+      "route": "/workspace/sotf/opportunities",
+      "order": 10,
+      "capabilityId": "career"
+    },
+    {
+      "id": "sotf.nav.briefs",
+      "label": "Daily briefs",
+      "route": "/workspace/sotf/briefs",
+      "order": 20,
+      "capabilityId": "daily_brief"
+    },
+    {
+      "id": "sotf.nav.learning",
+      "label": "Learning",
+      "route": "/workspace/sotf/learning",
+      "order": 30,
+      "capabilityId": "memory"
+    }
+  ],
+  "dashboardWidgets": [
+    {
+      "id": "sotf.widget.transition_loop",
+      "label": "Transition loop",
+      "order": 70,
+      "type": "transition_loop",
+      "capabilityId": "career",
+      "attentionTypes": ["sotf.attention.next_move_due", "sotf.attention.hypothesis_changed"],
+      "emptyStateId": "sotf.empty.transition"
+    }
+  ],
+  "quickActions": [
+    {
+      "id": "sotf.action.clarify",
+      "label": "Clarify direction",
+      "order": 10,
+      "workflowId": "sotf.workflow.clarify_direction",
+      "capabilityId": "career"
+    },
+    {
+      "id": "sotf.action.assess",
+      "label": "Assess opportunity",
+      "order": 20,
+      "workflowId": "sotf.workflow.assess_opportunity",
+      "capabilityId": "career"
+    },
+    {
+      "id": "sotf.action.brief",
+      "label": "Prepare daily brief",
+      "order": 30,
+      "workflowId": "sotf.workflow.daily_brief",
+      "capabilityId": "daily_brief"
+    }
+  ],
+  "searchProviders": [
+    {
+      "id": "sotf.search.transition",
+      "label": "Transition work",
+      "order": 10,
+      "capabilityId": "workspace_mcp",
+      "resultTypes": ["sotf.opportunity", "sotf.hypothesis", "sotf.learning"]
+    }
+  ],
+  "commandPaletteActions": [
+    {
+      "id": "sotf.command.prepare_conversation",
+      "label": "Prepare conversation",
+      "order": 10,
+      "workflowId": "sotf.workflow.prepare_conversation",
+      "capabilityId": "career"
+    },
+    {
+      "id": "sotf.command.weekly_learning",
+      "label": "Review weekly learning",
+      "order": 20,
+      "workflowId": "sotf.workflow.weekly_learning",
+      "capabilityId": "agentic_workflows"
+    }
+  ],
+  "notificationTypes": [
+    {
+      "id": "sotf.notification.meaningful_change",
+      "label": "Meaningful transition change",
+      "order": 10,
+      "capabilityId": "daily_brief",
+      "defaultEnabled": true
+    }
+  ],
+  "emptyStates": [
+    {
+      "id": "sotf.empty.transition",
+      "title": "Start with the transition in front of you",
+      "description": "State what is changing, what matters, and the evidence you already have.",
+      "actionId": "sotf.action.clarify"
+    }
+  ],
+  "bundleSettings": []
+}
