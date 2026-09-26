@@ -14,16 +14,17 @@ import { WorkflowEditor, type Intent } from "./workflow-editor";
 import styles from "./sotf.module.css";
 
 type View = "Today" | "Direction" | "Networking" | "People" | "Opportunities";
+export type SotfSection = "opportunities" | "briefs" | "learning";
 type Editor = { intent: Intent; recordId?: string };
 type Loaded = { state: PilotState; workspaceId: string };
 type SchedulingHandoff = { status: "ready"; publicUrl: string } | { status: "unavailable"; message: string };
 class SaveRejected extends Error {}
 const displayDate = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
-export function SotfExperience({ mode, scheduling = { status: "unavailable", message: "Networking scheduling is not configured." } }: { mode: "preview" | "connected"; scheduling?: SchedulingHandoff }) {
+export function SotfExperience({ mode, scheduling = { status: "unavailable", message: "Networking scheduling is not configured." }, initialSection }: { mode: "preview" | "connected"; scheduling?: SchedulingHandoff; initialSection?: SotfSection }) {
   const preview = mode === "preview";
   const [state, setState] = useState<PilotState>(() => preview ? createPreviewState() : emptyPilotState());
-  const [view, setView] = useState<View>("Today");
+  const [view, setView] = useState<View>(initialSection === "opportunities" ? "Opportunities" : "Today");
   const [editor, setEditor] = useState<Editor | null>(null);
   const [schedulingPerson, setSchedulingPerson] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState<CommandEnvelope | null>(null);
-  const [panel, setPanel] = useState<"coaching" | "weekly" | "stories" | "history" | null>(null);
+  const [panel, setPanel] = useState<"coaching" | "weekly" | "stories" | "history" | null>(initialSection === "learning" ? "weekly" : null);
   const [query, setQuery] = useState("");
   const [now, setNow] = useState("2026-09-06T12:00:00.000Z");
   const edit = (intent: Intent, recordId?: string) => setEditor({ intent, recordId });
