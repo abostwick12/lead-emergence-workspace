@@ -198,3 +198,122 @@ supported callback must complete in that same browser session before
 `ensure_personal_workspace()` can verify a trusted Entry identity and create
 Andrew's Personal Workspace. The activation remains fail closed: active
 `sotf_transition` entitlements are still zero for Andrew and every other user.
+
+## Entry production identity blocker
+
+A fresh direct attempt against the canonical Entry login returned
+`error=invalid_credentials`. Read-only inspection of the Entry production Auth
+tenant (`neabiaimygdviwobpicj`) then searched first for Andrew's exact canonical
+email address and separately for `andrew`. Both searches returned **No users
+found**. No Entry account was created, invited, reset, or modified.
+
+The failure is therefore reproducible and narrower than the earlier browser
+session hypothesis: Andrew's canonical Workspace Auth account exists, but the
+Entry production identity required to complete the trusted OAuth handoff does
+not. Workspace bootstrap, Personal plan establishment, and the Andrew-only
+`sotf_transition` assignment remain unattempted and fail closed.
+
+Minimum activation scope is one supported Andrew-only Entry production account
+using the canonical email, followed by the normal Entry-to-Workspace OAuth
+handoff. That is an Entry hosted mutation and account-creation action outside
+the current no-Entry-mutation boundary, so it requires explicit narrow owner
+authorization before execution. No other Entry user, tenant, or application
+state needs to change.
+
+## Entry account creation and confirmation hold
+
+After narrow owner authorization, Andrew used Entry's supported public signup
+form. Read-only Auth verification found exactly one matching production user,
+UID `53fc7b61-b10a-4816-bbc8-c87363c025d8`, with display name Andrew Bostwick
+and the exact canonical email. No duplicate `andrew` result was created.
+
+Entry recorded `Confirmation sent at` as
+`2026-09-14 23:44:32.085045+00`, while `Confirmed at` and `Last signed in`
+remained empty. A subsequent password attempt returned
+`error=invalid_credentials`. The account therefore exists but has not completed
+the supported email-confirmation step; OAuth resumption remains blocked before
+any Workspace identity mapping or bootstrap. No confirmation resend, password
+reset, admin confirmation, or other privileged mutation was performed.
+
+## Entry PERSONAL access grant and OAuth recovery
+
+After Andrew completed the supported email-confirmation and sign-in flow, the
+Entry production Auth tenant contained exactly one user for the canonical
+email, with confirmation complete and a successful sign-in recorded. Before
+the owner-authorized access command, Andrew had no Entry identity profile, no
+product entitlement, and no active `PERSONAL` access. The production totals
+were three Auth users, two identity profiles, two product entitlements, and
+five identity audit events.
+
+The documented service-role/PostgreSQL administrative command
+`public.set_entry_product_entitlement(...)` was then invoked once for Entry
+Auth UID `53fc7b61-b10a-4816-bbc8-c87363c025d8`, product `PERSONAL`, status
+`ACTIVE`, source
+`sotf_v1_personal_pilot_owner_authorization_20260914`, and display name
+`Andrew Bostwick`. It returned entitlement ID
+`bea2f6a7-b949-4b6e-a734-8ac41832f361` with effective status `ACTIVE`.
+
+Post-command verification found exactly one Andrew Auth user, one Andrew
+identity profile, one Andrew product entitlement, one effective Andrew
+`PERSONAL = ACTIVE` entitlement, and one matching audit event. Email
+confirmation and the successful-sign-in state remained complete. Entry totals
+became three Auth users, three identity profiles, three product entitlements,
+and six audit events. The unchanged Auth-user count and the exact +1 changes to
+the three command-owned tables establish that no second identity was created
+and no unrelated Entry row changed. No Entry workspace or product-local role
+was created.
+
+Reloading the pending consent after the grant exposed the normal
+`Continue to Workspace` action. The first authorization was consumed without a
+usable callback in the retained browser, which still held an older synthetic
+canary Workspace session. That session was treated as non-evidence and no
+Workspace mutation was made through it.
+
+A fresh supported `/auth/entry?next=%2Fworkspace` handoff then completed. The
+Workspace production ledger recorded exactly one trusted
+`custom:lead-emergence-entry-workspace-prod` identity on Andrew's pre-existing
+canonical Workspace Auth user
+`6f2f63f4-9ce2-4cda-85fe-4d808e3e11a0`. The provider subject is the exact Entry
+Auth UID above, and both provider and Workspace emails are the canonical Andrew
+email. Andrew's Workspace Auth `last_sign_in_at` advanced to
+`2026-09-15 00:01:05.726741+00`; no provider identity for that subject belongs
+to another Workspace user.
+
+The callback followed the supported bootstrap path: Andrew now has exactly one
+Personal Workspace, one active owner membership, and one active Personal plan.
+The browser reached `/workspace/setup`. Active `sotf_transition` entitlements
+remain zero, so SOTF access has not yet been granted. No second Workspace Auth
+user was created, and the canonical Workspace user ID remained unchanged.
+
+## SOTF entitlement operator blocker
+
+Before any SOTF entitlement write, the Workspace production authority ledger
+was re-read for Andrew's canonical Auth user and Personal Workspace. It found
+exactly one matching Auth user, one trusted Entry provider identity with the
+expected Entry subject, one Personal Workspace
+(`0ba1358c-22ce-4c6b-b74a-d1ed0ac8470b`), one active owner membership, and one
+active Personal plan. The `sotf_transition` catalog row is active. Current SOTF
+entitlements remain zero for Andrew, zero globally, and zero for other users.
+
+The enabled bundle mappings are exactly `agentic_workflows`, `career`,
+`daily_brief`, `memory`, and `workspace_mcp`. The Personal plan separately owns
+baseline `core_workspace`; the bundle does not replace that baseline. No
+enabled mapping exists for `professional_context`, `leader_mode`,
+`external_connectors`, `advanced_mcp`, or `advanced_automation`.
+
+The same live preflight found Andrew's immutable
+`workspace_bundle_operator` flag false and found **zero** production Auth users
+with that approved operator flag. The accepted supported assignment path,
+`workspace.issue_bundle_assignment(...)`, rechecks that immutable Auth record
+and raises `42501` unless an approved operator invokes it. Andrew's normal
+session could not reach the operator console and returned to the ordinary
+Workspace setup route.
+
+No entitlement row, Auth metadata, capability mapping, membership, plan,
+connector, or other hosted state was changed. Direct invocation of the private
+write helper was deliberately not used because it would bypass the accepted
+operator-authority guard. Activation cannot proceed through the supported
+mechanism until the identity owner authorizes and establishes one minimum
+Workspace bundle operator (or identifies an already-approved operator whose
+normal authenticated session can be used). No rollback is required for this
+blocked phase.
