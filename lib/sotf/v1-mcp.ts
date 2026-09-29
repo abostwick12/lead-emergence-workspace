@@ -63,7 +63,7 @@ export function registerSotfV1BundleListTool(
 async function resolveAccess(client: SupabaseClient<any, any, any, any, any>, releaseEnabled: boolean): Promise<AccessState> {
   if (!releaseEnabled) return { state: "service_unavailable" };
   try {
-    const { data, error } = await client.rpc("sotf_v1_access_state");
+    const { data, error } = await client.rpc("sotf_v1_bundle_list_access_state");
     if (error) return { state: "service_unavailable" };
     return accessStateSchema.parse(data);
   } catch {

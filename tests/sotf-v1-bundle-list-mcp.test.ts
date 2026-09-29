@@ -52,7 +52,7 @@ describe("SOTF v1 bundle list MCP contract", () => {
       }] },
     });
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledWith("sotf_v1_access_state");
+    expect(rpc).toHaveBeenCalledWith("sotf_v1_bundle_list_access_state");
     expect(JSON.stringify(result.structuredContent)).not.toContain("steps");
     expect(JSON.stringify(result.structuredContent)).not.toContain("provider_payloads");
   });
