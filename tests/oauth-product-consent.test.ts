@@ -82,14 +82,21 @@ describe("Workspace product-local consent", () => {
     expect(approve).toHaveBeenCalledTimes(1);
   });
 
-  it("allows a verified Workspace request to be declined without active plan access", async () => {
+  it("offers a safe exit for a verified Workspace request without active plan access", async () => {
     product.mockResolvedValue({ data: "workspace", error: null });
     planResult.mockReturnValue({ data: { plan_key: "personal", status: "suspended" }, error: null });
-    deny.mockResolvedValue({ data: { redirect_url: "https://client.example/callback" }, error: null });
     const detailsResponse = await GET(new Request(`${endpoint}?authorization_id=${authorizationId}`));
     expect(detailsResponse.status).toBe(403);
-    expect((await detailsResponse.json()).canDeny).toBe(true);
+    expect((await detailsResponse.json()).canLeave).toBe(true);
     expect(details).not.toHaveBeenCalled();
+    expect(deny).not.toHaveBeenCalled();
+  });
+
+  it("allows a verified, associated Workspace request to be denied", async () => {
+    product.mockResolvedValue({ data: "workspace", error: null });
+    details.mockResolvedValue({ data: { authorization_id: authorizationId, client: { id: "client-1" } }, error: null });
+    deny.mockResolvedValue({ data: { redirect_url: "https://client.example/callback" }, error: null });
+    expect((await GET(new Request(`${endpoint}?authorization_id=${authorizationId}`))).status).toBe(200);
     expect((await POST(new Request(endpoint, { method: "POST", body: JSON.stringify({ authorizationId, decision: "deny" }) }))).status).toBe(200);
     expect(deny).toHaveBeenCalledTimes(1);
   });

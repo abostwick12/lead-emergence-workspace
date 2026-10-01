@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const verified = await verifiedWorkspaceRequest(authorizationId);
   if (!verified) return NextResponse.json({ error: "This Workspace authorization request is not available." }, { status: 403 });
   if (!await activeWorkspaceMcpAccess(verified.supabase, verified.user.id)) {
-    return NextResponse.json({ error: "The current Personal plan cannot authorize this connection.", canDeny: true }, { status: 403 });
+    return NextResponse.json({ error: "The current Personal plan cannot authorize this connection.", canLeave: true }, { status: 403 });
   }
   const { data, error } = await verified.supabase.auth.oauth.getAuthorizationDetails(authorizationId);
   if (error || !data) return NextResponse.json({ error: "This authorization request is no longer available." }, { status: 400 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bot, Check, ShieldCheck, X } from "lucide-react";
 import { getWorkspaceClient } from "@/lib/supabase/client";
 import { resolvePersonalWorkspace } from "@/lib/workspace/provision";
@@ -14,8 +15,9 @@ type ConsentDetails = {
 };
 
 export default function OAuthConsentPage() {
+  const router = useRouter();
   const [details, setDetails] = useState<ConsentDetails | null>(null);
-  const [deniableAuthorizationId, setDeniableAuthorizationId] = useState<string | null>(null);
+  const [canLeave, setCanLeave] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,10 +34,10 @@ export default function OAuthConsentPage() {
       }
       const authorizationResponse = await fetch(`/api/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`, { cache: "no-store" });
       if (!authorizationResponse.ok) {
-        const failure = await authorizationResponse.json().catch(() => null) as { canDeny?: boolean } | null;
-        if (failure?.canDeny) setDeniableAuthorizationId(authorizationId);
-        setError(failure?.canDeny
-          ? "The current Personal plan cannot authorize this connection. You can still decline it."
+        const failure = await authorizationResponse.json().catch(() => null) as { canLeave?: boolean } | null;
+        if (failure?.canLeave) setCanLeave(true);
+        setError(failure?.canLeave
+          ? "The current Personal plan cannot authorize this connection. You can leave without connecting."
           : "This authorization request is no longer available.");
         return;
       }
@@ -56,8 +58,8 @@ export default function OAuthConsentPage() {
   }, []);
 
   async function decide(approve: boolean) {
-    const authorizationId = details?.authorization_id ?? (!approve ? deniableAuthorizationId : null);
-    if (!authorizationId || pending) return;
+    if (!details || pending) return;
+    const authorizationId = details.authorization_id;
     setPending(true);
     setError(null);
     try {
@@ -89,7 +91,7 @@ export default function OAuthConsentPage() {
     {details?.scope ? <p className="consent-scopes">Requested identity scopes: {details.scope.split(" ").join(", ")}</p> : null}
     {!allowed && details ? <p className="error" role="alert">AI assistant connections are not included for the current Personal plan.</p> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
-    <div className="consent-actions"><button className="button" disabled={!details || !allowed || pending} onClick={() => void decide(true)}><Check size={16} />{pending ? "Working…" : "Allow access"}</button><button className="button secondary" disabled={(!details && !deniableAuthorizationId) || pending} onClick={() => void decide(false)}><X size={16} />Cancel</button></div>
+    <div className="consent-actions"><button className="button" disabled={!details || !allowed || pending} onClick={() => void decide(true)}><Check size={16} />{pending ? "Working…" : "Allow access"}</button><button className="button secondary" disabled={(!details && !canLeave) || pending} onClick={() => details ? void decide(false) : router.push("/workspace")}><X size={16} />Cancel</button></div>
   </section></main>;
 }
 
