@@ -53,11 +53,24 @@ describe("Workspace product-local consent", () => {
     expect(approve).not.toHaveBeenCalled();
   });
 
+  it.each(["ministry", "consulting", "deny"])("blocks %s before denial", async (value) => {
+    product.mockResolvedValue({ data: value, error: null });
+    const response = await POST(new Request(endpoint, { method: "POST", body: JSON.stringify({ authorizationId, decision: "deny" }) }));
+    expect(response.status).toBe(403);
+    expect(deny).not.toHaveBeenCalled();
+  });
+
   it("fails closed on missing or malformed IDs and a forged cross-origin decision", async () => {
     expect((await GET(new Request(`${endpoint}?authorization_id=bad`))).status).toBe(403);
     const response = await POST(new Request(endpoint, { method: "POST", headers: { origin: "https://attacker.example" }, body: JSON.stringify({ authorizationId, decision: "approve" }) }));
     expect(response.status).toBe(403);
     expect(product).not.toHaveBeenCalled();
+  });
+
+  it("rejects a null decision body without a server error", async () => {
+    const response = await POST(new Request(endpoint, { method: "POST", body: "null" }));
+    expect(response.status).toBe(400);
+    expect(approve).not.toHaveBeenCalled();
   });
 
   it("uses the authenticated Workspace authority before a valid decision", async () => {
@@ -67,6 +80,18 @@ describe("Workspace product-local consent", () => {
     expect((await GET(new Request(`${endpoint}?authorization_id=${authorizationId}`))).status).toBe(200);
     expect((await POST(new Request(endpoint, { method: "POST", body: JSON.stringify({ authorizationId, decision: "approve" }) }))).status).toBe(200);
     expect(approve).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows a verified Workspace request to be declined without active plan access", async () => {
+    product.mockResolvedValue({ data: "workspace", error: null });
+    planResult.mockReturnValue({ data: { plan_key: "personal", status: "suspended" }, error: null });
+    deny.mockResolvedValue({ data: { redirect_url: "https://client.example/callback" }, error: null });
+    const detailsResponse = await GET(new Request(`${endpoint}?authorization_id=${authorizationId}`));
+    expect(detailsResponse.status).toBe(403);
+    expect((await detailsResponse.json()).canDeny).toBe(true);
+    expect(details).not.toHaveBeenCalled();
+    expect((await POST(new Request(endpoint, { method: "POST", body: JSON.stringify({ authorizationId, decision: "deny" }) }))).status).toBe(200);
+    expect(deny).toHaveBeenCalledTimes(1);
   });
 
   it.each([

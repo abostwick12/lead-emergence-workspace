@@ -15,6 +15,7 @@ type ConsentDetails = {
 
 export default function OAuthConsentPage() {
   const [details, setDetails] = useState<ConsentDetails | null>(null);
+  const [deniableAuthorizationId, setDeniableAuthorizationId] = useState<string | null>(null);
   const [allowed, setAllowed] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +31,15 @@ export default function OAuthConsentPage() {
         return;
       }
       const authorizationResponse = await fetch(`/api/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`, { cache: "no-store" });
-      const authorization = authorizationResponse.ok ? await authorizationResponse.json() as ConsentDetails | { redirect_url: string } : null;
+      if (!authorizationResponse.ok) {
+        const failure = await authorizationResponse.json().catch(() => null) as { canDeny?: boolean } | null;
+        if (failure?.canDeny) setDeniableAuthorizationId(authorizationId);
+        setError(failure?.canDeny
+          ? "The current Personal plan cannot authorize this connection. You can still decline it."
+          : "This authorization request is no longer available.");
+        return;
+      }
+      const authorization = await authorizationResponse.json() as ConsentDetails | { redirect_url: string };
       if (!authorization) { setError("This authorization request is no longer available."); return; }
       const workspace = await resolvePersonalWorkspace(auth.user);
       const plan = await getPersonalPlan(workspace.id);
@@ -47,21 +56,27 @@ export default function OAuthConsentPage() {
   }, []);
 
   async function decide(approve: boolean) {
-    if (!details || pending) return;
+    const authorizationId = details?.authorization_id ?? (!approve ? deniableAuthorizationId : null);
+    if (!authorizationId || pending) return;
     setPending(true);
     setError(null);
-    const response = await fetch("/api/oauth/consent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ authorizationId: details.authorization_id, decision: approve && allowed ? "approve" : "deny" })
-    });
-    const result = response.ok ? await response.json() as { redirect_url?: string } : null;
-    if (!result?.redirect_url || !safeOAuthRedirect(result.redirect_url)) {
+    try {
+      const response = await fetch("/api/oauth/consent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authorizationId, decision: approve && allowed ? "approve" : "deny" })
+      });
+      const result = response.ok ? await response.json() as { redirect_url?: string } : null;
+      if (!result?.redirect_url || !safeOAuthRedirect(result.redirect_url)) {
+        setError("The authorization decision could not be completed safely.");
+        return;
+      }
+      window.location.assign(result.redirect_url);
+    } catch {
       setError("The authorization decision could not be completed safely.");
+    } finally {
       setPending(false);
-      return;
     }
-    window.location.assign(result.redirect_url);
   }
 
   return <main className="auth-page"><section className="auth-card consent-card">
@@ -74,7 +89,7 @@ export default function OAuthConsentPage() {
     {details?.scope ? <p className="consent-scopes">Requested identity scopes: {details.scope.split(" ").join(", ")}</p> : null}
     {!allowed && details ? <p className="error" role="alert">AI assistant connections are not included for the current Personal plan.</p> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
-    <div className="consent-actions"><button className="button" disabled={!details || !allowed || pending} onClick={() => void decide(true)}><Check size={16} />{pending ? "Working…" : "Allow access"}</button><button className="button secondary" disabled={!details || pending} onClick={() => void decide(false)}><X size={16} />Cancel</button></div>
+    <div className="consent-actions"><button className="button" disabled={!details || !allowed || pending} onClick={() => void decide(true)}><Check size={16} />{pending ? "Working…" : "Allow access"}</button><button className="button secondary" disabled={(!details && !deniableAuthorizationId) || pending} onClick={() => void decide(false)}><X size={16} />Cancel</button></div>
   </section></main>;
 }
 

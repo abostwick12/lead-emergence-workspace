@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const verified = await verifiedWorkspaceRequest(authorizationId);
   if (!verified) return NextResponse.json({ error: "This Workspace authorization request is not available." }, { status: 403 });
   if (!await activeWorkspaceMcpAccess(verified.supabase, verified.user.id)) {
-    return NextResponse.json({ error: "The current Personal plan cannot authorize this connection." }, { status: 403 });
+    return NextResponse.json({ error: "The current Personal plan cannot authorize this connection.", canDeny: true }, { status: 403 });
   }
   const { data, error } = await verified.supabase.auth.oauth.getAuthorizationDetails(authorizationId);
   if (error || !data) return NextResponse.json({ error: "This authorization request is no longer available." }, { status: 400 });
@@ -47,11 +47,15 @@ export async function POST(request: Request) {
   if (origin && origin !== new URL(request.url).origin) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
   }
-  let input: { authorizationId?: unknown; decision?: unknown };
+  let input: unknown;
   try { input = await request.json(); }
   catch { return NextResponse.json({ error: "A connection decision is required." }, { status: 400 }); }
-  const authorizationId = typeof input.authorizationId === "string" ? input.authorizationId : "";
-  const decision = input.decision;
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return NextResponse.json({ error: "Invalid connection decision." }, { status: 400 });
+  }
+  const fields = input as Record<string, unknown>;
+  const authorizationId = typeof fields.authorizationId === "string" ? fields.authorizationId : "";
+  const decision = fields.decision;
   if (decision !== "approve" && decision !== "deny") {
     return NextResponse.json({ error: "Invalid connection decision." }, { status: 400 });
   }
