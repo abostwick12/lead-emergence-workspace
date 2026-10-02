@@ -39,6 +39,17 @@ export async function GET(request: Request) {
   }
   const { data, error } = await verified.supabase.auth.oauth.getAuthorizationDetails(authorizationId);
   if (error || !data) return NextResponse.json({ error: "This authorization request is no longer available." }, { status: 400 });
+  if ("redirect_url" in data) {
+    if (typeof data.redirect_url !== "string" || !safeOAuthRedirect(data.redirect_url)) {
+      return NextResponse.json({ error: "The authorization decision could not be completed safely." }, { status: 400 });
+    }
+    const completion = await verified.supabase.rpc("complete_mcp_oauth_authorization", {
+      p_authorization_id: authorizationId
+    });
+    if (completion.error || completion.data?.status !== "active" || completion.data?.product_binding !== "active") {
+      return NextResponse.json({ error: "The authorization decision could not be completed safely." }, { status: 400 });
+    }
+  }
   return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -71,6 +82,14 @@ export async function POST(request: Request) {
     : await verified.supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true });
   if (result.error || !result.data?.redirect_url || !safeOAuthRedirect(result.data.redirect_url)) {
     return NextResponse.json({ error: "The authorization decision could not be completed safely." }, { status: 400 });
+  }
+  if (decision === "approve") {
+    const completion = await verified.supabase.rpc("complete_mcp_oauth_authorization", {
+      p_authorization_id: authorizationId
+    });
+    if (completion.error || completion.data?.status !== "active" || completion.data?.product_binding !== "active") {
+      return NextResponse.json({ error: "The authorization decision could not be completed safely." }, { status: 400 });
+    }
   }
   return NextResponse.json({ redirect_url: result.data.redirect_url }, { headers: { "Cache-Control": "no-store" } });
 }
