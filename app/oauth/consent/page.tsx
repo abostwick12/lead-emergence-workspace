@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bot, Check, ShieldCheck, X } from "lucide-react";
 import { getWorkspaceClient } from "@/lib/supabase/client";
@@ -22,19 +22,40 @@ export default function OAuthConsentPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const consentIdentity = useRef<{ id: string; email: string | null } | null>(null);
+  const identityChanged = useRef(false);
 
   useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    consentIdentity.current = null;
+    identityChanged.current = false;
     void (async () => {
       const authorizationId = new URLSearchParams(window.location.search).get("authorization_id");
       if (!authorizationId) { setError("This assistant authorization request is incomplete."); return; }
       const supabase = getWorkspaceClient();
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const identity = consentIdentity.current;
+        if (!active || !identity || identityChanged.current) return;
+        if (session?.user.id === identity.id && (session.user.email ?? null) === identity.email) return;
+        identityChanged.current = true;
+        setEmail(null);
+        setAllowed(false);
+        setDetails(null);
+        setCanLeave(true);
+        setError("Your signed-in account changed. Reload this page to verify the account before connecting.");
+      });
+      unsubscribe = () => subscription.unsubscribe();
       const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (!active || identityChanged.current) return;
       if (authError || !auth.user) {
         window.location.replace(`/login?next=${encodeURIComponent(`/oauth/consent?authorization_id=${authorizationId}`)}`);
         return;
       }
-      setEmail(auth.user.email ?? null);
+      consentIdentity.current = { id: auth.user.id, email: auth.user.email ?? null };
+      setEmail(consentIdentity.current.email);
       const authorizationResponse = await fetch(`/api/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`, { cache: "no-store" });
+      if (!active || identityChanged.current) return;
       if (!authorizationResponse.ok) {
         const failure = await authorizationResponse.json().catch(() => null) as { canLeave?: boolean } | null;
         if (failure?.canLeave) setCanLeave(true);
@@ -44,10 +65,12 @@ export default function OAuthConsentPage() {
         return;
       }
       const authorization = await authorizationResponse.json() as ConsentDetails | { redirect_url: string };
+      if (!active || identityChanged.current) return;
       if (!authorization) { setError("This authorization request is no longer available."); return; }
       const workspace = await resolvePersonalWorkspace(auth.user);
       const plan = await getPersonalPlan(workspace.id);
       const capabilities = resolveCapabilities(await listPlanCapabilities(plan.plan_key));
+      if (!active || identityChanged.current) return;
       const allowedForConsent = plan.status === "active" && capabilities.workspace_mcp;
       setAllowed(allowedForConsent);
       if (!("authorization_id" in authorization)) {
@@ -56,15 +79,32 @@ export default function OAuthConsentPage() {
         return;
       }
       setDetails(authorization as ConsentDetails);
-    })().catch(() => setError("Workspace could not verify this authorization request."));
+    })().catch(() => {
+      if (active && !identityChanged.current) setError("Workspace could not verify this authorization request.");
+    });
+    return () => { active = false; unsubscribe?.(); };
   }, []);
 
   async function decide(approve: boolean) {
-    if (!details || pending) return;
+    if (!details || pending || identityChanged.current) return;
     const authorizationId = details.authorization_id;
     setPending(true);
     setError(null);
     try {
+      if (approve) {
+        const current = await getWorkspaceClient().auth.getUser().catch(() => null);
+        const identity = consentIdentity.current;
+        if (identityChanged.current || !identity || current?.error || !current?.data.user
+          || current.data.user.id !== identity.id || (current.data.user.email ?? null) !== identity.email) {
+          identityChanged.current = true;
+          setEmail(null);
+          setAllowed(false);
+          setDetails(null);
+          setCanLeave(true);
+          setError("Your signed-in account changed. Reload this page to verify the account before connecting.");
+          return;
+        }
+      }
       const response = await fetch("/api/oauth/consent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
