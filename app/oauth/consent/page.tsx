@@ -21,6 +21,7 @@ export default function OAuthConsentPage() {
   const [allowed, setAllowed] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -32,6 +33,7 @@ export default function OAuthConsentPage() {
         window.location.replace(`/login?next=${encodeURIComponent(`/oauth/consent?authorization_id=${authorizationId}`)}`);
         return;
       }
+      setEmail(auth.user.email ?? null);
       const authorizationResponse = await fetch(`/api/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`, { cache: "no-store" });
       if (!authorizationResponse.ok) {
         const failure = await authorizationResponse.json().catch(() => null) as { canLeave?: boolean } | null;
@@ -85,6 +87,7 @@ export default function OAuthConsentPage() {
     <span className="consent-icon"><Bot size={25} /></span>
     <p className="eyebrow">Connect your AI assistant</p>
     <h1 className="page-title">Allow access to Workspace?</h1>
+    {email ? <p className="notice">You are connecting as {email}</p> : null}
     <p className="page-lede"><strong>{details?.client.name || "Your AI assistant"}</strong> is asking to use controlled Lead Emergence Workspace tools on your behalf.</p>
     <div className="consent-list"><p><Check size={16} />Read your onboarding state, confirmed configuration, tasks, Quick Captures, personal memory, career opportunities, and integration connection status.</p><p><Check size={16} />Save your exact user-reported setup and propose interpretations for your confirmation.</p><p><Check size={16} />Create or update internal Workspace records only when you explicitly ask; task or memory deletion, capture discard, and configuration replacement require explicit confirmation.</p><p><Check size={16} />This approval does not connect external services, reveal connector credentials, send messages, or create calendar events. Those actions require separate provider consent and confirmation.</p></div>
     <p className="notice"><ShieldCheck size={16} />Workspace remains the system of record. The assistant cannot bypass your Personal plan, Workspace ownership, row-level security, registered connection, or disconnection state.</p>
