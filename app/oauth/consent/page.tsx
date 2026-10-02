@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bot, Check, ShieldCheck, X } from "lucide-react";
 import { getWorkspaceClient } from "@/lib/supabase/client";
 import { resolvePersonalWorkspace } from "@/lib/workspace/provision";
@@ -14,7 +15,9 @@ type ConsentDetails = {
 };
 
 export default function OAuthConsentPage() {
+  const router = useRouter();
   const [details, setDetails] = useState<ConsentDetails | null>(null);
+  const [canLeave, setCanLeave] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,35 +32,53 @@ export default function OAuthConsentPage() {
         window.location.replace(`/login?next=${encodeURIComponent(`/oauth/consent?authorization_id=${authorizationId}`)}`);
         return;
       }
-      const authorization = await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
-      if (authorization.error || !authorization.data) { setError("This authorization request is no longer available."); return; }
+      const authorizationResponse = await fetch(`/api/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`, { cache: "no-store" });
+      if (!authorizationResponse.ok) {
+        const failure = await authorizationResponse.json().catch(() => null) as { canLeave?: boolean } | null;
+        if (failure?.canLeave) setCanLeave(true);
+        setError(failure?.canLeave
+          ? "The current Personal plan cannot authorize this connection. You can leave without connecting."
+          : "This authorization request is no longer available.");
+        return;
+      }
+      const authorization = await authorizationResponse.json() as ConsentDetails | { redirect_url: string };
+      if (!authorization) { setError("This authorization request is no longer available."); return; }
       const workspace = await resolvePersonalWorkspace(auth.user);
       const plan = await getPersonalPlan(workspace.id);
       const capabilities = resolveCapabilities(await listPlanCapabilities(plan.plan_key));
-      setAllowed(plan.status === "active" && capabilities.workspace_mcp);
-      if (!("authorization_id" in authorization.data)) {
-        if (!safeOAuthRedirect(authorization.data.redirect_url) || !capabilities.workspace_mcp) { setError("This connection is not available for the current Personal plan."); return; }
-        window.location.replace(authorization.data.redirect_url);
+      const allowedForConsent = plan.status === "active" && capabilities.workspace_mcp;
+      setAllowed(allowedForConsent);
+      if (!("authorization_id" in authorization)) {
+        if (!safeOAuthRedirect(authorization.redirect_url) || !allowedForConsent) { setError("This connection is not available for the current Personal plan."); return; }
+        window.location.replace(authorization.redirect_url);
         return;
       }
-      setDetails(authorization.data as ConsentDetails);
+      setDetails(authorization as ConsentDetails);
     })().catch(() => setError("Workspace could not verify this authorization request."));
   }, []);
 
   async function decide(approve: boolean) {
     if (!details || pending) return;
+    const authorizationId = details.authorization_id;
     setPending(true);
     setError(null);
-    const supabase = getWorkspaceClient();
-    const result = approve && allowed
-      ? await supabase.auth.oauth.approveAuthorization(details.authorization_id, { skipBrowserRedirect: true })
-      : await supabase.auth.oauth.denyAuthorization(details.authorization_id, { skipBrowserRedirect: true });
-    if (result.error || !result.data?.redirect_url || !safeOAuthRedirect(result.data.redirect_url)) {
+    try {
+      const response = await fetch("/api/oauth/consent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authorizationId, decision: approve && allowed ? "approve" : "deny" })
+      });
+      const result = response.ok ? await response.json() as { redirect_url?: string } : null;
+      if (!result?.redirect_url || !safeOAuthRedirect(result.redirect_url)) {
+        setError("The authorization decision could not be completed safely.");
+        return;
+      }
+      window.location.assign(result.redirect_url);
+    } catch {
       setError("The authorization decision could not be completed safely.");
+    } finally {
       setPending(false);
-      return;
     }
-    window.location.assign(result.data.redirect_url);
   }
 
   return <main className="auth-page"><section className="auth-card consent-card">
@@ -70,7 +91,7 @@ export default function OAuthConsentPage() {
     {details?.scope ? <p className="consent-scopes">Requested identity scopes: {details.scope.split(" ").join(", ")}</p> : null}
     {!allowed && details ? <p className="error" role="alert">AI assistant connections are not included for the current Personal plan.</p> : null}
     {error ? <p className="error" role="alert">{error}</p> : null}
-    <div className="consent-actions"><button className="button" disabled={!details || !allowed || pending} onClick={() => void decide(true)}><Check size={16} />{pending ? "Working…" : "Allow access"}</button><button className="button secondary" disabled={!details || pending} onClick={() => void decide(false)}><X size={16} />Cancel</button></div>
+    <div className="consent-actions"><button className="button" disabled={!details || !allowed || pending} onClick={() => void decide(true)}><Check size={16} />{pending ? "Working…" : "Allow access"}</button><button className="button secondary" disabled={(!details && !canLeave) || pending} onClick={() => details ? void decide(false) : router.push("/workspace")}><X size={16} />Cancel</button></div>
   </section></main>;
 }
 
