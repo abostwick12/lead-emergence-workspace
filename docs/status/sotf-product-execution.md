@@ -1,5 +1,8 @@
 # SOTF Bundle product execution
 
+> **Status clarification - October 3, 2026:** Historical implementation record. The status statements below describe the recorded branch checkpoints, not current production. SOTF networking strategy and scheduling are present in the production source observed on October 3, 2026; installed-host and real-data acceptance remain separate open gates.
+> Current authority: [production state](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/status/PRODUCTION_STATE.md), [roadmap](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/ROADMAP.md), and [decisions](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/DECISIONS.md). Refresh live evidence before acting.
+
 Status: implementation in progress; no hosted deployment or protected context activation.
 
 ## Isolation

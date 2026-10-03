@@ -1,5 +1,8 @@
 # Personal production-readiness operations
 
+> **Status clarification - October 3, 2026:** Historical productization release sequence. Completed setup steps below are not a current change list and must not be replayed. Refresh the canonical production state and applicable gate before any release; this runbook does not authorize provider, schema, infrastructure, or production changes.
+> Current authority: [production state](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/status/PRODUCTION_STATE.md), [roadmap](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/ROADMAP.md), and [decisions](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/DECISIONS.md). Refresh live evidence before acting.
+
 This runbook prepares a release; it does not grant permission to change Production. The ministry repository remains the sole migration authority for the shared hosted Supabase project.
 
 ## Environment separation

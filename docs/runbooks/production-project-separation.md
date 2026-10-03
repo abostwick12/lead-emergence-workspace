@@ -1,5 +1,8 @@
 # Workspace production-project separation
 
+> **Status clarification - October 3, 2026:** Historical proposal, not the current infrastructure plan. The proposed move to a dedicated Personal database is not authorized by the current Individual Workspace/SOTF release. Preserve the existing shared production allocation; this document is not an instruction to provision, migrate, or resume a project.
+> Current authority: [production state](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/status/PRODUCTION_STATE.md), [roadmap](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/ROADMAP.md), and [decisions](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/DECISIONS.md). Refresh live evidence before acting.
+
 This runbook prepares the move from the shared Ministry Supabase project to the
 dedicated Personal project. It is a readiness artifact only. It does not
 authorize a database copy, identity change, Production environment update, PR

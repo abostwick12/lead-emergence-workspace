@@ -5,6 +5,10 @@ Personal Command Center. It manages personal tasks, capture inbox entries,
 career applications, memory, projects, notes, meetings, decisions,
 commitments, files, and future leadership entitlements.
 
+## Release status authority
+
+Current launch gates and production observations live in the [canonical control plane](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/ROADMAP.md). Local status files and older runbooks retain historical evidence; they do not establish current acceptance or authorize replaying migrations and setup. Production remains shared; no database separation is implied by this documentation.
+
 ## Boundary
 
 The application shares only `auth.users` with the temporary ministry Supabase
