@@ -1,5 +1,7 @@
 # Extraction status
 
+> **Historical record.** Current production evidence and launch gates live in the [canonical control plane](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/ROADMAP.md); prior acceptance does not establish current release readiness.
+
 Phase: Gate D — production cutover and stabilization
 Status: **Production cutover complete; 14-day stabilization in progress**
 Cutover instant: `2026-08-21T19:18:22Z`

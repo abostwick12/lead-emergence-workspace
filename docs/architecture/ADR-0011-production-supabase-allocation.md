@@ -1,5 +1,8 @@
 # ADR-0011: Proposed production Supabase allocation
 
+> **Status clarification - October 3, 2026:** Historical proposed allocation, not an accepted production decision. Do not execute the proposed project separation from this ADR. Current production allocation and owner-approved decisions are maintained in the canonical control plane.
+> Current authority: [production state](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/status/PRODUCTION_STATE.md), [roadmap](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/ROADMAP.md), and [decisions](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/DECISIONS.md). Refresh live evidence before acting.
+
 Status: **PROPOSED — awaiting explicit infrastructure and data-disposition approval**
 
 ## Context

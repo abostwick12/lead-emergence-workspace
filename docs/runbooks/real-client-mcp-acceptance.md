@@ -1,5 +1,8 @@
 # Real ChatGPT and Claude MCP acceptance
 
+> **Status clarification - October 3, 2026:** Historical Preview procedure. The fixed Preview authorities below are historical test targets, not current production or client-installation instructions. Do not retry authenticated production MCP calls under a read-only audit; use the separately authorized owner workflow acceptance session.
+> Current authority: [production state](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/status/PRODUCTION_STATE.md), [roadmap](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/ROADMAP.md), and [decisions](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/DECISIONS.md). Refresh live evidence before acting.
+
 This is the operator-assisted Preview acceptance procedure for the Workspace
 MCP. It does not authorize Production configuration, a real-user grant, a paid
 plan change, or retention of a synthetic identity. Use `PASS` only for a client
