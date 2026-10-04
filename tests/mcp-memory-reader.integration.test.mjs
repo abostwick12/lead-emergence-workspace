@@ -24,6 +24,12 @@ test("restored Memory reader preserves private access and bounded reads", {
   const claims = { sub: owner, role: "authenticated", aud: resource, resource, client_id: client, workspace_mcp: true, iat: Math.floor(Date.now() / 1000) };
   let originalDefinition;
 
+  /**
+   * Assert a PostgreSQL error without aborting the surrounding fixture transaction.
+   * @param {string} statement SQL expected to fail.
+   * @param {string} code Expected SQLSTATE.
+   * @returns {Promise<void>} Resolves after restoring the fixture savepoint.
+   */
   async function expectDenied(statement, code) {
     await connection.unsafe("SAVEPOINT expected_error");
     try {
