@@ -12,7 +12,7 @@ jobs:
       - name: Checkout frozen reviewed source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: e208fb7e87abfeb731fea9b15b40c1d894408eb6
+          ref: 8d5c745e4262e943a40931c45b24602808b719ae
           persist-credentials: false
       - name: Install official pinned Supabase CLI
         uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1
@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = e208fb7e87abfeb731fea9b15b40c1d894408eb6
+          test "$(git rev-parse HEAD)" = 8d5c745e4262e943a40931c45b24602808b719ae
           supabase --version
           mkdir -p "$RUNNER_TEMP/p1-local" "$RUNNER_TEMP/p1-evidence"
           supabase init --workdir "$RUNNER_TEMP/p1-local" > "$RUNNER_TEMP/p1-init.log" 2>&1
