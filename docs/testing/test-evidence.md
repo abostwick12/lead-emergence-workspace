@@ -665,3 +665,77 @@ invite, external send, auth configuration, or route cutover was performed.
   video. This resolves the reproducible local concern but is not a field or
   physical-device result; deployed-preview and physical-phone checks remain a
   production gate.
+
+## 2026-10-04 — exact existing ChatGPT owner declaration (local implementation only)
+
+- Scope: Workspace `ef17ae83-747b-4470-8dc5-08eeec86989f`, OAuth client
+  `61940a73-fafe-4b96-ab8e-1de7d4cafbac`, connection
+  `ee8f92a9-b80e-41b0-aee2-ab4b49a5b5e3` only; `other` to `chatgpt` plus
+  guarded withdrawal. Owner declaration is the approved classification
+  authority, not cryptographic host attestation. Claude and other connections
+  are unchanged. No migration applied, deployment, production correction,
+  new authorization grant, or business-tool invocation.
+- Base: fresh Workspace origin/main `f0df1f0886614f959934eb00a3213c9c7d168d8f`.
+  Runtime/SQL source matches last recorded deployed
+  `e1409e634eaeeb3a25965c719cdf00871d41b429`; their difference is documentation.
+  Current production deployment refresh is **UNAVAILABLE**: verified project/team
+  metadata did not yield the deployment through the connected Vercel account;
+  no installed Vercel CLI. Last recorded deployment is
+  `dpl_9FPKE5tFhvP8B4aQeu6e8MJzgYYQ`, not freshly verified here.
+- One authorized read-only target binding observation at
+  `2026-10-04T11:52:55.064714+00:00`, `transaction_read_only=on`, using the
+  existing scoped Supabase CLI against project `cirqqhuvzekbvysiyedg`.
+  Query: `SELECT now(), current_setting('transaction_read_only'), contract_key,
+  product_key, resource_uri, audience_uri, status, revoked_at IS NOT NULL
+  FROM private.oauth_product_client_bindings WHERE client_id =
+  '61940a73-fafe-4b96-ab8e-1de7d4cafbac'::uuid` inside `BEGIN READ ONLY` / `ROLLBACK`.
+  Result: one row; contract/product `workspace`; resource/audience
+  `https://workspace.leademergence.com/api/mcp`; `ACTIVE`; unrevoked. No customer
+  payload or token fields read. These authority fields do not attest the host.
+- Design refinement: owner-writable `product_events` cannot establish prior RPC
+  execution. Use existing protected `audit_events` provenance with existing
+  columns/permissions unchanged; no general audit writer accepts owner-supplied
+  declaration metadata. Generic mutation audit only writes trigger event types.
+  Withdrawal requires this RPC's latest confirmation for the exact actor/row/
+  client, unchanged connection/revocation time boundaries, and currently active
+  authority. Routine last-verification updates do not invalidate withdrawal.
+- Direct-owner enforcement is server-side: non-null `auth.uid`, authenticated
+  role claim, and existing `is_direct_session()` rejecting `client_id` or
+  `workspace_mcp=true`; owner membership/capabilities and exact target identity
+  are then checked. Absence from MCP discovery is not the authorization guard.
+- Focused native UI/adapter tests — **11/11 PASS**. Full unit suite —
+  **218/218 PASS**; typecheck, lint, boundaries and production build — **PASS**.
+- Required schema contracts — **31/32 PASS**, one **PRE-EXISTING FAILURE**:
+  `tests/schema-policy-contract.test.mjs:415` expects an inline
+  `SOTF_PILOT_ENABLED` guard in `app/workspace/bundles/sotf/page.tsx`, which now
+  delegates to `connected-experience`. Both files are unchanged from the base;
+  the failure is unrelated to this patch and was not repaired.
+- SQL behavior — **NOT TESTED**. Local-only rollback fixture:
+  `supabase/tests/database/assistant_host_confirmation.sql`, with synthetic
+  owners/content and a local shared-binding contract fixture. Docker/PostgreSQL
+  engine unavailable and no existing `.github/workflows` isolated database CI.
+  No database installed, new dependency/workflow added, or hosted substitute used.
+  Required future command on an existing fresh isolated stack:
+  `supabase test db --local supabase/tests/database/assistant_host_confirmation.sql`.
+  The fixture covers direct/MCP denial, owner/target/transition restriction,
+  audit forgery, inactive authority, invariance, idempotency and withdrawal.
+- Integration risk: unmerged PR #10 changes distinct admission lifecycle
+  functions on `mcp_authorizations`. This patch changes no PR #10 function/file
+  implementation and never resumes status or grants. The shared validation
+  document may require append-only reconciliation; independent security review
+  and isolated SQL proof are still required before release readiness.
+- Phase 1.3 remains **OPEN / NOT TESTED**. After separately approved release,
+  production acceptance requires the designated host's `list_entitled_bundles({})`
+  status `ok` plus entitled SOTF metadata, followed by the intended business read
+  (`get_workspace_setup({})` with the exact Workspace and an items array).
+  Local tests and metadata alone cannot close acceptance.
+- Additional `npm run scan:sensitive` — **PRE-EXISTING FAILURE**, the unchanged
+  synthetic `slice-d-local-test-secret-with-32-characters` assignment in
+  `tests/personal-authority-projection.test.ts` and two historical blobs.
+  Base inspection confirms the same assignment; no current patch finding.
+- Isolated SQL runtime feasibility: a native PostgreSQL 15 runtime can run this
+  SQL without Docker in principle (the repository config pins major version 15).
+  It also needs pgcrypto, pgTAP, synthetic Supabase Auth/storage catalogs and
+  auth.uid/auth.jwt helpers/roles, followed by the Workspace migration chain.
+  The test supplies its own local-only shared binding catalog. No such prepared
+  runtime is available here; this is source-based feasibility, not executed proof.
