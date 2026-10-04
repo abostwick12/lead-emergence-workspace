@@ -1,0 +1,88 @@
+name: Phase 1 disposable local database proof
+on:
+  push:
+    branches: [codex/p1-confirmation-db-proof]
+permissions:
+  contents: read
+jobs:
+  database-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout frozen reviewed source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: e208fb7e87abfeb731fea9b15b40c1d894408eb6
+          persist-credentials: false
+      - name: Install official pinned Supabase CLI
+        uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1
+        with:
+          version: 2.119.0
+      - name: Prepare fresh local-only project
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = e208fb7e87abfeb731fea9b15b40c1d894408eb6
+          supabase --version
+          mkdir -p "$RUNNER_TEMP/p1-local" "$RUNNER_TEMP/p1-evidence"
+          supabase init --workdir "$RUNNER_TEMP/p1-local" > "$RUNNER_TEMP/p1-init.log" 2>&1
+          python3 - "$RUNNER_TEMP/p1-local/supabase/config.toml" <<'PY'
+          import pathlib, re, sys
+          p = pathlib.Path(sys.argv[1])
+          text = p.read_text()
+          text, count = re.subn(r'(?m)^major_version\s*=\s*\d+', 'major_version = 15', text)
+          assert count == 1
+          text, count = re.subn(r'(\[db\.seed\]\s*\n)([\s\S]*?)(?=\n\[)', lambda m: m[1] + re.sub(r'(?m)^enabled\s*=\s*true', 'enabled = false', m[2]), text)
+          assert count == 1 and '[db.seed]' in text
+          assert re.search(r'\[db\.seed\]\s*\n[\s\S]*?^enabled = false$', text, re.M)
+          p.write_text(text)
+          PY
+          cp -R supabase/migrations "$RUNNER_TEMP/p1-local/supabase/"
+          mkdir -p "$RUNNER_TEMP/p1-local/supabase/tests/database"
+          cp supabase/tests/database/assistant_host_confirmation.sql "$RUNNER_TEMP/p1-local/supabase/tests/database/"
+          diff -qr supabase/migrations "$RUNNER_TEMP/p1-local/supabase/migrations"
+          cmp supabase/tests/database/assistant_host_confirmation.sql "$RUNNER_TEMP/p1-local/supabase/tests/database/assistant_host_confirmation.sql"
+          sha256sum supabase/tests/database/assistant_host_confirmation.sql
+      - name: Start official ephemeral local stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! supabase start --workdir "$RUNNER_TEMP/p1-local" > "$RUNNER_TEMP/p1-start-private.log" 2>&1; then
+            python3 - "$RUNNER_TEMP/p1-start-private.log" <<'PY'
+          import pathlib, re, sys
+          for line in pathlib.Path(sys.argv[1]).read_text(errors='replace').splitlines():
+              if re.search(r'error|fatal|failed|migration|syntax|permission denied', line, re.I):
+                  line = re.sub(r'eyJ[A-Za-z0-9_.-]+', '[REDACTED]', line)
+                  line = re.sub(r'postgres(?:ql)?://[^\s]+', '[REDACTED LOCAL CONNECTION]', line)
+                  line = re.sub(r'(?i)((?:secret|password|api.?key|token)\s*[:=]\s*)\S+', r'\1[REDACTED]', line)
+                  print(line)
+          PY
+            exit 1
+          fi
+      - name: Execute unchanged fixture and capture TAP
+        shell: bash
+        run: |
+          set -euo pipefail
+          container=$(docker ps --filter name=supabase_db_ --format '{{.Names}}')
+          test "$(printf '%s\n' "$container" | wc -l)" -eq 1
+          docker exec "$container" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c "select version(); select version from supabase_migrations.schema_migrations order by version;" | tee "$RUNNER_TEMP/p1-evidence/engine-migrations.txt"
+          docker exec "$container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'create extension if not exists pgtap with schema extensions;'
+          docker exec -i "$container" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 < supabase/tests/database/assistant_host_confirmation.sql | tee "$RUNNER_TEMP/p1-evidence/fixture.tap"
+          python3 - "$RUNNER_TEMP/p1-evidence/fixture.tap" <<'PY'
+          import pathlib, re, sys
+          text = pathlib.Path(sys.argv[1]).read_text()
+          good = re.findall(r'^ok \d+\b', text, re.M)
+          bad = re.findall(r'^not ok \d+\b', text, re.M)
+          plans = re.findall(r'^1\.\.(\d+)\s*$', text, re.M)
+          print(f'TAP passing={len(good)} failing={len(bad)} plans={plans}')
+          assert not re.search(r'not ok|bail out!|(?:^|\s)(?:ERROR|FATAL):', text, re.I)
+          assert len(plans) == 1 and int(plans[0]) == len(good) + len(bad)
+          assert int(plans[0]) > 0
+          assert good and not bad
+          PY
+      - name: Stop disposable local stack
+        if: always()
+        shell: bash
+        run: |
+          supabase stop --workdir "$RUNNER_TEMP/p1-local" > "$RUNNER_TEMP/p1-stop-private.log" 2>&1
+          echo 'Disposable local stack stopped.'
