@@ -44,6 +44,7 @@ const bundleClaimRoute = await readFile("app/api/bundles/invites/claim/route.ts"
 const bundleServer = await readFile("lib/workspace/bundle-server.ts", "utf8");
 const sotfOperationsSql = await readFile("supabase/migrations/20260906120000_sotf_operational_workflows.sql", "utf8");
 const sotfWorkspacePage = await readFile("app/workspace/sotf/page.tsx", "utf8");
+const sotfConnectedExperience = await readFile("app/workspace/sotf/connected-experience.tsx", "utf8");
 const sotfProfessionalContext = await readFile("lib/sotf/professional-context.ts", "utf8");
 const mcpServer = await readFile("lib/workspace/mcp-server.ts", "utf8");
 const projectionEdgeEntrypoint = await readFile("supabase/functions/personal-authority-projection/index.ts", "utf8");
@@ -412,10 +413,12 @@ test("gates native and MCP SOTF presentation with the same fail-closed entitleme
   assert.match(sotfOperationsSql, /entitlement\.bundle_key = 'sotf_transition'/i);
   assert.match(sotfOperationsSql, /entitlement\.starts_at <= now\(\)/i);
   assert.match(sotfOperationsSql, /entitlement\.revoked_at is null/i);
-  assert.match(sotfWorkspacePage, /SOTF_PILOT_ENABLED/);
-  assert.match(sotfWorkspacePage, /auth\.getUser\(\)/);
-  assert.match(sotfWorkspacePage, /rpc\("sotf_has_access"\)/);
-  assert.match(sotfWorkspacePage, /if \(error \|\| allowed !== true\) notFound\(\)/);
+  assert.match(sotfWorkspacePage, /import \{ connectedSotfExperience \} from "\.\/connected-experience"/);
+  assert.match(sotfWorkspacePage, /return connectedSotfExperience\(\)/);
+  assert.match(sotfConnectedExperience, /SOTF_PILOT_ENABLED/);
+  assert.match(sotfConnectedExperience, /auth\.getUser\(\)/);
+  assert.match(sotfConnectedExperience, /rpc\("sotf_has_access"\)/);
+  assert.match(sotfConnectedExperience, /if \(error \|\| allowed !== true\) notFound\(\)/);
   assert.match(workspaceShell, /sotfPilotEnabled && sotfAccess/);
   assert.match(workspaceProvider, /sotfPilotEnabled \? hasSotfAccess\(\) : Promise\.resolve\(false\)/);
   assert.match(mcpRoute, /resolveSotfMcpAccess/);
