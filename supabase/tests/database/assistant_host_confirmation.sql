@@ -30,8 +30,8 @@ insert into workspace.workspace_memberships(workspace_id,user_id,role,status) va
  ('64bbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','64222222-2222-4222-8222-222222222222','owner','active');
 insert into workspace.personal_plans(workspace_id,user_id,plan_key) values
  ('ef17ae83-747b-4470-8dc5-08eeec86989f','64111111-1111-4111-8111-111111111111','personal');
-insert into workspace.personal_onboarding(workspace_id,user_id,selected_assistant)
-values ('ef17ae83-747b-4470-8dc5-08eeec86989f','64111111-1111-4111-8111-111111111111','claude');
+insert into workspace.personal_onboarding(workspace_id,user_id,selected_assistant,created_by)
+values ('ef17ae83-747b-4470-8dc5-08eeec86989f','64111111-1111-4111-8111-111111111111','claude','64111111-1111-4111-8111-111111111111');
 insert into workspace.mcp_authorizations(id,workspace_id,client_id,assistant_provider,status,connected_at,created_by) values
  ('ee8f92a9-b80e-41b0-aee2-ab4b49a5b5e3','ef17ae83-747b-4470-8dc5-08eeec86989f','61940a73-fafe-4b96-ab8e-1de7d4cafbac','other','connected',now(),'64111111-1111-4111-8111-111111111111'),
  ('64dddddd-dddd-4ddd-8ddd-dddddddddddd','ef17ae83-747b-4470-8dc5-08eeec86989f','64cccccc-cccc-4ccc-8ccc-cccccccccccc','claude','connected',now(),'64111111-1111-4111-8111-111111111111');
