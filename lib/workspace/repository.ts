@@ -397,6 +397,21 @@ export async function listMcpAuthorizations(workspaceId: string): Promise<McpAut
   return (data ?? []) as McpAuthorizationRecord[];
 }
 
+export async function confirmPersonalAssistantConnectionHost(
+  connectionId: string,
+  assistant: "chatgpt" | "other"
+): Promise<{ connection_id: string; workspace_id: string; client_id: string; previous_provider: string; assistant_provider: "chatgpt" | "other"; changed: boolean }> {
+  const { data, error } = await getWorkspaceClient().rpc("confirm_personal_assistant_connection_host", {
+    target_connection_id: connectionId,
+    target_assistant: assistant
+  });
+  const result = required(data, error);
+  if (result.connection_id !== connectionId || result.assistant_provider !== assistant || typeof result.changed !== "boolean") {
+    throw new Error("Assistant confirmation could not be verified. Refresh connection status before trying again.");
+  }
+  return result;
+}
+
 export async function disconnectMcpAuthorization(clientId: string): Promise<void> {
   const supabase = getWorkspaceClient();
   const { error } = await supabase.rpc("disconnect_personal_mcp", { target_client_id: clientId });
