@@ -40,7 +40,7 @@ export const networkingCandidateSchema = z.strictObject({
   pathway: networkingPathwaySchema,
   status: networkingStatusSchema.default("identified")
 });
-export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional(), networking: networkingCandidateSchema.optional() });
+export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, testRecord: z.boolean().optional(), overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional(), networking: networkingCandidateSchema.optional() });
 export const meetingSchema = z.strictObject({ id, title: short, personId: id.optional(), opportunityId: id.optional(), hypothesisIds: ids, kind: z.enum(["networking", "coaching", "interview", "mentor"]), startsAt: timestamp, endsAt: timestamp, status: z.enum(["planned", "accepted", "completed", "cancelled"]).default("planned"), provider: z.enum(["manual", "google_calendar", "outlook"]).default("manual"), sourceEventId: id.optional(), objective: text });
 export const commitmentSchema = z.strictObject({ id, title: short, owner: short.default("Fellow"), due: date.optional(), definitionOfDone: text, reviewTrigger: text, personId: id.optional(), meetingId: id.optional(), opportunityId: id.optional(), hypothesisId: id.optional() });
 export const storySchema = z.strictObject({ id, title: short, situation: text, contribution: text, scope: text, actions: text, outcome: text, skills: z.array(short).min(1).max(20), evidenceIds: ids, approvedLanguage: text, uncertainNumbers: z.array(short).max(10).default([]), confirmed: z.literal(true) });
@@ -81,12 +81,12 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("close_chapter"), reflection: text, carryForward: z.array(id).max(100), nextFocus: text })
 ]);
 export const commandEnvelopeSchema = z.strictObject({ requestId: z.string().uuid(), expectedRevision: z.number().int().min(0), userConfirmed: z.literal(true), dataClass: z.literal("ordinary_transition_operations"), command: commandSchema });
-// Historical reads alone accept the feature field. Keep the feature reader's key order
+// Keep the historical feature reader's key order
 // so replay produces identical serialized commands for request-ID receipts.
 const persistedPersonSchema = z.strictObject({
   ...personSchema.pick({ id: true, name: true, company: true, role: true, email: true, source: true }).shape,
   testRecord: z.boolean().optional(),
-  ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true }).shape
+  ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true, testRecord: true }).shape
 });
 const persistedCommandSchema = z.union([
   z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),

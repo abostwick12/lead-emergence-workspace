@@ -134,13 +134,13 @@ const networkingResponseStatuses = new Set(["connection_accepted", "replied", "c
 const networkingMatureStatuses = new Set([...networkingResponseStatuses, "no_response"]);
 
 export function latestNetworkingWeek(state: PilotState) {
-  return state.people.map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
+  return state.people.filter((item) => !item.testRecord).map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
 }
 
 export function networkingStrategy(state: PilotState, weekOf = latestNetworkingWeek(state), now = new Date().toISOString()) {
   const target = 25;
   const conversionTarget = 0.2;
-  const candidates = state.people.filter((item) => item.networking && (!weekOf || item.networking.weekOf === weekOf));
+  const candidates = state.people.filter((item) => !item.testRecord && item.networking && (!weekOf || item.networking.weekOf === weekOf));
   const candidateIds = new Set(candidates.map((item) => item.id));
   const attempts = state.actions.filter((item) => item.personId && candidateIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind));
   const firstAttempt = new Map<string, string>();
