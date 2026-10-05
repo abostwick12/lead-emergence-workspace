@@ -155,6 +155,46 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
 });
 
 describe("SOTF networking strategy v1", () => {
+  it("excludes explicitly marked test contacts and their linked activity without deleting history", () => {
+    const h = harness();
+    const ordinary = networkingCandidate("ordinary", "Synthetic wording in an ordinary record", "ordinary category");
+    const testContact = { ...networkingCandidate("test-only", "Test contact", "test category"), testRecord: true };
+    testContact.networking.weekOf = "2026-09-08";
+    h.run({ type: "save_person", person: ordinary });
+    h.run({ type: "save_person", person: testContact });
+    recordVerifiedOutreach(h, ordinary.id);
+    recordVerifiedOutreach(h, testContact.id);
+    h.run({ type: "record_meeting", meeting: { ...meeting, id: "test-meeting", personId: testContact.id } });
+
+    const strategy = networkingStrategy(h.state, undefined, "2026-09-15T12:00:00Z");
+    expect(strategy).toMatchObject({ weekOf: "2026-09-01", queued: 1, attemptsMade: 1, conversationsGenerated: 0, matureCohortSize: 1, matureCohortConversionRate: 0 });
+    expect(strategy.candidates.map(({ person }) => person.id)).toEqual([ordinary.id]);
+    expect(strategy.categories.map(item => item.name)).toEqual(["ordinary category"]);
+    expect(strategy.adjustments.join(" ")).not.toContain("test category");
+    expect(networkingStrategy(h.state, "2026-09-08").queued).toBe(0);
+    expect(weeklyReview(h.state, "2026-09-01").networking.queued).toBe(1);
+    expect(h.state.people).toHaveLength(2);
+    expect(h.state.actions).toHaveLength(2);
+    expect(h.state.meetings).toHaveLength(1);
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state.people.find(item => item.id === testContact.id)?.testRecord).toBe(true);
+  });
+
+  it("preserves a test designation on omitted updates and changes it only through an explicit boolean", () => {
+    const h = harness();
+    const candidate = { ...networkingCandidate("marked", "Marked contact", "program leadership"), testRecord: true };
+    h.run({ type: "save_person", person: candidate });
+    const { testRecord: _testRecord, ...withoutDesignation } = candidate;
+    void _testRecord;
+    h.run({ type: "save_person", person: { ...withoutDesignation, role: "Updated role" } });
+    expect(h.state.people[0].testRecord).toBe(true);
+    expect(networkingStrategy(h.state).queued).toBe(0);
+    expect(() => envelope(h.state, { type: "save_person", person: { ...candidate, testRecord: "false" } })).toThrow();
+    h.run({ type: "save_person", person: { ...withoutDesignation, testRecord: false } });
+    expect(h.state.people[0].testRecord).toBe(false);
+    expect(networkingStrategy(h.state).queued).toBe(1);
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state.people[0].testRecord).toBe(false);
+  });
+
   it("preserves networking metadata when an ordinary person update omits it", () => {
     const h = harness();
     const networking = { weekOf: "2026-09-01", sourceUrl: "https://example.org/people/morgan", whyPerson: "Public work shows direct experience with the question being tested", lamp: { list: "technical program leadership", alumniAffinity: "fictional veteran affinity", motivation: "The organization exposes the kind of delivery decisions being explored", posting: "related role signal" }, contributionAngle: "Offer a scoped cross-team delivery perspective while staying curious", recommendedNextAction: "Send a short curiosity-led note", pathway: "direct_outreach", status: "identified" } as const;

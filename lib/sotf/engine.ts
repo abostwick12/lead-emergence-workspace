@@ -104,7 +104,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     case "save_person": {
       links(command.person); const current = state.people.find((item) => item.id === command.person.id);
       const networking = command.person.networking === undefined ? current?.networking : { ...command.person.networking, statusUpdatedAt: current?.networking?.status === command.person.networking.status ? current.networking.statusUpdatedAt ?? now : now };
-      upsert(state.people, { ...command.person, networking, firstContact: current?.firstContact, lastInteraction: current?.lastInteraction });
+      upsert(state.people, { ...command.person, testRecord: command.person.testRecord ?? current?.testRecord, networking, firstContact: current?.firstContact, lastInteraction: current?.lastInteraction });
       summary = `${command.person.name} matters now: ${command.person.whyNow}`; break;
     }
     case "prepare_outreach": {
