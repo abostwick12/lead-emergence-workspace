@@ -365,14 +365,16 @@ describe("SOTF networking strategy v1", () => {
     expect(h.state.actions.at(-1)).toMatchObject({ kind: "direct_message", subject: "Follow up after public conversation", body: expect.stringContaining("I appreciated the exchange on your post") });
   });
 
-  it("builds a transparent 25-person queue, tracks mature cohorts, and reuses the conversation loop", () => {
+  it("targets a 10-person weekly queue without discarding extra candidates, tracks mature cohorts, and reuses the conversation loop", () => {
     const h = harness();
     const people = Array.from({ length: 25 }, (_, index) => {
       const number = index + 1;
       return { id: `candidate-${number}`, name: `Fictional candidate ${number}`, company: `Fictional company ${number}`, role: "Program leader", source: "Synthetic public research", overlap: number % 2 ? "No overlap claimed" : "Confirmed fictional veteran affinity", whyNow: "Recent public work makes the operating model timely to understand", objective: "Learn which decisions this role owns", introductionPath: number === 3 ? "Fictional mutual contact" : "", hypothesisIds: ["direction"], nextTouch: "2026-09-15", networking: { weekOf: "2026-09-01", sourceUrl: `https://example.org/people/${number}`, whyPerson: "Public work shows direct experience with the question being tested", lamp: { list: number <= 10 ? "technical program leadership" : "operations leadership", alumniAffinity: number % 2 ? "" : "fictional veteran affinity", motivation: "The organization exposes the kind of delivery decisions being explored", posting: number % 3 ? "related role signal" : "practitioner learning path" }, contributionAngle: "Offer a scoped cross-team delivery perspective while staying curious", recommendedNextAction: number === 2 ? "Comment thoughtfully, then follow up privately only after a genuine exchange" : "Send a short curiosity-led note", pathway: number === 2 ? "thoughtful_comment" : number === 3 ? "warm_introduction" : number === 7 ? "research_wait" : "direct_outreach", status: "identified" } };
     });
-    people.forEach((person) => h.run({ type: "save_person", person }));
-    expect(networkingStrategy(h.state, "2026-09-01", "2026-09-06T12:00:00Z")).toMatchObject({ target: 25, conversionTarget: 0.2, queued: 25, queueRemaining: 0, attemptsMade: 0, matureCohortSize: 0 });
+    people.slice(0, 9).forEach((person) => h.run({ type: "save_person", person }));
+    expect(networkingStrategy(h.state, "2026-09-01")).toMatchObject({ target: 10, queued: 9, queueRemaining: 1, attemptsMade: 0 });
+    people.slice(9).forEach((person) => h.run({ type: "save_person", person }));
+    expect(networkingStrategy(h.state, "2026-09-01", "2026-09-06T12:00:00Z")).toMatchObject({ target: 10, conversionTarget: 0.2, queued: 25, queueRemaining: 0, attemptsMade: 0, matureCohortSize: 0 });
     expect(networkingStrategy(h.state, "2026-09-01").candidates[0].rationale).toMatchObject({ whyPerson: expect.any(String), lamp: { list: expect.any(String) }, contributionAngle: expect.any(String), learningObjective: expect.any(String), recommendedNextAction: expect.any(String) });
 
     for (const person of people.slice(0, 5)) {
