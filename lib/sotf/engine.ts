@@ -1,4 +1,4 @@
-import { commandEnvelopeSchema, type CommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
+import { commandEnvelopeSchema, persistedCommandEnvelopeSchema, type CommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
 import { assessOpportunity, requireRecord } from "./intelligence";
 
 export class RevisionConflict extends Error { constructor() { super("Your SOTF Bundle changed in another session. Refresh and review the current state before retrying."); } }
@@ -12,9 +12,9 @@ function advanceNetworking(person: PilotState["people"][number], status: typeof 
   if (current < 0 || next > current) person.networking = { ...person.networking, status, statusUpdatedAt: now };
 }
 
-/** Only ordinary, explicitly confirmed operational data enters this engine. Protected context has no persistence fallback. */
-export function applyCommand(previous: PilotState, input: CommandEnvelope, now = new Date().toISOString()): PilotState {
-  const envelope = commandEnvelopeSchema.parse(input);
+/** New commands stay strict; only canonical log replay uses the historical reader contract. */
+export function applyCommand(previous: PilotState, input: CommandEnvelope, now = new Date().toISOString(), source: "new_command" | "persisted_event" = "new_command"): PilotState {
+  const envelope = persistedCommandEnvelopeSchema.parse(source === "persisted_event" ? input : commandEnvelopeSchema.parse(input));
   const serialized = JSON.stringify(envelope.command);
   const receipt = previous.receipts.find((item) => item.requestId === envelope.requestId);
   if (receipt) {
@@ -104,7 +104,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     case "save_person": {
       links(command.person); const current = state.people.find((item) => item.id === command.person.id);
       const networking = command.person.networking === undefined ? current?.networking : { ...command.person.networking, statusUpdatedAt: current?.networking?.status === command.person.networking.status ? current.networking.statusUpdatedAt ?? now : now };
-      upsert(state.people, { ...command.person, testRecord: command.person.testRecord ?? current?.testRecord, networking, firstContact: current?.firstContact, lastInteraction: current?.lastInteraction });
+      upsert(state.people, { ...command.person, testRecord: ("testRecord" in command.person ? command.person.testRecord : undefined) ?? current?.testRecord, networking, firstContact: current?.firstContact, lastInteraction: current?.lastInteraction });
       summary = `${command.person.name} matters now: ${command.person.whyNow}`; break;
     }
     case "prepare_outreach": {
