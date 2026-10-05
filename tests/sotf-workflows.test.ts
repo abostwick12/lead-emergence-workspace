@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { commandEnvelopeSchema, emptyPilotState, type PilotState } from "@/lib/sotf/contracts";
+import { z } from "zod";
+import { commandEnvelopeSchema, commandSchema, persistedCommandEnvelopeSchema, emptyPilotState, type PilotState } from "@/lib/sotf/contracts";
 import { applyCommand, resumeTransition, RevisionConflict } from "@/lib/sotf/engine";
 import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
 import { OperationNotApplied, replayEvents, SotfStore, type WorkflowEvent } from "@/lib/sotf/persistence";
@@ -442,6 +443,77 @@ describe("SOTF reusable evidence, applications, and next chapter", () => {
 });
 
 describe("SOTF persistence integrity", () => {
+  it.each([undefined, true, false])("reads historical designation %s without changing history or receipts", async (testRecord) => {
+    const h = harness();
+    const operation = persistedCommandEnvelopeSchema.parse({
+      requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true,
+      dataClass: "ordinary_transition_operations", command: { type: "save_person", person: { ...contact, testRecord } }
+    });
+    if (operation.command.type !== "save_person") throw new Error("Expected a historical person fixture");
+    const historicalPerson = operation.command.person;
+    const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: operation }];
+    const original = structuredClone(events);
+    let appends = 0;
+    const store = new SotfStore({ read: async () => ({ workspace_id: workspaceId, revision: events.length, events }), append: async (next) => {
+      appends++; events.push({ revision: events.length + 1, recorded_at: now, envelope: next });
+    } }, () => now);
+    const before = await store.read();
+    expect(before.state.people[0].testRecord).toBe(testRecord);
+    expect(before.state.receipts.at(-1)?.command).toBe(JSON.stringify(operation.command));
+    expect(applyCommand(before.state, operation, now, "persisted_event")).toBe(before.state);
+    expect(() => applyCommand(before.state, { ...operation, command: { type: "save_person", person: { ...historicalPerson, name: "Different person" } } }, now, "persisted_event")).toThrow("different operation");
+    if (testRecord !== undefined) {
+      await expect(store.execute({ ...operation, command: { type: "save_person", person: contact } })).rejects.toThrow("different operation");
+    }
+    const update = envelope(before.state, { type: "save_person", person: { ...contact, role: "Updated ordinary role" } });
+    const result = await store.execute(update);
+    expect(result.state.people[0]).toMatchObject({ role: "Updated ordinary role", testRecord });
+    expect(result.state.receipts.at(-1)?.command).toBe(JSON.stringify(update.command));
+    expect((await store.execute(update)).replayed).toBe(true);
+    expect((await store.read()).state).toEqual(result.state);
+    expect(appends).toBe(1);
+    expect(events.slice(0, original.length)).toEqual(original);
+    expect(events.at(-1)?.envelope.command).toEqual(update.command);
+  });
+
+  it("retains explicit false after historical true and rejects malformed or unrelated historical fields", () => {
+    const h = harness();
+    const events: WorkflowEvent[] = [...h.events];
+    for (const testRecord of [true, false]) {
+      events.push({ revision: events.length + 1, recorded_at: now, envelope: persistedCommandEnvelopeSchema.parse({
+        requestId: randomUUID(), expectedRevision: events.length, userConfirmed: true,
+        dataClass: "ordinary_transition_operations", command: { type: "save_person", person: { ...contact, testRecord } }
+      }) });
+    }
+    const batch = { workspace_id: workspaceId, revision: events.length, events };
+    expect(replayEvents(batch).state.people[0].testRecord).toBe(false);
+    const last = events.at(-1)!;
+    for (const invalid of [{ testRecord: "true" }, { testRecord: null }, { testRecord: 1 }, { testRecord: true, unexpected: "no" }]) {
+      expect(() => replayEvents({ ...batch, events: [...events.slice(0, -1), { ...last, envelope: { ...last.envelope, command: { type: "save_person", person: { ...contact, ...invalid } } } }] })).toThrow();
+    }
+    expect(() => replayEvents({ ...batch, events: [...events.slice(0, -1), { ...last, envelope: { ...last.envelope, protectedContext: "no" } }] })).toThrow();
+    expect(() => replayEvents({ ...batch, events: [...events.slice(0, -1), { ...last, unexpected: "no" }] })).toThrow();
+    expect(() => replayEvents({ ...batch, events: [...events, { ...last, revision: events.length + 1, envelope: { ...last.envelope, expectedRevision: events.length } }], revision: events.length + 1 })).toThrow("duplicate operation");
+  });
+
+  it("neither advertises nor accepts new designation writes, including preparation callbacks", async () => {
+    const h = harness();
+    let appends = 0;
+    const store = new SotfStore({ read: async () => ({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }), append: async () => { appends++; } }, () => now);
+    const operation = envelope(h.state, { type: "save_person", person: contact });
+    if (operation.command.type !== "save_person") throw new Error("Expected an ordinary person fixture");
+    expect(JSON.stringify(z.toJSONSchema(commandSchema, { io: "input" }))).not.toContain("testRecord");
+    expect(JSON.stringify(z.toJSONSchema(commandEnvelopeSchema, { io: "input" }))).not.toContain("testRecord");
+    for (const testRecord of [true, false]) {
+      const designated = { ...operation, command: { ...operation.command, person: { ...operation.command.person, testRecord } } };
+      expect(() => commandEnvelopeSchema.parse(designated)).toThrow();
+      expect(() => applyCommand(h.state, designated, now)).toThrow();
+      await expect(store.execute(designated)).rejects.toThrow();
+      await expect(store.execute(operation, () => designated)).rejects.toBeInstanceOf(OperationNotApplied);
+    }
+    expect(appends).toBe(0);
+  });
+
   it("rejects stale changes, cross-record links, protected envelopes, and incomplete replay", () => {
     const h = harness(); const operation = envelope(h.state, { type: "prepare_outreach", personId: "missing" });
     expect(() => applyCommand(h.state, operation)).toThrow("Person was not found");

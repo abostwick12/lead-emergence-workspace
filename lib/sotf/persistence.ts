@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { commandEnvelopeSchema, emptyPilotState, type CommandEnvelope, type PilotState } from "./contracts";
+import { commandEnvelopeSchema, persistedCommandEnvelopeSchema, emptyPilotState, type CommandEnvelope, type PilotState } from "./contracts";
 import { applyCommand, RevisionConflict } from "./engine";
 
 const eventSchema = z.strictObject({
   revision: z.number().int().positive(),
   recorded_at: z.string().datetime({ offset: true }),
-  envelope: commandEnvelopeSchema
+  envelope: persistedCommandEnvelopeSchema
 });
 export const eventBatchSchema = z.strictObject({ workspace_id: z.string().uuid(), revision: z.number().int().nonnegative(), events: z.array(eventSchema).max(2000) });
 export type EventBatch = z.infer<typeof eventBatchSchema>;
@@ -19,7 +19,7 @@ export function replayEvents(input: unknown): { workspaceId: string; state: Pilo
     if (event.revision !== state.revision + 1 || event.envelope.expectedRevision !== state.revision) {
       throw new Error("The transition history is incomplete or out of order. Existing work is preserved; contact pilot support before writing more changes.");
     }
-    state = applyCommand(state, event.envelope, event.recorded_at);
+    state = applyCommand(state, event.envelope, event.recorded_at, "persisted_event");
     if (state.revision !== event.revision) throw new Error("The transition history contains a duplicate operation. Review it before continuing.");
   }
   if (state.revision !== batch.revision) throw new Error("The transition history did not load completely. Refresh before continuing.");
