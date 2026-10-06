@@ -95,3 +95,51 @@
 .vector summary { display:flex; justify-content:space-between; gap:12px; }
 .vector summary>span { max-width:70%; }
 .vector summary>strong { white-space:nowrap; font-size:14px; color:var(--ink); }
+
+/* Networking dashboard only; other SOTF views retain their existing styles. */
+.networkingIntroduction h1 { font-family:Arial,Helvetica,sans-serif; font-weight:600; font-size:clamp(30px,4vw,46px); }
+.networkingDashboard { display:grid; gap:20px; min-width:0; background-image:linear-gradient(#7899b008 1px,transparent 1px),linear-gradient(90deg,#7899b008 1px,transparent 1px); background-size:20px 20px; }
+.networkingDashboard>.sectionHeading { margin-bottom:0; }
+.networkingDashboard>.help { margin:0; }
+.networkingMetrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+.networkingPanel { min-width:0; padding:22px; border:1px solid #374957; border-radius:5px; background:linear-gradient(135deg,#1b2a36,#101e2a); box-shadow:0 10px 22px #0002; }
+.networkingPanel h3 { font-size:18px; }
+.networkingPanel>.eyebrow { font-size:11px; color:var(--muted); }
+.networkingTeal { border-top:2px solid #55b8ba; }
+.networkingBrass { border-top:2px solid #c2a979; }
+.networkingClay { border-top:2px solid #b78272; }
+.networkingMetric { display:block; margin:18px 0 10px; font-size:36px; line-height:1.2; letter-spacing:-.04em; }
+.networkingProgress { display:block; width:100%; height:6px; border:0; margin:18px 0; appearance:none; background:#364754; accent-color:#55b8ba; }
+.networkingProgress::-webkit-progress-bar { background:#364754; border-radius:4px; }
+.networkingProgress::-webkit-progress-value { background:#55b8ba; border-radius:4px; }
+.networkingProgress::-moz-progress-bar { background:#55b8ba; border-radius:4px; }
+.networkingMeta { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; border-top:1px solid var(--line); padding-top:14px; color:var(--muted); font-size:13px; }
+.networkingMeta strong { display:block; color:var(--ink); font-size:22px; }
+.networkingGrid { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:18px; align-items:start; }
+.networkingQueueList { max-height:540px; overflow-y:auto; padding:0 5px 0 0; scrollbar-color:#587989 #142532; }
+.networkingCandidate { min-width:0; padding:18px 0; border-top:1px solid var(--line); overflow-wrap:anywhere; }
+.networkingCandidate:first-child { margin-top:10px; }
+.networkingCandidateHeading { display:flex; gap:16px; justify-content:space-between; align-items:flex-start; }
+.networkingCandidateHeading h3 { margin:0 0 5px; }
+.networkingCandidateHeading p { margin:0; }
+.networkingStatus { font-size:11px; color:#d3bb8e; text-transform:uppercase; letter-spacing:.08em; }
+.networkingCandidate .actions { gap:8px; }
+.networkingCandidate .actions button { font-size:13px; padding:8px 10px; }
+.networkingRationale { display:grid; grid-template-columns:minmax(100px,1fr) minmax(0,3fr); gap:8px 16px; font-size:14px; }
+.networkingRationale dt { color:var(--muted); }
+.networkingRationale dd { margin:0; }
+.networkingWaiting { list-style:none; padding:0; margin:18px 0; max-height:480px; overflow-y:auto; }
+.networkingWaiting li { display:grid; gap:5px; border-top:1px solid var(--line); padding:14px 0; overflow-wrap:anywhere; }
+.networkingWaiting span { color:var(--muted); font-size:13px; }
+.networkingMeetingSummary { display:flex; flex-direction:column; gap:5px; }
+.networkingMeetingSummary span { font-size:13px; color:var(--muted); }
+.networkingOutcomes { display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; align-items:center; }
+.networkingOutcomes>div:not(:first-child) { display:grid; gap:5px; }
+.networkingOutcomes strong { font-size:28px; }
+.networkingOutcomes span { color:var(--muted); font-size:13px; text-transform:capitalize; }
+.networkingTable,.networkingHistoryTable { overflow-x:auto; }
+.networkingDashboard table { font-size:13px; }
+.networkingDashboard td,.networkingDashboard th { padding:8px 6px; }
+.networkingHistoryTable table { min-width:650px; }
+@media(max-width:1050px) { .networkingMetrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .networkingMetrics>section:last-child { grid-column:1/-1; } }
+@media(max-width:760px) { .networkingMetrics,.networkingGrid { grid-template-columns:1fr; } .networkingMetrics>section:last-child { grid-column:auto; } .networkingPanel { padding:18px; } .networkingRationale { grid-template-columns:1fr; } .networkingRationale dd { margin-bottom:8px; } .networkingCandidateHeading { flex-direction:column; gap:8px; } .networkingQueueList { max-height:520px; } }

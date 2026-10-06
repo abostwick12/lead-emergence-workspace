@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+let accountRequests: string[] = [];
+let browserErrors: string[] = [];
+
 test.beforeEach(async ({ page }) => {
+  accountRequests = [];
+  browserErrors = [];
+  page.on("request", (request) => { if (/\/api\/sotf|supabase\.co/.test(request.url())) accountRequests.push(request.url()); });
+  page.on("pageerror", (error) => browserErrors.push(error.message));
   await page.goto("/sotf/preview");
   await expect(page.getByRole("heading", { name: "For today" })).toBeVisible();
 });
@@ -29,17 +36,30 @@ test("a confirmed criterion changes the decision and keeps the evidence visible"
 test("networking strategy shows a transparent 25-person cohort and evidence-led adjustment", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Plan 10 people to engage this week." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Networking Assistant", exact: true })).toBeVisible();
+  for (const name of ["Action queue", "Waiting for a response", "Conversation prep", "Scheduling", "Contact history"]) await expect(page.getByRole("region", { name, exact: true })).toBeVisible();
+  await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("max", "10");
+  await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("value", "10");
   await expect(page.getByText("25 / 10", { exact: true })).toBeVisible();
   await expect(page.getByText("5", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("20%", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Mature conversion", exact: true }).getByText("20%", { exact: true })).toBeVisible();
   const morgan = page.locator("article").filter({ has: page.getByRole("heading", { name: "Morgan — fictional contact", exact: true }) });
+  await morgan.getByText("Research and rationale", { exact: true }).click();
   await expect(morgan.getByText("Why this person?", { exact: true })).toBeVisible();
   await expect(morgan.getByText("LAMP — List", { exact: true })).toBeVisible();
   await expect(morgan.getByText("Contribution angle", { exact: true })).toBeVisible();
   await expect(page.getByText(/both recommendations come from recorded responses/i)).toBeVisible();
+  const history = page.getByRole("region", { name: "Contact history", exact: true });
+  await history.getByText("All saved networking contacts · 25", { exact: true }).click();
+  await expect(history.getByRole("row")).toHaveCount(26);
+  await page.getByText("Networking drafts and verified actions", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Thoughtful public comment", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Follow up after public conversation", exact: true }).first()).toBeVisible();
+  await page.getByRole("heading", { name: "Networking Assistant", exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `test-results/sotf-networking-dashboard-${test.info().project.name}.png`, fullPage: false });
   await page.screenshot({ path: `test-results/sotf-networking-${test.info().project.name}.png`, fullPage: true });
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
 
@@ -63,10 +83,14 @@ test("networking view supports the full manual action lifecycle", async ({ page 
   await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
   await expect(dialog).not.toBeVisible();
 
+  await page.getByText("Networking drafts and verified actions", { exact: true }).click();
   const verified = page.locator("details").filter({ hasText: "Networking drafts and verified actions" }).locator("article").filter({ hasText: "Fictional candidate 6" });
   await expect(verified.getByText("direct message · manually completed", { exact: true })).toBeVisible();
   await expect(verified.getByText("Synthetic user verified the manual outreach outside Workspace.", { exact: true })).toBeVisible();
-  await expect(candidate.getByText("attempted · direct outreach", { exact: true })).toBeVisible();
+  await expect(candidate.getByText("attempted", { exact: true })).toBeVisible();
+  await candidate.getByText("Research and rationale", { exact: true }).click();
+  await expect(candidate.getByText("direct outreach", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Waiting for a response", exact: true }).getByText("Fictional candidate 6", { exact: true })).toBeVisible();
 });
 
 test("networking scheduling uses the branded page only after a positive response", async ({ page }) => {
