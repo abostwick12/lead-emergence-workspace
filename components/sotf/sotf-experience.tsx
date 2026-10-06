@@ -138,7 +138,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
           </> : null}
         </> : null}
         {view === "Networking" ? <>
-          <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Week of {networking.weekOf ?? "not started"}</p><h2>Build 25 useful connection attempts.</h2></div><div className={styles.actions}><button className={styles.primary} onClick={() => edit("networking-candidate")}>Add candidate</button><button onClick={() => edit("weekly")}>Complete weekly review</button></div></div>
+          <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Week of {networking.weekOf ?? "not started"}</p><h2>Plan {networking.target} people to engage this week.</h2></div><div className={styles.actions}><button className={styles.primary} onClick={() => edit("networking-candidate")}>Add candidate</button><button onClick={() => edit("weekly")}>Complete weekly review</button></div></div>
           <p className={styles.help}>Records marked as tests and their linked activity are excluded from these results. Review record use in People.</p>
           <div className={styles.vector} aria-label="Networking weekly progress">
             <article><span>Queue</span><strong>{networking.queued} / {networking.target}</strong><p>{networking.queueRemaining ? `${networking.queueRemaining} candidates still needed` : "Weekly queue ready"}</p></article>

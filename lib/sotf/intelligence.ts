@@ -138,7 +138,7 @@ export function latestNetworkingWeek(state: PilotState) {
 }
 
 export function networkingStrategy(state: PilotState, weekOf = latestNetworkingWeek(state), now = new Date().toISOString()) {
-  const target = 25;
+  const target = 10;
   const conversionTarget = 0.2;
   const candidates = state.people.filter((item) => !item.testRecord && item.networking && (!weekOf || item.networking.weekOf === weekOf));
   const candidateIds = new Set(candidates.map((item) => item.id));
