@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { commandEnvelopeSchema, emptyPilotState, type PilotState } from "@/lib/sotf/contracts";
+import { z } from "zod";
+import { commandEnvelopeSchema, commandSchema, persistedCommandEnvelopeSchema, emptyPilotState, type PilotState } from "@/lib/sotf/contracts";
 import { applyCommand, resumeTransition, RevisionConflict } from "@/lib/sotf/engine";
 import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
 import { OperationNotApplied, replayEvents, SotfStore, type WorkflowEvent } from "@/lib/sotf/persistence";
@@ -155,6 +156,46 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
 });
 
 describe("SOTF networking strategy v1", () => {
+  it("excludes explicitly marked test contacts and their linked activity without deleting history", () => {
+    const h = harness();
+    const ordinary = networkingCandidate("ordinary", "Synthetic wording in an ordinary record", "ordinary category");
+    const testContact = { ...networkingCandidate("test-only", "Test contact", "test category"), testRecord: true };
+    testContact.networking.weekOf = "2026-09-08";
+    h.run({ type: "save_person", person: ordinary });
+    h.run({ type: "save_person", person: testContact });
+    recordVerifiedOutreach(h, ordinary.id);
+    recordVerifiedOutreach(h, testContact.id);
+    h.run({ type: "record_meeting", meeting: { ...meeting, id: "test-meeting", personId: testContact.id } });
+
+    const strategy = networkingStrategy(h.state, undefined, "2026-09-15T12:00:00Z");
+    expect(strategy).toMatchObject({ weekOf: "2026-09-01", queued: 1, attemptsMade: 1, conversationsGenerated: 0, matureCohortSize: 1, matureCohortConversionRate: 0 });
+    expect(strategy.candidates.map(({ person }) => person.id)).toEqual([ordinary.id]);
+    expect(strategy.categories.map(item => item.name)).toEqual(["ordinary category"]);
+    expect(strategy.adjustments.join(" ")).not.toContain("test category");
+    expect(networkingStrategy(h.state, "2026-09-08").queued).toBe(0);
+    expect(weeklyReview(h.state, "2026-09-01").networking.queued).toBe(1);
+    expect(h.state.people).toHaveLength(2);
+    expect(h.state.actions).toHaveLength(2);
+    expect(h.state.meetings).toHaveLength(1);
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state.people.find(item => item.id === testContact.id)?.testRecord).toBe(true);
+  });
+
+  it("preserves a test designation on omitted updates and changes it only through an explicit boolean", () => {
+    const h = harness();
+    const candidate = { ...networkingCandidate("marked", "Marked contact", "program leadership"), testRecord: true };
+    h.run({ type: "save_person", person: candidate });
+    const { testRecord: _testRecord, ...withoutDesignation } = candidate;
+    void _testRecord;
+    h.run({ type: "save_person", person: { ...withoutDesignation, role: "Updated role" } });
+    expect(h.state.people[0].testRecord).toBe(true);
+    expect(networkingStrategy(h.state).queued).toBe(0);
+    expect(() => envelope(h.state, { type: "save_person", person: { ...candidate, testRecord: "false" } })).toThrow();
+    h.run({ type: "save_person", person: { ...withoutDesignation, testRecord: false } });
+    expect(h.state.people[0].testRecord).toBe(false);
+    expect(networkingStrategy(h.state).queued).toBe(1);
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state.people[0].testRecord).toBe(false);
+  });
+
   it("preserves networking metadata when an ordinary person update omits it", () => {
     const h = harness();
     const networking = { weekOf: "2026-09-01", sourceUrl: "https://example.org/people/morgan", whyPerson: "Public work shows direct experience with the question being tested", lamp: { list: "technical program leadership", alumniAffinity: "fictional veteran affinity", motivation: "The organization exposes the kind of delivery decisions being explored", posting: "related role signal" }, contributionAngle: "Offer a scoped cross-team delivery perspective while staying curious", recommendedNextAction: "Send a short curiosity-led note", pathway: "direct_outreach", status: "identified" } as const;
@@ -324,14 +365,16 @@ describe("SOTF networking strategy v1", () => {
     expect(h.state.actions.at(-1)).toMatchObject({ kind: "direct_message", subject: "Follow up after public conversation", body: expect.stringContaining("I appreciated the exchange on your post") });
   });
 
-  it("builds a transparent 25-person queue, tracks mature cohorts, and reuses the conversation loop", () => {
+  it("targets a 10-person weekly queue without discarding extra candidates, tracks mature cohorts, and reuses the conversation loop", () => {
     const h = harness();
     const people = Array.from({ length: 25 }, (_, index) => {
       const number = index + 1;
       return { id: `candidate-${number}`, name: `Fictional candidate ${number}`, company: `Fictional company ${number}`, role: "Program leader", source: "Synthetic public research", overlap: number % 2 ? "No overlap claimed" : "Confirmed fictional veteran affinity", whyNow: "Recent public work makes the operating model timely to understand", objective: "Learn which decisions this role owns", introductionPath: number === 3 ? "Fictional mutual contact" : "", hypothesisIds: ["direction"], nextTouch: "2026-09-15", networking: { weekOf: "2026-09-01", sourceUrl: `https://example.org/people/${number}`, whyPerson: "Public work shows direct experience with the question being tested", lamp: { list: number <= 10 ? "technical program leadership" : "operations leadership", alumniAffinity: number % 2 ? "" : "fictional veteran affinity", motivation: "The organization exposes the kind of delivery decisions being explored", posting: number % 3 ? "related role signal" : "practitioner learning path" }, contributionAngle: "Offer a scoped cross-team delivery perspective while staying curious", recommendedNextAction: number === 2 ? "Comment thoughtfully, then follow up privately only after a genuine exchange" : "Send a short curiosity-led note", pathway: number === 2 ? "thoughtful_comment" : number === 3 ? "warm_introduction" : number === 7 ? "research_wait" : "direct_outreach", status: "identified" } };
     });
-    people.forEach((person) => h.run({ type: "save_person", person }));
-    expect(networkingStrategy(h.state, "2026-09-01", "2026-09-06T12:00:00Z")).toMatchObject({ target: 25, conversionTarget: 0.2, queued: 25, queueRemaining: 0, attemptsMade: 0, matureCohortSize: 0 });
+    people.slice(0, 9).forEach((person) => h.run({ type: "save_person", person }));
+    expect(networkingStrategy(h.state, "2026-09-01")).toMatchObject({ target: 10, queued: 9, queueRemaining: 1, attemptsMade: 0 });
+    people.slice(9).forEach((person) => h.run({ type: "save_person", person }));
+    expect(networkingStrategy(h.state, "2026-09-01", "2026-09-06T12:00:00Z")).toMatchObject({ target: 10, conversionTarget: 0.2, queued: 25, queueRemaining: 0, attemptsMade: 0, matureCohortSize: 0 });
     expect(networkingStrategy(h.state, "2026-09-01").candidates[0].rationale).toMatchObject({ whyPerson: expect.any(String), lamp: { list: expect.any(String) }, contributionAngle: expect.any(String), learningObjective: expect.any(String), recommendedNextAction: expect.any(String) });
 
     for (const person of people.slice(0, 5)) {
@@ -442,6 +485,98 @@ describe("SOTF reusable evidence, applications, and next chapter", () => {
 });
 
 describe("SOTF persistence integrity", () => {
+  it.each([undefined, true, false])("reads historical designation %s without changing history or receipts", async (testRecord) => {
+    const h = harness();
+    const operation = persistedCommandEnvelopeSchema.parse({
+      requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true,
+      dataClass: "ordinary_transition_operations", command: { type: "save_person", person: { ...contact, testRecord } }
+    });
+    if (operation.command.type !== "save_person") throw new Error("Expected a historical person fixture");
+    const historicalPerson = operation.command.person;
+    const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: operation }];
+    const original = structuredClone(events);
+    let appends = 0;
+    const store = new SotfStore({ read: async () => ({ workspace_id: workspaceId, revision: events.length, events }), append: async (next) => {
+      appends++; events.push({ revision: events.length + 1, recorded_at: now, envelope: next });
+    } }, () => now);
+    const before = await store.read();
+    expect(before.state.people[0].testRecord).toBe(testRecord);
+    expect(before.state.receipts.at(-1)?.command).toBe(JSON.stringify(operation.command));
+    expect(applyCommand(before.state, operation, now, "persisted_event")).toBe(before.state);
+    expect(() => applyCommand(before.state, { ...operation, command: { type: "save_person", person: { ...historicalPerson, name: "Different person" } } }, now, "persisted_event")).toThrow("different operation");
+    if (testRecord !== undefined) {
+      await expect(store.execute({ ...operation, command: { type: "save_person", person: contact } })).rejects.toThrow("different operation");
+    }
+    const update = envelope(before.state, { type: "save_person", person: { ...contact, role: "Updated ordinary role" } });
+    const result = await store.execute(update);
+    expect(result.state.people[0]).toMatchObject({ role: "Updated ordinary role", testRecord });
+    expect(result.state.receipts.at(-1)?.command).toBe(JSON.stringify(update.command));
+    expect((await store.execute(update)).replayed).toBe(true);
+    expect((await store.read()).state).toEqual(result.state);
+    expect(appends).toBe(1);
+    expect(events.slice(0, original.length)).toEqual(original);
+    expect(events.at(-1)?.envelope.command).toEqual(update.command);
+  });
+
+  it("retains explicit false after historical true and rejects malformed or unrelated historical fields", () => {
+    const h = harness();
+    const events: WorkflowEvent[] = [...h.events];
+    for (const testRecord of [true, false]) {
+      events.push({ revision: events.length + 1, recorded_at: now, envelope: persistedCommandEnvelopeSchema.parse({
+        requestId: randomUUID(), expectedRevision: events.length, userConfirmed: true,
+        dataClass: "ordinary_transition_operations", command: { type: "save_person", person: { ...contact, testRecord } }
+      }) });
+    }
+    const batch = { workspace_id: workspaceId, revision: events.length, events };
+    expect(replayEvents(batch).state.people[0].testRecord).toBe(false);
+    const last = events.at(-1)!;
+    for (const invalid of [{ testRecord: "true" }, { testRecord: null }, { testRecord: 1 }, { testRecord: true, unexpected: "no" }]) {
+      expect(() => replayEvents({ ...batch, events: [...events.slice(0, -1), { ...last, envelope: { ...last.envelope, command: { type: "save_person", person: { ...contact, ...invalid } } } }] })).toThrow();
+    }
+    expect(() => replayEvents({ ...batch, events: [...events.slice(0, -1), { ...last, envelope: { ...last.envelope, protectedContext: "no" } }] })).toThrow();
+    expect(() => replayEvents({ ...batch, events: [...events.slice(0, -1), { ...last, unexpected: "no" }] })).toThrow();
+    expect(() => replayEvents({ ...batch, events: [...events, { ...last, revision: events.length + 1, envelope: { ...last.envelope, expectedRevision: events.length } }], revision: events.length + 1 })).toThrow("duplicate operation");
+  });
+
+  it.each([true, false])("persists and replays explicit designation %s through ordinary and prepared writes", async (testRecord) => {
+    const h = harness();
+    const events = [...h.events]; let appends = 0;
+    const store = new SotfStore({ read: async () => ({ workspace_id: workspaceId, revision: events.length, events }), append: async (operation) => {
+      appends++; events.push({ revision: events.length + 1, recorded_at: now, envelope: operation });
+    } }, () => now);
+    expect(JSON.stringify(z.toJSONSchema(commandSchema, { io: "input" }))).toContain('"testRecord":{"type":"boolean"}');
+    expect(JSON.stringify(z.toJSONSchema(commandEnvelopeSchema, { io: "input" }))).toContain('"testRecord":{"type":"boolean"}');
+    for (const prepared of [false, true]) {
+      const before = await store.read();
+      const operation = envelope(before.state, { type: "save_person", person: { ...contact, ...(prepared ? {} : { testRecord }) } });
+      const prepare = prepared ? (input: typeof operation) => commandEnvelopeSchema.parse({ ...input, command: { type: "save_person", person: { ...contact, testRecord } } }) : undefined;
+      const saved = await store.execute(operation, prepare);
+      expect(saved.state.people[0].testRecord).toBe(testRecord);
+      expect((await store.read()).state).toEqual(saved.state);
+      expect((await store.execute(operation, prepare)).replayed).toBe(true);
+      expect(saved.state.receipts.at(-1)?.command).toBe(JSON.stringify(events.at(-1)?.envelope.command));
+    }
+    expect(appends).toBe(2);
+    expect(events.slice(0, h.events.length)).toEqual(h.events);
+  });
+
+  it("rejects malformed designations and unrelated fields before ordinary or prepared appends", async () => {
+    const h = harness(); let appends = 0;
+    const store = new SotfStore({ read: async () => ({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }), append: async () => { appends++; } }, () => now);
+    const operation = envelope(h.state, { type: "save_person", person: contact });
+    for (const invalid of [{ testRecord: "true" }, { testRecord: null }, { testRecord: 1 }, { testRecord: true, unexpected: "no" }]) {
+      const designated = { ...operation, command: { type: "save_person" as const, person: { ...contact, ...invalid } } };
+      expect(() => commandEnvelopeSchema.parse(designated)).toThrow();
+      expect(() => applyCommand(h.state, designated as unknown as typeof operation, now)).toThrow();
+      await expect(store.execute(designated)).rejects.toThrow();
+      await expect(store.execute(operation, () => designated as unknown as typeof operation)).rejects.toBeInstanceOf(OperationNotApplied);
+    }
+    const protectedOperation = { ...operation, protectedContext: "no" };
+    await expect(store.execute(protectedOperation)).rejects.toThrow();
+    await expect(store.execute(operation, () => protectedOperation)).rejects.toBeInstanceOf(OperationNotApplied);
+    expect(appends).toBe(0);
+  });
+
   it("rejects stale changes, cross-record links, protected envelopes, and incomplete replay", () => {
     const h = harness(); const operation = envelope(h.state, { type: "prepare_outreach", personId: "missing" });
     expect(() => applyCommand(h.state, operation)).toThrow("Person was not found");

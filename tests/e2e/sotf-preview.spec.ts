@@ -28,8 +28,8 @@ test("a confirmed criterion changes the decision and keeps the evidence visible"
 
 test("networking strategy shows a transparent 25-person cohort and evidence-led adjustment", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Build 25 useful connection attempts." })).toBeVisible();
-  await expect(page.getByText("25 / 25", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plan 10 people to engage this week." })).toBeVisible();
+  await expect(page.getByText("25 / 10", { exact: true })).toBeVisible();
   await expect(page.getByText("5", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("20%", { exact: true })).toBeVisible();
   const morgan = page.locator("article").filter({ has: page.getByRole("heading", { name: "Morgan — fictional contact", exact: true }) });

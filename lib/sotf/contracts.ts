@@ -40,7 +40,7 @@ export const networkingCandidateSchema = z.strictObject({
   pathway: networkingPathwaySchema,
   status: networkingStatusSchema.default("identified")
 });
-export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional(), networking: networkingCandidateSchema.optional() });
+export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, testRecord: z.boolean().optional(), overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional(), networking: networkingCandidateSchema.optional() });
 export const meetingSchema = z.strictObject({ id, title: short, personId: id.optional(), opportunityId: id.optional(), hypothesisIds: ids, kind: z.enum(["networking", "coaching", "interview", "mentor"]), startsAt: timestamp, endsAt: timestamp, status: z.enum(["planned", "accepted", "completed", "cancelled"]).default("planned"), provider: z.enum(["manual", "google_calendar", "outlook"]).default("manual"), sourceEventId: id.optional(), objective: text });
 export const commitmentSchema = z.strictObject({ id, title: short, owner: short.default("Fellow"), due: date.optional(), definitionOfDone: text, reviewTrigger: text, personId: id.optional(), meetingId: id.optional(), opportunityId: id.optional(), hypothesisId: id.optional() });
 export const storySchema = z.strictObject({ id, title: short, situation: text, contribution: text, scope: text, actions: text, outcome: text, skills: z.array(short).min(1).max(20), evidenceIds: ids, approvedLanguage: text, uncertainNumbers: z.array(short).max(10).default([]), confirmed: z.literal(true) });
@@ -81,13 +81,25 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("close_chapter"), reflection: text, carryForward: z.array(id).max(100), nextFocus: text })
 ]);
 export const commandEnvelopeSchema = z.strictObject({ requestId: z.string().uuid(), expectedRevision: z.number().int().min(0), userConfirmed: z.literal(true), dataClass: z.literal("ordinary_transition_operations"), command: commandSchema });
+// Keep the historical feature reader's key order
+// so replay produces identical serialized commands for request-ID receipts.
+const persistedPersonSchema = z.strictObject({
+  ...personSchema.pick({ id: true, name: true, company: true, role: true, email: true, source: true }).shape,
+  testRecord: z.boolean().optional(),
+  ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true, testRecord: true }).shape
+});
+const persistedCommandSchema = z.union([
+  z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),
+  commandSchema
+]);
+export const persistedCommandEnvelopeSchema = commandEnvelopeSchema.extend({ command: persistedCommandSchema });
 export type Command = z.infer<typeof commandSchema>;
 export type CommandEnvelope = z.infer<typeof commandEnvelopeSchema>;
 export type Criterion = z.infer<typeof criterionSchema>;
 export type Hypothesis = z.infer<typeof hypothesisSchema> & { updatedAt: string };
 export type Evidence = z.infer<typeof evidenceSchema> & { review: "pending" | "accepted" | "rejected"; reviewedAt?: string; reviewRationale?: string; createdAt: string; criterionDesired?: string };
 export type Opportunity = z.infer<typeof opportunitySchema> & { status: "exploring" | "pursue" | "investigate" | "decline" | "pause"; decision?: { rationale: string; nextAction: string; revisitWhen: string; at: string; due?: string; assessmentRevision: number }; createdAt: string };
-export type Person = z.infer<typeof personSchema> & { firstContact?: string; lastInteraction?: string; networking?: z.infer<typeof networkingCandidateSchema> & { statusUpdatedAt?: string } };
+export type Person = z.infer<typeof persistedPersonSchema> & { firstContact?: string; lastInteraction?: string; networking?: z.infer<typeof networkingCandidateSchema> & { statusUpdatedAt?: string } };
 export type Meeting = z.infer<typeof meetingSchema> & { debrief?: { said: string; inferred: string; unresolved: string[]; introductions: string[]; at: string } };
 export type Commitment = z.infer<typeof commitmentSchema> & { status: "open" | "done" | "blocked" | "cancelled"; result?: string; createdAt: string; updatedAt: string };
 export type Story = z.infer<typeof storySchema> & { createdAt: string; updatedAt: string };
