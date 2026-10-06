@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+let accountRequests: string[] = [];
+let browserErrors: string[] = [];
+
 test.beforeEach(async ({ page }) => {
+  accountRequests = [];
+  browserErrors = [];
+  page.on("request", (request) => { if (/\/api\/sotf|supabase\.co/.test(request.url())) accountRequests.push(request.url()); });
+  page.on("pageerror", (error) => browserErrors.push(error.message));
   await page.goto("/sotf/preview");
   await expect(page.getByRole("heading", { name: "For today" })).toBeVisible();
 });
@@ -27,10 +34,6 @@ test("a confirmed criterion changes the decision and keeps the evidence visible"
 });
 
 test("networking strategy shows a transparent 25-person cohort and evidence-led adjustment", async ({ page }) => {
-  const accountRequests: string[] = [];
-  const browserErrors: string[] = [];
-  page.on("request", (request) => { if (/\/api\/sotf|supabase\.co/.test(request.url())) accountRequests.push(request.url()); });
-  page.on("pageerror", (error) => browserErrors.push(error.message));
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Plan 10 people to engage this week." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Networking Assistant", exact: true })).toBeVisible();
