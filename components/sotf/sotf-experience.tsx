@@ -107,10 +107,13 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
   const networkingContactIds = new Set(networkingContacts.map((person) => person.id));
   const networkingWeeks = [...new Set(networkingContacts.map((person) => person.networking!.weekOf))].sort().reverse();
   const networkingWaiting = networking.candidates.filter(({ person }) => person.networking!.status === "attempted" && networkingActions.some((action) => action.personId === person.id && action.state === "manually_completed"));
-  const networkingMeetings = state.meetings.filter((meeting) => meeting.kind === "networking" && meeting.status !== "cancelled" && meeting.personId && networkingContactIds.has(meeting.personId)).sort((left, right) => left.startsAt.localeCompare(right.startsAt));
+  const networkingMeetings = state.meetings.filter((meeting) => meeting.kind === "networking" && meeting.status !== "cancelled" && meeting.personId && networkingContactIds.has(meeting.personId)).sort((left, right) => {
+    const leftUpcoming = left.status !== "completed" && left.startsAt >= now;
+    const rightUpcoming = right.status !== "completed" && right.startsAt >= now;
+    return leftUpcoming !== rightUpcoming ? (leftUpcoming ? -1 : 1) : leftUpcoming ? left.startsAt.localeCompare(right.startsAt) : right.startsAt.localeCompare(left.startsAt);
+  });
   const networkingPrepCandidate = networking.candidates.find(({ person }) => person.id === networkingPrepPersonId) ?? networking.candidates.find(({ person }) => person.networking!.status === "connection_accepted") ?? networking.candidates[0];
-  const selectedNetworkingMeeting = networkingPrepPersonId ? networkingMeetings.find((meeting) => meeting.personId === networkingPrepPersonId) : undefined;
-  const visibleNetworkingMeetings = selectedNetworkingMeeting ? [selectedNetworkingMeeting] : networkingPrepPersonId ? [] : networkingMeetings;
+  const visibleNetworkingMeetings = networkingPrepPersonId ? networkingMeetings.filter((meeting) => meeting.personId === networkingPrepPersonId) : networkingMeetings;
   const openActions = state.actions.filter((item) => !["manually_completed", "superseded"].includes(item.state));
 
   return <section className={styles.experience} aria-label="SOTF Bundle">
