@@ -178,6 +178,22 @@
 .networkingTable,.networkingHistoryTable { overflow-x:auto; }
 .networkingDashboard table { font-size:13px; }
 .networkingDashboard td,.networkingDashboard th { padding:8px 6px; }
-.networkingHistoryTable table { min-width:650px; }
+.networkingHistoryHeading { display:flex; justify-content:space-between; align-items:start; gap:18px; }
+.networkingHistoryHeading .help { margin:4px 0 14px; }
+.networkingHistoryHeading>span { flex:none; padding:5px 9px; border:1px solid #b49a6759; border-radius:3px; color:#e2cfaa; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.networkingHistoryTable table { min-width:900px; table-layout:auto; }
+.networkingHistoryTable th { color:#bfcdd0; font-size:10px; letter-spacing:.12em; text-transform:uppercase; }
+.networkingHistoryTable thead th { border-bottom:1px solid #7a969b70; }
+.networkingHistoryTable tbody tr:nth-child(odd) { background:#6d9b9c0b; }
+.networkingHistoryTable tbody th,.networkingHistoryTable tbody td { padding:15px 12px; }
+.networkingHistoryTable tbody th { min-width:170px; text-transform:none; letter-spacing:normal; }
+.networkingHistoryTable tbody th strong { display:block; color:#eff7f7; font-size:14px; }
+.networkingHistoryTable tbody th small { display:block; margin:4px 0; color:#b5c7cb; font-size:11px; font-weight:400; line-height:1.4; }
+.networkingHistoryTable tbody th a { font-size:11px; font-weight:400; }
+.networkingHistoryTable tbody td { color:#d2dfe0; line-height:1.5; }
+.networkingHistoryStatus { display:inline-block; padding:4px 7px; border:1px solid #7d9d9e66; border-radius:3px; background:#47898820; color:#bce8e4; font-size:11px; text-transform:capitalize; white-space:nowrap; }
+.networkingHistoryStatus[data-status="connection_accepted"],.networkingHistoryStatus[data-status="conversation_scheduled"] { border-color:#b49a6759; background:#a581351c; color:#e2cfaa; }
+.networkingHistoryStatus[data-status="conversation_completed"] { border-color:#75a88966; background:#4e8d6730; color:#b7dfc5; }
+.networkingHistoryStatus[data-status="no_response"] { border-color:#a97f7266; background:#a1695926; color:#e3b9aa; }
 @media(max-width:1350px) { .networkingMetrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .networkingMetrics>section:last-child { grid-column:1/-1; } }
 @media(max-width:760px) { .networkingMetrics,.networkingGrid,.networkingPrepColumns { grid-template-columns:1fr; } .networkingMetrics>section:last-child { grid-column:auto; } .networkingPanel { padding:18px; } .networkingRationale { grid-template-columns:1fr; } .networkingRationale dd { margin-bottom:8px; } .networkingCandidateHeading { flex-direction:column; gap:8px; } .networkingQueueList { max-height:520px; } }
