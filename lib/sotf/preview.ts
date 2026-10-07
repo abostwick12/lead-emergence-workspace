@@ -53,6 +53,8 @@ export function createPreviewState(): PilotState {
     };
   });
   candidates.forEach((person) => run({ type: "save_person", person }));
+  run({ type: "record_evidence", evidence: { id: "candidate-6-context", statement: "Fictional organization 6 describes cross-team program delivery in its public role overview.", source: { kind: "company_claim", reference: "Fictional role overview", url: "https://example.com/networking/candidate-6", observedAt: "2026-09-05", scope: "Fictional organization 6 role overview only" }, direction: "neutral", reliability: "medium", personId: "network-person-6", hypothesisIds: ["operations"] } });
+  run({ type: "review_evidence", evidenceId: "candidate-6-context", decision: "accept", rationale: "Accepted only within this entirely fictional preview" });
   for (const person of candidates.slice(0, 5)) {
     run({ type: "prepare_outreach", personId: person.id, stage: "initial" });
     const action = state.actions.at(-1)!;
