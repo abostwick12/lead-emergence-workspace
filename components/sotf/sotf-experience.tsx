@@ -28,7 +28,7 @@ const networkingOutcomeLabels = {
   conversation_scheduled: "Conversation booked",
   conversation_completed: "Conversation completed",
   no_response: "No response",
-  follow_up_due: "Pending"
+  follow_up_due: "Follow-up due"
 } as const;
 
 export function SotfExperience({ mode, scheduling = { status: "unavailable", message: "Networking scheduling is not configured." }, initialSection }: { mode: "preview" | "connected"; scheduling?: SchedulingHandoff; initialSection?: SotfSection }) {
