@@ -71,8 +71,10 @@ test("networking strategy shows the 10-person goal and selectable conversation p
   await expect(morganBriefs.last()).toContainText("Conversation prep · Understand the work with Morgan");
   await expect(page.getByText(/both recommendations come from recorded responses/i)).toBeVisible();
   const history = page.getByRole("region", { name: "Contact history", exact: true });
-  await history.getByText("All saved networking contacts · 25", { exact: true }).click();
+  await expect(history.getByText("25 people", { exact: true })).toBeVisible();
+  for (const heading of ["Why they matter", "Last touch", "Status", "Outcome", "Context / notes"]) await expect(history.getByRole("columnheader", { name: heading })).toBeVisible();
   await expect(history.getByRole("row")).toHaveCount(26);
+  await expect(history.getByRole("row", { name: /Fictional candidate 25/ }).getByText("No touch recorded", { exact: true })).toBeVisible();
   await page.getByText("Networking drafts and verified actions", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Thoughtful public comment", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Follow up after public conversation", exact: true }).first()).toBeVisible();

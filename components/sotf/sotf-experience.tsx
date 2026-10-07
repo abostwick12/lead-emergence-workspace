@@ -20,6 +20,16 @@ type Loaded = { state: PilotState; workspaceId: string };
 type SchedulingHandoff = { status: "ready"; publicUrl: string } | { status: "unavailable"; message: string };
 class SaveRejected extends Error {}
 const displayDate = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+const networkingOutcomeLabels = {
+  identified: "Pending",
+  attempted: "Pending",
+  connection_accepted: "Connection accepted",
+  replied: "Reply recorded",
+  conversation_scheduled: "Conversation booked",
+  conversation_completed: "Conversation completed",
+  no_response: "No response",
+  follow_up_due: "Follow-up due"
+} as const;
 
 export function SotfExperience({ mode, scheduling = { status: "unavailable", message: "Networking scheduling is not configured." }, initialSection }: { mode: "preview" | "connected"; scheduling?: SchedulingHandoff; initialSection?: SotfSection }) {
   const preview = mode === "preview";
@@ -200,7 +210,13 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
           </div>
           <section className={`${styles.networkingPanel} ${styles.networkingOutcomes}`} aria-label="Recorded outcomes"><div><h3>Recorded outcomes</h3><p className={styles.help}>Current week · saved contact statuses</p></div>{(["replied", "conversation_scheduled", "conversation_completed", "no_response"] as const).map((status) => <div key={status}><strong>{networking.candidates.filter(({ person }) => person.networking!.status === status).length}</strong><span>{status.replaceAll("_", " ")}</span></div>)}</section>
           <section className={styles.networkingPanel} aria-label="Strategy adjustment"><h3>What the evidence changes next</h3><List items={networking.adjustments} /><details><summary>Response evidence by target category</summary><List items={networking.categories.map((item) => `${item.name}: ${item.responses}/${item.attempted} responses${item.responseRate === null ? "" : ` (${Math.round(item.responseRate * 100)}%)`}`)} /></details><details><summary>Response evidence by pathway</summary><List items={networking.pathways.map((item) => `${item.name.replaceAll("_", " ")}: ${item.responses}/${item.attempted} responses${item.responseRate === null ? "" : ` (${Math.round(item.responseRate * 100)}%)`}`)} /></details></section>
-          <section className={styles.networkingPanel} aria-label="Contact history"><h3>Contact history</h3><p className={styles.help}>Earlier weeks remain available. Test records are excluded from this networking view.</p><details><summary>All saved networking contacts · {networkingContacts.length}</summary>{networkingContacts.length ? <div className={styles.networkingHistoryTable}><table><thead><tr><th scope="col">Person</th><th scope="col">Company / role</th><th scope="col">Week</th><th scope="col">Status</th><th scope="col">Next touch</th><th scope="col">Source</th></tr></thead><tbody>{networkingContacts.map((person) => <tr key={person.id}><th scope="row">{person.name}</th><td>{person.company} · {person.role}</td><td>{person.networking!.weekOf}</td><td>{person.networking!.status.replaceAll("_", " ")}</td><td>{person.nextTouch ?? "None recorded"}</td><td><a href={person.networking!.sourceUrl} target="_blank" rel="noreferrer">Supplied source ↗</a></td></tr>)}</tbody></table></div> : <p className={styles.empty}>No networking contacts recorded yet.</p>}</details></section>
+          <section className={styles.networkingPanel} aria-label="Contact history">
+            <div className={styles.networkingHistoryHeading}><div><h3>Contact history</h3><p className={styles.help}>Recorded relationships from this and earlier networking weeks. Test records are excluded.</p></div><span>{networkingContacts.length} people</span></div>
+            {networkingContacts.length ? <div className={styles.networkingHistoryTable}><table><thead><tr><th scope="col">Person</th><th scope="col">Why they matter</th><th scope="col">Last touch</th><th scope="col">Status</th><th scope="col">Outcome</th><th scope="col">Context / notes</th></tr></thead><tbody>{networkingContacts.map((person) => {
+              const status = person.networking!.status;
+              return <tr key={person.id}><th scope="row"><strong>{person.name}</strong><small>{person.role} · {person.company}</small><a href={person.networking!.sourceUrl} target="_blank" rel="noreferrer">Supplied source ↗</a></th><td>{person.networking!.whyPerson}</td><td>{person.lastInteraction ? displayDate(person.lastInteraction) : "No touch recorded"}</td><td><span className={styles.networkingHistoryStatus} data-status={status}>{status.replaceAll("_", " ")}</span></td><td>{networkingOutcomeLabels[status]}</td><td>{person.overlap || "No context note recorded"}</td></tr>;
+            })}</tbody></table></div> : <p className={styles.empty}>No networking contacts recorded yet.</p>}
+          </section>
           <section className={styles.networkingPanel} aria-label="Networking action history"><details><summary>Networking drafts and verified actions</summary>{networkingActions.length ? networkingActions.map((action) => <article className={styles.networkingCandidate} key={action.id}><p className={styles.eyebrow}>{action.kind.replaceAll("_", " ")} · {action.state.replaceAll("_", " ")}</p><h3>{action.subject}</h3><pre>{action.body}</pre>{action.receipt ? <p className={styles.help}>{action.receipt}</p> : null}</article>) : <p className={styles.empty}>No outreach drafts or executed actions recorded for this week.</p>}</details></section>
         </div> : null}
         {view === "People" ? <>
