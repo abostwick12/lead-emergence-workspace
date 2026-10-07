@@ -158,6 +158,31 @@ test("public Lead Emergence scheduling page hands booking to Google without sign
   expect(browserErrors).toEqual([]);
 });
 
+test("a candidate source note stays pending until reviewed, then appears in conversation prep", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const candidate = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 7", exact: true }) });
+  await candidate.getByRole("button", { name: "Prepare conversation", exact: true }).click();
+  const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
+  await expect(prep.getByText("No reviewed person-specific source notes yet.", { exact: false })).toBeVisible();
+  await prep.getByRole("button", { name: "Add source note for review" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("What does the evidence say?").fill("Fictional candidate 7 described a specific program delivery responsibility.");
+  await dialog.getByLabel("Source type").selectOption("fellow_report");
+  await dialog.getByLabel("Source name or reference").fill("Fictional candidate 7 briefing");
+  await dialog.getByLabel("Source URL").fill("https://example.com/networking/candidate-7");
+  await dialog.getByLabel("Where does this apply?", { exact: false }).fill("Fictional candidate 7 only");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(prep.getByText("No reviewed person-specific source notes yet.", { exact: false })).toBeVisible();
+  const review = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 7 described a specific program delivery responsibility." }) });
+  await review.getByLabel("Why accept or reject this interpretation?").fill("This fictional briefing supports only the stated person-specific claim.");
+  await review.getByRole("button", { name: "Accept as scoped evidence" }).click();
+  await expect(prep.getByText("Fictional candidate 7 described a specific program delivery responsibility.")).toBeVisible();
+  await expect(prep.getByRole("link", { name: "Fictional candidate 7 briefing" })).toHaveAttribute("href", "https://example.com/networking/candidate-7");
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("a conversation leaves linked evidence, follow-through, and a next touch", async ({ page }) => {
   const accountRequests: string[] = [];
   page.on("request", (request) => { if (request.url().includes("/api/sotf") || request.url().includes("supabase")) accountRequests.push(request.url()); });
