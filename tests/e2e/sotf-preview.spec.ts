@@ -33,7 +33,7 @@ test("a confirmed criterion changes the decision and keeps the evidence visible"
   expect(errors).toEqual([]);
 });
 
-test("networking strategy shows a transparent 25-person cohort and evidence-led adjustment", async ({ page }) => {
+test("networking strategy shows the 10-person goal and selectable conversation prep", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Plan 10 people to engage this week." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Networking Assistant", exact: true })).toBeVisible();
@@ -48,6 +48,15 @@ test("networking strategy shows a transparent 25-person cohort and evidence-led 
   await expect(morgan.getByText("Why this person?", { exact: true })).toBeVisible();
   await expect(morgan.getByText("LAMP — List", { exact: true })).toBeVisible();
   await expect(morgan.getByText("Contribution angle", { exact: true })).toBeVisible();
+  const candidate = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) });
+  await candidate.getByRole("button", { name: "Prepare conversation", exact: true }).click();
+  const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
+  await expect(prep.getByRole("heading", { name: "Conversation prep · Fictional candidate 6" })).toBeVisible();
+  await expect(prep.getByRole("heading", { name: "Questions to ask" })).toBeVisible();
+  await expect(prep.getByRole("listitem")).toHaveCount(3);
+  await page.screenshot({ path: `test-results/sotf-networking-prep-${test.info().project.name}.png`, fullPage: false });
+  await morgan.getByRole("button", { name: "Prepare conversation", exact: true }).click();
+  await expect(prep.getByText("Conversation prep · Understand the work with Morgan")).toBeVisible();
   await expect(page.getByText(/both recommendations come from recorded responses/i)).toBeVisible();
   const history = page.getByRole("region", { name: "Contact history", exact: true });
   await history.getByText("All saved networking contacts · 25", { exact: true }).click();
