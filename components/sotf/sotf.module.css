@@ -133,6 +133,7 @@
 .networkingWhy span { color:#b9ad90; }
 .networkingCandidate .actions { gap:8px; }
 .networkingCandidate .actions button { font-size:13px; padding:8px 10px; }
+.networkingCandidate .actions button[aria-pressed="true"] { border-color:#82caca; background:#4c9d9d35; color:#eefafa; }
 .networkingRationale { display:grid; grid-template-columns:minmax(100px,1fr) minmax(0,3fr); gap:8px 16px; font-size:14px; }
 .networkingRationale dt { color:var(--muted); }
 .networkingRationale dd { margin:0; }
