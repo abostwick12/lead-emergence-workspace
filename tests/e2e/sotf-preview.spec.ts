@@ -56,7 +56,7 @@ test("networking strategy shows the 10-person goal and selectable conversation p
   await expect(prep.getByText("Fictional organization 6 describes cross-team program delivery in its public role overview.")).toBeVisible();
   await expect(prep.getByRole("link", { name: "Fictional role overview" })).toHaveAttribute("href", "https://example.com/networking/candidate-6");
   await expect(prep.locator("ol li")).toHaveCount(3);
-  await expect(prep.locator("ol li").first()).toContainText("Fictional organization 6");
+  await expect(prep.locator("ol li").first()).toHaveText("What does a typical week in your work at Fictional organization 6 look like?");
   await expect(prep.locator("ol li").nth(1)).toContainText("veteran-friendly operations");
   await page.screenshot({ path: `test-results/sotf-networking-prep-${test.info().project.name}.png`, fullPage: false });
   await morgan.getByRole("button", { name: "Progress to conversation", exact: true }).click();
