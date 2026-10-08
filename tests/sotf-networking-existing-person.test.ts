@@ -38,7 +38,10 @@ describe("Networking candidate saved-person selection", () => {
     expect(markup).toContain('name="existingPersonId"');
     expect(markup).toContain('value="saved-person"');
 
+    const defaults = Object.fromEntries(definition("networking-candidate", state, savedPerson.id).fields.map(({ name, value }) => [name, value]));
+    expect(defaults).toMatchObject({ overlap: savedPerson.overlap, whyNow: savedPerson.whyNow, objective: savedPerson.objective });
     const form = candidateForm();
+    for (const name of ["overlap", "whyNow", "objective"] as const) form.set(name, savedPerson[name]);
     form.delete("sourceUrl");
     const command = commandSchema.parse(definition("networking-candidate", state).build(form));
     expect(command.type).toBe("save_person");
@@ -47,6 +50,7 @@ describe("Networking candidate saved-person selection", () => {
       id: savedPerson.id, name: savedPerson.name, company: savedPerson.company,
       role: savedPerson.role, email: savedPerson.email, source: savedPerson.source,
       testRecord: false, introductionPath: savedPerson.introductionPath,
+      overlap: savedPerson.overlap, whyNow: savedPerson.whyNow, objective: savedPerson.objective,
       networking: { weekOf: "2026-10-06", status: "identified", sourceUrl: undefined }
     });
     const envelope = commandEnvelopeSchema.parse({
@@ -57,6 +61,13 @@ describe("Networking candidate saved-person selection", () => {
     expect(updated.people).toHaveLength(1);
     expect(updated.people[0].id).toBe(savedPerson.id);
     expect(updated.people[0].networking?.weekOf).toBe("2026-10-06");
+    expect(updated.people[0]).toMatchObject({ overlap: savedPerson.overlap, whyNow: savedPerson.whyNow, objective: savedPerson.objective });
+
+    form.set("objective", "Learn how a specific program decision is made");
+    const edited = commandSchema.parse(definition("networking-candidate", state).build(form));
+    expect(edited.type).toBe("save_person");
+    if (edited.type !== "save_person") throw new Error("Expected a person update");
+    expect(edited.person.objective).toBe("Learn how a specific program decision is made");
   });
 
   it("rejects a stale saved-person choice instead of creating a second person", () => {

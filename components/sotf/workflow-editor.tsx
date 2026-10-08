@@ -48,7 +48,7 @@ export function definition(intent: Intent, state: PilotState, recordId?: string)
     case "networking-candidate": return { ...common, title: "Add a networking candidate", description: "Keep LAMP at the organization level, then record the separate person-level rationale. No opaque score is created and no outreach is sent.", fields: [
       field("weekOf", "Networking week", today, { type: "date" }), field("existingPersonId", "Saved person", "", { optional: true, options: state.people.filter((person) => !person.networking).map((person) => ({ value: person.id, label: `${person.name} · ${person.company || person.role || "Saved relationship"}` })), help: "Choose someone already in People, or leave this blank to add a new person." }), field("name", "Person"), field("company", "Company"), field("role", "Role"), field("sourceUrl", "Public source URL", "", { type: "url" }), field("source", "Source note"), field("testRecord", "Use of this record", "", { optional: true, options: [{ value: "false", label: "Include in networking results" }, { value: "true", label: "Test record — exclude from networking results" }], help: "Marked test records remain in People and history but do not contribute to networking results." }),
       field("list", "LAMP — List / target category"), field("alumniAffinity", "LAMP — Alumni or affinity signal", "", { optional: true }), field("motivation", "LAMP — Motivation for the organization", "", { type: "textarea" }), field("posting", "LAMP — Posting or role signal", "", { optional: true }),
-      field("whyPerson", "Why this person?", "", { type: "textarea" }), field("whyNow", "Why now?", "", { type: "textarea" }), field("overlap", "Genuine affinity or overlap", "", { type: "textarea" }), field("contributionAngle", "What could you contribute to the conversation?", "", { type: "textarea" }), field("objective", "What are you trying to learn?", "", { type: "textarea" }), field("recommendedNextAction", "Appropriate next move", "", { type: "textarea" }),
+      field("whyPerson", "Why this person?", "", { type: "textarea" }), field("whyNow", "Why now?", selectedPerson?.whyNow ?? "", { type: "textarea" }), field("overlap", "Genuine affinity or overlap", selectedPerson?.overlap ?? "", { type: "textarea" }), field("contributionAngle", "What could you contribute to the conversation?", "", { type: "textarea" }), field("objective", "What are you trying to learn?", selectedPerson?.objective ?? "", { type: "textarea" }), field("recommendedNextAction", "Appropriate next move", "", { type: "textarea" }),
       field("pathway", "Outreach pathway", "direct_outreach", { options: options(["direct_outreach", "thoughtful_comment", "warm_introduction", "research_wait"]) }), field("introductionPath", "Warm introduction path", "", { optional: true }), field("nextTouch", "Next touch", "", { optional: true, type: "date" }), linkFields(state)[1]
     ], submit: "Add to this week's strategy", build: (data) => {
       const existingPersonId = get(data, "existingPersonId");
@@ -111,7 +111,7 @@ export function WorkflowEditor({ intent, state, recordId, onSave, onClose }: { i
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [existingPersonId, setExistingPersonId] = useState("");
-  const config = definition(intent, state, recordId);
+  const config = definition(intent, state, intent === "networking-candidate" ? existingPersonId || undefined : recordId);
   useEffect(() => { dialog.current?.showModal(); }, []);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(""); setPending(true);
@@ -127,7 +127,7 @@ export function WorkflowEditor({ intent, state, recordId, onSave, onClose }: { i
         const optionalField = item.optional || (intent === "networking-candidate" && !!existingPersonId && item.name === "sourceUrl");
         return item.type === "offer-terms" ? <OfferTerms key={item.name} /> : <label key={item.name}>{item.label}{optionalField ? <small>Optional</small> : null}
           {item.options ? <select name={item.name} multiple={item.multiple} required={!optionalField} defaultValue={item.multiple ? item.value ?? [] : item.value ?? ""} onChange={item.name === "existingPersonId" ? (event) => setExistingPersonId(event.target.value) : undefined}><option value="">{optionalField ? "None selected" : "Choose…"}</option>{item.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
-            : item.type === "textarea" ? <textarea name={item.name} required={!optionalField} defaultValue={item.value} rows={4} maxLength={item.name === "description" ? 24000 : 5000} />
+            : item.type === "textarea" ? <textarea key={intent === "networking-candidate" && ["overlap", "whyNow", "objective"].includes(item.name) ? existingPersonId : item.name} name={item.name} required={!optionalField} defaultValue={item.value} rows={4} maxLength={item.name === "description" ? 24000 : 5000} />
             : <input name={item.name} required={!optionalField} type={item.type ?? "text"} defaultValue={item.value} maxLength={item.name === "url" ? 2000 : 240} />}
           {item.help ? <span className={styles.help}>{item.help}</span> : null}
         </label>;
