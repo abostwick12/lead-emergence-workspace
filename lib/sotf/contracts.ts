@@ -90,6 +90,8 @@ const persistedPersonSchema = z.strictObject({
 });
 const persistedCommandSchema = z.union([
   z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),
+  // Read the review marker before any writer is allowed to emit it, so this release can safely read a later one.
+  z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text, skillReviewed: z.literal(true).optional() }),
   commandSchema
 ]);
 export const persistedCommandEnvelopeSchema = commandEnvelopeSchema.extend({ command: persistedCommandSchema });

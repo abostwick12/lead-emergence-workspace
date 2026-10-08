@@ -485,6 +485,23 @@ describe("SOTF reusable evidence, applications, and next chapter", () => {
 });
 
 describe("SOTF persistence integrity", () => {
+  it("reads a future message review marker without enabling new writes", () => {
+    const h = harness();
+    h.run({ type: "save_person", person: contact });
+    h.run({ type: "prepare_outreach", personId: contact.id });
+    const action = h.state.actions[0];
+    const operation = persistedCommandEnvelopeSchema.parse({
+      requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true,
+      dataClass: "ordinary_transition_operations",
+      command: { type: "revise_action", actionId: action.id, recipient: action.recipient, subject: action.subject, body: "Synthetic reviewed message", skillReviewed: true }
+    });
+    expect(commandEnvelopeSchema.safeParse(operation).success).toBe(false);
+    const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: operation }];
+    const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+    expect(recovered.actions[0]).toMatchObject({ body: "Synthetic reviewed message", revision: 2, state: "draft" });
+    expect(recovered.receipts.at(-1)?.command).toBe(JSON.stringify(operation.command));
+  });
+
   it.each([undefined, true, false])("reads historical designation %s without changing history or receipts", async (testRecord) => {
     const h = harness();
     const operation = persistedCommandEnvelopeSchema.parse({
