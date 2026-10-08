@@ -58,7 +58,9 @@ export function createPreviewState(): PilotState {
   for (const person of candidates.slice(0, 5)) {
     run({ type: "prepare_outreach", personId: person.id, stage: "initial" });
     const action = state.actions.at(-1)!;
-    run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+    // This entire preview is fictional; its review declaration and outcome are sample records.
+    run({ type: "revise_action", actionId: action.id, recipient: action.recipient, subject: action.subject, body: "Synthetic preview only. The example's reviewed message text is omitted; no real recipient was contacted.", skillReviewed: true });
+    run({ type: "approve_action", actionId: action.id, exactRevision: state.actions.at(-1)!.revision });
     run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic preview: user manually completed the outreach outside Workspace." });
     if (person.id !== "morgan") run({ type: "save_person", person: { ...person, networking: { ...person.networking, status: "no_response" } } });
   }

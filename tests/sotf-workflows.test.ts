@@ -44,8 +44,14 @@ function networkingCandidate(id: string, name: string, list: string, pathway: "d
 function recordVerifiedOutreach(h: ReturnType<typeof harness>, personId: string) {
   h.run({ type: "prepare_outreach", personId });
   const action = h.state.actions.at(-1)!;
-  h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+  reviewSyntheticMessage(h, action.id);
+  h.run({ type: "approve_action", actionId: action.id, exactRevision: h.state.actions.at(-1)!.revision });
   h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic user verified the manual action" });
+}
+
+function reviewSyntheticMessage(h: ReturnType<typeof harness>, actionId: string, at = now) {
+  const action = h.state.actions.find((item) => item.id === actionId)!;
+  h.run({ type: "revise_action", actionId, recipient: action.recipient, subject: action.subject, body: "Synthetic test message text only; no real contact or external send.", skillReviewed: true }, at);
 }
 
 describe("SOTF opportunity learning and continuity", () => {
@@ -106,7 +112,9 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
     expect(prep.meeting.startsAt).toBe("2026-09-06T14:00:00.000Z");
     h.run({ type: "debrief_meeting", meetingId: "conversation", said: "The team owns delivery decisions", inferred: "This may fit my preference for ownership", unresolved: ["Manager escalation style"], evidence: [{ id: "debrief-evidence", statement: "The practitioner described owning delivery decisions", source: { kind: "practitioner", reference: "Fictional Morgan, meeting notes", observedAt: "2026-09-06", scope: "This team" }, direction: "supporting", dimension: "environment", criterionId: "authority", score: 8, reliability: "high" }], commitments: [promise], introductions: ["Morgan offered a manager introduction; not yet completed"], nextTouch: "2026-09-09" }, "2026-09-06T15:00:00.000Z");
     expect(h.state.evidence[0]).toMatchObject({ review: "pending", meetingId: "conversation", personId: "person", opportunityId: "role", hypothesisIds: ["direction"] });
-    expect(h.state.actions.find((item) => item.meetingId === "conversation")?.state).toBe("draft");
+    const thankYou = h.state.actions.find((item) => item.meetingId === "conversation")!;
+    expect(thankYou).toMatchObject({ state: "draft", body: expect.stringMatching(/^Preparation only:/) });
+    expect(() => h.run({ type: "approve_action", actionId: thankYou.id, exactRevision: thankYou.revision })).toThrow("AI Slop Killer");
     expect(h.state.people[0].nextTouch).toBe("2026-09-09");
     h.run({ type: "review_evidence", evidenceId: "debrief-evidence", decision: "accept", rationale: "Confirmed against my notes" }, "2026-09-06T15:01:00.000Z");
     const recovered = replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state;
@@ -128,15 +136,22 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
   it("requires exact current approval and reconciles uncertain results before retrying", () => {
     const h = harness(); h.run({ type: "save_person", person: contact }); h.run({ type: "prepare_outreach", personId: "person" });
     const id = h.state.actions[0].id;
-    h.run({ type: "approve_action", actionId: id, exactRevision: 1 });
-    h.run({ type: "revise_action", actionId: id, recipient: contact.name, subject: "Revised question", body: "A more precise request about decision authority" });
-    expect(() => h.run({ type: "approve_action", actionId: id, exactRevision: 1 })).toThrow("exact current draft");
+    expect(() => h.run({ type: "approve_action", actionId: id, exactRevision: 1 })).toThrow("AI Slop Killer");
+    expect(() => h.run({ type: "revise_action", actionId: id, recipient: contact.name, subject: "Question", body: h.state.actions[0].body, skillReviewed: true })).toThrow("Replace the preparation note");
+    reviewSyntheticMessage(h, id);
     h.run({ type: "approve_action", actionId: id, exactRevision: 2 });
+    h.run({ type: "revise_action", actionId: id, recipient: contact.name, subject: "Revised question", body: "A more precise request about decision authority" });
+    expect(() => h.run({ type: "approve_action", actionId: id, exactRevision: 2 })).toThrow("exact current draft");
+    expect(() => h.run({ type: "approve_action", actionId: id, exactRevision: 3 })).toThrow("AI Slop Killer");
+    reviewSyntheticMessage(h, id);
+    h.run({ type: "approve_action", actionId: id, exactRevision: 4 });
     h.run({ type: "record_action_result", actionId: id, outcome: "uncertain", receipt: "Manual send outcome not verified" });
     expect(() => h.run({ type: "revise_action", actionId: id, recipient: contact.name, subject: "Do not resend", body: "Still uncertain" })).toThrow("Reconcile");
     h.run({ type: "retry_action", actionId: id, confirmedNotExecuted: true });
     expect(h.state.actions).toHaveLength(1); expect(h.state.actions[0].state).toBe("draft");
-    h.run({ type: "approve_action", actionId: id, exactRevision: 3 });
+    expect(() => h.run({ type: "approve_action", actionId: id, exactRevision: 5 })).toThrow("AI Slop Killer");
+    reviewSyntheticMessage(h, id);
+    h.run({ type: "approve_action", actionId: id, exactRevision: 6 });
     h.run({ type: "record_action_result", actionId: id, outcome: "manually_completed", receipt: "Fellow verified the message in Sent" });
     expect(() => h.run({ type: "retry_action", actionId: id, confirmedNotExecuted: true })).toThrow("must not be retried");
   });
@@ -217,7 +232,8 @@ describe("SOTF networking strategy v1", () => {
     h.run({ type: "save_person", person });
     h.run({ type: "prepare_outreach", personId: person.id });
     const action = h.state.actions.at(-1)!;
-    h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+    reviewSyntheticMessage(h, action.id);
+    h.run({ type: "approve_action", actionId: action.id, exactRevision: h.state.actions.at(-1)!.revision });
     h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic user verified the manual action" });
     h.run({ type: "record_meeting", meeting: conversation }, "2026-09-07T12:00:00Z");
     expect(h.state.people[0].networking).toMatchObject({ status: "conversation_scheduled", statusUpdatedAt: "2026-09-07T12:00:00.000Z" });
@@ -355,14 +371,15 @@ describe("SOTF networking strategy v1", () => {
     const comment = h.state.actions.at(-1)!;
     expect(() => h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" })).toThrow("observed exchange");
 
-    h.run({ type: "approve_action", actionId: comment.id, exactRevision: comment.revision });
+    reviewSyntheticMessage(h, comment.id);
+    h.run({ type: "approve_action", actionId: comment.id, exactRevision: h.state.actions.at(-1)!.revision });
     expect(() => h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" })).toThrow("observed exchange");
     h.run({ type: "record_action_result", actionId: comment.id, outcome: "manually_completed", receipt: "Synthetic user verified the public comment; no reply observed yet" });
     expect(() => h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" })).toThrow("observed exchange");
 
     h.run({ type: "save_person", person: { ...person, networking: { ...networking, status: "replied" } } });
     h.run({ type: "prepare_outreach", personId: person.id, stage: "private_follow_up" });
-    expect(h.state.actions.at(-1)).toMatchObject({ kind: "direct_message", subject: "Follow up after public conversation", body: expect.stringContaining("I appreciated the exchange on your post") });
+    expect(h.state.actions.at(-1)).toMatchObject({ kind: "direct_message", subject: "Follow up after public conversation", body: expect.stringContaining("Preparation only:") });
   });
 
   it("targets a 10-person weekly queue without discarding extra candidates, tracks mature cohorts, and reuses the conversation loop", () => {
@@ -380,7 +397,8 @@ describe("SOTF networking strategy v1", () => {
     for (const person of people.slice(0, 5)) {
       h.run({ type: "prepare_outreach", personId: person.id, stage: "initial" });
       const action = h.state.actions.at(-1)!;
-      h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+      reviewSyntheticMessage(h, action.id);
+      h.run({ type: "approve_action", actionId: action.id, exactRevision: h.state.actions.at(-1)!.revision });
       h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic user verified the manual action" });
       if (person.id !== "candidate-1") h.run({ type: "save_person", person: { ...person, networking: { ...person.networking, status: "no_response" } } }, "2026-09-14T12:00:00Z");
     }
@@ -413,7 +431,8 @@ describe("SOTF networking strategy v1", () => {
     h.run({ type: "save_person", person }, "2026-09-14T10:00:00Z");
     h.run({ type: "prepare_outreach", personId: person.id, stage: "initial" }, "2026-09-14T10:01:00Z");
     const action = h.state.actions.at(-1)!;
-    h.run({ type: "approve_action", actionId: action.id, exactRevision: action.revision }, "2026-09-14T10:02:00Z");
+    reviewSyntheticMessage(h, action.id, "2026-09-14T10:01:30Z");
+    h.run({ type: "approve_action", actionId: action.id, exactRevision: h.state.actions.at(-1)!.revision }, "2026-09-14T10:02:00Z");
     h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic manual action" }, "2026-09-14T10:03:00Z");
     expect(networkingStrategy(h.state, "2026-09-08", "2026-09-15T10:03:00Z")).toMatchObject({ attemptsMade: 1, matureCohortSize: 0, matureCohortConversionRate: null });
   });

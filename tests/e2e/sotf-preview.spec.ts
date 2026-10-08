@@ -97,13 +97,19 @@ test("networking view supports the full manual action lifecycle", async ({ page 
 
   const reviewQueue = page.locator("section").filter({ has: page.getByRole("heading", { name: "Follow-through to review", exact: true }) });
   const action = reviewQueue.locator("article").filter({ hasText: "To: Fictional candidate 6" });
+  const approve = action.getByRole("button", { name: "Approve this exact draft for manual use", exact: true });
+  await expect(approve).toBeDisabled();
   await action.getByRole("button", { name: "Review exact draft", exact: true }).click();
   let dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Recipient")).toHaveValue("Fictional candidate 6");
+  await expect(dialog.getByRole("textbox", { name: "Message", exact: true })).toHaveValue(/^Preparation only:/);
+  await dialog.getByRole("textbox", { name: "Message", exact: true }).fill("Synthetic test message text only; no real contact or external send.");
+  await dialog.getByRole("checkbox", { name: /I reviewed this exact message with AI Slop Killer in Codex/ }).check();
   await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
   await expect(dialog).not.toBeVisible();
 
-  await action.getByRole("button", { name: "Approve this exact draft for manual use", exact: true }).click();
+  await expect(approve).toBeEnabled();
+  await approve.click();
   await action.getByRole("button", { name: "Record a verified result", exact: true }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("What did you verify?").fill("Synthetic user verified the manual outreach outside Workspace.");
@@ -111,7 +117,7 @@ test("networking view supports the full manual action lifecycle", async ({ page 
   await expect(dialog).not.toBeVisible();
 
   await page.getByText("Networking drafts and verified actions", { exact: true }).click();
-  const verified = page.locator("details").filter({ hasText: "Networking drafts and verified actions" }).locator("article").filter({ hasText: "Fictional candidate 6" });
+  const verified = page.locator("details").filter({ hasText: "Networking drafts and verified actions" }).locator("article").filter({ hasText: "Synthetic user verified the manual outreach outside Workspace." });
   await expect(verified.getByText("direct message · manually completed", { exact: true })).toBeVisible();
   await expect(verified.getByText("Synthetic user verified the manual outreach outside Workspace.", { exact: true })).toBeVisible();
   await expect(candidate.getByText("attempted", { exact: true })).toBeVisible();
