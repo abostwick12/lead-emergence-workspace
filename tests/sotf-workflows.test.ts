@@ -504,7 +504,35 @@ describe("SOTF reusable evidence, applications, and next chapter", () => {
 });
 
 describe("SOTF persistence integrity", () => {
-  it("reads a future message review marker without enabling new writes", () => {
+  it("replays a historical approved message and its completed result without a review declaration", () => {
+    const h = harness();
+    h.run({ type: "save_person", person: contact });
+    h.run({ type: "prepare_outreach", personId: contact.id });
+    const actionId = h.state.actions[0].id;
+    h.run({ type: "revise_action", actionId, recipient: contact.name, subject: "Historical question", body: "Synthetic historical message; no external send." });
+    const exactRevision = h.state.actions[0].revision;
+    expect(() => h.run({ type: "approve_action", actionId, exactRevision })).toThrow("AI Slop Killer");
+
+    const events: WorkflowEvent[] = [...h.events];
+    for (const command of [
+      { type: "approve_action", actionId, exactRevision },
+      { type: "record_action_result", actionId, outcome: "manually_completed", receipt: "Synthetic historical completion receipt" },
+    ]) {
+      events.push({ revision: events.length + 1, recorded_at: now, envelope: persistedCommandEnvelopeSchema.parse({
+        requestId: randomUUID(), expectedRevision: events.length, userConfirmed: true,
+        dataClass: "ordinary_transition_operations", command,
+      }) });
+    }
+    const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+    expect(recovered.actions[0]).toMatchObject({
+      body: "Synthetic historical message; no external send.", state: "manually_completed",
+      receipt: "Synthetic historical completion receipt", revision: exactRevision,
+    });
+    expect(recovered.actions[0].skillReviewRevision).toBeUndefined();
+    expect(recovered.changes.at(-1)?.summary).toContain("manually_completed");
+  });
+
+  it("replays a reviewed message marker now accepted by the command contract", () => {
     const h = harness();
     h.run({ type: "save_person", person: contact });
     h.run({ type: "prepare_outreach", personId: contact.id });
@@ -514,7 +542,7 @@ describe("SOTF persistence integrity", () => {
       dataClass: "ordinary_transition_operations",
       command: { type: "revise_action", actionId: action.id, recipient: action.recipient, subject: action.subject, body: "Synthetic reviewed message", skillReviewed: true }
     });
-    expect(commandEnvelopeSchema.safeParse(operation).success).toBe(false);
+    expect(commandEnvelopeSchema.safeParse(operation).success).toBe(true);
     const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: operation }];
     const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
     expect(recovered.actions[0]).toMatchObject({ body: "Synthetic reviewed message", revision: 2, state: "draft" });

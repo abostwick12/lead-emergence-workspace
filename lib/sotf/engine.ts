@@ -252,7 +252,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     case "approve_action": {
       const item = requireRecord(state.actions, command.actionId, "Action");
       if (item.revision !== command.exactRevision || item.state !== "draft") throw new Error("Review the exact current draft before approving it.");
-      if (["email", "direct_message", "public_comment"].includes(item.kind) && (item.skillReviewRevision !== item.revision || item.body.startsWith("Preparation only:"))) throw new Error("Review this exact message with AI Slop Killer in Codex, save the reviewed text, and record the review before approval.");
+      if (source === "new_command" && ["email", "direct_message", "public_comment"].includes(item.kind) && (item.skillReviewRevision !== item.revision || item.body.startsWith("Preparation only:"))) throw new Error("Review this exact message with AI Slop Killer in Codex, save the reviewed text, and record the review before approval.");
       item.state = "approved_for_manual_execution"; item.approvedAt = now; item.updatedAt = now;
       summary = "Exact draft approved. External execution is manual; approval is not evidence of sending."; break;
     }
