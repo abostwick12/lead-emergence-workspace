@@ -38,14 +38,16 @@ describe("Networking candidate saved-person selection", () => {
     expect(markup).toContain('name="existingPersonId"');
     expect(markup).toContain('value="saved-person"');
 
-    const command = commandSchema.parse(definition("networking-candidate", state).build(candidateForm()));
+    const form = candidateForm();
+    form.delete("sourceUrl");
+    const command = commandSchema.parse(definition("networking-candidate", state).build(form));
     expect(command.type).toBe("save_person");
     if (command.type !== "save_person") throw new Error("Expected a person update");
     expect(command.person).toMatchObject({
       id: savedPerson.id, name: savedPerson.name, company: savedPerson.company,
       role: savedPerson.role, email: savedPerson.email, source: savedPerson.source,
       testRecord: false, introductionPath: savedPerson.introductionPath,
-      networking: { weekOf: "2026-10-06", status: "identified" }
+      networking: { weekOf: "2026-10-06", status: "identified", sourceUrl: undefined }
     });
     const envelope = commandEnvelopeSchema.parse({
       requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true,
@@ -62,5 +64,18 @@ describe("Networking candidate saved-person selection", () => {
     state.people = [savedPerson];
     expect(() => definition("networking-candidate", state).build(candidateForm("missing-person")))
       .toThrow("Choose an unplanned saved person.");
+  });
+
+  it("still requires a public URL for a brand-new networking candidate", () => {
+    const state = emptyPilotState();
+    const form = candidateForm("");
+    form.delete("sourceUrl");
+    const command = commandSchema.parse(definition("networking-candidate", state).build(form));
+    const envelope = commandEnvelopeSchema.parse({
+      requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true,
+      dataClass: "ordinary_transition_operations", command
+    });
+    expect(() => applyCommand(state, envelope, "2026-10-07T12:00:00Z"))
+      .toThrow("A public source URL is required for a new networking candidate.");
   });
 });

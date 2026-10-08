@@ -32,7 +32,7 @@ export const lampContextSchema = z.strictObject({
 });
 export const networkingCandidateSchema = z.strictObject({
   weekOf: date,
-  sourceUrl: publicUrl,
+  sourceUrl: publicUrl.optional(),
   whyPerson: text,
   lamp: lampContextSchema,
   contributionAngle: text,

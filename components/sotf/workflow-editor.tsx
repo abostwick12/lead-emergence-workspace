@@ -69,7 +69,7 @@ export function definition(intent: Intent, state: PilotState, recordId?: string)
         opportunityId: existingPerson?.opportunityId,
         nextTouch: optional(data, "nextTouch") ?? existingPerson?.nextTouch,
         hypothesisIds: get(data, "hypothesisId") ? [get(data, "hypothesisId")] : existingPerson?.hypothesisIds ?? [],
-        networking: { weekOf: get(data, "weekOf"), sourceUrl: get(data, "sourceUrl"), whyPerson: get(data, "whyPerson"), lamp: { list: get(data, "list"), alumniAffinity: get(data, "alumniAffinity"), motivation: get(data, "motivation"), posting: get(data, "posting") }, contributionAngle: get(data, "contributionAngle"), recommendedNextAction: get(data, "recommendedNextAction"), pathway: get(data, "pathway"), status: "identified" }
+        networking: { weekOf: get(data, "weekOf"), sourceUrl: optional(data, "sourceUrl"), whyPerson: get(data, "whyPerson"), lamp: { list: get(data, "list"), alumniAffinity: get(data, "alumniAffinity"), motivation: get(data, "motivation"), posting: get(data, "posting") }, contributionAngle: get(data, "contributionAngle"), recommendedNextAction: get(data, "recommendedNextAction"), pathway: get(data, "pathway"), status: "identified" }
       } };
     } };
     case "networking-outcome": {
@@ -123,12 +123,15 @@ export function WorkflowEditor({ intent, state, recordId, onSave, onClose }: { i
     <header className={styles.dialogHeader}><div><span className={styles.eyebrow}>SOTF Bundle</span><h2 id="workflow-title">{config.title}</h2></div><button type="button" disabled={pending} onClick={onClose} aria-label="Close review">×</button></header>
     <p>{config.description}</p>
     <form className={styles.form} onSubmit={(event) => void submit(event)}>
-      {config.fields.filter((item) => !(intent === "networking-candidate" && existingPersonId && ["name", "company", "role", "source", "testRecord"].includes(item.name))).map((item) => item.type === "offer-terms" ? <OfferTerms key={item.name} /> : <label key={item.name}>{item.label}{item.optional ? <small>Optional</small> : null}
-        {item.options ? <select name={item.name} multiple={item.multiple} required={!item.optional} defaultValue={item.multiple ? item.value ?? [] : item.value ?? ""} onChange={item.name === "existingPersonId" ? (event) => setExistingPersonId(event.target.value) : undefined}><option value="">{item.optional ? "None selected" : "Choose…"}</option>{item.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
-          : item.type === "textarea" ? <textarea name={item.name} required={!item.optional} defaultValue={item.value} rows={4} maxLength={item.name === "description" ? 24000 : 5000} />
-          : <input name={item.name} required={!item.optional} type={item.type ?? "text"} defaultValue={item.value} maxLength={item.name === "url" ? 2000 : 240} />}
-        {item.help ? <span className={styles.help}>{item.help}</span> : null}
-      </label>)}
+      {config.fields.filter((item) => !(intent === "networking-candidate" && existingPersonId && ["name", "company", "role", "source", "testRecord"].includes(item.name))).map((item) => {
+        const optionalField = item.optional || (intent === "networking-candidate" && !!existingPersonId && item.name === "sourceUrl");
+        return item.type === "offer-terms" ? <OfferTerms key={item.name} /> : <label key={item.name}>{item.label}{optionalField ? <small>Optional</small> : null}
+          {item.options ? <select name={item.name} multiple={item.multiple} required={!optionalField} defaultValue={item.multiple ? item.value ?? [] : item.value ?? ""} onChange={item.name === "existingPersonId" ? (event) => setExistingPersonId(event.target.value) : undefined}><option value="">{optionalField ? "None selected" : "Choose…"}</option>{item.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+            : item.type === "textarea" ? <textarea name={item.name} required={!optionalField} defaultValue={item.value} rows={4} maxLength={item.name === "description" ? 24000 : 5000} />
+            : <input name={item.name} required={!optionalField} type={item.type ?? "text"} defaultValue={item.value} maxLength={item.name === "url" ? 2000 : 240} />}
+          {item.help ? <span className={styles.help}>{item.help}</span> : null}
+        </label>;
+      })}
       {error ? <p className={styles.error} role="alert">{error}</p> : null}
       <footer className={styles.formActions}><button type="button" disabled={pending} onClick={onClose}>Cancel</button><button className={styles.primary} disabled={pending}>{pending ? "Verifying…" : config.submit}</button></footer>
     </form>
