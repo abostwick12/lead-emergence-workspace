@@ -1,5 +1,14 @@
 # Test evidence
 
+## SOTF message-review append gate — 2026-10-09 (local only)
+
+- Worktree `codex/networking-db-review-gate` at `ab2e33604d0139bca74ca765f03ca579c9ab0c8d` adds one forward migration and rollback-only synthetic pgTAP cases. No hosted migration or data write was performed.
+- `npm run check:boundaries` — **PASS** (95 runtime files); `npm run test:schema` — **PASS** (32/32); `npm run typecheck` and `npm run lint` — **PASS**.
+- `npm run test:unit -- --maxWorkers=1` with a task-local `TEMP`/`TMP` — **PASS** (29 files, 232 tests). The first run failed before loading any test because the sandbox denied Vitest temp-file renames.
+- `supabase test db --workdir <isolated-validation-root> --local supabase/tests/database/sotf_operational_workflows.sql` — **PASS** (48/48) after `20261009031000_sotf_message_review_append_gate.sql` applied in a separate local project on port 56622. A read-only query found the gate in that project, not in the pre-existing shared local project; the synthetic review workspace retained zero events after pgTAP rollback. Initial sandbox attempts were blocked by CLI temp-file access and Docker isolation; the test ran with approved local escalation.
+- `npm run build` — **NOT PASSED**: Next/Turbopack could not canonicalize this isolated worktree path (`Access is denied`); the one webpack retry could not create a `.next/server` directory (`EPERM`). Neither failure reported a source compile diagnostic.
+- The unpublished scheduling migration `20261009032000_sotf_scheduling_reply_allowlist.sql` replaces the same function after this `20261009031000` gate. It must incorporate the gate before that branch is released; the scheduling branch was not changed here.
+
 ## Lewis Entry incremental-package tooling — 2026-08-28
 
 This is source and read-only-target evidence only. It does not authorize or
