@@ -8,6 +8,12 @@ declare
   operation_id uuid;
   expected_revision integer;
   size_bytes integer;
+  action_id text;
+  action_suffix text;
+  origin_command jsonb;
+  latest_edit jsonb;
+  edit_count integer;
+  message_action boolean;
 begin
   if jsonb_typeof(operation) is distinct from 'object'
     or operation ->> 'dataClass' is distinct from 'ordinary_transition_operations'
@@ -37,6 +43,45 @@ begin
   end if;
   if head.revision <> expected_revision then raise exception 'Refresh before saving this operation.' using errcode = '40001'; end if;
   if head.revision >= 2000 or head.payload_bytes + size_bytes > 2000000 then raise exception 'Pilot chapter capacity reached; existing work is preserved.' using errcode = '54000'; end if;
+  if operation -> 'command' ->> 'type' = 'approve_action' then
+    action_id := operation -> 'command' ->> 'actionId';
+    action_suffix := substring(action_id from '^[^:]+:(.+)$');
+    select event.envelope -> 'command' into origin_command
+      from workspace_private.sotf_operation_events as event
+      where event.workspace_id = target_workspace
+        and event.envelope ->> 'requestId' = split_part(action_id, ':', 1);
+    if origin_command is null or action_suffix is null then
+      raise exception 'Unknown transition action.' using errcode = '22023';
+    end if;
+    message_action := case
+      when origin_command ->> 'type' = 'prepare_action' and action_suffix = 'action'
+        then origin_command ->> 'kind' = any(array['email','direct_message','public_comment'])
+      when origin_command ->> 'type' = 'prepare_outreach'
+        and action_suffix = any(array['action','public-comment','private-follow-up','warm-introduction']) then true
+      when origin_command ->> 'type' = 'prepare_scheduling_reply' and action_suffix = 'scheduling-reply' then true
+      when origin_command ->> 'type' = 'debrief_meeting' and action_suffix = 'thank-you' then true
+      else null
+    end;
+    if message_action is null then
+      raise exception 'Unknown transition action.' using errcode = '22023';
+    end if;
+    if message_action then
+      select count(*)::integer, (array_agg(event.envelope -> 'command' order by event.revision desc))[1]
+        into edit_count, latest_edit
+        from workspace_private.sotf_operation_events as event
+        where event.workspace_id = target_workspace
+          and event.envelope -> 'command' ->> 'actionId' = action_id
+          and event.envelope -> 'command' ->> 'type' = any(array['revise_action','retry_action']);
+      if edit_count = 0
+        or latest_edit ->> 'type' is distinct from 'revise_action'
+        or latest_edit -> 'skillReviewed' is distinct from 'true'::jsonb
+        or nullif(btrim(latest_edit ->> 'body'), '') is null
+        or latest_edit ->> 'body' like 'Preparation only:%'
+        or operation -> 'command' ->> 'exactRevision' is distinct from (edit_count + 1)::text then
+        raise exception 'Review this exact message with AI Slop Killer in Codex before approval.' using errcode = '22023';
+      end if;
+    end if;
+  end if;
   insert into workspace_private.sotf_operation_events(workspace_id, revision, request_id, envelope)
     values(target_workspace, head.revision + 1, operation_id, operation);
   update workspace_private.sotf_operation_heads set revision = head.revision + 1, payload_bytes = head.payload_bytes + size_bytes where workspace_id = target_workspace;
