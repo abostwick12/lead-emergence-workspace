@@ -1,6 +1,6 @@
 -- Review fixture only. The Preview URI here is synthetic, not an approved host.
 begin;
-select plan(21);
+select plan(34);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -35,6 +35,12 @@ values
    'a1000000-0000-4000-8000-000000000001',
    'https://chatgpt.com/connector/callback', 'openid email profile',
    'https://lead-emergence-review-preview.vercel.app/api/mcp',
+   'synthetic-pkce-challenge', 's256', 'approved', now() + interval '1 hour'),
+  ('a4000000-0000-4000-8000-000000000005', 'canonical-review-authorization',
+   'a3000000-0000-4000-8000-000000000003',
+   'a1000000-0000-4000-8000-000000000001',
+   'https://chatgpt.com/connector/callback', 'openid email profile',
+   'https://workspace.leademergence.com/api/mcp',
    'synthetic-pkce-challenge', 's256', 'approved', now() + interval '1 hour');
 
 select is((select setting_value from workspace_private.product_settings
@@ -43,9 +49,21 @@ select is(has_table_privilege('anon', 'workspace_private.mcp_oauth_resource_gran
   false, 'anonymous role cannot inspect private grants');
 select is(has_table_privilege('authenticated', 'workspace_private.mcp_oauth_resource_grants', 'select'),
   false, 'authenticated role cannot inspect private grants');
+select is(has_function_privilege('authenticated', 'workspace_private.resolve_mcp_oauth_authorization(text, boolean)', 'execute'),
+  false, 'authenticated cannot call private resolver');
+select is(has_function_privilege('anon', 'workspace_private.resolve_mcp_oauth_authorization(text, boolean)', 'execute'),
+  false, 'anonymous cannot call private resolver');
+select is(has_function_privilege('authenticated', 'workspace_private.revoke_mcp_oauth_resource_grant(uuid, text, text)', 'execute'),
+  false, 'authenticated cannot call private revoke');
+select is(has_function_privilege('anon', 'workspace_private.revoke_mcp_oauth_resource_grant(uuid, text, text)', 'execute'),
+  false, 'anonymous cannot call private revoke');
+select is(has_function_privilege('anon', 'workspace.activate_mcp_oauth_grant(text)', 'execute'),
+  false, 'anonymous cannot activate grants');
 select set_config('request.jwt.claims', '{"sub":"a1000000-0000-4000-8000-000000000001","role":"authenticated","aud":"authenticated"}', true);
 select is((select request_class from workspace_private.resolve_mcp_oauth_authorization('preview-review-authorization', true)),
   'DENY', 'Preview authorization denied before exact resource configuration');
+select is((select denial_code from workspace_private.resolve_mcp_oauth_authorization('preview-review-authorization', true)),
+  'RESOURCE_INVALID', 'unconfigured Preview resource has explicit denial code');
 select is(workspace_private.custom_access_token_hook(
   '{"claims":{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a2000000-0000-4000-8000-000000000002","aud":"authenticated"}}'::jsonb
 ) #>> '{claims,aud}', 'https://workspace.leademergence.com/api/mcp', 'canonical audience remains');
@@ -53,6 +71,8 @@ select set_config('request.jwt.claims', '{"sub":"a1000000-0000-4000-8000-0000000
 select is(workspace_private.is_valid_mcp_request(), true, 'canonical grant stays valid');
 select set_config('request.jwt.claims', '{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a2000000-0000-4000-8000-000000000002","aud":"https://unapproved.example.invalid/api/mcp","workspace_mcp":true}', true);
 select is(workspace_private.is_valid_mcp_request(), false, 'unapproved audience denied');
+select set_config('request.jwt.claims', '{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a9000000-0000-4000-8000-000000000009","aud":"https://workspace.leademergence.com/api/mcp","workspace_mcp":true}', true);
+select is(workspace_private.is_valid_mcp_request(), false, 'forged client identity denied');
 select set_config('request.jwt.claims', '{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a2000000-0000-4000-8000-000000000002","aud":"https://workspace.leademergence.com/api/mcp","workspace_mcp":false}', true);
 select is(workspace_private.is_valid_mcp_request(), false, 'missing admission claim denied');
 select throws_ok($sql$insert into workspace_private.mcp_oauth_resource_grants
@@ -63,14 +83,17 @@ select throws_ok($sql$insert into workspace_private.mcp_oauth_resource_grants
 update workspace_private.product_settings
 set setting_value = 'https://lead-emergence-review-preview.vercel.app/api/mcp'
 where setting_key = 'mcp_preview_resource_uri';
-update workspace_private.mcp_oauth_resource_grants
-set status = 'revoked', revoked_at = now()
-where client_id = 'a2000000-0000-4000-8000-000000000002';
 select is((select request_class from workspace_private.resolve_mcp_oauth_authorization('preview-review-authorization', true)),
   'WORKSPACE_MCP', 'exact Preview authorization eligible');
 set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"a1000000-0000-4000-8000-000000000099","role":"authenticated","aud":"authenticated"}', true);
+select throws_ok($sql$select workspace.activate_mcp_oauth_grant('preview-review-authorization')$sql$,
+  '42501', null, 'another user cannot activate an approved authorization');
+select set_config('request.jwt.claims', '{"sub":"a1000000-0000-4000-8000-000000000001","role":"authenticated","aud":"authenticated"}', true);
 select is(workspace.activate_mcp_oauth_grant('preview-review-authorization') ->> 'status',
   'active', 'approved Preview authorization activates its grant');
+select throws_ok($sql$select workspace.activate_mcp_oauth_grant('canonical-review-authorization')$sql$,
+  '42501', null, 'same client cannot activate another resource');
 reset role;
 select is((select resource_uri from workspace_private.mcp_oauth_resource_grants
   where client_id = 'a3000000-0000-4000-8000-000000000003'),
@@ -78,6 +101,11 @@ select is((select resource_uri from workspace_private.mcp_oauth_resource_grants
 select is(workspace_private.custom_access_token_hook(
   '{"claims":{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a3000000-0000-4000-8000-000000000003","aud":"authenticated"}}'::jsonb
 ) #>> '{claims,aud}', 'https://lead-emergence-review-preview.vercel.app/api/mcp', 'Preview grant mints Preview audience');
+select is(workspace_private.custom_access_token_hook(
+  '{"claims":{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a2000000-0000-4000-8000-000000000002","aud":"authenticated"}}'::jsonb
+) #>> '{claims,aud}', 'https://workspace.leademergence.com/api/mcp', 'canonical audience preserved with Preview active');
+select is((select status from workspace_private.mcp_oauth_resource_grants
+  where client_id = 'a2000000-0000-4000-8000-000000000002'), 'active', 'canonical grant remains active alongside Preview');
 select set_config('request.jwt.claims', '{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a3000000-0000-4000-8000-000000000003","aud":"https://lead-emergence-review-preview.vercel.app/api/mcp","workspace_mcp":true}', true);
 select is(workspace_private.is_valid_mcp_request(), true, 'matching Preview token admitted');
 select set_config('request.jwt.claims', '{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a3000000-0000-4000-8000-000000000003","aud":"https://workspace.leademergence.com/api/mcp","workspace_mcp":true}', true);
@@ -90,6 +118,8 @@ select workspace_private.revoke_mcp_oauth_resource_grant(
   'a1000000-0000-4000-8000-000000000001', 'a3000000-0000-4000-8000-000000000003', 'TEST');
 select is((select status from workspace_private.mcp_oauth_resource_grants
   where client_id='a3000000-0000-4000-8000-000000000003'), 'revoked', 'disconnect revokes Preview grant');
+select is((select status from workspace_private.mcp_oauth_resource_grants
+  where client_id='a2000000-0000-4000-8000-000000000002'), 'active', 'Preview revocation preserves canonical grant');
 select is(workspace_private.custom_access_token_hook(
   '{"claims":{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a3000000-0000-4000-8000-000000000003","aud":"authenticated"}}'::jsonb
 ) #>> '{claims,workspace_mcp}', null, 'revoked grant cannot mint admission claim');
@@ -100,6 +130,8 @@ update workspace_private.product_settings set setting_value = ''
 where setting_key = 'mcp_preview_resource_uri';
 select is((select request_class from workspace_private.resolve_mcp_oauth_authorization('preview-review-authorization', true)),
   'DENY', 'disabled Preview resource denies new authorization');
+select is((select denial_code from workspace_private.resolve_mcp_oauth_authorization('preview-review-authorization', true)),
+  'RESOURCE_INVALID', 'disabled Preview resource has explicit denial code');
 select is(workspace_private.custom_access_token_hook(
   '{"claims":{"sub":"a1000000-0000-4000-8000-000000000001","client_id":"a3000000-0000-4000-8000-000000000003","aud":"authenticated"}}'::jsonb
 ) #>> '{claims,workspace_mcp}', null, 'disabled Preview resource cannot mint admission');
