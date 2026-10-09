@@ -53,6 +53,9 @@ insert into workspace.bundle_entitlements(workspace_id,bundle_key,beneficiary_us
 set local role authenticated;
 select is(workspace.sotf_has_access(),true,'an independently entitled owner can discover only their own SOTF state');
 select is(jsonb_array_length(workspace.sotf_read_operations()->'events'),0,'another entitled fellow cannot read the first fellow history');
+-- The database authorizes the command type; the SOTF engine separately validates the contact and positive reply.
+select is(workspace.sotf_append_operation('{"requestId":"60000000-0000-4000-8000-000000000003","expectedRevision":0,"userConfirmed":true,"dataClass":"ordinary_transition_operations","command":{"type":"prepare_scheduling_reply","personId":"synthetic-contact","schedulingUrl":"https://workspace.leademergence.com/meet/andrew"}}'::jsonb)->>'revision','1','a confirmed scheduling reply passes the existing operation append boundary');
+select is(jsonb_array_length(workspace.sotf_read_operations()->'events'),1,'the synthetic scheduling reply was recorded in its own entitled Workspace');
 reset role;
 
 update workspace.bundle_entitlements set starts_at=now()-interval '2 days',expires_at=now()-interval '1 day'
