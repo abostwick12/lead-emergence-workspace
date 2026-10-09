@@ -35,6 +35,33 @@ Workspace uploads remain disabled and personal integrations remain reconnect-req
 
 Rollback remains viable: redeploy the recorded pre-Gate-D application sources, then apply a reviewed rollback migration that removes only the seven freeze triggers and their private trigger function. Retain the additive clock preference column and all legacy/Workspace evidence.
 
+## Entry-dev SOTF operational and bundle-list package gate — 2026-10-09
+
+**Status: Prepared for review only. No hosted SQL execution is authorized or recorded.** This is a separate forward-only package for nonproduction `lead-emergence-entry-dev` (`vnjdubrnmxvmsccxmhst`). It follows the separate August 28 Entry foundation/incremental package; the October 9 preflight rechecked that target's current ledger and protected records. It does not alter the August 28 runtime or production deployment record, Gate D history, PR #58, or the old PR #388 / production-targeted PR #404 packages.
+
+### Exact package and provenance
+
+The package is in Ministry branch `codex/issue-405-sotf-entry-migration-package`, currently based on Ministry `origin/main` `5f35e5cbbf14e75a5e124eaa8519e143d04d02af` (HEAD and merge-base matched after `git fetch origin`). Package directory: `supabase/hosted-packages/workspace-sotf-entry-dev-vnj-20261009/`. Generated `operator-apply.sql` SHA-256: `ef88280cb273c0274b1311a2e1e7f4c27348890cf80f80ca053a9915aebb919d`. Workspace source is `origin/main` `4acc2cce59d0d3a8eea8a6626167258294150d0f`.
+
+The only ordered source migrations are:
+
+1. `supabase/migrations/20260906120000_sotf_operational_workflows.sql` — source commit `dde8f685e35572a3fc670d3d118771bb520e44db`; SHA-256 `d0cb4905846f8c289e13a415910d8688ca5175f977f18fe4543491b1f4e69beb`.
+2. `supabase/migrations/20260929125618_sotf_v1_bundle_list_access_state.sql` — list-only source commit `0b7559e35616bd80456efa0204a6651bdf12184a`; SHA-256 `90162cac4b13dfab0997889340734d233d4aa3c492cb9aae3f7a2d43319b614d`.
+
+The package contains `README.md`, `preflight.sql`, `postflight.sql`, `operator-preflight.guard.sql`, `operator-postflight.guard.sql`, `operator-apply.sql`, `build-operator.mjs`, those two byte-identical source migrations, and `tests/local-fixture.sql`, `tests/local-apply.sql`, `tests/local-force-rollback.sql`, `tests/local-assert-rollback.sql`, `tests/local-behavior.sql`, and `tests/local-proof-results.md`. The September 11–14 daily-brief/outcome chain is excluded; the September 29 function is list-only and `workspace.sotf_v1_access_state()` remains absent. Billing, Consulting, shared Auth changes, entitlement writes, and unrelated migrations are excluded.
+
+### Entry-dev preflight and local proof
+
+Read-only `supabase db query --linked --project-ref vnjdubrnmxvmsccxmhst --file .../preflight.sql -o json` returned `ready: true`, `target_ref: vnjdubrnmxvmsccxmhst`, and operator role `postgres`. At that preflight the ledger had 29 rows (`20260819000000` through `20260904120000`, digest `0a2823ee3c8c828c8a8b3799e29da3b5`); protected counts were 11 Auth users, two Workspaces, two memberships, and three MCP authorizations. Their fingerprints were respectively `5b0d89cd03f7dd4277932b65722f2da1`, `e826407a88c3e0f08032f497d76611be`, `aff36841235f7cbd81a91e7b92024baa`, and `1b86e64fe46ac00cd75187541542e214`. Required dependencies, columns, RLS, and helper function security/ACL fingerprints matched; all package objects were absent.
+
+Local PostgreSQL proof on a representative 29-row baseline passed: exact source package applied in order; all protected records, existing RLS policies, table grants, and helper ACL fingerprints remained unchanged; authorized owner read/write passed; unentitled, invalid MCP, inactive plan, non-ChatGPT contract, revoked entitlement, missing capability, and inactive-membership denials passed; both anonymous and authenticated direct reads of the private RLS tables returned zero rows even under a temporary test grant; and a forced failure after both source migrations and ledger inserts rolled back all DDL and ledger changes. The test fixture was disposable and its final behavior transaction rolled back. The generated operator transaction and both embedded guards also passed in a second disposable fixture after substituting only the target-pinned ledger, record, and helper fingerprints with that fixture's values; selected source bytes and source digests were unchanged. This exercises guard SQL structure, not acceptance of the real target fingerprints. The standalone postflight query also returned `ready: true` against the fixture after the same local-only substitutions. These are local proofs only, not hosted acceptance.
+
+### Separate execution gate — not approved
+
+A later exact-action approval must name this package, the single target `vnjdubrnmxvmsccxmhst`, and one application attempt. If separately authorized, the operator must rerun `preflight.sql` immediately before execution and require `ready: true` with the reviewed ledger digest, protected counts/fingerprints, dependency contract, columns, RLS, and absent-object state. Execute only `operator-apply.sql` as the intended `postgres` operator. On any mismatch, missing dependency/column, unexpected object or overload, changed fingerprint, non-`postgres` role, timeout, SQL error, or ambiguous result, abort and do not retry. A successful transaction must then be followed by read-only `postflight.sql`: exactly 31 ledger rows with both versions and newest `20260929125618`; unchanged protected counts/fingerprints; two empty private RLS tables with no policies or client SELECT grants; expected security-definer/empty-search-path function shape and authenticated-only public RPC execute grants; and the daily-brief state function still absent. Any postflight mismatch is an abort/failure to report, not permission to repair in place.
+
+No hosted SQL, deployment, merge, entitlement or billing change, or ChatGPT Preview acceptance has occurred or is authorized by this record. Separate exact-action approval is required before the hosted gate.
+
 ## Goal C — Workspace / Personal productization
 
 Status: **local and isolated hosted candidate validated; the two reviewed advisor migrations are applied and postflight-validated on the Personal sandbox only; Preview Entry-to-Workspace one-login SSO passes with no second credential prompt; the final immutable Workspace Preview and both open PR checks are green; real ChatGPT/Claude MCP client acceptance, two legacy Personal sandbox fixture identities, and distinct production Entry backend capacity remain; production cutover is not approved**.
