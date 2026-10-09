@@ -1,4 +1,4 @@
-name: Entry Preview MCP disposable database proof
+name: Entry Preview MCP packet disposable proof
 on:
   push:
     branches: [codex/entry-dev-preview-mcp-db-proof]
@@ -36,9 +36,9 @@ jobs:
           path.write_text(content)
           PY
           cp -R supabase/migrations "$RUNNER_TEMP/preview-mcp-local/supabase/"
+          rm "$RUNNER_TEMP/preview-mcp-local/supabase/migrations/20261009180000_entry_dev_preview_mcp_resource_review.sql"
           mkdir -p "$RUNNER_TEMP/preview-mcp-local/supabase/tests/database"
           cp supabase/tests/database/entry_dev_preview_mcp_resource.sql "$RUNNER_TEMP/preview-mcp-local/supabase/tests/database/"
-          diff -qr supabase/migrations "$RUNNER_TEMP/preview-mcp-local/supabase/migrations"
           cmp supabase/tests/database/entry_dev_preview_mcp_resource.sql "$RUNNER_TEMP/preview-mcp-local/supabase/tests/database/entry_dev_preview_mcp_resource.sql"
           echo '6cd9a21389f0b6a3a40416aa0ad02443ab354cca9c506be5b186957c113ad0d3  supabase/migrations/20261009180000_entry_dev_preview_mcp_resource_review.sql' | sha256sum -c -
           echo '6417a1381c6434ab186da832b89a4d781a234c32bbb0058f909c0151f7c7a9d7  supabase/tests/database/entry_dev_preview_mcp_resource.sql' | sha256sum -c -
@@ -58,25 +58,13 @@ jobs:
           PY
             exit 1
           fi
-      - name: Execute synthetic fixture and capture TAP
+      - name: Execute fixture-adapted operator and guard proof
         shell: bash
         run: |
           set -euo pipefail
-          container=$(docker ps --filter name=supabase_db_ --format '{{.Names}}')
-          test "$(printf '%s\n' "$container" | wc -l)" -eq 1
-          docker exec "$container" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 -c "select version from supabase_migrations.schema_migrations where version='20261009180000';" | grep -x 20261009180000
-          docker exec "$container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'create extension if not exists pgtap with schema extensions;'
-          docker exec -i "$container" psql -X -U postgres -d postgres -At -v ON_ERROR_STOP=1 < supabase/tests/database/entry_dev_preview_mcp_resource.sql | tee "$RUNNER_TEMP/preview-mcp-evidence/fixture.tap"
-          python3 - "$RUNNER_TEMP/preview-mcp-evidence/fixture.tap" <<'PY'
-          import pathlib, re, sys
-          result = pathlib.Path(sys.argv[1]).read_text()
-          passed = re.findall(r'^ok \d+\b', result, re.M)
-          failed = re.findall(r'^not ok \d+\b', result, re.M)
-          plans = re.findall(r'^1\.\.(\d+)\s*$', result, re.M)
-          print(f'TAP passing={len(passed)} failing={len(failed)} plans={plans}')
-          assert not re.search(r'not ok|bail out!|(?:^|\s)(?:ERROR|FATAL):', result, re.I)
-          assert plans == ['34'] and len(passed) == 34 and not failed
-          PY
+          echo '97bb3097cba806bdd19a895c41af8985ef436c0349d7e9e69075ffc112770538  proof/package/operator-apply.sql' | sha256sum -c -
+          echo '6cd9a21389f0b6a3a40416aa0ad02443ab354cca9c506be5b186957c113ad0d3  proof/package/source/20261009180000_entry_dev_preview_mcp_resource_review.sql' | sha256sum -c -
+          python3 proof/verify-preview-packet.py
       - name: Stop disposable local stack
         if: always()
         shell: bash
