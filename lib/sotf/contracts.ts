@@ -92,6 +92,10 @@ const persistedCommandSchema = z.union([
   z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),
   // Read the review marker before any writer is allowed to emit it, so this release can safely read a later one.
   z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text, skillReviewed: z.literal(true).optional() }),
+  // Read versioned generated drafts before a later writer emits them; unmarked historical commands keep their existing shape.
+  z.strictObject({ type: z.literal("prepare_outreach"), personId: id, stage: z.enum(["initial", "private_follow_up"]).default("initial"), draftTemplateVersion: z.literal("preparation_v2") }),
+  z.strictObject({ type: z.literal("prepare_scheduling_reply"), personId: id, schedulingUrl: brandedSchedulingUrl, draftTemplateVersion: z.literal("preparation_v2") }),
+  z.strictObject({ type: z.literal("debrief_meeting"), meetingId: id, said: text, inferred: note, unresolved: z.array(short).max(15), evidence: z.array(evidenceSchema).max(15), commitments: z.array(commitmentSchema).max(15), introductions: z.array(short).max(10).default([]), nextTouch: date.optional(), draftTemplateVersion: z.literal("preparation_v2") }),
   commandSchema
 ]);
 export const persistedCommandEnvelopeSchema = commandEnvelopeSchema.extend({ command: persistedCommandSchema });

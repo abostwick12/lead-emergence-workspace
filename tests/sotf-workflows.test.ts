@@ -24,8 +24,10 @@ function harness() {
   let state = emptyPilotState(); const events: WorkflowEvent[] = [];
   const run = (command: unknown, at = now) => {
     const operation = envelope(state, command);
-    state = applyCommand(state, operation, at);
-    events.push({ revision: state.revision, envelope: operation, recorded_at: at });
+    const generated = ["prepare_outreach", "prepare_scheduling_reply", "debrief_meeting"].includes(operation.command.type);
+    const recorded = generated ? persistedCommandEnvelopeSchema.parse({ ...operation, command: { ...operation.command, draftTemplateVersion: "preparation_v2" } }) : operation;
+    state = applyCommand(state, recorded, at, generated ? "persisted_event" : "new_command");
+    events.push({ revision: state.revision, envelope: recorded, recorded_at: at });
     return state;
   };
   const accept = (id: string, patch: Record<string, unknown> = {}) => {
@@ -530,6 +532,117 @@ describe("SOTF persistence integrity", () => {
     });
     expect(recovered.actions[0].skillReviewRevision).toBeUndefined();
     expect(recovered.changes.at(-1)?.summary).toContain("manually_completed");
+  });
+
+  it("replays versioned generated drafts as preparation notes while rejecting client markers", () => {
+    const replayVersioned = (h: ReturnType<typeof harness>, command: Record<string, unknown>) => {
+      const operation = persistedCommandEnvelopeSchema.parse({
+        requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true,
+        dataClass: "ordinary_transition_operations", command: { ...command, draftTemplateVersion: "preparation_v2" },
+      });
+      expect(commandEnvelopeSchema.safeParse(operation).success).toBe(false);
+      const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: operation }];
+      const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+      expect(recovered.actions.at(-1)?.body).toContain("Preparation only:");
+      expect(recovered.receipts.at(-1)?.command).toBe(JSON.stringify(operation.command));
+    };
+
+    const outreach = harness();
+    outreach.run({ type: "save_person", person: contact });
+    replayVersioned(outreach, { type: "prepare_outreach", personId: contact.id });
+
+    const scheduling = harness();
+    const schedulingPerson = networkingCandidate("scheduling", "Fictional scheduling contact", "program leadership");
+    scheduling.run({ type: "save_person", person: { ...schedulingPerson, networking: { ...schedulingPerson.networking, status: "replied" } } });
+    replayVersioned(scheduling, { type: "prepare_scheduling_reply", personId: "scheduling", schedulingUrl: "https://workspace.leademergence.com/meet/andrew" });
+
+    const debrief = harness();
+    debrief.run({ type: "save_person", person: contact });
+    debrief.run({ type: "record_meeting", meeting });
+    replayVersioned(debrief, { type: "debrief_meeting", meetingId: meeting.id, said: "Synthetic discussion", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] });
+  });
+
+  it("preserves unmarked generated messages and completed receipts across replay and retry", async () => {
+    const replayLegacy = async (h: ReturnType<typeof harness>, command: Record<string, unknown>, originalBody: string) => {
+      const operation = envelope(h.state, command);
+      const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: operation }];
+      let state = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+      const action = state.actions.at(-1)!;
+      expect(action.body).toContain(originalBody);
+      expect(action.body).not.toContain("Preparation only:");
+      for (const next of [
+        { type: "approve_action", actionId: action.id, exactRevision: action.revision },
+        { type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic historical completion receipt" },
+      ]) {
+        events.push({ revision: events.length + 1, recorded_at: now, envelope: envelope(state, next) });
+        state = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+      }
+      expect(state.actions.at(-1)).toMatchObject({ body: action.body, state: "manually_completed", receipt: "Synthetic historical completion receipt" });
+      expect(state.receipts.find((item) => item.requestId === operation.requestId)?.command).toBe(JSON.stringify(operation.command));
+      let appends = 0;
+      const store = new SotfStore({ read: async () => ({ workspace_id: workspaceId, revision: events.length, events }), append: async () => { appends++; } }, () => now);
+      expect((await store.execute(operation)).replayed).toBe(true);
+      expect(appends).toBe(0);
+    };
+
+    const outreach = harness();
+    outreach.run({ type: "save_person", person: contact });
+    await replayLegacy(outreach, { type: "prepare_outreach", personId: contact.id }, "Hi Fictional Morgan");
+
+    const scheduling = harness();
+    const schedulingPerson = networkingCandidate("legacy-scheduling", "Fictional scheduling contact", "program leadership");
+    scheduling.run({ type: "save_person", person: { ...schedulingPerson, networking: { ...schedulingPerson.networking, status: "replied" } } });
+    await replayLegacy(scheduling, { type: "prepare_scheduling_reply", personId: schedulingPerson.id, schedulingUrl: "https://workspace.leademergence.com/meet/andrew" }, "here’s my calendar");
+
+    const debrief = harness();
+    debrief.run({ type: "save_person", person: contact });
+    debrief.run({ type: "record_meeting", meeting });
+    await replayLegacy(debrief, { type: "debrief_meeting", meetingId: meeting.id, said: "Synthetic discussion", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] }, "Thank you for the conversation.");
+  });
+
+  it("marks newly saved generated drafts, reads them back, and replays the same request without another append", async () => {
+    const saveVersioned = async (h: ReturnType<typeof harness>, command: Record<string, unknown>) => {
+      const events: WorkflowEvent[] = [...h.events];
+      let appends = 0;
+      const store = new SotfStore({ read: async () => ({ workspace_id: workspaceId, revision: events.length, events }), append: async (next) => {
+        appends++;
+        events.push({ revision: events.length + 1, recorded_at: now, envelope: next });
+      } }, () => now);
+      const operation = envelope(h.state, command);
+      const saved = await store.execute(operation);
+      expect(events.at(-1)?.envelope.command).toMatchObject({ draftTemplateVersion: "preparation_v2" });
+      expect(saved.state.actions.at(-1)?.body).toContain("Preparation only:");
+      expect(saved.state.receipts.at(-1)?.command).toBe(JSON.stringify(events.at(-1)?.envelope.command));
+      expect((await store.read()).state).toEqual(saved.state);
+      expect((await store.execute(operation)).replayed).toBe(true);
+      expect(appends).toBe(1);
+      await expect(store.execute({ ...operation, command: { type: "prepare_outreach", personId: "different-person" } })).rejects.toThrow("different operation");
+      expect(appends).toBe(1);
+    };
+
+    const outreach = harness();
+    outreach.run({ type: "save_person", person: contact });
+    await saveVersioned(outreach, { type: "prepare_outreach", personId: contact.id });
+
+    const scheduling = harness();
+    const schedulingPerson = networkingCandidate("new-scheduling", "Fictional scheduling contact", "program leadership");
+    scheduling.run({ type: "save_person", person: { ...schedulingPerson, networking: { ...schedulingPerson.networking, status: "replied" } } });
+    await saveVersioned(scheduling, { type: "prepare_scheduling_reply", personId: schedulingPerson.id, schedulingUrl: "https://workspace.leademergence.com/meet/andrew" });
+
+    const debrief = harness();
+    debrief.run({ type: "save_person", person: contact });
+    debrief.run({ type: "record_meeting", meeting });
+    await saveVersioned(debrief, { type: "debrief_meeting", meetingId: meeting.id, said: "Synthetic discussion", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] });
+  });
+
+  it("rejects a client-supplied draft version before appending", async () => {
+    const h = harness();
+    h.run({ type: "save_person", person: contact });
+    let appends = 0;
+    const store = new SotfStore({ read: async () => ({ workspace_id: workspaceId, revision: h.events.length, events: h.events }), append: async () => { appends++; } }, () => now);
+    const operation = envelope(h.state, { type: "prepare_outreach", personId: contact.id });
+    await expect(store.execute({ ...operation, command: { ...operation.command, draftTemplateVersion: "preparation_v2" } })).rejects.toThrow();
+    expect(appends).toBe(0);
   });
 
   it("replays a reviewed message marker now accepted by the command contract", () => {
