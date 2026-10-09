@@ -41,7 +41,7 @@ jobs:
           diff -qr supabase/migrations "$RUNNER_TEMP/preview-mcp-local/supabase/migrations"
           cmp supabase/tests/database/entry_dev_preview_mcp_resource.sql "$RUNNER_TEMP/preview-mcp-local/supabase/tests/database/entry_dev_preview_mcp_resource.sql"
           echo '6cd9a21389f0b6a3a40416aa0ad02443ab354cca9c506be5b186957c113ad0d3  supabase/migrations/20261009180000_entry_dev_preview_mcp_resource_review.sql' | sha256sum -c -
-          echo 'a4659c5000e2f034fbba293cb7f682b8d8328b239614436c9f8159b6af6c217a  supabase/tests/database/entry_dev_preview_mcp_resource.sql' | sha256sum -c -
+          echo '6417a1381c6434ab186da832b89a4d781a234c32bbb0058f909c0151f7c7a9d7  supabase/tests/database/entry_dev_preview_mcp_resource.sql' | sha256sum -c -
       - name: Start official ephemeral local stack
         shell: bash
         run: |
@@ -75,7 +75,7 @@ jobs:
           plans = re.findall(r'^1\.\.(\d+)\s*$', result, re.M)
           print(f'TAP passing={len(passed)} failing={len(failed)} plans={plans}')
           assert not re.search(r'not ok|bail out!|(?:^|\s)(?:ERROR|FATAL):', result, re.I)
-          assert plans == ['21'] and len(passed) == 21 and not failed
+          assert plans == ['34'] and len(passed) == 34 and not failed
           PY
       - name: Stop disposable local stack
         if: always()
