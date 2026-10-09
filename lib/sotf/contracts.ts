@@ -75,7 +75,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("review_week"), learned: text, start: text, stop: text, change: text, hypothesisUpdates: z.array(hypothesisSchema).max(5), commitments: z.array(commitmentSchema).max(10) }),
   z.strictObject({ type: z.literal("prepare_action"), kind: z.enum(["email", "calendar_invite", "coach_share", "public_comment", "direct_message"]), recipient: short, subject: short, body: text, personId: id.optional(), meetingId: id.optional() }),
   z.strictObject({ type: z.literal("approve_action"), actionId: id, exactRevision: z.number().int().min(1) }),
-  z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text }),
+  z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text, skillReviewed: z.literal(true).optional() }),
   z.strictObject({ type: z.literal("record_action_result"), actionId: id, outcome: z.enum(["manually_completed", "failed", "uncertain"]), receipt: text }),
   z.strictObject({ type: z.literal("retry_action"), actionId: id, confirmedNotExecuted: z.literal(true) }),
   z.strictObject({ type: z.literal("close_chapter"), reflection: text, carryForward: z.array(id).max(100), nextFocus: text })
@@ -113,7 +113,7 @@ export type Material = z.infer<typeof materialSchema> & { version: number; creat
 export type Application = { opportunityId: string; submittedAt: string; receipt: string; materials: Material[]; status: "applied" | "rejected" | "withdrawn" | "interview" | "offer"; outcome?: { reason: string; source: string; at: string; nextAction: string } };
 export type Interview = z.infer<typeof interviewSchema> & { recordedAt: string };
 export type Offer = z.infer<typeof offerSchema> & { accepted?: { rationale: string; startDate: string; at: string } };
-export type OutboundAction = { id: string; kind: "email" | "calendar_invite" | "coach_share" | "public_comment" | "direct_message"; recipient: string; subject: string; body: string; personId?: string; meetingId?: string; revision: number; state: "draft" | "approved_for_manual_execution" | "manually_completed" | "failed" | "uncertain" | "superseded"; meetingStamp?: string; receipt?: string; updatedAt: string; approvedAt?: string };
+export type OutboundAction = { id: string; kind: "email" | "calendar_invite" | "coach_share" | "public_comment" | "direct_message"; recipient: string; subject: string; body: string; personId?: string; meetingId?: string; revision: number; state: "draft" | "approved_for_manual_execution" | "manually_completed" | "failed" | "uncertain" | "superseded"; skillReviewRevision?: number; meetingStamp?: string; receipt?: string; updatedAt: string; approvedAt?: string };
 export type PilotState = {
   schemaVersion: 1; revision: number;
   chapter: { timing: string; question: string; weeklyHours: number; phase: "exploring" | "transitioning" | "professional_work"; startedAt: string; nextFocus?: string; reflection?: string; carryForward?: string[] } | null;

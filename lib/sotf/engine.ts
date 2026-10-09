@@ -112,19 +112,21 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       const contact = person(command.personId);
       const networking = contact.networking;
       if (networking?.pathway === "research_wait") throw new Error("This candidate is marked for more research. Record a supported next move before drafting outreach.");
+      const preparationOnly = source === "new_command" || "draftTemplateVersion" in command;
       const transition = state.chapter && /air force/i.test(`${state.chapter.timing} ${state.chapter.question}`) ? "I’m getting close to retiring from the Air Force" : "I’m exploring my next professional chapter";
       const directBody = `Hi ${contact.name},\n\n${transition}, and I’m curious about the work you do${contact.role ? ` as ${contact.role}` : ""}. ${contact.overlap ? `${contact.overlap} ` : ""}I’d enjoy learning more about ${contact.objective.toLowerCase()}.`;
+      const preparation = `Preparation only: write and review this message in Codex with AI Slop Killer before approving.\nPerson: ${contact.name}\nKnown overlap: ${contact.overlap || "None recorded"}\nLearning question: ${contact.objective}`;
       if (networking?.pathway === "thoughtful_comment" && command.stage === "initial") {
-        draft({ kind: "public_comment", recipient: contact.name, subject: "Thoughtful public comment", body: `I appreciated your perspective on ${contact.whyNow.toLowerCase()}. ${networking.contributionAngle} Thanks for giving me something useful to think about.`, personId: contact.id }, "public-comment");
+        draft({ kind: "public_comment", recipient: contact.name, subject: "Thoughtful public comment", body: preparationOnly ? `${preparation}\nPublic context: ${contact.whyNow}\nPossible contribution: ${networking.contributionAngle}` : `I appreciated your perspective on ${contact.whyNow.toLowerCase()}. ${networking.contributionAngle} Thanks for giving me something useful to think about.`, personId: contact.id }, "public-comment");
       } else if (networking?.pathway === "thoughtful_comment") {
         const commentCompleted = state.actions.some((item) => item.personId === contact.id && item.kind === "public_comment" && item.state === "manually_completed");
         const exchangeObserved = ["replied", "conversation_scheduled", "conversation_completed"].includes(networking.status);
         if (!commentCompleted || !exchangeObserved) throw new Error("Record the completed public comment and an observed exchange before preparing a private follow-up.");
-        draft({ kind: "direct_message", recipient: contact.name, subject: "Follow up after public conversation", body: `Hi ${contact.name},\n\nI appreciated the exchange on your post. ${transition}, and I’m curious about ${contact.objective.toLowerCase()}. I’d enjoy learning more when it is convenient.`, personId: contact.id }, "private-follow-up");
+        draft({ kind: "direct_message", recipient: contact.name, subject: "Follow up after public conversation", body: preparationOnly ? `${preparation}\nContext: A completed public comment and an observed exchange are recorded.` : `Hi ${contact.name},\n\nI appreciated the exchange on your post. ${transition}, and I’m curious about ${contact.objective.toLowerCase()}. I’d enjoy learning more when it is convenient.`, personId: contact.id }, "private-follow-up");
       } else if (networking?.pathway === "warm_introduction") {
-        draft({ kind: "email", recipient: contact.introductionPath || contact.name, subject: `Possible introduction to ${contact.name}`, body: `Hi,\n\nWould you be comfortable introducing me to ${contact.name}? ${transition}, and I’m curious about ${contact.objective.toLowerCase()}. ${networking.contributionAngle} No pressure if the timing or fit is not right.`, personId: contact.id }, "warm-introduction");
+        draft({ kind: "email", recipient: contact.introductionPath || contact.name, subject: `Possible introduction to ${contact.name}`, body: preparationOnly ? `${preparation}\nIntroduction path: ${contact.introductionPath || "Not recorded"}\nPossible contribution: ${networking.contributionAngle}` : `Hi,\n\nWould you be comfortable introducing me to ${contact.name}? ${transition}, and I’m curious about ${contact.objective.toLowerCase()}. ${networking.contributionAngle} No pressure if the timing or fit is not right.`, personId: contact.id }, "warm-introduction");
       } else {
-        draft({ kind: networking ? "direct_message" : "email", recipient: contact.email ?? contact.name, subject: `A question about ${contact.role || "your work"}`, body: directBody, personId: contact.id });
+        draft({ kind: networking ? "direct_message" : "email", recipient: contact.email ?? contact.name, subject: `A question about ${contact.role || "your work"}`, body: preparationOnly ? preparation : directBody, personId: contact.id });
       }
       summary = `Outreach prepared for ${contact.name}; nothing sent.`; break;
     }
@@ -135,7 +137,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
         kind: "direct_message",
         recipient: contact.email ?? contact.name,
         subject: "Find a time for our conversation",
-        body: `Absolutely — here’s my calendar if it’s easier to grab a time that works for you: ${command.schedulingUrl}`,
+        body: source === "new_command" || "draftTemplateVersion" in command ? `Preparation only: write and review this scheduling reply in Codex with AI Slop Killer before approving.\nPerson: ${contact.name}\nScheduling link: ${command.schedulingUrl}` : `Absolutely — here’s my calendar if it’s easier to grab a time that works for you: ${command.schedulingUrl}`,
         personId: contact.id
       }, "scheduling-reply");
       summary = `Scheduling reply prepared for ${contact.name}; nothing sent or booked.`; break;
@@ -175,7 +177,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       state.commitments.filter((value) => value.id === `${item.id}:prepare`).forEach((value) => { value.status = "done"; value.result = "Meeting completed and debrief recorded."; value.updatedAt = now; });
       if (item.personId) {
         const contact = person(item.personId); contact.lastInteraction = item.startsAt; contact.firstContact ??= item.startsAt; if (command.nextTouch) contact.nextTouch = command.nextTouch; advanceNetworking(contact, "conversation_completed", now);
-        draft({ kind: "email", recipient: contact.email ?? contact.name, subject: `Thank you — ${item.title}`.slice(0, 240), body: `Hi ${contact.name},\n\nThank you for the conversation. What I took from it: ${command.said}\n\n${command.commitments.length ? `My next step is ${command.commitments[0].title}.` : "I appreciate your perspective as I consider my next step."}`, personId: contact.id, meetingId: item.id }, "thank-you");
+        draft({ kind: "email", recipient: contact.email ?? contact.name, subject: `Thank you — ${item.title}`.slice(0, 240), body: source === "new_command" || "draftTemplateVersion" in command ? `Preparation only: write and review a thank-you message in Codex with AI Slop Killer before approving.\nPerson: ${contact.name}\nConversation: ${item.title}\nReview the saved debrief and commitments for accurate details.` : `Hi ${contact.name},\n\nThank you for the conversation. What I took from it: ${command.said}\n\n${command.commitments.length ? `My next step is ${command.commitments[0].title}.` : "I appreciate your perspective as I consider my next step."}`, personId: contact.id, meetingId: item.id }, "thank-you");
       }
       summary = `${item.title}: debrief recorded, ${command.evidence.length} evidence item(s) awaiting review, follow-through prepared.`; break;
     }
@@ -244,13 +246,16 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     case "revise_action": {
       const item = requireRecord(state.actions, command.actionId, "Action");
       if (!["draft", "approved_for_manual_execution"].includes(item.state)) throw new Error("Reconcile an attempted action before editing it. Completed messages remain unchanged.");
+      if (command.skillReviewed && command.body.startsWith("Preparation only:")) throw new Error("Replace the preparation note with reviewed message text before recording AI Slop Killer review.");
       item.recipient = command.recipient; item.subject = command.subject; item.body = command.body;
       item.revision += 1; item.state = "draft"; item.approvedAt = undefined; item.updatedAt = now;
+      item.skillReviewRevision = command.skillReviewed && ["email", "direct_message", "public_comment"].includes(item.kind) ? item.revision : undefined;
       summary = "Draft revised; previous approval no longer applies."; break;
     }
     case "approve_action": {
       const item = requireRecord(state.actions, command.actionId, "Action");
       if (item.revision !== command.exactRevision || item.state !== "draft") throw new Error("Review the exact current draft before approving it.");
+      if (source === "new_command" && ["email", "direct_message", "public_comment"].includes(item.kind) && (item.skillReviewRevision !== item.revision || item.body.startsWith("Preparation only:"))) throw new Error("Review this exact message with AI Slop Killer in Codex, save the reviewed text, and record the review before approval.");
       item.state = "approved_for_manual_execution"; item.approvedAt = now; item.updatedAt = now;
       summary = "Exact draft approved. External execution is manual; approval is not evidence of sending."; break;
     }
@@ -265,7 +270,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     case "retry_action": {
       const item = requireRecord(state.actions, command.actionId, "Action");
       if (!["failed", "uncertain"].includes(item.state)) throw new Error("Completed and pending actions must not be retried.");
-      item.state = item.kind === "calendar_invite" && item.meetingId && item.meetingStamp !== meetingStamp(item.meetingId) ? "superseded" : "draft"; item.revision += 1; item.approvedAt = undefined; item.updatedAt = now;
+      item.state = item.kind === "calendar_invite" && item.meetingId && item.meetingStamp !== meetingStamp(item.meetingId) ? "superseded" : "draft"; item.revision += 1; item.approvedAt = undefined; item.skillReviewRevision = undefined; item.updatedAt = now;
       if (item.state === "superseded") { summary = "Non-execution confirmed. Meeting details changed; prepare a new invitation from the current agreement."; break; }
       summary = "Non-execution confirmed; the same action is ready for a fresh exact-draft review. No duplicate action created."; break;
     }
