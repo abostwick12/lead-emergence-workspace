@@ -276,13 +276,13 @@ as $$
     and workspace_private.mcp_dynamic_admission_enabled()
     and nullif(auth.jwt() ->> 'client_id', '') is not null
     and coalesce(auth.jwt() ->> 'workspace_mcp', 'false') = 'true'
-    and auth.jwt() ->> 'aud' in (
+    and coalesce(auth.jwt() ->> 'aud' in (
       select setting_value from workspace_private.product_settings
       where setting_key = 'mcp_resource_uri'
       union all
       select nullif(setting_value, '') from workspace_private.product_settings
       where setting_key = 'mcp_preview_resource_uri'
-    )
+    ), false)
     and exists (
       select 1
       from workspace_private.mcp_oauth_resource_grants as grant_record
