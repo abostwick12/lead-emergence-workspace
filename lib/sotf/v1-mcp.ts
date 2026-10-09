@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { listSotfV1Bundles, SOTF_DAILY_BRIEF_CONTRACT } from "./workflow-catalog";
+import { registerSotfOnDemandSkill } from "./on-demand-skill";
 
 const oauth = { securitySchemes: [{ type: "oauth2", scopes: ["openid", "email", "profile"] }] } as const;
 const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
@@ -58,6 +59,7 @@ export function registerSotfV1BundleListTool(
     if (access.state !== "active") return accessFailure(access);
     return ok({ bundles: listSotfV1Bundles() });
   });
+  registerSotfOnDemandSkill(server, () => resolveAccess(client, options.releaseEnabled));
 }
 
 async function resolveAccess(client: SupabaseClient<any, any, any, any, any>, releaseEnabled: boolean): Promise<AccessState> {
