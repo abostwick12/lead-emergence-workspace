@@ -485,6 +485,34 @@ describe("SOTF reusable evidence, applications, and next chapter", () => {
 });
 
 describe("SOTF persistence integrity", () => {
+  it("reads future generated-draft versions without enabling their writes", () => {
+    const replayVersioned = (h: ReturnType<typeof harness>, command: Record<string, unknown>, originalBody: string) => {
+      const operation = persistedCommandEnvelopeSchema.parse({
+        requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true,
+        dataClass: "ordinary_transition_operations", command: { ...command, draftTemplateVersion: "preparation_v2" },
+      });
+      expect(commandEnvelopeSchema.safeParse(operation).success).toBe(false);
+      const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: operation }];
+      const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+      expect(recovered.actions.at(-1)?.body).toContain(originalBody);
+      expect(recovered.receipts.at(-1)?.command).toBe(JSON.stringify(operation.command));
+    };
+
+    const outreach = harness();
+    outreach.run({ type: "save_person", person: contact });
+    replayVersioned(outreach, { type: "prepare_outreach", personId: contact.id }, "Hi Fictional Morgan");
+
+    const scheduling = harness();
+    const schedulingPerson = networkingCandidate("scheduling", "Fictional scheduling contact", "program leadership");
+    scheduling.run({ type: "save_person", person: { ...schedulingPerson, networking: { ...schedulingPerson.networking, status: "replied" } } });
+    replayVersioned(scheduling, { type: "prepare_scheduling_reply", personId: "scheduling", schedulingUrl: "https://workspace.leademergence.com/meet/andrew" }, "here’s my calendar");
+
+    const debrief = harness();
+    debrief.run({ type: "save_person", person: contact });
+    debrief.run({ type: "record_meeting", meeting });
+    replayVersioned(debrief, { type: "debrief_meeting", meetingId: meeting.id, said: "Synthetic discussion", inferred: "", unresolved: [], evidence: [], commitments: [], introductions: [] }, "Thank you for the conversation.");
+  });
+
   it("reads a future message review marker without enabling new writes", () => {
     const h = harness();
     h.run({ type: "save_person", person: contact });
