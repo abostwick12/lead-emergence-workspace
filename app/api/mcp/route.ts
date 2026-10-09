@@ -119,7 +119,9 @@ async function handleMcpDiscoveryRequest(request: Request) {
     // Discovery never invokes a tool handler, so it has no database client and
     // cannot reveal Workspace content. Authenticated requests construct the
     // normal server below with a bearer-bound client.
-    const server = createWorkspaceMcpServer(null as never);
+    const server = createWorkspaceMcpServer(null as never, undefined, {
+      sotfEnabled: process.env.SOTF_PILOT_ENABLED === "true",
+    });
     await server.connect(transport);
     return withCors(request, await transport.handleRequest(request));
   } catch {
