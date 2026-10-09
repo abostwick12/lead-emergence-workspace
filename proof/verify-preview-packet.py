@@ -73,8 +73,8 @@ require(psql(file=PACKAGE / "operator-apply.sql"), False, "target-pinned preflig
 assert version_count() == 0
 
 old = {
-    "ledger_n": ("n=31", str(snapshot["ledger_n"])),
-    "ledger_next": ("n=32", str(snapshot["ledger_n"] + 1)),
+    "ledger_n": ("n=31", "n=" + str(snapshot["ledger_n"])),
+    "ledger_next": ("n=32", "n=" + str(snapshot["ledger_n"] + 1)),
     "ledger_oldest": ("20260819000000", snapshot["ledger_oldest"]),
     "ledger_newest": ("newest='20260929125618'", "newest='" + snapshot["ledger_newest"] + "'"),
     "ledger_hash": ("07770289d3cb570f025c421ea7537f2c", snapshot["ledger_hash"]),
