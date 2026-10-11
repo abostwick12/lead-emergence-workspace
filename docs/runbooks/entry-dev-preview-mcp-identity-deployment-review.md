@@ -1,6 +1,16 @@
 # Entry-dev Preview MCP deployment and identity review
 
-**Status:** review only, corrected 2026-10-09. This packet authorizes no Auth change, Vercel setting, deployment, database update, test identity, or ChatGPT connection. Keep Workspace [PR #61](https://github.com/abostwick12/lead-emergence-workspace/pull/61) and Ministry [PR #407](https://github.com/abostwick12/emergence-ministry-platform/pull/407) draft and unchanged. Andrew approved this separate documentation worktree despite its feature overlap with PR #61.
+**Status:** review and execution receipt, updated 2026-10-11. The separately approved Vercel Preview deployment is complete; the Entry-dev Preview resource setting and real ChatGPT acceptance remain pending. Keep Workspace [PR #61](https://github.com/abostwick12/lead-emergence-workspace/pull/61) and Ministry [PR #407](https://github.com/abostwick12/emergence-ministry-platform/pull/407) draft and unchanged. Andrew approved this separate documentation worktree despite its feature overlap with PR #61.
+
+## Preview execution receipt — 2026-10-11
+
+Andrew approved branch-scoped Entry-dev Preview variables, one exact-head deployment, and a branch-only stable domain after a Ready result. Vercel project `prj_ANnBP1Pxceok4uezHzHPjOTs2cCb` saved `NEXT_PUBLIC_SUPABASE_URL`, the enabled Entry-dev public publishable key (ID `82c2a6f6-a2f6-48cf-9c3f-8f835768c7fe`), `NEXT_PUBLIC_APP_URL`, and `WORKSPACE_MCP_RESOURCE_URI` for **only** `codex/entry-dev-preview-mcp-resource-review`. The existing generic Preview `NEXT_PUBLIC_WORKSPACE_SCHEMA=workspace` was verified. No key value is recorded here. Branch Tracking remained disabled.
+
+One manual Preview deployment of PR #61 head `3fca013398851671446d713aebb684b48b79eb29` completed **Ready** in 39 seconds: `dpl_5BSJbW4Rbk37abZdMqPbmzChbPDG`. Vercel reports `lead-emergence-workspace-entry-dev.vercel.app` as Valid Configuration on that branch, alongside the Ready deployment. Existing Production domains remained assigned to Production.
+
+Unauthenticated GET `/.well-known/oauth-protected-resource/api/mcp` returned HTTP 200 with resource `https://lead-emergence-workspace-entry-dev.vercel.app/api/mcp` and authorization server `https://vnjdubrnmxvmsccxmhst.supabase.co/auth/v1`. An unauthenticated `tools/call` for `get_onboarding_state` returned HTTP 200 with JSON-RPC `isError: true`, `Workspace authentication is required`, and an `mcp/www_authenticate` challenge pointing to that host's resource metadata; it returned no Workspace data. An unauthenticated `tools/list` returned discovery schemas only. These checks do not establish an authorized user result or real ChatGPT acceptance. The remaining `initialize`, `notifications/initialized`, `ping`, CORS, and non-tool HTTP 401 cases in the checklist below were not tested in this receipt.
+
+An immediate read-only Entry-dev postflight on project `vnjdubrnmxvmsccxmhst` returned `ready: true`: 32 ledger rows with `20261009180000` once, `functions_ok: true`, expected protected counts and hashes, and `preview_disabled: true` (`mcp_preview_resource_uri=''`). No hosted SQL was applied in this step. The next separately approved action, if any, must pin the exact URI above, re-run the live guard immediately before the one setting update, and perform read-only postflight. Do not infer that the current deployment alone enables Preview OAuth.
 
 ## Outcome and smallest supported path
 
@@ -10,7 +20,7 @@ The Entry-dev migration is already applied but its Preview URI is empty. A host 
 
 ## Reproduced evidence and falsifier
 
-| Claim | Read-only evidence on 2026-10-09 | Cheapest falsifier before action |
+| Historical claim | Read-only evidence on 2026-10-09 (superseded where the receipt above says so) | Cheapest falsifier before action |
 | --- | --- | --- |
 | Preview is still disabled | Entry-dev SELECT returned 32 ledger rows, migration `20261009180000` once, `mcp_preview_resource_uri=''`, and the trusted Preview provider row disabled. | Read the setting and ledger immediately before a later action; stop if changed. |
 | No reviewed-head Preview deployment was found | Vercel project `prj_ANnBP1Pxceok4uezHzHPjOTs2cCb` returned 49 deployments, none at PR #61 head `3fca013398851671446d713aebb684b48b79eb29`. Latest listed deployment was `main` `4acc2cce59d0d3a8eea8a6626167258294150d0f`. | Re-list deployments, aliases, commit, and live metadata; stop if a matching host already exists. |
