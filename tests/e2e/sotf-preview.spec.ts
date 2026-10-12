@@ -40,7 +40,8 @@ test("networking strategy shows the 10-person goal and selectable conversation p
   for (const name of ["Action queue", "Waiting for a response", "Conversation prep", "Scheduling", "Contact history"]) await expect(page.getByRole("region", { name, exact: true })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("max", "10");
   await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("value", "10");
-  await expect(page.getByText("25 / 10", { exact: true })).toBeVisible();
+  await expect(page.getByText("10 / 10", { exact: true })).toBeVisible();
+  await expect(page.locator('[aria-label="Current-week networking candidates"] article')).toHaveCount(10);
   await expect(page.getByText("5", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Mature conversion", exact: true }).getByText("20%", { exact: true })).toBeVisible();
   const morgan = page.locator("article").filter({ has: page.getByRole("heading", { name: "Morgan — fictional contact", exact: true }) });
