@@ -96,6 +96,7 @@ test("networking view supports the full manual action lifecycle", async ({ page 
   await candidate.getByRole("button", { name: "Prepare outreach", exact: true }).click();
 
   const reviewQueue = page.locator("section").filter({ has: page.getByRole("heading", { name: "Follow-through to review", exact: true }) });
+  await expect(reviewQueue.getByRole("heading", { name: "[SYNTHETIC GATE TEST: DO NOT SEND]", exact: true })).toHaveCount(0);
   const action = reviewQueue.locator("article").filter({ hasText: "To: Fictional candidate 6" });
   const approve = action.getByRole("button", { name: "Approve this exact draft for manual use", exact: true });
   await expect(approve).toBeDisabled();

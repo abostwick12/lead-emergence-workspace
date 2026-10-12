@@ -125,7 +125,8 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
   const networkingPrepCandidate = networking.candidates.find(({ person }) => person.id === networkingPrepPersonId) ?? networking.candidates.find(({ person }) => person.networking!.status === "connection_accepted") ?? networking.candidates[0];
   const networkingPrepEvidence = networkingPrepCandidate ? state.evidence.filter((item) => item.personId === networkingPrepCandidate.person.id && item.review === "accepted" && !["inference", "community"].includes(item.source.kind)).slice(0, 3) : [];
   const visibleNetworkingMeetings = networkingPrepPersonId ? networkingMeetings.filter((meeting) => meeting.personId === networkingPrepPersonId) : networkingMeetings;
-  const openActions = state.actions.filter((item) => !["manually_completed", "superseded"].includes(item.state));
+  const testRecordPersonIds = new Set(state.people.filter((person) => person.testRecord).map((person) => person.id));
+  const openActions = state.actions.filter((item) => !["manually_completed", "superseded"].includes(item.state) && (!item.personId || !testRecordPersonIds.has(item.personId)));
 
   return <section className={styles.experience} aria-label="SOTF Bundle">
     <header className={styles.header}><a className={styles.brand} href="https://entry.leademergence.com">LEAD EMERGENCE<span>SOTF Bundle</span></a><div className={styles.headerTools}>{preview ? <span className={styles.previewLabel}>Fictional preview · resets on reload</span> : <span className={styles.previewLabel}>Your work, carried forward</span>}<button onClick={() => { setPanel("history"); setView("Today"); }}>History</button>{state.chapter ? <button onClick={exportState}>Export my work</button> : null}</div></header>
