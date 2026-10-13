@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { connectedSotfExperience } from "../connected-experience";
 import type { SotfSection } from "@/components/sotf/sotf-experience";
 
-const sections: SotfSection[] = ["opportunities", "briefs", "learning"];
+const sections: SotfSection[] = ["opportunities", "briefs", "learning", "networking"];
 
 export default async function SotfSectionPage({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params;

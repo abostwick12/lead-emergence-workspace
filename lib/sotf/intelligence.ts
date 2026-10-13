@@ -164,12 +164,12 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   const bestCategory = categories.find((item) => item.responses > 0);
   const bestPathway = pathways.find((item) => item.responses > 0);
   const adjustments = mature.length === 0
-    ? ["Keep the current targeting mix until at least one attempted cohort matures; recent silence is not a failed conversion."]
+    ? ["No contact attempt is ready to judge yet. Keep this week's plan for now."]
     : conversion !== null && conversion >= conversionTarget
-      ? [`Continue the strongest observed category${bestCategory ? ` (${bestCategory.name})` : ""} and pathway${bestPathway ? ` (${bestPathway.name.replaceAll("_", " ")})` : ""}; both recommendations come from recorded responses.`]
+      ? [`The meeting rate meets the ${Math.round(conversionTarget * 100)}% goal. Keep ${bestCategory?.name ?? "the current groups"} and ${bestPathway?.name.replaceAll("_", " ") ?? "the current contact methods"} in next week's plan, then check the recorded replies again.`]
       : bestCategory || bestPathway
-        ? [`Increase next week's share of ${bestCategory?.name ?? "the best recorded category"} through ${bestPathway?.name.replaceAll("_", " ") ?? "the best recorded pathway"}; it produced the clearest recorded response signal.`, "Keep other categories in the queue as comparison cohorts rather than declaring them ineffective from recent silence."]
-        : ["No attempted category or pathway has produced a recorded response yet. Improve documented affinity and contribution angles, then wait for cohorts to mature before changing the mix."];
+        ? [`Next week, try more people in ${bestCategory?.name ?? "the group with recorded replies"} using ${bestPathway?.name.replaceAll("_", " ") ?? "the contact method with recorded replies"}. Those are where replies have been recorded.`, "Keep other groups in the plan. Recent silence is too early to judge."]
+        : ["No replies are recorded yet. Check why each person is relevant and what you hope to learn. Wait for more results before changing the plan."];
   return {
     weekOf: weekOf ?? null,
     target,

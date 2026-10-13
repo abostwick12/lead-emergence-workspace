@@ -30,7 +30,8 @@ describe("SOTF UI manifest routes", () => {
   it.each([
     ["opportunities", "Is this worth more of your time?"],
     ["briefs", "For today"],
-    ["learning", "What should change next week?"]
+    ["learning", "What should change next week?"],
+    ["networking", "Networking weekly progress"]
   ] as const)("opens the existing %s view", async (section, heading) => {
     const page = await sectionPage(section);
     expect(page.type).toBe(SotfExperience);
@@ -39,6 +40,7 @@ describe("SOTF UI manifest routes", () => {
 
     const preview = renderToStaticMarkup(createElement(SotfExperience, { mode: "preview", initialSection: section as SotfSection }));
     expect(preview).toContain(heading);
+    if (section === "networking") expect(preview).not.toContain("SOTF Bundle views");
   });
 
   it("preserves the base route's Today view", async () => {
@@ -53,7 +55,7 @@ describe("SOTF UI manifest routes", () => {
     expect(access.getUser).not.toHaveBeenCalled();
   });
 
-  it.each(["opportunities", "briefs", "learning"])("fails closed for %s when the pilot is off", async (section) => {
+  it.each(["opportunities", "briefs", "learning", "networking"])("fails closed for %s when the pilot is off", async (section) => {
     vi.stubEnv("SOTF_PILOT_ENABLED", "false");
     await expect(sectionPage(section)).rejects.toThrow("NEXT_NOT_FOUND");
     expect(access.getUser).not.toHaveBeenCalled();
@@ -67,7 +69,7 @@ describe("SOTF UI manifest routes", () => {
     expect(access.rpc).not.toHaveBeenCalled();
   });
 
-  it.each(["opportunities", "briefs", "learning"])("fails closed for %s without effective SOTF access", async (section) => {
+  it.each(["opportunities", "briefs", "learning", "networking"])("fails closed for %s without effective SOTF access", async (section) => {
     access.rpc.mockResolvedValue({ data: false, error: null });
     await expect(sectionPage(section)).rejects.toThrow("NEXT_NOT_FOUND");
     expect(access.rpc).toHaveBeenCalledExactlyOnceWith("sotf_has_access");
