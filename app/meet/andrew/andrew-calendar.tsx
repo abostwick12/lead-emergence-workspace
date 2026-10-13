@@ -26,9 +26,16 @@ function timeZoneLabel(value: string) {
   return value.replaceAll("_", " ").replaceAll("/", " / ");
 }
 
+function ownerScheduleMonth(instant: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", year: "numeric", month: "numeric" }).formatToParts(instant);
+  const year = Number(parts.find(part => part.type === "year")?.value);
+  const month = Number(parts.find(part => part.type === "month")?.value);
+  return new Date(Date.UTC(year, month - 1, 1));
+}
+
 export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBookingUrl: string | null; todayIso: string }) {
   const today = useMemo(() => new Date(todayIso), [todayIso]);
-  const [month, setMonth] = useState(() => new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1)));
+  const [month, setMonth] = useState(() => ownerScheduleMonth(today));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [meetingType, setMeetingType] = useState<(typeof meetingTypes)[number]["value"]>("networking_30");
   const [timeZone, setTimeZone] = useState("America/Chicago");

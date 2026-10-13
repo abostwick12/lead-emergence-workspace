@@ -17,4 +17,13 @@ describe("Andrew calendar time zones", () => {
     expect(markup).toContain("No time is being held or booked.");
     expect(markup).toContain("Your time zone");
   });
+
+  it("opens in the owner's Chicago schedule month at a UTC month boundary", () => {
+    const markup = renderToStaticMarkup(createElement(AndrewCalendar, {
+      currentBookingUrl: null,
+      todayIso: "2026-11-01T02:00:00.000Z"
+    }));
+
+    expect(markup).toContain("October 2026");
+  });
 });
