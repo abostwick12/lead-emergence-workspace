@@ -33,6 +33,16 @@ test("a confirmed criterion changes the decision and keeps the evidence visible"
   expect(errors).toEqual([]);
 });
 
+test("People page labels the new-person action accurately", async ({ page }) => {
+  await page.getByRole("button", { name: "People", exact: true }).click();
+  const addPerson = page.getByRole("button", { name: "Add a person", exact: true });
+  await expect(addPerson).toBeVisible();
+  await addPerson.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Name", { exact: true })).toBeVisible();
+});
+
 test("networking strategy shows the 10-person goal and selectable conversation prep", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Plan 10 people to engage this week." })).toBeVisible();
