@@ -40,6 +40,7 @@ test("People page labels the new-person action accurately", async ({ page }) => 
   await addPerson.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Add a person", exact: true })).toBeVisible();
   await expect(dialog.getByLabel("Name", { exact: true })).toBeVisible();
 });
 
