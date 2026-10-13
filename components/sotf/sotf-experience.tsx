@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { getWorkspaceClient } from "@/lib/supabase/client";
 import { applyCommand, resumeTransition } from "@/lib/sotf/engine";
 import { commandEnvelopeSchema, emptyPilotState, type Command, type CommandEnvelope, type Evidence, type PilotState } from "@/lib/sotf/contracts";
@@ -14,7 +15,7 @@ import { WorkflowEditor, type Intent } from "./workflow-editor";
 import styles from "./sotf.module.css";
 
 type View = "Today" | "Direction" | "Networking" | "People" | "Opportunities";
-export type SotfSection = "opportunities" | "briefs" | "learning";
+export type SotfSection = "opportunities" | "briefs" | "learning" | "networking";
 type Editor = { intent: Intent; recordId?: string };
 type Loaded = { state: PilotState; workspaceId: string };
 type SchedulingHandoff = { status: "ready"; publicUrl: string } | { status: "unavailable"; message: string };
@@ -34,7 +35,7 @@ const networkingOutcomeLabels = {
 export function SotfExperience({ mode, scheduling = { status: "unavailable", message: "Networking scheduling is not configured." }, initialSection }: { mode: "preview" | "connected"; scheduling?: SchedulingHandoff; initialSection?: SotfSection }) {
   const preview = mode === "preview";
   const [state, setState] = useState<PilotState>(() => preview ? createPreviewState() : emptyPilotState());
-  const [view, setView] = useState<View>(initialSection === "opportunities" ? "Opportunities" : "Today");
+  const [view, setView] = useState<View>(initialSection === "opportunities" ? "Opportunities" : initialSection === "networking" ? "Networking" : "Today");
   const [editor, setEditor] = useState<Editor | null>(null);
   const [schedulingPerson, setSchedulingPerson] = useState<string | null>(null);
   const [networkingPrepPersonId, setNetworkingPrepPersonId] = useState<string | null>(null);
@@ -128,15 +129,16 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
   const visibleNetworkingMeetings = networkingPrepPersonId ? networkingMeetings.filter((meeting) => meeting.personId === networkingPrepPersonId) : networkingMeetings;
   const testRecordPersonIds = new Set(state.people.filter((person) => person.testRecord).map((person) => person.id));
   const openActions = state.actions.filter((item) => !["manually_completed", "superseded"].includes(item.state) && (!item.personId || !testRecordPersonIds.has(item.personId)));
+  const focusedNetworking = initialSection === "networking" && view === "Networking";
 
   return <section className={styles.experience} aria-label="SOTF Bundle">
-    <header className={styles.header}><a className={styles.brand} href="https://entry.leademergence.com">LEAD EMERGENCE<span>SOTF Bundle</span></a><div className={styles.headerTools}>{preview ? <span className={styles.previewLabel}>Fictional preview · resets on reload</span> : <span className={styles.previewLabel}>Your work, carried forward</span>}<button onClick={() => { setPanel("history"); setView("Today"); }}>History</button>{state.chapter ? <button onClick={exportState}>Export my work</button> : null}</div></header>
+    {!focusedNetworking ? <header className={styles.header}><a className={styles.brand} href="https://entry.leademergence.com">LEAD EMERGENCE<span>SOTF Bundle</span></a><div className={styles.headerTools}>{preview ? <span className={styles.previewLabel}>Fictional preview · resets on reload</span> : <span className={styles.previewLabel}>Your work, carried forward</span>}<button onClick={() => { setPanel("history"); setView("Today"); }}>History</button>{state.chapter ? <button onClick={exportState}>Export my work</button> : null}</div></header> : null}
     {preview ? <div className={styles.previewBar}><p>This is a fictional working example. Nothing is sent, and no account data is read or saved.</p><button onClick={() => { setState(emptyPilotState()); setSelected(null); setPanel(null); setView("Today"); setMessage(""); }}>Start over</button></div> : null}
     {error ? <div className={styles.error} role="alert"><p>{error}</p>{pending ? <button disabled={busy} onClick={() => void reconcile()}>Verify and recover the same step</button> : <button disabled={loading} onClick={() => void refresh()}>Refresh existing session</button>}</div> : null}
     {message ? <p className={styles.saveMessage} role="status">{preview ? "Preview updated · " : ""}{message}</p> : null}
     {loading ? <p role="status" className={styles.empty}>Recovering the decision, the evidence, and what comes next…</p> : !state.chapter && !error ? <FirstValue onSave={save} preview={preview} /> : state.chapter ? <>
-      <div className={`${styles.introduction} ${view === "Networking" ? styles.networkingIntroduction : ""}`}><p className={styles.eyebrow}>{view === "Networking" ? "Weekly networking" : state.chapter.phase === "professional_work" ? "Next professional chapter" : "Next move, with context"}</p><h1>{view === "Networking" ? "Networking Assistant" : state.chapter.nextFocus ?? state.chapter.question}</h1><p>{view === "Networking" ? networkingSummary : `${state.chapter.timing} · ${state.chapter.weeklyHours} hours a week to learn and move deliberately.`}</p><a className={styles.conversationLink} href="/sotf/connect">Continue this work in ChatGPT <span aria-hidden="true">↗</span></a></div>
-      <nav className={styles.navigation} aria-label="SOTF Bundle views">{(["Today", "Direction", "Networking", "People", "Opportunities"] as View[]).map((item) => <button key={item} aria-current={view === item ? "page" : undefined} onClick={() => { setView(item); setPanel(null); }}>{item}</button>)}</nav>
+      {!focusedNetworking ? <><div className={`${styles.introduction} ${view === "Networking" ? styles.networkingIntroduction : ""}`}><p className={styles.eyebrow}>{view === "Networking" ? "Weekly networking" : state.chapter.phase === "professional_work" ? "Next professional chapter" : "Next move, with context"}</p><h1>{view === "Networking" ? "Networking Assistant" : state.chapter.nextFocus ?? state.chapter.question}</h1><p>{view === "Networking" ? networkingSummary : `${state.chapter.timing} · ${state.chapter.weeklyHours} hours a week to learn and move deliberately.`}</p><a className={styles.conversationLink} href="/sotf/connect">Continue this work in ChatGPT <span aria-hidden="true">↗</span></a></div>
+      <nav className={styles.navigation} aria-label="SOTF Bundle views">{(["Today", "Direction", "Networking", "People", "Opportunities"] as View[]).map((item) => item === "Networking" && !preview ? <Link key={item} className={styles.primary} href="/workspace/sotf/networking" style={{ color: "#09202b" }}>Networking</Link> : <button key={item} aria-current={view === item ? "page" : undefined} onClick={() => { setView(item); setPanel(null); }}>{item}</button>)}</nav></> : null}
       <div aria-busy={busy} className={styles.body}>
         {view === "Today" ? <>
           <div className={styles.sectionHeading}><h2>{panel === "coaching" ? "Prepare for your SOTF session" : panel === "weekly" ? "What should change next week?" : panel === "stories" ? "Find an example to use" : panel === "history" ? "Recent decisions" : "For today"}</h2><div className={styles.actions}><button onClick={() => setPanel(panel === "coaching" ? null : "coaching")}>Prepare my SOTF session</button><button onClick={() => setPanel(panel === "weekly" ? null : "weekly")}>Review my week</button><button onClick={() => setPanel(panel === "stories" ? null : "stories")}>Find an example</button></div></div>
@@ -163,13 +165,14 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
           </> : null}
         </> : null}
         {view === "Networking" ? <div className={styles.networkingDashboard}>
-          <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Week of {networking.weekOf ?? "not started"}</p><h2>Plan {networking.target} people this week.</h2></div><div className={styles.actions}><button className={styles.primary} onClick={() => edit("networking-candidate")}>Add person</button><button onClick={() => edit("weekly")}>Complete weekly review</button></div></div>
-          <p className={styles.help}>Test records are hidden. Planning someone does not count as contacting them or having a conversation.</p>
+          <div className={styles.sectionHeading}><div className={focusedNetworking ? styles.networkingIntroduction : undefined}><p className={styles.eyebrow}>Week of {networking.weekOf ?? "not started"}</p>{focusedNetworking ? <h1>Networking</h1> : <h2>Plan {networking.target} people this week.</h2>}</div><div className={styles.actions}>{focusedNetworking ? <Link href="/workspace/sotf">Back to SOTF</Link> : null}<button className={styles.primary} onClick={() => edit("networking-candidate")}>Add person</button><button onClick={() => edit("weekly")}>Complete weekly review</button></div></div>
+          {!focusedNetworking ? <p className={styles.help}>Test records are hidden. Planning someone does not count as contacting them or having a conversation.</p> : null}
           <div className={styles.networkingMetrics} aria-label="Networking weekly progress">
             <section className={`${styles.networkingPanel} ${styles.networkingTeal}`} aria-label="Weekly plan"><p className={styles.eyebrow}>Weekly plan</p><strong className={styles.networkingMetric}>{networking.queued}<span> / {networking.target}</span></strong><progress className={styles.networkingProgress} max={networking.target} value={Math.min(networking.target, networking.queued)} aria-label="Weekly plan progress" /><p>{networking.queueRemaining ? `${networking.queueRemaining} more people needed` : "All planned"}</p><div className={styles.networkingMeta}><span>Attempts made <strong>{networking.attemptsMade}</strong></span><span>Meetings recorded <strong>{networking.conversationsGenerated}</strong></span></div></section>
             <section className={`${styles.networkingPanel} ${styles.networkingBrass}`} aria-label="Meeting rate"><p className={styles.eyebrow}>Meeting rate</p><strong className={styles.networkingMetric}>{networking.matureCohortConversionRate === null ? "Pending" : `${Math.round(networking.matureCohortConversionRate * 100)}%`}</strong><p>{networking.matureCohortSize} people counted · goal {Math.round(networking.conversionTarget * 100)}%</p><p className={styles.help}>Count people contacted at least seven days ago, or those with a recorded reply or outcome. Recent attempts are not treated as failures.</p></section>
             <section className={styles.networkingPanel} aria-label="Weekly results"><h3>Weekly results</h3>{networkingWeeks.length ? <div className={styles.networkingTable}><table><thead><tr><th scope="col">Week</th><th scope="col">Planned</th><th scope="col">Attempts</th><th scope="col">Meeting rate</th></tr></thead><tbody>{networkingWeeks.map((week) => { const cohort = networkingStrategy(state, week, now); return <tr key={week}><th scope="row">{week}</th><td>{cohort.queued}</td><td>{cohort.attemptsMade}</td><td>{cohort.matureCohortConversionRate === null ? "Pending" : `${Math.round(cohort.matureCohortConversionRate * 100)}%`}</td></tr>; })}</tbody></table></div> : <p className={styles.help}>No networking week recorded yet.</p>}<p className={styles.help}>Each rate counts recorded meetings among people whose contact attempt is ready to judge.</p></section>
           </div>
+          {focusedNetworking ? <p className={styles.help}>Test records are hidden. Planning someone does not count as contacting them or having a conversation.</p> : null}
           <div className={styles.networkingGrid}>
             <section className={`${styles.networkingPanel} ${styles.networkingTeal}`} aria-label="This week's people"><h3>This week&apos;s people</h3><p className={styles.eyebrow}>Next step for each person</p>{networking.candidates.length ? <div className={styles.networkingQueueList} tabIndex={0} aria-label="People planned this week">{networking.candidates.map(({ person, rationale }) => <article className={styles.networkingCandidate} key={person.id}>
               <div className={styles.networkingCandidateHeading}><div><h3>{person.name}</h3><p className={styles.help}>{person.company} · {person.role}</p></div><span className={styles.networkingStatus}>{person.networking!.status.replaceAll("_", " ")}</span></div>
