@@ -14,9 +14,11 @@ legacy callers require exactly one trusted identity, matching existing canonical
 subject/provider and exactly one active owner membership. Missing linkage is
 rejected without automatic reconciliation. Dedicated first-party admission and
 explicit-false handling remain unchanged. The corrected matrix passes 93/93;
-the unchanged historical suite has three stale expectations (18, 20, 21).
+the pre-correction historical run had three stale expectations (18, 20, 21).
 See [current correction proof](../testing/preview-first-party-auth-legacy-integrity-correction.md)
 and [historical Desktop record](../testing/preview-first-party-auth-local-validation.md).
+The [final expectation correction](../testing/preview-first-party-auth-historical-expectations.md)
+records 163/163 passing local assertions.
 
 **Historical Desktop run: PARTIAL, acceptance NO.** A later hosted metadata SELECT
 used a CLI path that initialized Entry-dev login credentials (POST `cli/login-role`,
@@ -121,10 +123,13 @@ execution proposal; this local migration is not an approved hosted package.
 **Local database behavior tested; hosted behavior NOT TESTED.** The original
 October 13 environment lacked a database runner. Desktop's dedicated disposable
 Supabase stack applied 38 existing migrations plus the one corrected forward
-migration. The current corrected matrix passed 93/93 assertions. The unchanged
-historical suite passed 67/70: assertion 18 expects a later denial message, and
-20/21 expect automatic linkage reconciliation that current hosted rules reject.
-That suite was not edited and is not reported as passing. All fixtures rolled back;
+migration. At the pre-correction checkpoint, the corrected matrix passed 93/93
+assertions and the unchanged historical suite passed 67/70: assertion 18 expected
+a later denial message, while 20/21 expected automatic linkage reconciliation
+that current hosted rules reject.
+That suite was not edited at this checkpoint. The later
+[expectation correction](../testing/preview-first-party-auth-historical-expectations.md)
+records 163/163 passing local assertions. All fixtures rolled back;
 postflight found zero users,
 clients, sessions, workspaces, profiles, tasks, grants and browser-pin rows. The
 task-owned containers/volumes were removed. The following cases passed locally:

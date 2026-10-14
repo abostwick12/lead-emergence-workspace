@@ -1,6 +1,27 @@
 # Test evidence
 
+## Preview first-party Auth review follow-up — 2026-10-14
+
+- The standard `npm run test:rls` script now includes
+  `supabase/tests/database/preview_first_party_auth.sql` in its explicit file list.
+  On disposable local project `preview-auth-review-20261014`, all 10 listed
+  fixtures passed: **384/384 assertions**, `Files=10`, `Result: PASS`, exit 0.
+- Read-only postflight found 39 local migrations and zero synthetic Auth users,
+  identities, OAuth clients or sessions; Workspace workspaces, profiles,
+  memberships, plans, onboarding and tasks; MCP grants; or browser-pin rows.
+  The owned stack stopped without backup, its containers and volumes were absent,
+  and temporary `supabase/config.toml` was restored to SHA-256
+  `c44548b0a24aa5dfe3a1753caaad3c82078c90a3ba27a0071f0b4c80a2349f38`.
+- The earlier 67/70 historical checkpoint is preserved below. The
+  [final expectation correction](preview-first-party-auth-historical-expectations.md)
+  records 163/163 passing local assertions. No runtime, migration, SQL draft,
+  fixture, dependency or lockfile changed in this review follow-up.
+
 ## Current legacy integrity correction — 2026-10-14
+
+This pre-correction checkpoint recorded 93/93 affected assertions and 67/70
+historical assertions. The [final expectation correction](preview-first-party-auth-historical-expectations.md)
+records 163/163 passing local assertions.
 
 - IN SCOPE — VERIFIED: resumed `codex/p2-5-preview-first-party-auth-local-db` at
   `95f28f6a2e7ac527f62a67670f4be20ede5d4847`, tree
@@ -18,9 +39,10 @@
   passed **93/93** on the dedicated disposable stack. Twelve added assertions cover
   six existing-legacy denial cases and one complete-graph preservation check per
   case. Successful coherent legacy and first-party provisioning/retry remain tested.
-- IN SCOPE — VERIFIED: the unchanged `workspace_productization.sql` suite ran
-  separately: **67/70 pass, 3 stale expectations fail (18, 20, 21)**. Current hosted
-  integrity rules govern; the suite was not changed and security behavior was not
+- IN SCOPE — VERIFIED: at this pre-correction checkpoint, the unchanged
+  `workspace_productization.sql` suite ran separately: **67/70 pass, 3 stale
+  expectations fail (18, 20, 21)**. Current hosted integrity rules govern; the
+  suite was not changed and security behavior was not
   weakened to make it pass. Full conflicts are in the [current proof](preview-first-party-auth-legacy-integrity-correction.md).
 - IN SCOPE — VERIFIED: SQL draft and forward local-validation migration are byte
   identical. Tested working-tree SQL SHA-256:
