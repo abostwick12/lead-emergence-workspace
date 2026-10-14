@@ -4,6 +4,12 @@ October 14, 2026, America/Chicago. Scope: local import, one forward local migrat
 real transactional database assertions, required application checks, and a local
 handoff. This record does not authorize any hosted action.
 
+**RESULT: PARTIAL. Overall acceptance: NO.** Local database and application checks
+passed, but a later metadata SELECT used a CLI connection path that initialized
+hosted login credentials, violating the no-hosted-mutation restriction. The exact
+incident and remaining unknowns are recorded below. No further hosted call or
+cleanup was attempted after identifying it.
+
 ## Provenance and preflight
 
 - Original archive: `C:/Users/awbostwick/Downloads/preview-first-party-auth-desktop.zip`.
@@ -24,7 +30,8 @@ handoff. This record does not authorize any hosted action.
   Mandate, roadmap, decisions, production state, backlog and three protocol skills
   were read. Phase 2/3 are authorized; this task covers account/session validation.
   Production refresh is not needed to decide the isolated local test result.
-  Hosted definitions/settings remain unverified in this run.
+  A later bounded Entry-dev metadata read is recorded below; full hosted baseline
+  equivalence and Auth settings remain unverified.
 - Parallel preflight inspected status and forward commit paths for 71 existing
   local worktrees, plus exact file/object changes in open Auth-related PRs.
   No pending patch-file ownership collision was found. Shared test-evidence edits
@@ -201,14 +208,64 @@ canonical governance document or other worktree was modified.
 
 Local validation is complete for the stated matrix. Real hosted sign-in, browser
 cookies, concurrent renewal/rotation, sign-out, ChatGPT continuation, and deployment
-readiness remain NOT TESTED. No hosted mutation/login/consent, client registration,
-push, PR, merge or deployment occurred. No PR or CodeRabbit review exists for this
-local branch; open review threads are not applicable. Exact-head CodeRabbit review
-remains mandatory before any later merge.
+readiness remain NOT TESTED. No real login/consent, client registration, push, PR,
+merge or deployment occurred. Hosted impact is the CLI credential initialization
+described below; it must not be reported as None. No PR or CodeRabbit review exists
+for this local branch; open review threads are not applicable. Exact-head CodeRabbit
+review remains mandatory before any later merge.
 
-Next step: independently review the corrected local Auth/SQL change before preparing
-or approving any hosted execution. This review needs a strong security-capable model
-and no hosted mutation. Any later hosted package must freshly identify exact live
-definitions/settings/ACLs, real public client/callback/pin, deployment, test identity
-and an explicitly authorized OAuth attempt. Passing local fixtures does not approve
-those actions or establish customer acceptance.
+## Hosted connection side effect: stop and owner handoff
+
+At 10:28 UTC, after local commit `ea25e1f8bde0181a86162b211f07eebb690fbce0`,
+the agent attempted to check the remaining hosted-baseline assumption with:
+
+```text
+supabase db query --linked --project-ref vnjdubrnmxvmsccxmhst <single metadata SELECT>
+```
+
+The submitted SQL selected only function fingerprints, profile-constraint text and
+browser-pin row count. It did not contain a mutating SQL statement. However, using
+the passwordless `--linked` connection was not operationally read-only:
+
+- VERIFIED: command stderr printed `Initialising login role...`.
+- VERIFIED: sanitized local CLI trace at `2026-10-14T10:28:28.393Z` records
+  `http.request.method=POST`, endpoint `cli/login-role`,
+  `http.response.status_code=201`, status `ok`.
+- VERIFIED: the installed-version [Supabase CLI v2.115.0 connection source](https://github.com/supabase/cli/blob/v2.115.0/apps/cli-go/internal/utils/flags/db_url.go)
+  prints that message in `initLoginRole`, calls `V1CreateLoginRoleWithResponse`
+  with `CreateRoleBody{ReadOnly:false}`, requires HTTP 201, then uses the returned
+  role and password. This initializes hosted login credentials before the SELECT.
+- ASSUMED: whether the role was newly created or existing credentials were rotated,
+  its exact resulting privileges/expiry, residual usability, and audit impact.
+  A separately scoped inspection through a non-mutating access path is required;
+  do not repeat this CLI command to inspect it. No credential or raw response body
+  was retained in this report.
+
+This crossed the user's hosted-mutation restriction. It is a task deviation and
+prevents an overall DONE/no-hosted-impact claim. The agent stopped hosted work after
+identifying the side effect. No role cleanup, revocation, retry or other hosted
+mutation was attempted. Production was not the target; the explicit project was
+Entry-dev `vnjdubrnmxvmsccxmhst`.
+
+The SELECT returned at `2026-10-14T10:28:29.740025+00:00`:
+
+| Metadata | Result |
+| --- | --- |
+| Browser pin rows | 0 |
+| Direct predicate contains browser pin | false |
+| Provisioner contains first-party marker | false |
+| Direct predicate definition MD5 | `180cbdc6f98ae71659df4f13cd1fd99f` |
+| Provisioner definition MD5 | `0ad6e7c06a3254e64be775923a5411a4` |
+| Profile constraint | Original NULL-or-Custom-Provider constraint |
+
+These results establish that the first-party draft was not installed in those
+objects. They do not establish unchanged hosted Auth configuration or exact
+historical function equality; original October 13 function hashes were unavailable.
+
+Next step: owner review of this credential-initialization incident before any
+further hosted work, using an access path that does not create/rotate login roles.
+A strong security-capable model is appropriate; size small. Any role mutation or
+cleanup requires its own explicit authorization after the resulting state is known.
+Local Auth/SQL adversarial review and a separate hosted execution package remain
+subsequent gates. Passing local fixtures does not approve those actions or establish
+customer acceptance.

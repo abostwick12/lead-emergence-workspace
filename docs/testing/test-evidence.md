@@ -28,11 +28,20 @@
   CTE syntax. Earlier failures are preserved in the [full proof](preview-first-party-auth-local-validation.md).
 - IN SCOPE — VERIFIED: only the task-owned local stack and volumes were removed;
   temporary project/port changes were restored. Generated runtime logs are ignored.
-- BLOCKER — Hosted definitions/configuration unchanged: ASSUMED, not refreshed in
-  this local-only run. Real OAuth sign-in, signature/issuer integration, cookie
+- BLOCKER — Overall result PARTIAL, acceptance NO: the final Entry-dev metadata
+  SELECT used `supabase db query --linked --project-ref vnjdubrnmxvmsccxmhst`.
+  The CLI initialized hosted login credentials: stderr reported the initialization
+  and the local trace records a `POST cli/login-role` with HTTP 201 at 10:28:28 UTC.
+  Installed-version source requests `ReadOnly:false`. This violated the hosted-
+  mutation restriction; no subsequent hosted call or cleanup was attempted. Exact
+  resulting role/expiry and residual impact are unknown. See the full proof's
+  incident record; do not report hosted impact as None.
+- BLOCKER — Full hosted baseline/configuration equivalence remains ASSUMED. The
+  metadata read found zero browser-pin rows and no installed first-party marker.
+  Real OAuth sign-in, signature/issuer integration, cookie
   roundtrip, concurrent refresh/rotation, revocation, sign-out and ChatGPT acceptance
-  remain NOT TESTED. No hosted mutation, login/consent, registration, push, PR,
-  review, merge or deployment occurred. CodeRabbit remains required before merge.
+  remain NOT TESTED. No login/consent, client registration, push, PR, review, merge
+  or deployment occurred. CodeRabbit remains required before merge.
 
 ## Entry-dev first-party Preview sign-in draft — 2026-10-13 (local only)
 

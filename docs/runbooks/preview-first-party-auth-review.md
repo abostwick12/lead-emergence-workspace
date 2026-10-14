@@ -13,6 +13,12 @@ returns explicit false. Strict first-party identity/ownership checks remain; the
 legacy branch retains supported empty-linkage reconciliation without overwriting
 incompatible linkage. See [Desktop proof and attempt history](../testing/preview-first-party-auth-local-validation.md).
 
+**Desktop overall result is PARTIAL, acceptance NO.** A later hosted metadata SELECT
+used a CLI path that initialized Entry-dev login credentials (POST `cli/login-role`,
+HTTP 201). This violated the no-hosted-mutation restriction. Resulting role/expiry
+and residual impact are unknown; hosted work stopped. The linked proof records the
+incident separately from the passing local tests. No cleanup was attempted.
+
 ## Approved outcome and exclusions
 
 Andrew approved preparing the Preview-only code/access-rule draft and then approved
@@ -82,8 +88,9 @@ created with `supabase migration new`. Both files have SHA-256
 Only a disposable local database received it. All 38 historical migration sources
 remain unchanged. The originating body was derived from the October 13 Entry-dev
 observation; Desktop testing restored the approved Workspace base's supported
-legacy reconciliation behavior. Hosted definitions/settings have not been refreshed
-in this Desktop run. Re-read the target function/constraint/ACL before any later
+legacy reconciliation behavior. A bounded hosted read found no installed first-party
+marker/pin, but full historical-definition equality and Auth settings were not
+established. Re-read the target function/constraint/ACL safely before any later
 execution proposal; this local migration is not an approved hosted package.
 
 ## Supporting verification
