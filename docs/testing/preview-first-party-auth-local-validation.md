@@ -1,5 +1,14 @@
 # First-party Preview Auth: Desktop validation evidence
 
+**Current correction:** see [legacy integrity correction](preview-first-party-auth-legacy-integrity-correction.md).
+The director-confirmed current hosted contract requires strict legacy identity and
+graph matching. The reconciliation relaxation described below was reversed. Current
+results are 93/93 affected assertions passing and 67/70 historical assertions
+passing with stale expectations 18/20/21 explicitly retained. The dedicated
+first-party path and missing-pin explicit-false fix are unchanged. The record below
+is historical and must not be used to justify automatic legacy reconciliation or
+claim that the current historical suite is all green.
+
 October 14, 2026, America/Chicago. Scope: local import, one forward local migration,
 real transactional database assertions, required application checks, and a local
 handoff. This record does not authorize any hosted action.

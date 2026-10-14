@@ -1,5 +1,41 @@
 # Test evidence
 
+## Current legacy integrity correction — 2026-10-14
+
+- IN SCOPE — VERIFIED: resumed `codex/p2-5-preview-first-party-auth-local-db` at
+  `95f28f6a2e7ac527f62a67670f4be20ede5d4847`, tree
+  `02f6ad1dde63715dfa050f30c1c43b17b4f27a6f`. Local preflight found no overlap in
+  72 other worktrees. No remote fetch or hosted CLI call was made under this task's
+  explicit no-hosted-calls restriction.
+- IN SCOPE — VERIFIED: restored the original draft's complete provisioner body
+  (apart from its already repaired terminator). Legacy `trusted_identity_count <> 1`
+  rejects before provisioning; an existing workspace requires `profile_count = 1`,
+  canonical subject/provider equality and `owner_membership_count = 1`. Removed the
+  legacy automatic-linkage UPDATE/INSERT branch. The complete direct-session
+  predicate, including dedicated first-party admission and `coalesce(..., false)`,
+  matches the pre-correction source unchanged.
+- IN SCOPE — VERIFIED: `supabase test db --local supabase/tests/database/preview_first_party_auth.sql`
+  passed **93/93** on the dedicated disposable stack. Twelve added assertions cover
+  six existing-legacy denial cases and one complete-graph preservation check per
+  case. Successful coherent legacy and first-party provisioning/retry remain tested.
+- IN SCOPE — VERIFIED: the unchanged `workspace_productization.sql` suite ran
+  separately: **67/70 pass, 3 stale expectations fail (18, 20, 21)**. Current hosted
+  integrity rules govern; the suite was not changed and security behavior was not
+  weakened to make it pass. Full conflicts are in the [current proof](preview-first-party-auth-legacy-integrity-correction.md).
+- IN SCOPE — VERIFIED: SQL draft and forward local-validation migration are byte
+  identical. Tested working-tree SQL SHA-256:
+  `2f1cc3eb76a13bc52fd6e89061be54ecaf544c749902e635ed0ed2b63b507502`.
+  Fixture SHA-256: `a4a07de57c5ebf6a2c33b50aaed338d62130e1f19db8825b3607a3e97d1741f9`.
+- IN SCOPE — VERIFIED: fresh local ledger count 39; all synthetic users, clients,
+  sessions, workspaces, profiles, tasks, grants and browser pins rolled back to zero.
+  Existing MCP fingerprints, owners and ACLs are unchanged. Only this task's local
+  containers/volumes were removed and temporary config restored.
+- IN SCOPE — No TypeScript/runtime or dependency change. Earlier application checks
+  remain historical supporting evidence; they were not rerun. Current SQL results
+  supersede the older all-green 151-assertion claim for legacy integrity.
+- IN SCOPE — No hosted action, publishing, PR, merge or deployment. Real OAuth and
+  ChatGPT acceptance remain NOT TESTED; exact-head CodeRabbit review remains open.
+
 ## Entry-dev first-party Preview sign-in — Desktop local validation, 2026-10-14
 
 - IN SCOPE — VERIFIED: the ZIP's original patch matched its `SHA256SUMS.txt` and

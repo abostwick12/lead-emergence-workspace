@@ -6,18 +6,25 @@ Desktop validation completed October 14, 2026 on local branch
 `codex/p2-5-preview-first-party-auth-local-db`. The ZIP's patch matched both
 `SHA256SUMS.txt` and the approved SHA-256
 `0f786f583e4d5d330e9ad474ea18ad3ee86b029789f5018e26ea6911da1c9e88`.
-It imported cleanly from the exact base below. Local validation found and corrected
-a missing SQL terminator, a legacy reconciliation regression, and a nullable
-admission predicate that allowed missing-pin provisioning. The corrected predicate
-returns explicit false. Strict first-party identity/ownership checks remain; the
-legacy branch retains supported empty-linkage reconciliation without overwriting
-incompatible linkage. See [Desktop proof and attempt history](../testing/preview-first-party-auth-local-validation.md).
+It imported cleanly from the exact base below. Local validation corrected a missing
+SQL terminator and a nullable admission predicate that allowed missing-pin
+provisioning. A later director review found that the Desktop legacy reconciliation
+change improperly relaxed the current hosted contract. That relaxation is removed:
+legacy callers require exactly one trusted identity, matching existing canonical
+subject/provider and exactly one active owner membership. Missing linkage is
+rejected without automatic reconciliation. Dedicated first-party admission and
+explicit-false handling remain unchanged. The corrected matrix passes 93/93;
+the unchanged historical suite has three stale expectations (18, 20, 21).
+See [current correction proof](../testing/preview-first-party-auth-legacy-integrity-correction.md)
+and [historical Desktop record](../testing/preview-first-party-auth-local-validation.md).
 
-**Desktop overall result is PARTIAL, acceptance NO.** A later hosted metadata SELECT
+**Historical Desktop run: PARTIAL, acceptance NO.** A later hosted metadata SELECT
 used a CLI path that initialized Entry-dev login credentials (POST `cli/login-role`,
 HTTP 201). This violated the no-hosted-mutation restriction. Resulting role/expiry
 and residual impact are unknown; hosted work stopped. The linked proof records the
-incident separately from the passing local tests. No cleanup was attempted.
+incident separately from the passing local tests. No cleanup was attempted. The
+owner later reported credential expiry and no visible active connection using that
+role. The current correction made no hosted call and does not recheck that report.
 
 ## Approved outcome and exclusions
 
@@ -84,11 +91,15 @@ for that pin on Entry-dev. No synthetic test UUID is an executable client choice
 The SQL review draft now has one matching forward **local-validation** migration,
 `supabase/migrations/20261014101027_preview_first_party_auth_local_validation.sql`,
 created with `supabase migration new`. Both files have SHA-256
-`fa72e26f625fdbf0f952f7a71439ff1d7cfca5dea679cb833c7bef4a5524358e`.
+`2f1cc3eb76a13bc52fd6e89061be54ecaf544c749902e635ed0ed2b63b507502`
+for the tested Windows working-tree bytes. Export manifests identify committed LF
+blob bytes separately where newline normalization changes the physical hash.
 Only a disposable local database received it. All 38 historical migration sources
 remain unchanged. The originating body was derived from the October 13 Entry-dev
-observation; Desktop testing restored the approved Workspace base's supported
-legacy reconciliation behavior. A bounded hosted read found no installed first-party
+observation; the director-confirmed current hosted integrity contract now governs
+legacy behavior. The provisioner matches the originally imported draft apart from
+its repaired terminator. The older Workspace-base reconciliation expectations do
+not authorize weaker behavior. A previous bounded hosted read found no installed first-party
 marker/pin, but full historical-definition equality and Auth settings were not
 established. Re-read the target function/constraint/ACL safely before any later
 execution proposal; this local migration is not an approved hosted package.
@@ -110,8 +121,11 @@ execution proposal; this local migration is not an approved hosted package.
 **Local database behavior tested; hosted behavior NOT TESTED.** The original
 October 13 environment lacked a database runner. Desktop's dedicated disposable
 Supabase stack applied 38 existing migrations plus the one corrected forward
-migration. The new matrix passed 81 assertions and the unchanged legacy suite
-passed 70, total 151/151. All fixtures rolled back; postflight found zero users,
+migration. The current corrected matrix passed 93/93 assertions. The unchanged
+historical suite passed 67/70: assertion 18 expects a later denial message, and
+20/21 expect automatic linkage reconciliation that current hosted rules reject.
+That suite was not edited and is not reported as passing. All fixtures rolled back;
+postflight found zero users,
 clients, sessions, workspaces, profiles, tasks, grants and browser-pin rows. The
 task-owned containers/volumes were removed. The following cases passed locally:
 
@@ -123,7 +137,7 @@ task-owned containers/volumes were removed. The following cases passed locally:
 | Existing coherent first-party graph | Same workspace returned; no duplicate |
 | Existing incompatible canonical/provider linkage or broken membership | Denial; graph unchanged |
 | User A attempts User B workspace reads/writes | Denial; no persisted write |
-| Legacy Custom Provider/direct sessions | Existing behavior preserved |
+| Coherent legacy Custom Provider/direct sessions | Trusted provisioning/retry passes; missing or incompatible existing linkage denies without graph mutation |
 | Existing MCP clients and resource grants | Existing MCP behavior preserved; no browser admission |
 
 **Session behavior needs real acceptance.** Verify Auth `/user`, SDK cookie

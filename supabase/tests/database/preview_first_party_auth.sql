@@ -204,5 +204,164 @@ select is((select canonical_user_id::text from workspace.user_profiles where use
 select matches((select entry_provider from workspace.user_profiles where user_id=auth.uid()),'^custom:','legacy provider marker stays a Custom Provider');
 select lives_ok($q$select workspace.ensure_personal_workspace()$q$,'legacy repeat provisioning remains usable');
 reset role;
+-- Current hosted legacy integrity contract, supplied by the director.
+-- Each caller has an existing personal workspace. No reconciliation is allowed.
+insert into auth.users(instance_id,id,aud,role,email,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+select '00000000-0000-0000-0000-000000000000'::uuid,
+ ('f1000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
+ 'authenticated','authenticated','legacy-integrity-' || n || '@example.invalid','{}','{}',now(),now()
+from generate_series(7,12) n;
+insert into auth.identities(provider_id,user_id,identity_data,provider,last_sign_in_at,created_at,updated_at)
+select 'f9000000-0000-4000-8000-' || lpad(n::text,12,'0'),
+ ('f1000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
+ jsonb_build_object('sub','f9000000-0000-4000-8000-' || lpad(n::text,12,'0')),
+ (select provider_identifier from workspace_private.trusted_identity_providers where enabled order by provider_identifier limit 1),
+ now(),now(),now()
+from generate_series(8,12) n;
+insert into workspace.user_profiles(user_id,canonical_user_id,entry_provider)
+select ('f1000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
+ case when n=8 then null
+      when n=9 then 'f9000000-0000-4000-8000-000000000099'::uuid
+      else ('f9000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid end,
+ case when n=8 then null when n=11 then 'custom:synthetic-other'
+      else (select provider_identifier from workspace_private.trusted_identity_providers where enabled order by provider_identifier limit 1) end
+from generate_series(7,11) n;
+insert into workspace.workspaces(id,workspace_type,name,owner_user_id)
+select ('f5000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
+ 'personal','Synthetic legacy integrity ' || n,
+ ('f1000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid
+from generate_series(7,12) n;
+insert into workspace.workspace_memberships(workspace_id,user_id,role,status,revoked_at)
+select ('f5000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
+ ('f1000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
+ 'owner',case when n=10 then 'revoked' else 'active' end,
+ case when n=10 then now() else null end
+from generate_series(7,12) n;
+
+select set_config('request.legacy_integrity_before',md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),true);
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"f1000000-0000-4000-8000-000000000007","aud":"authenticated","role":"authenticated"}',true);
+select throws_ok($q$select workspace.ensure_personal_workspace()$q$,'42501','A verified Lead Emergence identity is required.','existing legacy workspace with zero trusted identities is denied');
+reset role;
+select is(md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),current_setting('request.legacy_integrity_before'),'zero trusted identities: complete existing graph is unchanged');
+
+select set_config('request.legacy_integrity_before',md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),true);
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"f1000000-0000-4000-8000-000000000008","aud":"authenticated","role":"authenticated"}',true);
+select throws_ok($q$select workspace.ensure_personal_workspace()$q$,'42501','Personal Workspace integrity requires review.','existing legacy workspace with missing canonical/provider linkage is denied');
+reset role;
+select is(md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),current_setting('request.legacy_integrity_before'),'missing canonical/provider linkage: complete existing graph is unchanged');
+
+select set_config('request.legacy_integrity_before',md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),true);
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"f1000000-0000-4000-8000-000000000009","aud":"authenticated","role":"authenticated"}',true);
+select throws_ok($q$select workspace.ensure_personal_workspace()$q$,'42501','Personal Workspace integrity requires review.','existing legacy workspace with incompatible canonical linkage is denied');
+reset role;
+select is(md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),current_setting('request.legacy_integrity_before'),'incompatible canonical linkage: complete existing graph is unchanged');
+
+select set_config('request.legacy_integrity_before',md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),true);
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"f1000000-0000-4000-8000-000000000010","aud":"authenticated","role":"authenticated"}',true);
+select throws_ok($q$select workspace.ensure_personal_workspace()$q$,'42501','Personal Workspace integrity requires review.','existing legacy workspace with broken active owner membership is denied');
+reset role;
+select is(md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),current_setting('request.legacy_integrity_before'),'broken active owner membership: complete existing graph is unchanged');
+
+select set_config('request.legacy_integrity_before',md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),true);
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"f1000000-0000-4000-8000-000000000011","aud":"authenticated","role":"authenticated"}',true);
+select throws_ok($q$select workspace.ensure_personal_workspace()$q$,'42501','Personal Workspace integrity requires review.','existing legacy workspace with incompatible provider linkage is denied');
+reset role;
+select is(md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),current_setting('request.legacy_integrity_before'),'incompatible provider linkage: complete existing graph is unchanged');
+
+select set_config('request.legacy_integrity_before',md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),true);
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"f1000000-0000-4000-8000-000000000012","aud":"authenticated","role":"authenticated"}',true);
+select throws_ok($q$select workspace.ensure_personal_workspace()$q$,'42501','Personal Workspace integrity requires review.','existing legacy workspace with missing profile is denied');
+reset role;
+select is(md5(jsonb_build_object(
+ 'profiles',(select jsonb_agg(to_jsonb(p) order by user_id) from workspace.user_profiles p),
+ 'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from workspace.workspaces w),
+ 'memberships',(select jsonb_agg(to_jsonb(m) order by id) from workspace.workspace_memberships m),
+ 'plans',(select jsonb_agg(to_jsonb(p) order by workspace_id) from workspace.personal_plans p),
+ 'onboarding',(select jsonb_agg(to_jsonb(o) order by workspace_id) from workspace.personal_onboarding o),
+ 'tasks',(select jsonb_agg(to_jsonb(t) order by id) from workspace.tasks t)
+)::text),current_setting('request.legacy_integrity_before'),'missing profile: complete existing graph is unchanged');
 select * from finish();
 rollback;

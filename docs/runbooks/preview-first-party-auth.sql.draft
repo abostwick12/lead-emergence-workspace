@@ -85,6 +85,10 @@ begin
       and identity.identity_data ->> 'sub' ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       and identity.provider_id = identity.identity_data ->> 'sub';
 
+    if trusted_identity_count <> 1 then
+      raise exception 'A verified Lead Emergence identity is required.' using errcode = '42501';
+    end if;
+
     -- The regular expression above makes this cast safe. Keep the provider_id
     -- value available explicitly so an identity cannot be admitted by sub alone.
     if provider_subject <> canonical_subject then
@@ -109,10 +113,6 @@ begin
   end if;
 
   if workspace_count = 0 then
-    if nullif(auth.jwt() ->> 'client_id', '') is null and trusted_identity_count <> 1 then
-      raise exception 'A single verified Lead Emergence Entry identity is required.' using errcode = '42501';
-    end if;
-
     if profile_count <> 0
       and (profile_canonical_subject is not null or profile_provider is not null) then
       raise exception 'Personal Workspace identity linkage requires review.' using errcode = '42501';
@@ -159,36 +159,11 @@ begin
       and membership.role = 'owner'
       and membership.status = 'active';
 
-    if nullif(auth.jwt() ->> 'client_id', '') is not null then
-      if profile_count <> 1
-        or profile_canonical_subject is distinct from canonical_subject::uuid
-        or profile_provider is distinct from provider_identifier
-        or owner_membership_count <> 1 then
-        raise exception 'Personal Workspace integrity requires review.' using errcode = '42501';
-      end if;
-    else
-      -- Preserve the established direct-session reconciliation path. Empty
-      -- linkage may be filled; incompatible linkage is never overwritten.
-      if owner_membership_count <> 1 then
-        raise exception 'Personal Workspace authorization is not active.' using errcode = '42501';
-      end if;
-      if trusted_identity_count > 1 then
-        raise exception 'A single verified Lead Emergence Entry identity is required.' using errcode = '42501';
-      end if;
-      if trusted_identity_count = 1 and (
-        (profile_canonical_subject is not null and profile_canonical_subject <> canonical_subject::uuid)
-        or (profile_provider is not null and profile_provider <> provider_identifier)
-      ) then
-        raise exception 'The Personal Workspace is already linked to a different Lead Emergence identity.' using errcode = '42501';
-      end if;
-      insert into workspace.user_profiles (user_id, display_name, canonical_user_id, entry_provider)
-      values (caller_id, null,
-        case when trusted_identity_count = 1 then canonical_subject::uuid else null end,
-        case when trusted_identity_count = 1 then provider_identifier else null end)
-      on conflict (user_id) do update set
-        canonical_user_id = coalesce(excluded.canonical_user_id, workspace.user_profiles.canonical_user_id),
-        entry_provider = coalesce(excluded.entry_provider, workspace.user_profiles.entry_provider),
-        updated_at = now();
+    if profile_count <> 1
+      or profile_canonical_subject is distinct from canonical_subject::uuid
+      or profile_provider is distinct from provider_identifier
+      or owner_membership_count <> 1 then
+      raise exception 'Personal Workspace integrity requires review.' using errcode = '42501';
     end if;
   else
     raise exception 'Personal Workspace integrity requires review.' using errcode = '42501';
