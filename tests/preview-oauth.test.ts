@@ -107,12 +107,24 @@ describe("OAuth session renewal", () => {
   });
   it("rejects a renewed token for another client", async () => {
     const fetcher = vi.fn()
-      .mockResolvedValueOnce(Response.json({ access_token: jwt({ ...claims(), client_id: userId }), expires_in: 3600, token_type: "bearer" }))
+      .mockResolvedValueOnce(Response.json({ access_token: jwt({ ...claims(), client_id: userId }), refresh_token: "synthetic-rotated", expires_in: 3600, token_type: "bearer" }))
       .mockResolvedValueOnce(Response.json({ id: userId }));
     const wrapped = previewSessionFetch({ clientId }, fetcher);
     await expect(wrapped(`${PREVIEW_ISSUER}/token?grant_type=refresh_token`, {
       method: "POST", body: JSON.stringify({ refresh_token: "synthetic" })
-    })).rejects.toThrow();
+    })).rejects.toThrow("The token is not a Workspace Preview browser token.");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it.each([
+    ["missing", undefined], ["empty", ""], ["non-string", 123]
+  ])("rejects a %s replacement refresh token without retaining the old token", async (_case, replacement) => {
+    const tokens = { access_token: jwt(), expires_in: 3600, token_type: "bearer", refresh_token: replacement };
+    const fetcher = vi.fn().mockResolvedValueOnce(Response.json(tokens));
+    const wrapped = previewSessionFetch({ clientId }, fetcher);
+    await expect(wrapped(`${PREVIEW_PROJECT_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST", body: JSON.stringify({ refresh_token: "synthetic-old" })
+    })).rejects.toThrow("Invalid Preview refresh response.");
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
   it("does not rewrite other-project requests or disabled mode", async () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json({}));

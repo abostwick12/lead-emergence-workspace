@@ -104,7 +104,8 @@ export function previewSessionFetch(configuration: PreviewOAuthConfiguration | n
       if (!response.ok) return response;
       const tokens = await response.json() as Record<string, unknown>;
       if (typeof tokens.access_token !== "string" || tokens.token_type !== "bearer"
-          || typeof tokens.expires_in !== "number" || tokens.expires_in <= 0) throw new Error("Invalid Preview refresh response.");
+          || typeof tokens.expires_in !== "number" || tokens.expires_in <= 0
+          || typeof tokens.refresh_token !== "string" || !tokens.refresh_token) throw new Error("Invalid Preview refresh response.");
       // OAuth token responses omit the user that auth-js requires when refreshing.
       // Ask Auth to validate the new token, then supply that verified user.
       const headers = new Headers({ Authorization: `Bearer ${tokens.access_token}` });
@@ -122,7 +123,7 @@ export function previewSessionFetch(configuration: PreviewOAuthConfiguration | n
       if (user.id !== subject || typeof claims.exp !== "number" || claims.exp * 1000 <= Date.now()) {
         throw new Error("Refreshed Preview identity mismatch.");
       }
-      return Response.json({ ...tokens, user, refresh_token: tokens.refresh_token ?? body.refresh_token });
+      return Response.json({ ...tokens, user, refresh_token: tokens.refresh_token });
     }
     return fetcher(input, init);
   };
