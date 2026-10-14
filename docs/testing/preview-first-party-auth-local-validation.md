@@ -1,13 +1,14 @@
 # First-party Preview Auth: Desktop validation evidence
 
-**Current correction:** see [legacy integrity correction](preview-first-party-auth-legacy-integrity-correction.md).
+**Later corrections:** see the [legacy integrity correction](preview-first-party-auth-legacy-integrity-correction.md)
+and [final expectation correction](preview-first-party-auth-historical-expectations.md).
 The director-confirmed current hosted contract requires strict legacy identity and
-graph matching. The reconciliation relaxation described below was reversed. Current
-results are 93/93 affected assertions passing and 67/70 historical assertions
-passing with stale expectations 18/20/21 explicitly retained. The dedicated
-first-party path and missing-pin explicit-false fix are unchanged. The record below
-is historical and must not be used to justify automatic legacy reconciliation or
-claim that the current historical suite is all green.
+graph matching. The reconciliation relaxation described below was reversed. At the
+intermediate pre-correction checkpoint, 93/93 affected assertions and 67/70
+historical assertions passed, with stale expectations 18/20/21 explicitly retained.
+The later expectation-only correction reports 163/163 passing local assertions.
+The dedicated first-party path and missing-pin explicit-false fix are unchanged.
+The record below is historical and does not justify automatic legacy reconciliation.
 
 October 14, 2026, America/Chicago. Scope: local import, one forward local migration,
 real transactional database assertions, required application checks, and a local

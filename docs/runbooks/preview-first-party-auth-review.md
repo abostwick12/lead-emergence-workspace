@@ -150,8 +150,11 @@ roundtrip, concurrent renewal/rotation, sign-out, and a full token renewal after
 real sign-in. Test Workspace consent/ChatGPT connection from this browser session
 as a separate acceptance gate; mocks do not establish hosted authorization support.
 
-**Review gate remains OPEN.** No PR exists; no exact-head CodeRabbit review ran.
-No claim that this draft is mergeable or production-ready is made.
+**Review gate is tracked on [draft PR #74](https://github.com/abostwick12/lead-emergence-workspace/pull/74).** CodeRabbit completed full reviews of
+earlier heads, including `eb3fe1d32285198daf90fd4f465b39016c670650`.
+Check the PR's current head, open comments and required checks before any merge
+decision. Hosted execution and real sign-in acceptance remain separate open gates;
+this draft does not authorize merge or production release.
 
 **Execution package remains separate.** It must identify the actual public client,
 Entry authorization UI/Site URL, callback registration, database pin, Auth hook
