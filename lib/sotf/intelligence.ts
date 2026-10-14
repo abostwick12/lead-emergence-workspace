@@ -133,14 +133,25 @@ export function dailyBrief(state: PilotState, now: string): BriefItem[] {
 const networkingResponseStatuses = new Set(["connection_accepted", "replied", "conversation_scheduled", "conversation_completed"]);
 const networkingMatureStatuses = new Set([...networkingResponseStatuses, "no_response"]);
 
-export function latestNetworkingWeek(state: PilotState) {
+export function latestNetworkingWeek(state: PilotState, now?: string) {
+  if (now) {
+    const localDate = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(now)).map((part) => [part.type, part.value]));
+    const monday = new Date(Date.UTC(Number(localDate.year), Number(localDate.month) - 1, Number(localDate.day)));
+    monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+    return monday.toISOString().slice(0, 10);
+  }
   return state.people.filter((item) => !item.testRecord).map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
 }
 
 export function networkingStrategy(state: PilotState, weekOf = latestNetworkingWeek(state), now = new Date().toISOString()) {
   const target = 10;
   const conversionTarget = 0.2;
-  const candidates = state.people.filter((item) => !item.testRecord && item.networking && (!weekOf || item.networking.weekOf === weekOf));
+  const monday = weekOf ? new Date(`${weekOf}T00:00:00.000Z`) : null;
+  if (monday) monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+  const weekStart = monday?.toISOString().slice(0, 10);
+  if (monday) monday.setUTCDate(monday.getUTCDate() + 7);
+  const nextWeek = monday?.toISOString().slice(0, 10);
+  const candidates = state.people.filter((item) => !item.testRecord && item.networking && (!weekStart || item.networking.weekOf >= weekStart && item.networking.weekOf < nextWeek!));
   const candidateIds = new Set(candidates.map((item) => item.id));
   const attempts = state.actions.filter((item) => item.personId && candidateIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind));
   const firstAttempt = new Map<string, string>();
