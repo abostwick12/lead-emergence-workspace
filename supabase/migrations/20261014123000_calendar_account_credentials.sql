@@ -48,7 +48,7 @@ begin
   end if;
   if p_account_slot is null or p_account_slot not in ('personal', 'business')
     or p_ciphertext is null or char_length(p_ciphertext) not between 40 and 100000
-    or p_key_version is null or p_key_version < 1
+    or p_key_version is distinct from 1
     or p_account_subject_hash is null or p_account_subject_hash !~ '^[0-9a-f]{64}$' then
     raise exception 'Invalid Calendar credential.' using errcode = '22023';
   end if;
@@ -121,7 +121,13 @@ revoke all on function workspace.read_calendar_credential(uuid, text) from publi
 grant execute on function workspace.save_owner_calendar_credential(uuid, text, text, smallint, text, timestamptz, boolean) to authenticated;
 grant execute on function workspace.revoke_owner_calendar_credential(uuid, text) to authenticated;
 
-create role workspace_calendar_reader login noinherit nosuperuser nocreatedb nocreaterole noreplication nobypassrls password null;
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'workspace_calendar_reader') then
+    execute 'create role workspace_calendar_reader login noinherit nosuperuser nocreatedb nocreaterole noreplication nobypassrls password null';
+  end if;
+end;
+$$;
 grant connect on database postgres to workspace_calendar_reader;
 grant usage on schema workspace to workspace_calendar_reader;
 grant execute on function workspace.read_calendar_credential(uuid, text) to workspace_calendar_reader;
