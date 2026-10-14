@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { commandEnvelopeSchema } from '@/lib/sotf/contracts';
 import { applyCommand } from '@/lib/sotf/engine';
@@ -86,5 +86,49 @@ describe('required dual-calendar read', () => {
       expect((await requireBothCalendarReads(available([]), bad).readBusy(window)).status).toBe('unavailable');
     }
     expect((await requireBothCalendarReads(available([]), available([])).readBusy({ start: window.end, end: window.start })).status).toBe('unavailable');
+  });
+
+  it('returns unavailable at the common deadline when one calendar never settles', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending: CalendarReadAdapter = { readBusy: () => new Promise(() => {}) };
+      const result = requireBothCalendarReads(available([]), pending).readBusy(window);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await result).toEqual({ status: 'unavailable', reason: 'Calendar availability could not be checked.' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns promptly when one calendar fails and the other never settles', async () => {
+    const pending: CalendarReadAdapter = { readBusy: () => new Promise(() => {}) };
+    const failed: CalendarReadAdapter = { async readBusy() { return { status: 'unavailable', reason: 'Private failure' }; } };
+    const result = await Promise.race([
+      requireBothCalendarReads(failed, pending).readBusy(window),
+      new Promise(resolve => setTimeout(() => resolve('Still waiting'), 100)),
+    ]);
+    expect(result).toEqual({ status: 'unavailable', reason: 'Calendar availability could not be checked.' });
+  });
+
+  it('rejects one future check even if the other check is current', async () => {
+    const future = available([], new Date(Date.now() + 61000).toISOString());
+    expect((await requireBothCalendarReads(available([]), future).readBusy(window)).status).toBe('unavailable');
+  });
+
+  it('measures check freshness when both reads complete', async () => {
+    vi.useFakeTimers();
+    try {
+      const base = Date.now();
+      vi.setSystemTime(base);
+      const checkedAt = new Date(base - 59000).toISOString();
+      const delayed: CalendarReadAdapter = {
+        readBusy: () => new Promise(resolve => setTimeout(() => resolve({ status: 'available', busy: [], checkedAt, source: 'Synthetic' }), 2000)),
+      };
+      const result = requireBothCalendarReads(available([], checkedAt), delayed).readBusy(window);
+      await vi.advanceTimersByTimeAsync(2000);
+      expect((await result).status).toBe('unavailable');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
