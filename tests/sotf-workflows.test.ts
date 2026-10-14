@@ -104,6 +104,26 @@ describe("SOTF opportunity learning and continuity", () => {
 });
 
 describe("SOTF relationships, preparation, follow-through, and recovery", () => {
+  it("replays saved conversation questions while current commands remain read-only", () => {
+    const h = harness();
+    h.run({ type: "save_person", person: contact });
+    const oldHistory = { workspace_id: workspaceId, revision: h.state.revision, events: h.events };
+    expect(replayEvents(oldHistory).state.people[0].conversationQuestions).toBeUndefined();
+
+    const questions = ["What decisions does this team own?", "What work takes most of your week?"];
+    const nextCommand = { type: "save_person", person: { ...contact, conversationQuestions: questions } };
+    expect(commandSchema.safeParse(nextCommand).success).toBe(false);
+    const savedEnvelope = persistedCommandEnvelopeSchema.parse({
+      requestId: randomUUID(), expectedRevision: h.state.revision,
+      userConfirmed: true, dataClass: "ordinary_transition_operations", command: nextCommand
+    });
+    const recovered = replayEvents({
+      workspace_id: workspaceId, revision: h.state.revision + 1,
+      events: [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: savedEnvelope }]
+    }).state;
+    expect(recovered.people[0].conversationQuestions).toEqual(questions);
+  });
+
   it("closes the relationship loop and resumes it from the saved event log", () => {
     const h = harness(); h.run({ type: "save_person", person: contact }); h.run({ type: "prepare_outreach", personId: "person" });
     expect(h.state.actions[0]).toMatchObject({ state: "draft", recipient: "Fictional Morgan" });
