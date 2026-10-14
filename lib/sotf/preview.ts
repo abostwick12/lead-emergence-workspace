@@ -41,7 +41,7 @@ export function createPreviewState(): PilotState {
       hypothesisIds: [number % 2 ? "program" : "operations"],
       nextTouch: number <= 5 ? "2026-09-15" : undefined,
       networking: {
-        weekOf: number <= 10 ? "2026-09-01" : "2026-08-25",
+        weekOf: number <= 10 ? "2026-09-01" : number <= 20 ? "2026-08-25" : "2026-08-18",
         sourceUrl: `https://example.com/networking/candidate-${number}`,
         whyPerson: number === 1 ? "Morgan works close enough to the decisions to explain the actual operating model" : "This person has direct public evidence of doing the work being explored",
         lamp: { list: category, alumniAffinity: number % 4 === 0 ? "Fictional veteran community" : "", motivation: "The organization's public work aligns with the transition hypothesis being tested", posting: number % 2 ? "Related public role signal" : "No posting required; practitioner learning path" },
