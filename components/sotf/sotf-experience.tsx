@@ -248,7 +248,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
         })}</section> : null}
       </div>
     </> : null}
-    <footer className={styles.footer}><span>See it. Interpret it. Decide. Act. Learn.</span><span>SOTF Bundle · ordinary transition operations</span></footer>
+    <footer className={styles.footer}><span>SOTF Bundle · ordinary transition operations</span></footer>
     {schedulingPerson && state.people.find((person) => person.id === schedulingPerson) ? <ScheduleConversation person={state.people.find((person) => person.id === schedulingPerson)!} onSave={save} onClose={() => setSchedulingPerson(null)} /> : null}
     {editor ? <WorkflowEditor key={editor.intent + (editor.recordId ?? "")} intent={editor.intent} state={state} recordId={editor.recordId} onSave={save} onClose={() => setEditor(null)} /> : null}
   </section>;
