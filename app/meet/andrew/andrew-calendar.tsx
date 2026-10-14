@@ -61,7 +61,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
         <section className={styles.intro} aria-labelledby="booking-title">
           <p className={styles.eyebrow}>Conversation</p>
           <h1 id="booking-title">Book time<br />with Andrew</h1>
-          <p className={styles.lede}>Choose a time to talk about your work, your next step, or a question on your mind.</p>
+          <p className={styles.lede}>Pick 30 or 60 minutes, then choose a time that works.</p>
           <div className={styles.introRule} />
           <div className={styles.detail}><Clock3 aria-hidden="true" size={21} /><div><strong>{selectedMeeting.minutes} minutes</strong><span>{selectedMeeting.label}</span></div></div>
           <div className={styles.detail}><CalendarDays aria-hidden="true" size={21} /><div><strong>Your time zone</strong><span>Times will appear in {timeZoneLabel(timeZone)}.</span></div></div>
