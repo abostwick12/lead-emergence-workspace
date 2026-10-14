@@ -4,6 +4,7 @@ import { ENTRY_RETURN_COOKIE, ENTRY_SIGN_IN_COOKIE, entryCookieOptions, verifyEn
 import { trustedWorkspaceOrigin } from "@/lib/http/origin";
 import { createWorkspaceServerClient } from "@/lib/supabase/server";
 import { normalizeWorkspaceReturnPath } from "@/lib/workspace/return-path";
+import { consumePreviewTransaction, exchangePreviewCode, previewOAuthConfiguration, requirePreviewServerBoundary, verifyPreviewClaims, PREVIEW_TRANSACTION_COOKIE } from "@/lib/auth/preview-oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,20 +13,40 @@ export async function GET(request: NextRequest) {
   let origin = "https://workspace.leademergence.com";
   const mode = cookieStore.get(ENTRY_SIGN_IN_COOKIE)?.value;
   const returnPath = normalizeWorkspaceReturnPath(cookieStore.get(ENTRY_RETURN_COOKIE)?.value);
+  const transaction = cookieStore.get(PREVIEW_TRANSACTION_COOKIE)?.value;
+  cookieStore.set(PREVIEW_TRANSACTION_COOKIE, "", { ...entryCookieOptions("/auth/callback/sign-in"), maxAge: 0 });
   cookieStore.set(ENTRY_SIGN_IN_COOKIE, "", { ...entryCookieOptions("/auth/callback/sign-in"), maxAge: 0 });
   cookieStore.set(ENTRY_RETURN_COOKIE, "", { ...entryCookieOptions("/"), maxAge: 0 });
   const supabase = await createWorkspaceServerClient();
 
   try {
     origin = trustedWorkspaceOrigin(request.nextUrl.origin);
-    if (mode !== "sign-in" || request.nextUrl.searchParams.get("error")) throw new Error("Entry sign-in was not approved.");
+    if (request.nextUrl.searchParams.get("error")) throw new Error("Entry sign-in was not approved.");
     const code = request.nextUrl.searchParams.get("code");
     if (!code) throw new Error("Entry sign-in code is missing.");
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-    if (exchangeError) throw exchangeError;
+    const preview = previewOAuthConfiguration();
+    let canonicalUserId: string | null = null;
+    if (preview) {
+      const { clientId } = requirePreviewServerBoundary(request.nextUrl.origin);
+      const verifier = consumePreviewTransaction(transaction, request.nextUrl.searchParams.get("state"), clientId);
+      const tokens = await exchangePreviewCode(code, verifier, clientId);
+      const verified = await supabase.auth.getClaims(tokens.access_token);
+      if (verified.error || !verified.data) throw new Error("Preview token verification failed.");
+      canonicalUserId = verifyPreviewClaims(verified.data.claims, clientId);
+      const installed = await supabase.auth.setSession(tokens);
+      if (installed.error) throw installed.error;
+    } else {
+      if (mode !== "sign-in") throw new Error("Entry sign-in was not approved.");
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      if (exchangeError) throw exchangeError;
+    }
     const { data, error: userError } = await supabase.auth.getUser();
     if (userError || !data.user) throw userError ?? new Error("Entry identity is unavailable.");
-    verifyEntryProviderIdentity(data.user);
+    if (preview) {
+      if (data.user.id !== canonicalUserId) throw new Error("Preview user identity mismatch.");
+    } else {
+      verifyEntryProviderIdentity(data.user);
+    }
     const provisioned = await supabase.rpc("ensure_personal_workspace");
     if (provisioned.error) throw provisioned.error;
     return NextResponse.redirect(new URL(returnPath, origin), 303);

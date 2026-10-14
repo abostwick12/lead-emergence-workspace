@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { previewOAuthConfiguration, previewSessionFetch, PREVIEW_SESSION_COOKIE } from "@/lib/auth/preview-oauth";
 
 export async function updateWorkspaceSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -7,9 +8,11 @@ export async function updateWorkspaceSession(request: NextRequest) {
   if (!url || !key) return NextResponse.next({ request });
 
   let response = NextResponse.next({ request });
+  const preview = previewOAuthConfiguration();
   const supabase = createServerClient(url, key, {
     db: { schema: process.env.NEXT_PUBLIC_WORKSPACE_SCHEMA?.trim() || "workspace" },
-    cookieOptions: { secure: process.env.NODE_ENV === "production" },
+    global: { fetch: previewSessionFetch(preview) },
+    cookieOptions: { secure: process.env.NODE_ENV === "production", ...(preview ? { name: PREVIEW_SESSION_COOKIE } : {}) },
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll(cookiesToSet, headers) {

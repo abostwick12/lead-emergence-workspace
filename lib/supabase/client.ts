@@ -2,6 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { previewOAuthConfiguration, previewSessionFetch, PREVIEW_SESSION_COOKIE } from "@/lib/auth/preview-oauth";
 
 let browserClient: SupabaseClient<any, any, any, any, any> | undefined;
 
@@ -17,8 +18,11 @@ function configuration() {
 export function getWorkspaceClient(): SupabaseClient<any, any, any, any, any> {
   if (browserClient) return browserClient;
   const { url, anonKey } = configuration();
+  const preview = previewOAuthConfiguration();
   browserClient = createBrowserClient(url, anonKey, {
     db: { schema: process.env.NEXT_PUBLIC_WORKSPACE_SCHEMA?.trim() || "workspace" },
+    global: { fetch: previewSessionFetch(preview) },
+    ...(preview ? { cookieOptions: { name: PREVIEW_SESSION_COOKIE, secure: true } } : {}),
     auth: {
       autoRefreshToken: true,
       persistSession: true,

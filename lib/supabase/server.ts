@@ -3,6 +3,7 @@ import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { previewOAuthConfiguration, previewSessionFetch, PREVIEW_SESSION_COOKIE } from "@/lib/auth/preview-oauth";
 
 function publicConfiguration() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -14,9 +15,11 @@ function publicConfiguration() {
 export async function createWorkspaceServerClient(): Promise<SupabaseClient<any, any, any, any, any>> {
   const { url, key, schema } = publicConfiguration();
   const cookieStore = await cookies();
+  const preview = previewOAuthConfiguration();
   return createServerClient(url, key, {
     db: { schema },
-    cookieOptions: { secure: process.env.NODE_ENV === "production" },
+    global: { fetch: previewSessionFetch(preview) },
+    cookieOptions: { secure: process.env.NODE_ENV === "production", ...(preview ? { name: PREVIEW_SESSION_COOKIE } : {}) },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll(cookiesToSet) {

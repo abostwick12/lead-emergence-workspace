@@ -1,5 +1,68 @@
 # Test evidence
 
+## Entry-dev first-party Preview sign-in — Desktop local validation, 2026-10-14
+
+- IN SCOPE — VERIFIED: the ZIP's original patch matched its `SHA256SUMS.txt` and
+  approved SHA-256 `0f786f583e4d5d330e9ad474ea18ad3ee86b029789f5018e26ea6911da1c9e88`.
+  `git apply --check` and import passed from exact main/base
+  `5523eb62b333a2e60fd033c471fb99354a05a6db` in the dedicated local branch
+  `codex/p2-5-preview-first-party-auth-local-db`; unrelated checkouts were preserved.
+- IN SCOPE — VERIFIED: 38 existing migrations applied in a dedicated disposable
+  Supabase/PostgreSQL 15.8 stack with the real Auth OAuth client/session schema.
+  CLI-created `20261014101027_preview_first_party_auth_local_validation.sql` is the
+  sole new migration and matches the corrected SQL review draft byte-for-byte.
+  Its SHA-256 is `fa72e26f625fdbf0f952f7a71439ff1d7cfca5dea679cb833c7bef4a5524358e`.
+- IN SCOPE — VERIFIED: real transactional database tests passed **151/151**:
+  **81** new Preview assertions and **70** unchanged legacy assertions. Positive
+  provisioning uses `authenticated` without RLS bypass; denials use real RLS/RPC
+  contexts. Incompatible graphs and denied writes preserve the graph fingerprint.
+  Postflight counts for users/clients/sessions/workspaces/profiles/tasks/grants/pin
+  were zero. Existing MCP hook/predicate bodies, owners and ACLs remained unchanged.
+- IN SCOPE — VERIFIED: boundary scan 96 runtime files, schema 32/32, typecheck,
+  lint, unit tests 31 files/266 tests, and build with 30 generated pages passed.
+  The initial sandbox unit run could not import tests because Windows denied temp
+  cache renames; the normal-access run passed. No dependencies were added.
+- IN SCOPE — VERIFIED: bounded SQL corrections address the missing terminator,
+  observed legacy regression (initial 3/70 failures), and missing-pin NULL admission
+  bypass. Fixture-only corrections remove private-schema calls and fix write-count
+  CTE syntax. Earlier failures are preserved in the [full proof](preview-first-party-auth-local-validation.md).
+- IN SCOPE — VERIFIED: only the task-owned local stack and volumes were removed;
+  temporary project/port changes were restored. Generated runtime logs are ignored.
+- BLOCKER — Hosted definitions/configuration unchanged: ASSUMED, not refreshed in
+  this local-only run. Real OAuth sign-in, signature/issuer integration, cookie
+  roundtrip, concurrent refresh/rotation, revocation, sign-out and ChatGPT acceptance
+  remain NOT TESTED. No hosted mutation, login/consent, registration, push, PR,
+  review, merge or deployment occurred. CodeRabbit remains required before merge.
+
+## Entry-dev first-party Preview sign-in draft — 2026-10-13 (local only)
+
+- IN SCOPE — VERIFIED: isolated `codex/p2-5-preview-first-party-auth` from main
+  `5523eb62b333a2e60fd033c471fb99354a05a6db`, after Andrew explicitly approved
+  preserving the existing root checkout's staged deletions and using a new checkout.
+- IN SCOPE — VERIFIED: `npm ci --ignore-scripts --no-audit --no-fund` completed
+  from the existing lockfile; no manifest/lockfile or dependency change.
+- IN SCOPE — VERIFIED: `npm run check:boundaries` passes for 96 runtime files;
+  `npm run test:schema` passes 32/32; `npm run typecheck` and `npm run lint` pass;
+  final `npm run test:unit` passes 31 files / 266 tests. The 27 new tests include
+  the actual installed SDK's refresh lifecycle and mocked callback routes.
+- IN SCOPE — VERIFIED: final `npm run build` compiles, completes TypeScript and
+  generates all 30 pages. The first build also passed; the final build followed
+  the Request-body preservation correction and additional regression test.
+  `git diff --check` passes. No pre-existing validation failure was observed.
+- IN SCOPE — VERIFIED: read-only Entry-dev function/constraint/schema queries
+  supplied the provisioning baseline and Auth session client field. The private
+  `workspace_preview_browser_client_id` setting count is zero. No hosted setting,
+  function, constraint, client, record, consent, or session changed.
+- BLOCKER — Database SQL behavior NOT TESTED: Docker, `postgres`, and `psql`
+  are unavailable here. SQL remains a review-only `.sql.draft`, not a numbered
+  migration or applied change. The required disposable database matrix is in
+  `docs/runbooks/preview-first-party-auth-review.md`; it must pass before any
+  execution recommendation. Do not use the hosted target as a test runner.
+- BLOCKER — Real sign-in, cookie roundtrip, concurrent renewal, sign-out, access
+  denial and ChatGPT continuation are NOT TESTED. No client registered, feature
+  enabled, PR published, CodeRabbit review, merge, or deployment occurred.
+  This evidence supports a disabled implementation draft, not production readiness.
+
 ## SOTF message-review append gate — 2026-10-09 (local only)
 
 - Worktree `codex/networking-db-review-gate` at `ab2e33604d0139bca74ca765f03ca579c9ab0c8d` adds one forward migration and rollback-only synthetic pgTAP cases. No hosted migration or data write was performed.
