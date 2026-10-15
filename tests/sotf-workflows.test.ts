@@ -104,7 +104,7 @@ describe("SOTF opportunity learning and continuity", () => {
 });
 
 describe("SOTF relationships, preparation, follow-through, and recovery", () => {
-  it("replays saved conversation questions while current commands remain read-only", () => {
+  it("saves, preserves, clears, and replays reviewed conversation questions", () => {
     const h = harness();
     h.run({ type: "save_person", person: contact });
     const oldHistory = { workspace_id: workspaceId, revision: h.state.revision, events: h.events };
@@ -112,16 +112,21 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
 
     const questions = ["What decisions does this team own?", "What work takes most of your week?"];
     const nextCommand = { type: "save_person", person: { ...contact, conversationQuestions: questions } };
-    expect(commandSchema.safeParse(nextCommand).success).toBe(false);
-    const savedEnvelope = persistedCommandEnvelopeSchema.parse({
-      requestId: randomUUID(), expectedRevision: h.state.revision,
-      userConfirmed: true, dataClass: "ordinary_transition_operations", command: nextCommand
-    });
-    const recovered = replayEvents({
-      workspace_id: workspaceId, revision: h.state.revision + 1,
-      events: [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: savedEnvelope }]
-    }).state;
-    expect(recovered.people[0].conversationQuestions).toEqual(questions);
+    expect(commandSchema.safeParse(nextCommand).success).toBe(true);
+    h.run(nextCommand);
+    expect(h.state.people[0].conversationQuestions).toEqual(questions);
+    h.run({ type: "record_meeting", meeting });
+    expect(prepareMeeting(h.state, meeting.id).questions).toEqual(questions);
+
+    h.run({ type: "save_person", person: { ...contact, objective: "Learn who owns the program budget" } });
+    expect(h.state.people[0].conversationQuestions).toEqual(questions);
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state.people[0].conversationQuestions).toEqual(questions);
+
+    h.run({ type: "save_person", person: { ...contact, conversationQuestions: [] } });
+    expect(h.state.people[0].conversationQuestions).toEqual([]);
+    expect(prepareMeeting(h.state, meeting.id).questions.length).toBeGreaterThan(3);
+    expect(commandSchema.safeParse({ type: "save_person", person: { ...contact, conversationQuestions: [...questions, "A third question?", "A fourth question?"] } }).success).toBe(false);
+    expect(commandSchema.safeParse({ type: "save_person", person: { ...contact, conversationQuestions: ["Q".repeat(241)] } }).success).toBe(false);
   });
 
   it("closes the relationship loop and resumes it from the saved event log", () => {

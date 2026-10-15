@@ -40,7 +40,7 @@ export const networkingCandidateSchema = z.strictObject({
   pathway: networkingPathwaySchema,
   status: networkingStatusSchema.default("identified")
 });
-export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, testRecord: z.boolean().optional(), overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional(), networking: networkingCandidateSchema.optional() });
+export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, testRecord: z.boolean().optional(), overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional(), networking: networkingCandidateSchema.optional(), conversationQuestions: z.array(short).max(3).optional() });
 export const meetingSchema = z.strictObject({ id, title: short, personId: id.optional(), opportunityId: id.optional(), hypothesisIds: ids, kind: z.enum(["networking", "coaching", "interview", "mentor"]), startsAt: timestamp, endsAt: timestamp, status: z.enum(["planned", "accepted", "completed", "cancelled"]).default("planned"), provider: z.enum(["manual", "google_calendar", "outlook"]).default("manual"), sourceEventId: id.optional(), objective: text });
 export const commitmentSchema = z.strictObject({ id, title: short, owner: short.default("Fellow"), due: date.optional(), definitionOfDone: text, reviewTrigger: text, personId: id.optional(), meetingId: id.optional(), opportunityId: id.optional(), hypothesisId: id.optional() });
 export const storySchema = z.strictObject({ id, title: short, situation: text, contribution: text, scope: text, actions: text, outcome: text, skills: z.array(short).min(1).max(20), evidenceIds: ids, approvedLanguage: text, uncertainNumbers: z.array(short).max(10).default([]), confirmed: z.literal(true) });
@@ -86,9 +86,7 @@ export const commandEnvelopeSchema = z.strictObject({ requestId: z.string().uuid
 const persistedPersonSchema = z.strictObject({
   ...personSchema.pick({ id: true, name: true, company: true, role: true, email: true, source: true }).shape,
   testRecord: z.boolean().optional(),
-  ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true, testRecord: true }).shape,
-  // Read future owner-reviewed prep questions before a later writer may save them.
-  conversationQuestions: z.array(short).max(3).optional()
+  ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true, testRecord: true }).shape
 });
 const persistedCommandSchema = z.union([
   z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),
