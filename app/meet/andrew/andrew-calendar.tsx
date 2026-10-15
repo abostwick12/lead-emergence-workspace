@@ -45,6 +45,11 @@ function ownerScheduleMonth(instant: Date) {
 
 export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBookingUrl: string | null; todayIso: string }) {
   const today = useMemo(() => new Date(todayIso), [todayIso]);
+  const chicagoTodayParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(today).map(part => [part.type, part.value]));
+  const todayKey = `${chicagoTodayParts.year}-${chicagoTodayParts.month}-${chicagoTodayParts.day}`;
+  const lastDateKey = dateKey(new Date(Date.parse(`${todayKey}T00:00:00Z`) + 60 * 24 * 60 * 60 * 1000));
   const [month, setMonth] = useState(() => ownerScheduleMonth(today));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [meetingType, setMeetingType] = useState<(typeof meetingTypes)[number]["value"]>("networking_30");
@@ -128,7 +133,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
               <div className={styles.days}>{days.map(day => {
                 const key = dateKey(day);
                 const inMonth = day.getUTCMonth() === month.getUTCMonth();
-                return <button key={key} type="button" className={selectedDate === key ? styles.selectedDay : undefined} data-outside-month={!inMonth} aria-label={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(day)} aria-pressed={selectedDate === key} onClick={() => { setSelectedDate(key); if (!inMonth) setMonth(new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1))); }}>{day.getUTCDate()}</button>;
+                return <button key={key} type="button" disabled={key < todayKey || key > lastDateKey} className={selectedDate === key ? styles.selectedDay : undefined} data-outside-month={!inMonth} aria-label={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(day)} aria-pressed={selectedDate === key} onClick={() => { setSelectedDate(key); if (!inMonth) setMonth(new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1))); }}>{day.getUTCDate()}</button>;
               })}</div>
             </div>
             <div className={styles.times}>
@@ -144,7 +149,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
             </div>
           </div>
           <div className={styles.footer}>
-            <p>This page doesn't book meetings yet.</p>
+            <p>This page doesn&apos;t book meetings yet.</p>
             <button type="button" disabled>Continue <ArrowRight size={18} aria-hidden="true" /></button>
           </div>
           {currentBookingUrl ? <p className={styles.fallback}>Need to book now? <a href={currentBookingUrl} target="_blank" rel="noreferrer">Use the current Google booking page <ExternalLink size={14} aria-hidden="true" /></a></p> : null}

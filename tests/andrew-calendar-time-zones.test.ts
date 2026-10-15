@@ -26,4 +26,17 @@ describe("Andrew calendar time zones", () => {
 
     expect(markup).toContain("October 2026");
   });
+
+  it("disables past Chicago dates while keeping the current date selectable", () => {
+    const markup = renderToStaticMarkup(createElement(AndrewCalendar, {
+      currentBookingUrl: null,
+      todayIso: "2026-10-13T18:00:00.000Z"
+    }));
+    const pastDay = markup.match(/<button[^>]*aria-label="Monday, October 12, 2026"[^>]*>/)?.[0];
+    const currentDay = markup.match(/<button[^>]*aria-label="Tuesday, October 13, 2026"[^>]*>/)?.[0];
+
+    expect(pastDay).toContain("disabled");
+    expect(currentDay).toBeDefined();
+    expect(currentDay).not.toContain("disabled");
+  });
 });

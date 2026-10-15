@@ -31,7 +31,8 @@
 .days { gap:4px; }
 .days button { min-height:39px; border:1px solid transparent; border-radius:8px; background:transparent; color:#eef5f5; font-size:13px; cursor:pointer; }
 .days button[data-outside-month="true"] { color:#8196a2; }
-.days button:hover { border-color:rgb(100 200 209 / .5); background:rgb(100 200 209 / .11); }
+.days button:disabled { opacity:.46; cursor:not-allowed; }
+.days button:hover:not(:disabled) { border-color:rgb(100 200 209 / .5); background:rgb(100 200 209 / .11); }
 .days .selectedDay { background:var(--brass); color:#10202b; font-weight:800; }
 .days .selectedDay:hover { background:#f6c96e; color:#10202b; }
 .times h3 { margin:0; color:#fff; font-size:17px; }
