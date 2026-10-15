@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  CALENDAR_FLOW_COOKIE, calendarApplicationOrigin, exchangeAndVerifyCalendarCode, isCalendarSlot,
-  readCalendarFlow, saveCalendarAccount
+  CALENDAR_FLOW_COOKIE, calendarApplicationOrigin, calendarStateHash, exchangeAndVerifyCalendarCode, finishCalendarAccount,
+  isCalendarSlot, readCalendarFlow
 } from "@/lib/calendar/oauth";
+import { readCalendarAttemptToken } from "@/lib/calendar/credentials";
 import { verifyWorkspaceOwner } from "@/lib/integrations/server";
 
 export const runtime = "nodejs";
@@ -29,10 +30,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slo
   try {
     if (!code || !state || !sealed || request.nextUrl.searchParams.has("error")) throw new Error("Authorization was not completed.");
     const flow = readCalendarFlow(sealed, slot, state);
-    await verifyWorkspaceOwner(flow.accessToken, flow.workspaceId);
+    const stateHash = calendarStateHash(state);
+    const accessToken = await readCalendarAttemptToken(flow.workspaceId, slot, stateHash);
+    await verifyWorkspaceOwner(accessToken, flow.workspaceId);
     // Google authorization codes are single-use; replayed callbacks cannot exchange the code again.
     const credential = await exchangeAndVerifyCalendarCode({ code, flow });
-    await saveCalendarAccount({ accessToken: flow.accessToken, workspaceId: flow.workspaceId, slot, ...credential });
+    await finishCalendarAccount({ accessToken, workspaceId: flow.workspaceId, slot, stateHash, ...credential });
     return finish(slot, "connected");
   } catch {
     return finish(slot, "error");

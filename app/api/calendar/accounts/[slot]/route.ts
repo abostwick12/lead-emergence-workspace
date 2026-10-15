@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { calendarAccountConnected } from "@/lib/calendar/credentials";
-import { CALENDAR_FLOW_COOKIE, CALENDAR_FLOW_TTL_MS, createCalendarFlow, isCalendarSlot, revokeCalendarAccount } from "@/lib/calendar/oauth";
+import { CALENDAR_FLOW_COOKIE, CALENDAR_FLOW_TTL_MS, createCalendarFlow, isCalendarSlot, revokeCalendarAccount, storeCalendarAttempt } from "@/lib/calendar/oauth";
 import { verifyWorkspaceOwner } from "@/lib/integrations/server";
 
 export const runtime = "nodejs";
@@ -38,7 +38,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
     const body = await request.json() as { workspaceId?: unknown };
     if (typeof body.workspaceId !== "string") throw new Error("Missing Workspace.");
     await verifyWorkspaceOwner(accessToken, body.workspaceId);
-    const flow = createCalendarFlow({ accessToken, slot, workspaceId: body.workspaceId });
+    const flow = createCalendarFlow({ slot, workspaceId: body.workspaceId });
+    await storeCalendarAttempt({ accessToken, slot, workspaceId: body.workspaceId, stateHash: flow.stateHash });
     const response = NextResponse.json({ authorizationUrl: flow.authorizationUrl });
     response.cookies.set(CALENDAR_FLOW_COOKIE, flow.sealedFlow, {
       httpOnly: true,

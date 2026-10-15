@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { type CalendarAccountSlot, encryptCalendarCredential } from "@/lib/calendar/credentials";
+import { calendarAttemptAAD, type CalendarAccountSlot, encryptCalendarCredential } from "@/lib/calendar/credentials";
 import { createOpaqueValue, decryptIntegrationValue, encryptIntegrationValue } from "@/lib/integrations/crypto";
 
 export const CALENDAR_FLOW_COOKIE = "workspace_calendar_oauth";
@@ -20,7 +20,6 @@ const EXPECTED_EMAIL: Record<CalendarAccountSlot, string> = {
 };
 
 type CalendarFlow = {
-  accessToken: string;
   codeVerifier: string;
   createdAt: number;
   slot: CalendarAccountSlot;
@@ -52,7 +51,11 @@ export function calendarRedirectUri(slot: CalendarAccountSlot): string {
   return `${calendarApplicationOrigin()}/api/calendar/accounts/${slot}/callback`;
 }
 
-export function createCalendarFlow(input: { accessToken: string; slot: CalendarAccountSlot; workspaceId: string }) {
+export function calendarStateHash(state: string): string {
+  return createHash("sha256").update(state).digest("hex");
+}
+
+export function createCalendarFlow(input: { slot: CalendarAccountSlot; workspaceId: string }) {
   const state = createOpaqueValue();
   const codeVerifier = createOpaqueValue();
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -68,6 +71,7 @@ export function createCalendarFlow(input: { accessToken: string; slot: CalendarA
   const flow: CalendarFlow = { ...input, codeVerifier, createdAt: Date.now(), state };
   return {
     authorizationUrl: url.toString(),
+    stateHash: calendarStateHash(state),
     sealedFlow: encryptIntegrationValue(JSON.stringify(flow), required("WORKSPACE_INTEGRATION_STATE_SECRET"), "workspace-calendar-oauth-flow")
   };
 }
@@ -79,7 +83,7 @@ export function readCalendarFlow(sealed: string, slot: CalendarAccountSlot, stat
   if (flow.slot !== slot || left.length !== right.length || !timingSafeEqual(left, right)
     || !Number.isFinite(flow.createdAt) || Date.now() < flow.createdAt
     || Date.now() - flow.createdAt > CALENDAR_FLOW_TTL_MS
-    || !flow.accessToken || !flow.codeVerifier || !flow.workspaceId) {
+    || !flow.codeVerifier || !flow.workspaceId) {
     throw new Error("Calendar connection request expired or changed.");
   }
   return flow;
@@ -140,14 +144,31 @@ function ownerClient(accessToken: string) {
   });
 }
 
-export async function saveCalendarAccount(input: {
-  accessToken: string; workspaceId: string; slot: CalendarAccountSlot;
+export async function storeCalendarAttempt(input: {
+  accessToken: string; workspaceId: string; slot: CalendarAccountSlot; stateHash: string;
+}): Promise<void> {
+  const ciphertext = encryptIntegrationValue(
+    input.accessToken, required("WORKSPACE_INTEGRATION_STATE_SECRET"),
+    calendarAttemptAAD(input.workspaceId, input.slot, input.stateHash)
+  );
+  const { error } = await ownerClient(input.accessToken).rpc("start_owner_calendar_oauth_attempt", {
+    p_workspace_id: input.workspaceId,
+    p_account_slot: input.slot,
+    p_state_hash: input.stateHash,
+    p_ciphertext: ciphertext
+  });
+  if (error) throw new Error("Calendar connection request could not be saved.");
+}
+
+export async function finishCalendarAccount(input: {
+  accessToken: string; workspaceId: string; slot: CalendarAccountSlot; stateHash: string;
   refreshToken: string; subjectHash: string; expiresAt: string | null;
 }): Promise<void> {
   const ciphertext = encryptCalendarCredential(input.refreshToken, required("WORKSPACE_INTEGRATION_ENCRYPTION_KEY"), input.workspaceId, input.slot);
-  const { error } = await ownerClient(input.accessToken).rpc("save_owner_calendar_credential", {
+  const { error } = await ownerClient(input.accessToken).rpc("finish_owner_calendar_oauth_attempt", {
     p_workspace_id: input.workspaceId,
     p_account_slot: input.slot,
+    p_state_hash: input.stateHash,
     p_ciphertext: ciphertext,
     p_key_version: 1,
     p_account_subject_hash: input.subjectHash,
