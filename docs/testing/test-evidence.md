@@ -1,6 +1,25 @@
 # Test evidence
 
-## Current Preview Auth validation — 2026-10-14
+## Preview Auth test-tooling follow-up — 2026-10-15 UTC
+
+- The ordinary `test:rls` command again includes all 70 original productization
+  assertions. Its fixture is restored byte-for-byte from checked main
+  `7e43efd1d545cf838ba9bef9968edb2b272cabae`. The earlier strict expectations are
+  retained unchanged in `supabase/tests/candidates/workspace_productization.sql`.
+- `npm run test:rls:candidate` stages the canonical SQL and both candidate fixtures
+  in an owned disposable workdir. Run both database phases using the
+  [current instructions](../runbooks/preview-first-party-auth-review.md#validate-ordinary-migrations-and-the-sql-candidate-locally).
+- `npm run test:rls:runner` passed five simulated-CLI tests covering staging,
+  fixture selection, unchanged repository sources and cleanup on failure.
+- BLOCKER — Database execution of the restored ordinary selection and the new
+  candidate runner is NOT TESTED here: this cloud environment has neither the
+  Supabase CLI nor Docker. The 249/249 and 167/167 totals below remain saved
+  evidence for the earlier manual paths, not fresh results for these scripts.
+- The runbook `.sql.draft` is now a non-executable pointer to the candidate,
+  removing the risk of independently edited SQL copies. No runtime or SQL body
+  changed in this tooling follow-up.
+
+## Saved Preview Auth validation checkpoint — 2026-10-14
 
 - At local validation commit `23e320ebf2da74a4231c4f5829f6bfe03b9aebd3`,
   the ordinary `npm run test:rls` path passed **249/249 assertions across nine

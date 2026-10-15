@@ -78,8 +78,8 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"62222222-2222-4222-8222-222222222222","role":"authenticated","aud":"authenticated"}', true);
 select throws_ok(
   $sql$select workspace.ensure_personal_workspace()$sql$,
-  '42501', 'A verified Lead Emergence identity is required.',
-  'sign-in provisioning without a trusted identity denies before membership reactivation'
+  '42501', 'Personal Workspace authorization is not active.',
+  'sign-in provisioning cannot reactivate a revoked product-local membership'
 );
 select throws_ok(
   $sql$select workspace.select_personal_setup_method('native', null)$sql$,
@@ -103,15 +103,11 @@ order by provider_identifier
 limit 1;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"61111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
-select throws_ok(
-  $sql$select workspace.ensure_personal_workspace()$sql$,
-  '42501', 'Personal Workspace integrity requires review.',
-  'existing active owner with missing canonical linkage is denied automatic reconciliation'
-);
+select lives_ok($sql$select workspace.ensure_personal_workspace()$sql$, 'existing active owner can reconcile a verified Entry identity');
 select is(
   (select canonical_user_id from workspace.user_profiles where user_id = '61111111-1111-4111-8111-111111111111'),
-  null::uuid,
-  'denied existing-owner provisioning leaves canonical linkage NULL'
+  '63333333-3333-4333-8333-333333333333'::uuid,
+  'existing owner stores the canonical Entry identity without changing Workspace ownership'
 );
 reset role;
 

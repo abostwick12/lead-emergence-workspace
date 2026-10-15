@@ -93,8 +93,9 @@ for that pin on Entry-dev. No synthetic test UUID is an executable client choice
 The unapproved SQL candidate is at
 `supabase/candidates/20261014101027_preview_first_party_auth_local_validation.sql`,
 outside Supabase's automatically discovered `supabase/migrations/` directory.
-It is byte-identical to `docs/runbooks/preview-first-party-auth.sql.draft`;
-both current Windows working-tree files have SHA-256
+This candidate is the single executable SQL source. The runbook's `.sql.draft`
+file is a pointer to it, not a second maintained SQL body. The candidate's
+validated Windows working-tree SHA-256 was
 `f615dad82ff1cbd169d37a56c4e1712afc173e45b31397496b81186eaa60491`.
 The former migration-path copy was created with `supabase migration new` for
 disposable local testing, but it was never approved as a hosted migration. Only
@@ -110,57 +111,41 @@ execution proposal; this candidate is not an approved hosted package.
 
 ### Validate ordinary migrations and the SQL candidate locally
 
-`npm run test:rls` covers the ordinary migration set and excludes the Preview
-fixture and `workspace_productization.sql`. Historical assertions 18, 20, and
-21 in the latter fixture require the candidate's strict legacy checks; they
-are not valid against the ordinary migration set. Both fixtures run unchanged
-as a separate required local check below, after an explicit candidate install.
-Use a unique disposable workdir for both phases;
-never place the candidate back under this repository's `supabase/migrations/`.
-From the task worktree root:
+Both database phases are required:
 
-```powershell
-$repo = (Resolve-Path .).Path
-$lab = Join-Path $env:TEMP ("preview-auth-" + [guid]::NewGuid().ToString("N"))
-New-Item -ItemType Directory -Path (Join-Path $lab 'supabase/migrations'), (Join-Path $lab 'supabase/tests/database') | Out-Null
-Copy-Item -LiteralPath (Join-Path $repo 'supabase/config.toml'), (Join-Path $repo 'supabase/seed.sql') -Destination (Join-Path $lab 'supabase')
-Copy-Item -LiteralPath (Join-Path $repo 'package.json') -Destination $lab
-Copy-Item -Path (Join-Path $repo 'supabase/migrations/*.sql') -Destination (Join-Path $lab 'supabase/migrations')
-Copy-Item -Path (Join-Path $repo 'supabase/tests/database/*.sql') -Destination (Join-Path $lab 'supabase/tests/database')
-```
+1. Against an owned disposable stack containing only the ordinary migrations,
+   run `npm run test:rls`. This includes the original
+   `supabase/tests/database/workspace_productization.sql` and all 70 of its
+   ordinary-schema assertions, as well as the Calendar fixture. The Preview
+   fixture is excluded because its candidate is intentionally not installed.
+2. Run `npm run test:rls:candidate`. The Node runner requires a Supabase CLI
+   executable and Docker. It creates a separate temporary workdir with a unique
+   project ID and remapped local ports, starts the ordinary schema there, copies
+   the candidate only into that workdir, resets locally, and runs the Preview
+   fixture plus `supabase/tests/candidates/workspace_productization.sql`.
+   The latter preserves the 70 previously validated strict-candidate assertions.
+   The runner never copies `.temp`, linked-project metadata or environment files.
+   It stops its own project with `--no-backup` and removes its temporary workdir.
+   If cleanup fails, it retains that workdir and reports the owned project ID.
 
-In the **copied** `config.toml`, set a unique `project_id` and unused local ports
-before starting the stack. The `npm` command reads the copied package script;
-it does not install dependencies or run in the primary checkout. Run:
+The candidate runner uses a random local port range. To select an unused range,
+run `npm run test:rls:candidate -- --port-base=40000`. A port collision fails
+startup; it does not stop an unrelated stack. Do not copy the candidate back into
+this repository's `supabase/migrations/` or use linked/hosted CLI commands.
+`npm run test:rls:runner` checks staging, fixture selection, source preservation,
+and failure cleanup using a simulated CLI; it is not a database acceptance test.
 
-```powershell
-$projectId = ([regex]::Match((Get-Content -Raw -LiteralPath (Join-Path $lab 'supabase/config.toml')), '(?m)^project_id\s*=\s*"([^"]+)"')).Groups[1].Value
-if (-not $projectId) { throw 'Set a unique project_id in the disposable config first.' }
-Push-Location $lab
-try {
-  supabase start --exclude realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
-  if ($LASTEXITCODE -ne 0) { throw 'Disposable stack did not start.' }
-  npm run test:rls
-  if ($LASTEXITCODE -ne 0) { throw 'Ordinary RLS suite failed; do not install the candidate.' }
-
-  Copy-Item -LiteralPath (Join-Path $repo 'supabase/candidates/20261014101027_preview_first_party_auth_local_validation.sql') -Destination (Join-Path $lab 'supabase/migrations')
-  supabase db reset --local
-  if ($LASTEXITCODE -ne 0) { throw 'Candidate did not install in the disposable stack.' }
-  supabase test db --local supabase/tests/database/preview_first_party_auth.sql supabase/tests/database/workspace_productization.sql
-  if ($LASTEXITCODE -ne 0) { throw 'Preview and historical assertions failed.' }
-} finally {
-  supabase stop --project-id $projectId --no-backup
-  Pop-Location
-}
-```
-
-Confirm both suite totals and fixture rollback, then remove the lab directory
-only after confirming its absolute path. Use no linked or hosted CLI command.
-The two-phase local packaging check passed 221/221 ordinary assertions across
-eight files without the candidate and 167/167 Preview-plus-historical assertions
-across two files after the candidate was installed. Post-test counts were zero
-users and zero workspaces; the disposable ledger contained 39 migrations. These
-local results do not establish hosted readiness.
+Historical packaging checkpoint `4cbc00a61830398f480b916c062830e0abb2cc59`
+on October 14 passed 221/221 ordinary assertions across eight files and 167/167
+candidate assertions across two files. At validation commit
+`23e320ebf2da74a4231c4f5829f6bfe03b9aebd3`, after main integration and the
+Calendar fixture correction, the saved results were 249/249 ordinary assertions
+across nine files and 167/167 candidate assertions. The latter stack had 40
+ordinary migrations plus the candidate, for 41 ledger rows. Fixtures rolled back
+and owned resources were removed. These are saved local results, not hosted
+acceptance. The restored ordinary productization selection and new npm candidate
+runner require a fresh CLI/Docker validation; their database runs have not been
+performed in the cloud review environment.
 
 ## Supporting verification
 
