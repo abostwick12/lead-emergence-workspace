@@ -52,6 +52,14 @@ values ('workspace_preview_browser_client_id','f2000000-0000-4000-8000-000000000
 set local role authenticated;
 select is(current_user::text,'authenticated','positive provisioning uses authenticated role');
 select is((select rolbypassrls from pg_roles where rolname=current_user),false,'positive role cannot bypass RLS');
+select throws_ok($q$update workspace_private.product_settings set setting_value='f2000000-0000-4000-8000-000000000002' where setting_key='workspace_preview_browser_client_id'$q$,'42501',null,'authenticated cannot repin the browser client');
+select throws_ok($q$insert into workspace_private.mcp_oauth_resource_grants(user_id,client_id,resource_uri) values (auth.uid(),'f2000000-0000-4000-8000-000000000003','https://workspace.leademergence.com/api/mcp')$q$,'42501',null,'authenticated cannot forge an MCP grant');
+select throws_ok($q$update workspace_private.mcp_oauth_resource_grants set status='revoked',revoked_at=now() where user_id=auth.uid()$q$,'42501',null,'authenticated cannot revoke an MCP grant');
+select throws_ok($q$select count(*) from workspace_private.product_settings$q$,'42501',null,'authenticated cannot read private product settings');
+select throws_ok($q$select count(*) from workspace_private.mcp_oauth_resource_grants$q$,'42501',null,'authenticated cannot read private MCP grants');
+reset role;
+select is((select setting_value from workspace_private.product_settings where setting_key='workspace_preview_browser_client_id'),'f2000000-0000-4000-8000-000000000001','authenticated cannot change the browser client pin');
+set local role authenticated;
 select set_config('request.preview_workspace_a',(select id::text from workspace.ensure_personal_workspace()),true);
 select is((select canonical_user_id from workspace.user_profiles where user_id=auth.uid()),auth.uid(),'canonical identity is same-project authenticated UUID');
 select is((select entry_provider from workspace.user_profiles where user_id=auth.uid()),'first-party:workspace-preview','first-party marker is distinct from Custom Provider');
