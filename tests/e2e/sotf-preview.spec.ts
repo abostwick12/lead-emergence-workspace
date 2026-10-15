@@ -54,8 +54,9 @@ test("networking strategy shows the 10-person goal and selectable conversation p
   await expect(page.getByText("10 / 10", { exact: true })).toBeVisible();
   await expect(page.locator('[aria-label="People planned this week"] article')).toHaveCount(10);
   const weeklyResults = page.getByRole("region", { name: "Weekly results", exact: true });
-  await expect(weeklyResults.getByRole("row", { name: /2026-08-25/ }).getByRole("cell").first()).toHaveText("10");
-  await expect(weeklyResults.getByRole("row", { name: /2026-08-18/ }).getByRole("cell").first()).toHaveText("5");
+  await expect(weeklyResults.getByRole("row", { name: /2026-08-31/ }).getByRole("cell").first()).toHaveText("10");
+  await expect(weeklyResults.getByRole("row", { name: /2026-08-24/ }).getByRole("cell").first()).toHaveText("10");
+  await expect(weeklyResults.getByRole("row", { name: /2026-08-17/ }).getByRole("cell").first()).toHaveText("5");
   await expect(page.getByText("5", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("region", { name: "Meeting rate", exact: true }).getByText("20%", { exact: true })).toBeVisible();
   const morgan = page.locator("article").filter({ has: page.getByRole("heading", { name: "Morgan — fictional contact", exact: true }) });
