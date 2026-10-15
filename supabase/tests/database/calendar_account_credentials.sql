@@ -1,6 +1,6 @@
 begin;
 
-select plan(37);
+select plan(42);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -80,6 +80,30 @@ select lives_ok(
 );
 reset role;
 select is((select count(*) from workspace_private.calendar_oauth_attempts where workspace_id = 'caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and account_slot = 'personal'), 1::bigint, 'pending flow exists for exact slot');
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"c2222222-2222-4222-8222-222222222222","role":"authenticated","aud":"authenticated"}', true);
+select throws_ok(
+  $sql$select workspace.start_owner_calendar_oauth_attempt('caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'personal', repeat('e', 64), repeat('q', 40))$sql$,
+  '42501', 'Only the Workspace owner may change Calendar credentials.',
+  'another Workspace owner cannot start Alice flow'
+);
+select throws_ok(
+  $sql$select workspace.finish_owner_calendar_oauth_attempt('caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'personal', repeat('c', 64), repeat('x', 40), 1::smallint, repeat('c', 64), null, true)$sql$,
+  '42501', 'Only the Workspace owner may change Calendar credentials.',
+  'another Workspace owner cannot finish Alice flow'
+);
+reset role;
+select is(has_function_privilege('anon', 'workspace.start_owner_calendar_oauth_attempt(uuid,text,text,text)', 'execute'), false, 'anonymous role cannot start Calendar flows');
+select is(has_function_privilege('anon', 'workspace.finish_owner_calendar_oauth_attempt(uuid,text,text,text,smallint,text,timestamptz,boolean)', 'execute'), false, 'anonymous role cannot finish Calendar flows');
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"c1111111-1111-4111-8111-111111111111","role":"authenticated","aud":"authenticated"}', true);
+select throws_ok(
+  $sql$select workspace.finish_owner_calendar_oauth_attempt('caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'personal', repeat('e', 64), repeat('x', 40), 1::smallint, repeat('c', 64), null, true)$sql$,
+  '22023', 'This Calendar connection request has expired.',
+  'wrong state hash cannot finish a live flow'
+);
 
 set local role authenticated;
 select lives_ok(
