@@ -90,13 +90,15 @@ absent the code retains the existing Custom Provider path. With the database pin
 absent OAuth tokens remain denied. A fresh read-only query returned **zero** rows
 for that pin on Entry-dev. No synthetic test UUID is an executable client choice.
 
-The SQL review draft now has one matching forward **local-validation** migration,
-`supabase/migrations/20261014101027_preview_first_party_auth_local_validation.sql`,
-created with `supabase migration new`. Both files have SHA-256
-`2f1cc3eb76a13bc52fd6e89061be54ecaf544c749902e635ed0ed2b63b507502`
-for the tested Windows working-tree bytes. Export manifests identify committed LF
-blob bytes separately where newline normalization changes the physical hash.
-Only a disposable local database received it. All 38 historical migration sources
+The unapproved SQL candidate is at
+`supabase/candidates/20261014101027_preview_first_party_auth_local_validation.sql`,
+outside Supabase's automatically discovered `supabase/migrations/` directory.
+It is byte-identical to `docs/runbooks/preview-first-party-auth.sql.draft`;
+both current Windows working-tree files have SHA-256
+`f615dad82ff1cbd169d37a56c4e1712afc173e45b31397496b81186eaa60491`.
+The former migration-path copy was created with `supabase migration new` for
+disposable local testing, but it was never approved as a hosted migration. Only
+disposable local databases received it. All 38 historical migration sources
 remain unchanged. The originating body was derived from the October 13 Entry-dev
 observation; the director-confirmed current hosted integrity contract now governs
 legacy behavior. The provisioner matches the originally imported draft apart from
@@ -104,7 +106,61 @@ its repaired terminator. The older Workspace-base reconciliation expectations do
 not authorize weaker behavior. A previous bounded hosted read found no installed first-party
 marker/pin, but full historical-definition equality and Auth settings were not
 established. Re-read the target function/constraint/ACL safely before any later
-execution proposal; this local migration is not an approved hosted package.
+execution proposal; this candidate is not an approved hosted package.
+
+### Validate ordinary migrations and the SQL candidate locally
+
+`npm run test:rls` covers the ordinary migration set and excludes the Preview
+fixture and `workspace_productization.sql`. Historical assertions 18, 20, and
+21 in the latter fixture require the candidate's strict legacy checks; they
+are not valid against the ordinary migration set. Both fixtures run unchanged
+as a separate required local check below, after an explicit candidate install.
+Use a unique disposable workdir for both phases;
+never place the candidate back under this repository's `supabase/migrations/`.
+From the task worktree root:
+
+```powershell
+$repo = (Resolve-Path .).Path
+$lab = Join-Path $env:TEMP ("preview-auth-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path (Join-Path $lab 'supabase/migrations'), (Join-Path $lab 'supabase/tests/database') | Out-Null
+Copy-Item -LiteralPath (Join-Path $repo 'supabase/config.toml'), (Join-Path $repo 'supabase/seed.sql') -Destination (Join-Path $lab 'supabase')
+Copy-Item -LiteralPath (Join-Path $repo 'package.json') -Destination $lab
+Copy-Item -Path (Join-Path $repo 'supabase/migrations/*.sql') -Destination (Join-Path $lab 'supabase/migrations')
+Copy-Item -Path (Join-Path $repo 'supabase/tests/database/*.sql') -Destination (Join-Path $lab 'supabase/tests/database')
+```
+
+In the **copied** `config.toml`, set a unique `project_id` and unused local ports
+before starting the stack. The `npm` command reads the copied package script;
+it does not install dependencies or run in the primary checkout. Run:
+
+```powershell
+$projectId = ([regex]::Match((Get-Content -Raw -LiteralPath (Join-Path $lab 'supabase/config.toml')), '(?m)^project_id\s*=\s*"([^"]+)"')).Groups[1].Value
+if (-not $projectId) { throw 'Set a unique project_id in the disposable config first.' }
+Push-Location $lab
+try {
+  supabase start --exclude realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+  if ($LASTEXITCODE -ne 0) { throw 'Disposable stack did not start.' }
+  npm run test:rls
+  if ($LASTEXITCODE -ne 0) { throw 'Ordinary RLS suite failed; do not install the candidate.' }
+
+  Copy-Item -LiteralPath (Join-Path $repo 'supabase/candidates/20261014101027_preview_first_party_auth_local_validation.sql') -Destination (Join-Path $lab 'supabase/migrations')
+  supabase db reset --local
+  if ($LASTEXITCODE -ne 0) { throw 'Candidate did not install in the disposable stack.' }
+  supabase test db --local supabase/tests/database/preview_first_party_auth.sql supabase/tests/database/workspace_productization.sql
+  if ($LASTEXITCODE -ne 0) { throw 'Preview and historical assertions failed.' }
+} finally {
+  supabase stop --project-id $projectId --no-backup
+  Pop-Location
+}
+```
+
+Confirm both suite totals and fixture rollback, then remove the lab directory
+only after confirming its absolute path. Use no linked or hosted CLI command.
+The two-phase local packaging check passed 221/221 ordinary assertions across
+eight files without the candidate and 167/167 Preview-plus-historical assertions
+across two files after the candidate was installed. Post-test counts were zero
+users and zero workspaces; the disposable ledger contained 39 migrations. These
+local results do not establish hosted readiness.
 
 ## Supporting verification
 

@@ -173,14 +173,18 @@ select set_config('request.jwt.claims',current_setting('request.preview_a_claims
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims',(current_setting('request.preview_a_claims')::jsonb || '{"sub":"f1000000-0000-4000-8000-000000000003","session_id":"f3000000-0000-4000-8000-000000000003"}'::jsonb)::text,true);
+select is((select count(*) from workspace.user_profiles where user_id=auth.uid()),0::bigint,'incompatible canonical linkage hides the caller profile');
 select throws_ok($q$select workspace.ensure_personal_workspace()$q$,'42501',null,'incompatible canonical linkage is rejected rather than repaired');
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims',(current_setting('request.preview_a_claims')::jsonb || '{"sub":"f1000000-0000-4000-8000-000000000004","session_id":"f3000000-0000-4000-8000-000000000004"}'::jsonb)::text,true);
+select is((select count(*) from workspace.workspaces where id='f5000000-0000-4000-8000-000000000004'),0::bigint,'broken owner membership hides the owned workspace');
+with changed as (update workspace.workspaces set name='unauthorized broken-graph update' where id='f5000000-0000-4000-8000-000000000004' returning id) select is(count(*),0::bigint,'broken owner membership blocks direct workspace writes') from changed;
 select throws_ok($q$select workspace.ensure_personal_workspace()$q$,'42501',null,'broken owner membership is rejected rather than repaired');
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims',(current_setting('request.preview_a_claims')::jsonb || '{"sub":"f1000000-0000-4000-8000-000000000005","session_id":"f3000000-0000-4000-8000-000000000005"}'::jsonb)::text,true);
+select is((select count(*) from workspace.user_profiles where user_id=auth.uid()),0::bigint,'incompatible provider linkage hides the caller profile');
 select throws_ok($q$select workspace.ensure_personal_workspace()$q$,'42501',null,'incompatible provider linkage is rejected rather than repaired');
 reset role;
 select is(md5(jsonb_build_object(

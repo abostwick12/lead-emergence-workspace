@@ -86,7 +86,9 @@ export const commandEnvelopeSchema = z.strictObject({ requestId: z.string().uuid
 const persistedPersonSchema = z.strictObject({
   ...personSchema.pick({ id: true, name: true, company: true, role: true, email: true, source: true }).shape,
   testRecord: z.boolean().optional(),
-  ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true, testRecord: true }).shape
+  ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true, testRecord: true }).shape,
+  // Read future owner-reviewed prep questions before a later writer may save them.
+  conversationQuestions: z.array(short).max(3).optional()
 });
 const persistedCommandSchema = z.union([
   z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),

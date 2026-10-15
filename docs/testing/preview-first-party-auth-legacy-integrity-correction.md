@@ -156,7 +156,9 @@ is owner-provided evidence, not a new inspection by this agent. The earlier inci
 is retained in the historical report and is not erased by this correction.
 
 Real hosted sign-in, cookies, concurrent renewal/rotation, sign-out and ChatGPT
-acceptance remain NOT TESTED. No PR exists; CodeRabbit review of the eventual exact
+acceptance remain NOT TESTED. At the time of this correction, no PR existed. See
+the [current review runbook](../runbooks/preview-first-party-auth-review.md) for
+current PR and exact-head review status. CodeRabbit review of the eventual exact
 head remains required before a later merge. Next step is director/local security
 review of this corrected export; strong security-capable model/high reasoning,
 small, with no hosted operation required.

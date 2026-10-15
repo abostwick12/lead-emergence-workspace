@@ -196,4 +196,5 @@
 .networkingHistoryStatus[data-status="conversation_completed"] { border-color:#75a88966; background:#4e8d6730; color:#b7dfc5; }
 .networkingHistoryStatus[data-status="no_response"] { border-color:#a97f7266; background:#a1695926; color:#e3b9aa; }
 @media(max-width:1350px) { .networkingMetrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .networkingMetrics>section:last-child { grid-column:1/-1; } }
+@media(max-width:1200px) { .networkingGrid,.networkingPrepColumns { grid-template-columns:1fr; } }
 @media(max-width:760px) { .networkingMetrics,.networkingGrid,.networkingPrepColumns { grid-template-columns:1fr; } .networkingMetrics>section:last-child { grid-column:auto; } .networkingPanel { padding:18px; } .networkingRationale { grid-template-columns:1fr; } .networkingRationale dd { margin-bottom:8px; } .networkingCandidateHeading { flex-direction:column; gap:8px; } .networkingQueueList { max-height:520px; } }

@@ -37,6 +37,42 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
             AND grant_record.client_id::text = auth.jwt() ->> 'client_id'
             AND grant_record.status = 'active'
         )
+        AND (
+          (
+            NOT EXISTS (
+              SELECT 1 FROM workspace.user_profiles AS profile
+              WHERE profile.user_id = auth.uid()
+                AND (profile.canonical_user_id IS NOT NULL OR profile.entry_provider IS NOT NULL)
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM workspace.workspaces AS owned_workspace
+              WHERE owned_workspace.owner_user_id = auth.uid()
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM workspace.workspace_memberships AS membership
+              WHERE membership.user_id = auth.uid()
+            )
+          )
+          OR (
+            (SELECT count(*) FROM workspace.workspaces AS personal_workspace
+             WHERE personal_workspace.workspace_type = 'personal'
+               AND personal_workspace.owner_user_id = auth.uid()) = 1
+            AND EXISTS (
+              SELECT 1 FROM workspace.user_profiles AS profile
+              WHERE profile.user_id = auth.uid()
+                AND profile.canonical_user_id = auth.uid()
+                AND profile.entry_provider = 'first-party:workspace-preview'
+            )
+            AND (SELECT count(*) FROM workspace.workspace_memberships AS membership
+                 JOIN workspace.workspaces AS personal_workspace
+                   ON personal_workspace.id = membership.workspace_id
+                 WHERE personal_workspace.workspace_type = 'personal'
+                   AND personal_workspace.owner_user_id = auth.uid()
+                   AND membership.user_id = auth.uid()
+                   AND membership.role = 'owner'
+                   AND membership.status = 'active') = 1
+          )
+        )
       )
     ), false);
 $$;

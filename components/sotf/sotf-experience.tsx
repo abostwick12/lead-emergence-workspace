@@ -111,13 +111,17 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
   const coach = prepareCoaching(state);
   const brief = dailyBrief(state, now);
   const pendingEvidence = state.evidence.filter((item) => item.review === "pending");
-  const networking = networkingStrategy(state, latestNetworkingWeek(state), now);
+  const networking = networkingStrategy(state, latestNetworkingWeek(state, preview ? undefined : now), now);
   const networkingSummary = networking.weekOf ? `Week of ${networking.weekOf} · ${networking.queued} planned · ${networking.attemptsMade} recorded attempts · ${networking.conversationsGenerated} recorded meetings.` : "No networking week recorded yet.";
   const networkingCandidateIds = new Set(networking.candidates.map(({ person }) => person.id));
   const networkingActions = state.actions.filter((item) => item.personId && networkingCandidateIds.has(item.personId) && ["email", "direct_message", "public_comment"].includes(item.kind));
   const networkingContacts = state.people.filter((person) => !person.testRecord && person.networking);
   const networkingContactIds = new Set(networkingContacts.map((person) => person.id));
-  const networkingWeeks = [...new Set(networkingContacts.map((person) => person.networking!.weekOf))].sort().reverse();
+  const networkingWeeks = [...new Set(networkingContacts.map((person) => {
+    const monday = new Date(`${person.networking!.weekOf}T00:00:00.000Z`);
+    monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+    return monday.toISOString().slice(0, 10);
+  }))].sort().reverse();
   const networkingWaiting = networking.candidates.filter(({ person }) => person.networking!.status === "attempted" && networkingActions.some((action) => action.personId === person.id && action.state === "manually_completed"));
   const networkingMeetings = state.meetings.filter((meeting) => meeting.kind === "networking" && meeting.status !== "cancelled" && meeting.personId && networkingContactIds.has(meeting.personId)).sort((left, right) => {
     const leftUpcoming = left.status !== "completed" && left.startsAt >= now;
@@ -244,7 +248,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
         })}</section> : null}
       </div>
     </> : null}
-    <footer className={styles.footer}><span>See it. Interpret it. Decide. Act. Learn.</span><span>SOTF Bundle · ordinary transition operations</span></footer>
+    <footer className={styles.footer}><span>SOTF Bundle · ordinary transition operations</span></footer>
     {schedulingPerson && state.people.find((person) => person.id === schedulingPerson) ? <ScheduleConversation person={state.people.find((person) => person.id === schedulingPerson)!} onSave={save} onClose={() => setSchedulingPerson(null)} /> : null}
     {editor ? <WorkflowEditor key={editor.intent + (editor.recordId ?? "")} intent={editor.intent} state={state} recordId={editor.recordId} onSave={save} onClose={() => setEditor(null)} /> : null}
   </section>;

@@ -1,8 +1,22 @@
 # Test evidence
 
-## Preview first-party Auth review follow-up — 2026-10-14
+## Current Preview Auth validation — 2026-10-14
 
-- The standard `npm run test:rls` script now includes
+- At local validation commit `23e320ebf2da74a4231c4f5829f6bfe03b9aebd3`,
+  the ordinary `npm run test:rls` path passed **249/249 assertions across nine
+  fixtures** with the 40 ordinary migrations and no Preview candidate installed.
+- The separate required candidate path passed **167/167 assertions across two
+  fixtures**, including all 70 historical productization assertions, after the
+  candidate was explicitly copied into an owned disposable stack. Its ledger
+  contained 40 ordinary migrations plus one candidate. The repository candidate
+  remains outside automatic migration discovery.
+- Run both phases using the [two-phase local validation instructions](../runbooks/preview-first-party-auth-review.md#validate-ordinary-migrations-and-the-sql-candidate-locally).
+  `test:rls` alone does not validate the Preview feature. These are saved local
+  results, not hosted acceptance or exact-head CodeRabbit approval.
+
+## Historical Preview first-party Auth review follow-up — 2026-10-14
+
+- At this earlier checkpoint, the standard `npm run test:rls` script included
   `supabase/tests/database/preview_first_party_auth.sql` in its explicit file list.
   On disposable local project `preview-auth-review-20261014`, all 10 listed
   fixtures passed: **384/384 assertions**, `Files=10`, `Result: PASS`, exit 0.

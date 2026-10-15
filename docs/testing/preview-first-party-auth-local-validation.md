@@ -1,5 +1,11 @@
 # First-party Preview Auth: Desktop validation evidence
 
+**Current local rerun instructions:** the unapproved SQL candidate now lives at
+`supabase/candidates/20261014101027_preview_first_party_auth_local_validation.sql`,
+outside automatic migration discovery. Stage a copy only in a disposable local
+workdir as described in the [review runbook](../runbooks/preview-first-party-auth-review.md#validate-ordinary-migrations-and-the-sql-candidate-locally).
+Migration paths and command results below describe the historical run.
+
 **Later corrections:** see the [legacy integrity correction](preview-first-party-auth-legacy-integrity-correction.md)
 and [final expectation correction](preview-first-party-auth-historical-expectations.md).
 The director-confirmed current hosted contract requires strict legacy identity and
@@ -220,9 +226,11 @@ Local validation is complete for the stated matrix. Real hosted sign-in, browser
 cookies, concurrent renewal/rotation, sign-out, ChatGPT continuation, and deployment
 readiness remain NOT TESTED. No real login/consent, client registration, push, PR,
 merge or deployment occurred. Hosted impact is the CLI credential initialization
-described below; it must not be reported as None. No PR or CodeRabbit review exists
-for this local branch; open review threads are not applicable. Exact-head CodeRabbit
-review remains mandatory before any later merge.
+described below; it must not be reported as None. At the time of this validation
+handoff, no PR or CodeRabbit review had been recorded for this branch. See the
+[current review runbook](../runbooks/preview-first-party-auth-review.md) for PR
+and exact-head review status; exact-head review remains mandatory before any
+later merge.
 
 ## Hosted connection side effect: stop and owner handoff
 
