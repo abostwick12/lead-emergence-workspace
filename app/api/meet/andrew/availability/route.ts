@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { networkingSlotsForDate, type NetworkingMeetingType } from "@/lib/calendar/availability-slots";
+import { claimCalendarAvailabilityRead } from "@/lib/calendar/availability-budget";
 import { googleCalendarReadAdapter } from "@/lib/calendar/google-freebusy";
 import { requireBothCalendarReads } from "@/lib/sotf/scheduling";
 
@@ -46,6 +47,10 @@ export async function GET(request: Request) {
 
   const workspaceId = process.env.WORKSPACE_CALENDAR_OWNER_WORKSPACE_ID?.trim();
   if (!workspaceId || !ownerWorkspacePattern.test(workspaceId)) {
+    return NextResponse.json({ status: "unavailable" }, { status: 503, headers });
+  }
+  const budgetAllowed = await claimCalendarAvailabilityRead(workspaceId).catch(() => false);
+  if (!budgetAllowed) {
     return NextResponse.json({ status: "unavailable" }, { status: 503, headers });
   }
 

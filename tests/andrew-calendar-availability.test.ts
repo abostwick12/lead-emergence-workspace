@@ -6,6 +6,19 @@ const calendar = vi.hoisted(() => ({
   slots: [] as string[],
   fail: null as string | null
 }));
+const budget = vi.hoisted(() => ({
+  claims: [] as string[],
+  allowed: true,
+  fail: false
+}));
+
+vi.mock("@/lib/calendar/availability-budget", () => ({
+  claimCalendarAvailabilityRead: async (workspaceId: string) => {
+    budget.claims.push(workspaceId);
+    if (budget.fail) throw new Error("Budget store unavailable");
+    return budget.allowed;
+  }
+}));
 
 vi.mock("@/lib/calendar/google-freebusy", () => ({
   googleCalendarReadAdapter: (_workspaceId: string, slot: string) => ({
@@ -35,6 +48,9 @@ beforeEach(() => {
   vi.stubEnv("WORKSPACE_CALENDAR_OWNER_WORKSPACE_ID", workspaceId);
   calendar.slots = [];
   calendar.fail = null;
+  budget.claims = [];
+  budget.allowed = true;
+  budget.fail = false;
 });
 
 afterEach(() => {
@@ -48,6 +64,7 @@ describe("public Andrew availability", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toContain("no-store");
     expect(calendar.slots).toEqual(["personal", "business"]);
+    expect(budget.claims).toEqual([workspaceId]);
     const result = await response.json();
     expect(result.status).toBe("available");
     expect(result.slots).not.toContainEqual({ start: "2026-10-19T14:00:00.000Z", end: "2026-10-19T14:30:00.000Z" });
@@ -78,6 +95,19 @@ describe("public Andrew availability", () => {
     const response = await GET(request());
     expect(response.status).toBe(503);
     expect(calendar.slots).toEqual([]);
+    expect(budget.claims).toEqual([]);
+  });
+
+  it("does not touch either Calendar when the owner-wide budget denies or fails", async () => {
+    budget.allowed = false;
+    const denied = await GET(request());
+    budget.fail = true;
+    const unavailable = await GET(request());
+    expect([denied.status, unavailable.status]).toEqual([503, 503]);
+    expect(await denied.json()).toEqual({ status: "unavailable" });
+    expect(await unavailable.json()).toEqual({ status: "unavailable" });
+    expect(budget.claims).toEqual([workspaceId, workspaceId]);
+    expect(calendar.slots).toEqual([]);
   });
 
   it("rejects invalid meeting types and dates before reading accounts", async () => {
@@ -86,5 +116,6 @@ describe("public Andrew availability", () => {
     const pastDate = await GET(request("2026-10-14"));
     expect([wrongType.status, wrongDate.status, pastDate.status]).toEqual([400, 400, 400]);
     expect(calendar.slots).toEqual([]);
+    expect(budget.claims).toEqual([]);
   });
 });
