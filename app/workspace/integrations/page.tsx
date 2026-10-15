@@ -267,7 +267,7 @@ export default function IntegrationsPage() {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId: workspace.id })
       });
-      const payload = await response.json() as { authorizationUrl?: string; message?: string };
+      const payload = await response.json().catch(() => ({})) as { authorizationUrl?: string; message?: string };
       if (!response.ok) throw new Error(payload.message || "Could not change Calendar account.");
       if (disconnect) {
         setCalendarStatus((current) => ({ ...current, [slot]: false }));
