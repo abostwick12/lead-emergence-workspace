@@ -531,6 +531,18 @@ describe("SOTF reusable evidence, applications, and next chapter", () => {
 });
 
 describe("SOTF persistence integrity", () => {
+  it("rejects test people in new chapter links while replaying earlier links", () => {
+    const h = harness();
+    h.run({ type: "save_person", person: { ...contact, testRecord: true } });
+    h.run({ type: "save_person", person: { ...contact, id: "real-person", name: "Fictional Real Contact", testRecord: false } });
+    const command = { type: "close_chapter", reflection: "Keep useful relationships", carryForward: [contact.id], nextFocus: "Continue learning" };
+    const operation = envelope(h.state, command);
+    expect(() => applyCommand(h.state, operation, now)).toThrow("Choose existing operational records to carry forward.");
+    expect(applyCommand(h.state, operation, now, "persisted_event").chapter?.carryForward).toEqual([contact.id]);
+    const realOperation = envelope(h.state, { ...command, carryForward: ["real-person"] });
+    expect(applyCommand(h.state, realOperation, now).chapter?.carryForward).toEqual(["real-person"]);
+  });
+
   it("replays a historical approved message and its completed result without a review declaration", () => {
     const h = harness();
     h.run({ type: "save_person", person: contact });
