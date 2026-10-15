@@ -76,7 +76,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
     setBusy(true); setError(""); setMessage("");
     try {
       const updated = preview ? applyCommand(state, envelope) : (await request(envelope)).state;
-      setState(updated); if (command.type === "record_opportunity") { setView("Opportunities"); setSelected(command.opportunity.id); setPanel(null); } if (command.type === "save_person") { setView("People"); setPanel(null); } setMessage(updated.changes.at(-1)?.summary ?? "Saved and verified.");
+      setState(updated); if (command.type === "record_opportunity") { setView("Opportunities"); setSelected(command.opportunity.id); setPanel(null); } if (command.type === "save_person") { if (view !== "Networking" || editor?.intent !== "person") setView("People"); setPanel(null); } setMessage(updated.changes.at(-1)?.summary ?? "Saved and verified.");
     } catch (caught) {
       const text = caught instanceof Error ? caught.message : "The save could not be verified.";
       if (!preview && !(caught instanceof SaveRejected)) setPending(envelope);
@@ -193,7 +193,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
               <p className={styles.eyebrow}>Conversation prep</p>
               {visibleNetworkingMeetings.length ? visibleNetworkingMeetings.map((meeting, index) => {
                 const prepared = prepareMeeting(state, meeting.id);
-                const featuredQuestions = prepared.questions.filter((question) => question.trim().endsWith("?")).slice(0, 3);
+                const featuredQuestions = prepared.person?.conversationQuestions?.length ? prepared.questions : prepared.questions.filter((question) => question.trim().endsWith("?")).slice(0, 3);
                 return <details key={meeting.id} className={styles.networkingPrep} open={index === 0}>
                   <summary className={styles.networkingMeetingSummary}><strong>Conversation prep · {meeting.title}</strong><span>{meeting.status} · {displayDate(meeting.startsAt)}</span></summary>
                   <p className={styles.networkingPrepIdentity}>{prepared.company} · {prepared.functionContext}</p>
@@ -203,7 +203,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
                     <div><h4>Questions to ask</h4><ol className={styles.networkingQuestionList}>{(featuredQuestions.length ? featuredQuestions : prepared.questions.slice(0, 3)).map((question) => <li key={question}>{question}</li>)}</ol></div>
                   </div>
                   <details className={styles.networkingPrepMore}><summary>More notes and questions</summary><p>{prepared.introduction}</p>{prepared.alreadyKnown.length > 3 ? <><h4>More sourced context</h4><List items={prepared.alreadyKnown.slice(3).map((item) => item.statement)} /></> : null}{prepared.questions.length > 3 ? <><h4>Full question list</h4><List items={prepared.questions} /></> : null}<h4>Earlier interactions</h4><List items={prepared.priorInteractions.map((item) => item.title + ": " + item.said)} /><h4>Keep out of the conversation</h4><List items={prepared.avoid} /></details>
-                  <div className={styles.actions}><button onClick={() => edit("meeting", meeting.id)}>Review conversation</button>{meeting.debrief ? <button onClick={() => edit("evidence", meeting.id)}>Review conversation evidence</button> : <button onClick={() => edit("debrief", meeting.id)}>Debrief this conversation</button>}</div>
+                  <div className={styles.actions}>{prepared.person ? <button onClick={() => { if (prepared.person) edit("person", prepared.person.id); }}>Edit questions</button> : null}<button onClick={() => edit("meeting", meeting.id)}>Review conversation</button>{meeting.debrief ? <button onClick={() => edit("evidence", meeting.id)}>Review conversation evidence</button> : <button onClick={() => edit("debrief", meeting.id)}>Debrief this conversation</button>}</div>
                 </details>;
               }) : networkingPrepCandidate ? <article className={styles.networkingPrep}>
                 <h3>Conversation prep · {networkingPrepCandidate.person.name}</h3>
@@ -212,9 +212,9 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
                 <div className={styles.networkingPrepReason}><span>Reason for reaching out</span><p>{networkingPrepCandidate.rationale.whyPerson}</p></div>
                 <div className={styles.networkingPrepColumns}>
                   <div><h4>Source notes</h4>{networkingPrepEvidence.length ? <ul className={styles.networkingSourceList}>{networkingPrepEvidence.map((item) => <li key={item.id}><span>{item.statement}</span><small>↳ {item.source.url ? <a href={item.source.url} target="_blank" rel="noreferrer">{item.source.reference}</a> : item.source.reference}</small></li>)}</ul> : <p className={styles.help}>No reviewed notes for this person yet. Verify the recorded role and company before a conversation.</p>}{networkingPrepCandidate.person.networking!.sourceUrl ? <a href={networkingPrepCandidate.person.networking!.sourceUrl} target="_blank" rel="noreferrer">Review supplied source ↗</a> : <span className={styles.help}>Source note: {networkingPrepCandidate.person.source}</span>}</div>
-                  <div><h4>What to learn</h4><p>{networkingPrepCandidate.rationale.learningObjective}</p><h4>Questions to ask</h4><ol className={styles.networkingQuestionList}><li>What does a normal week look like for you at {networkingPrepCandidate.person.company}?</li><li>Who makes the key decisions in {networkingPrepCandidate.rationale.lamp.list.toLowerCase()}, and where do other leaders get involved?</li><li>What does ready look like for {networkingPrepCandidate.rationale.lamp.list.toLowerCase()}? Who else should I talk to?</li></ol><h4>Next step</h4><p>{networkingPrepCandidate.rationale.recommendedNextAction}</p></div>
+                  <div><h4>What to learn</h4><p>{networkingPrepCandidate.rationale.learningObjective}</p><h4>Questions to ask</h4><ol className={styles.networkingQuestionList}>{(networkingPrepCandidate.person.conversationQuestions?.length ? networkingPrepCandidate.person.conversationQuestions : [`What does a normal week look like for you at ${networkingPrepCandidate.person.company}?`, `Who makes the key decisions in ${networkingPrepCandidate.rationale.lamp.list.toLowerCase()}, and where do other leaders get involved?`, `What does ready look like for ${networkingPrepCandidate.rationale.lamp.list.toLowerCase()}? Who else should I talk to?`]).map((question) => <li key={question}>{question}</li>)}</ol><h4>Next step</h4><p>{networkingPrepCandidate.rationale.recommendedNextAction}</p></div>
                 </div>
-                <div className={styles.actions}><button onClick={() => edit("evidence", networkingPrepCandidate.person.id)}>Add source note for review</button></div>
+                <div className={styles.actions}><button onClick={() => edit("person", networkingPrepCandidate.person.id)}>Edit questions</button><button onClick={() => edit("evidence", networkingPrepCandidate.person.id)}>Add source note for review</button></div>
               </article> : <p className={styles.empty}>Add a person with a source to prepare for a conversation.</p>}
               <p className={styles.help}>These notes do not mean a message was sent or a meeting was booked.</p>
             </section>
