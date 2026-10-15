@@ -46,7 +46,11 @@ already repaired statement terminator: `ORIGINAL_PROVISIONER_MATCH PASS`.
 The entire `workspace_private.is_direct_session()` definition was compared with
 commit `95f28f6`: `FIRST_PARTY_AND_COALESCE_UNCHANGED PASS`.
 
-The forward local-validation migration and SQL review draft are byte-identical:
+At this historical checkpoint, the forward local-validation migration and SQL
+review draft were byte-identical. The paths and hash below record that checkpoint.
+The current executable source is the candidate described in the
+[review runbook](../runbooks/preview-first-party-auth-review.md); the `.sql.draft`
+file is now a pointer, and the candidate is outside automatic migration discovery:
 
 ```text
 docs/runbooks/preview-first-party-auth.sql.draft

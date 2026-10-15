@@ -95,12 +95,15 @@ The unapproved SQL candidate is at
 outside Supabase's automatically discovered `supabase/migrations/` directory.
 This candidate is the single executable SQL source. The runbook's `.sql.draft`
 file is a pointer to it, not a second maintained SQL body. The candidate's
-validated Windows working-tree SHA-256 was
+validated Windows working-tree SHA-256 (CRLF line endings) was
 `f615dad82ff1cbd169d37a56c4e1712afc173e45b31397496b81186eaa60491`.
+The committed LF bytes have SHA-256
+`fa77f15b6a18933e96fe20b9e30c7c15a5d05522a12160ca70da3698e720af49`.
 The former migration-path copy was created with `supabase migration new` for
 disposable local testing, but it was never approved as a hosted migration. Only
-disposable local databases received it. All 38 historical migration sources
-remain unchanged. The originating body was derived from the October 13 Entry-dev
+disposable local databases received it. The original local checkpoint had 38
+ordinary migrations; current main has 40. This branch does not change those
+ordinary migration sources. The originating body was derived from the October 13 Entry-dev
 observation; the director-confirmed current hosted integrity contract now governs
 legacy behavior. The provisioner matches the originally imported draft apart from
 its repaired terminator. The older Workspace-base reconciliation expectations do

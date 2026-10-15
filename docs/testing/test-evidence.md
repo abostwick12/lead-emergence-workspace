@@ -1,6 +1,26 @@
 # Test evidence
 
-## Candidate runner cleanup correction — 2026-10-15
+## Candidate cleanup result and failure diagnostics — 2026-10-15
+
+- The supplied Desktop report for clean detached commit
+  `6df003b5025c90d8eda77d6eebd045a3f4d90b99` records candidate **167/167 PASS**
+  at port base 61900. Independent before/after checks reported zero new containers,
+  volumes, networks or candidate workdirs. Its sanitized evidence SHA-256 is
+  `54691e99ddab5b6e3eaef4f625965c9400f4fbd60423370f00bd24ef902ff857`.
+  This is supplied Desktop evidence, not a database run repeated or an evidence
+  file independently inspected in this cloud environment. It supersedes the
+  earlier request below to establish real cleanup behavior at that commit.
+- A subsequent bounded review correction preserves the original operation error
+  when cleanup also fails: both diagnostics are included and the original error
+  is attached as `cause`. Failed cleanup still retains the owned workdir.
+- Local native runner tests passed **10/10**, including simultaneous database-reset
+  and stop failures. This diagnostic correction changes no SQL, fixtures, Auth
+  runtime, project-ID generation, stop command or Docker ownership checks.
+- Hosted Entry-dev visibility and browser acceptance remain unverified. The
+  supplied report still records a permission denial; no hosted retry or change
+  was performed for this follow-up.
+
+## Historical candidate runner cleanup correction — 2026-10-15
 
 - The Desktop validation report at `480ee8e` records candidate 167/167 PASS
   and ordinary PASS across ten fixtures (319/319 in its earlier exact-head run).

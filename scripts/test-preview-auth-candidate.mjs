@@ -25,7 +25,7 @@ export function validateCandidate({ repoRoot, portBase = randomInt(20000, 60000)
     if (/^(SUPABASE_|PG)/i.test(key)) delete env[key];
   }
   let attemptedStart = false;
-  let cleanupFailed = false;
+  let primaryError;
   function command(args) {
     const result = run(cli, args, { cwd: lab, env, encoding: "utf8", shell: false });
     // Start/reset can print generated local credentials; do not echo them.
@@ -62,31 +62,33 @@ export function validateCandidate({ repoRoot, portBase = randomInt(20000, 60000)
     copyFileSync(join(repoRoot, "supabase", "candidates", candidate), join(lab, "supabase", "migrations", candidate));
     command(["db", "reset", "--local"]);
     command(["test", "db", "--local", ...fixtures.map(name => `supabase/tests/database/${name}`)]);
-  } finally {
+  } catch (error) {
+    primaryError = error;
+  }
+  try {
     if (attemptedStart) {
-      try {
-        command(["stop", "--project-id", projectId, "--no-backup"]);
-        const filter = `label=com.supabase.cli.project=${projectId}`;
-        const inspections = [
-          ["ps", "--all", "--filter", filter, "--format", "{{.ID}}"],
-          ["volume", "ls", "--filter", filter, "--format", "{{.Name}}"],
-          ["network", "ls", "--filter", filter, "--format", "{{.ID}}"]
-        ];
-        for (const args of inspections) {
-          const result = run("docker", args, { cwd: lab, env, encoding: "utf8", shell: false });
-          if (result.error || result.status !== 0 || typeof result.stdout !== "string") {
-            throw new Error(`Cannot verify owned Docker ${args[0]} cleanup.`);
-          }
-          if (result.stdout.trim()) throw new Error(`Owned Docker ${args[0]} resources remain after stop.`);
+      command(["stop", "--project-id", projectId, "--no-backup"]);
+      const filter = `label=com.supabase.cli.project=${projectId}`;
+      const inspections = [
+        ["ps", "--all", "--filter", filter, "--format", "{{.ID}}"],
+        ["volume", "ls", "--filter", filter, "--format", "{{.Name}}"],
+        ["network", "ls", "--filter", filter, "--format", "{{.ID}}"]
+      ];
+      for (const args of inspections) {
+        const result = run("docker", args, { cwd: lab, env, encoding: "utf8", shell: false });
+        if (result.error || result.status !== 0 || typeof result.stdout !== "string") {
+          throw new Error(`Cannot verify owned Docker ${args[0]} cleanup.`);
         }
-      }
-      catch (error) {
-        cleanupFailed = true;
-        throw new Error(`${error.message} Inspect owned project ${projectId}; workdir retained at ${lab}.`);
+        if (result.stdout.trim()) throw new Error(`Owned Docker ${args[0]} resources remain after stop.`);
       }
     }
-    if (!cleanupFailed) rmSync(lab, { recursive: true, force: true });
+    rmSync(lab, { recursive: true, force: true });
+  } catch (error) {
+    const primaryMessage = primaryError ? `${primaryError.message} Cleanup also failed: ` : "";
+    throw new Error(`${primaryMessage}${error.message} Inspect owned project ${projectId}; workdir retained at ${lab}.`,
+      { cause: primaryError ?? error });
   }
+  if (primaryError) throw primaryError;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

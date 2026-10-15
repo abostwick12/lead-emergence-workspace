@@ -128,3 +128,22 @@ test("an unavailable Docker inventory fails cleanup verification", () => {
     if (lab) rmSync(lab, { recursive: true, force: true });
   }
 });
+
+
+test("a cleanup failure preserves the original database failure and both diagnostics", () => {
+  const root = source(); let lab;
+  try {
+    assert.throws(() => validateCandidate({ repoRoot: root, run: (_cli, args, options) => {
+      lab = options.cwd;
+      return { status: args[0] === "db" || args[0] === "stop" ? 1 : 0, stdout: "" };
+    } }), error => {
+      assert.match(error.message, /db reset failed.*Cleanup also failed:.*stop.*failed.*workdir retained/);
+      assert.match(error.cause.message, /db reset failed/);
+      return true;
+    });
+    assert.equal(existsSync(lab), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    if (lab) rmSync(lab, { recursive: true, force: true });
+  }
+});
