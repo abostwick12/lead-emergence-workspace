@@ -13,8 +13,8 @@ describe("Andrew calendar time zones", () => {
     expect(markup).toContain('value="America/Chicago"');
     expect(markup).toContain('value="Europe/London"');
     expect(markup).toContain('value="Asia/Tokyo"');
-    expect(markup).toContain("Live availability is not connected yet.");
-    expect(markup).toContain("No time is being held or booked.");
+    expect(markup).toContain("Select a date to see available times.");
+    expect(markup).toContain("This page doesn&#x27;t book meetings yet.");
     expect(markup).toContain("Your time zone");
   });
 

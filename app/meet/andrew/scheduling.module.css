@@ -37,6 +37,8 @@
 .times h3 { margin:0; color:#fff; font-size:17px; }
 .selectedDate { min-height:37px; margin:10px 0 17px; color:#9fcbd5; font-size:13px; }
 .unavailable { padding:18px; border:1px solid rgb(100 200 209 / .22); border-radius:8px; background:rgb(100 200 209 / .08); color:#c8d8df; font-size:14px; line-height:1.6; }
+.slotList { display:grid; gap:8px; max-height:340px; margin:0; padding:0; overflow:auto; list-style:none; }
+.slotList li { padding:11px 12px; border:1px solid rgb(100 200 209 / .27); border-radius:8px; background:rgb(100 200 209 / .09); color:#f1f6f5; font-size:13px; line-height:1.45; }
 .footer { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-top:22px; }
 .footer p { max-width:32ch; margin:0; color:#bacbd3; font-size:13px; line-height:1.5; }
 .footer button { display:inline-flex; align-items:center; justify-content:center; gap:12px; min-width:170px; min-height:47px; border:0; border-radius:7px; background:var(--brass); color:#14202c; font-weight:800; }

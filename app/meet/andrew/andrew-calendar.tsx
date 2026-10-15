@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, Clock3, ExternalLink } from "lucide-react";
 import styles from "./scheduling.module.css";
 
@@ -10,6 +10,16 @@ const meetingTypes = [
 ] as const;
 
 const baseTimeZones = ["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles"];
+type AvailableSlot = { start: string; end: string };
+type Availability = { key: string; status: "loading" | "available" | "unavailable"; slots: AvailableSlot[] };
+
+function isAvailableSlots(value: unknown): value is AvailableSlot[] {
+  return Array.isArray(value) && value.length <= 16 && value.every(slot =>
+    slot && typeof slot === "object" && typeof slot.start === "string" && typeof slot.end === "string" &&
+    Number.isFinite(Date.parse(slot.start)) && Number.isFinite(Date.parse(slot.end)) &&
+    Date.parse(slot.end) > Date.parse(slot.start)
+  );
+}
 
 function dateKey(date: Date) {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
@@ -39,6 +49,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [meetingType, setMeetingType] = useState<(typeof meetingTypes)[number]["value"]>("networking_30");
   const [timeZone, setTimeZone] = useState("America/Chicago");
+  const [availability, setAvailability] = useState<Availability | null>(null);
   const timeZones = useMemo(() => {
     const supported = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
     return [...new Set([timeZone, ...baseTimeZones, ...supported])].sort((a, b) => a.localeCompare(b));
@@ -46,6 +57,30 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
   const days = useMemo(() => monthDays(month.getUTCFullYear(), month.getUTCMonth()), [month]);
   const monthLabel = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(month);
   const selectedMeeting = meetingTypes.find(type => type.value === meetingType) ?? meetingTypes[0];
+  const availabilityKey = selectedDate ? `${selectedDate}:${meetingType}` : null;
+  const visibleAvailability = availability?.key === availabilityKey ? availability : null;
+  const slotFormatter = useMemo(() => new Intl.DateTimeFormat("en-US", {
+    timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+  }), [timeZone]);
+
+  useEffect(() => {
+    if (!selectedDate || !availabilityKey) return;
+    const controller = new AbortController();
+    setAvailability({ key: availabilityKey, status: "loading", slots: [] });
+    const query = new URLSearchParams({ date: selectedDate, meetingType });
+    void fetch(`/api/meet/andrew/availability?${query}`, { cache: "no-store", signal: controller.signal })
+      .then(async response => {
+        const payload: unknown = await response.json();
+        if (!response.ok || !payload || typeof payload !== "object") throw new Error("Availability unavailable");
+        const result = payload as { status?: unknown; slots?: unknown };
+        if (result.status !== "available" || !isAvailableSlots(result.slots)) throw new Error("Availability unavailable");
+        if (!controller.signal.aborted) setAvailability({ key: availabilityKey, status: "available", slots: result.slots });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setAvailability({ key: availabilityKey, status: "unavailable", slots: [] });
+      });
+    return () => controller.abort();
+  }, [availabilityKey, meetingType, selectedDate]);
 
   function changeMonth(delta: number) {
     setMonth(current => new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + delta, 1)));
@@ -99,11 +134,17 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
             <div className={styles.times}>
               <h3>Available times</h3>
               <p className={styles.selectedDate}>{selectedDate ? new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${selectedDate}T12:00:00Z`)) : "Select a date"}</p>
-              <div className={styles.unavailable} role="status">Live availability is not connected yet. No time is being held or booked.</div>
+              {!selectedDate ? <div className={styles.unavailable} role="status">Select a date to see available times.</div>
+                : !visibleAvailability || visibleAvailability.status === "loading" ? <div className={styles.unavailable} role="status">Checking availability…</div>
+                : visibleAvailability.status === "unavailable" ? <div className={styles.unavailable} role="status">Availability cannot be checked right now.</div>
+                : visibleAvailability.slots.length === 0 ? <div className={styles.unavailable} role="status">No times available on this date.</div>
+                : <ul className={styles.slotList} aria-label="Available times">{visibleAvailability.slots.map(slot =>
+                    <li key={slot.start}>{slotFormatter.formatRange(new Date(slot.start), new Date(slot.end))}</li>
+                  )}</ul>}
             </div>
           </div>
           <div className={styles.footer}>
-            <p>Booking will open here once the calendar connection is ready.</p>
+            <p>This page doesn't book meetings yet.</p>
             <button type="button" disabled>Continue <ArrowRight size={18} aria-hidden="true" /></button>
           </div>
           {currentBookingUrl ? <p className={styles.fallback}>Need to book now? <a href={currentBookingUrl} target="_blank" rel="noreferrer">Use the current Google booking page <ExternalLink size={14} aria-hidden="true" /></a></p> : null}
