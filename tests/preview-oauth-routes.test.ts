@@ -101,6 +101,21 @@ describe("Preview callback boundary", () => {
     expect(fixture.jar.has(PREVIEW_TRANSACTION_COOKIE)).toBe(false);
     expect(fetch).not.toHaveBeenCalled();
   });
+  it("rejects a start request when the private approved-origin pin is unavailable", async () => {
+    vi.stubEnv("ENTRY_PREVIEW_APPROVED_ORIGIN", undefined);
+    const response = await start(new NextRequest(`${previewOrigin}/auth/entry`));
+    expect(response.headers.get("location")).toContain("error=entry_unavailable");
+    expect(fixture.jar.has(PREVIEW_TRANSACTION_COOKIE)).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("rejects a callback when the private approved-origin pin is unavailable", async () => {
+    const state = await begin();
+    vi.stubEnv("ENTRY_PREVIEW_APPROVED_ORIGIN", undefined);
+    const response = await callback(new NextRequest(`${previewOrigin}/auth/callback/sign-in?code=synthetic&state=${state}`));
+    expect(response.headers.get("location")).toContain("error=entry_denied");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(fixture.rpc).not.toHaveBeenCalled();
+  });
   it.each(["https://other-preview.vercel.app", "https://lead-emergence-workspace-entry-dev.vercel.app"])(
     "rejects a start request from nonapproved origin %s before authorization", async (origin) => {
       const response = await start(new NextRequest(`${origin}/auth/entry`));

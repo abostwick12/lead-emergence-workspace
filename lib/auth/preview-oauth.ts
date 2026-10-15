@@ -20,6 +20,20 @@ function isCanonicalPreviewOrigin(origin: string | undefined): origin is string 
   }
 }
 
+export function previewBrowserConfiguration(
+  enabled = process.env.NEXT_PUBLIC_ENTRY_FIRST_PARTY_PREVIEW_ENABLED,
+  projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
+  appOrigin = process.env.NEXT_PUBLIC_APP_URL,
+  clientId = process.env.NEXT_PUBLIC_ENTRY_PREVIEW_CLIENT_ID
+): PreviewOAuthConfiguration | null {
+  if (enabled !== "true") return null;
+  if (projectUrl !== PREVIEW_PROJECT_URL || !isCanonicalPreviewOrigin(appOrigin)
+      || !clientId || !UUID.test(clientId)) {
+    throw new Error("Preview OAuth boundary is not configured.");
+  }
+  return { clientId, origin: appOrigin };
+}
+
 export function previewOAuthConfiguration(
   enabled = process.env.NEXT_PUBLIC_ENTRY_FIRST_PARTY_PREVIEW_ENABLED,
   projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -27,12 +41,11 @@ export function previewOAuthConfiguration(
   clientId = process.env.NEXT_PUBLIC_ENTRY_PREVIEW_CLIENT_ID,
   approvedOrigin = process.env.ENTRY_PREVIEW_APPROVED_ORIGIN
 ): PreviewOAuthConfiguration | null {
-  if (enabled !== "true") return null;
-  if (projectUrl !== PREVIEW_PROJECT_URL || !isCanonicalPreviewOrigin(approvedOrigin)
-      || appOrigin !== approvedOrigin || !clientId || !UUID.test(clientId)) {
+  const configuration = previewBrowserConfiguration(enabled, projectUrl, appOrigin, clientId);
+  if (configuration && approvedOrigin !== configuration.origin) {
     throw new Error("Preview OAuth boundary is not configured.");
   }
-  return { clientId, origin: approvedOrigin };
+  return configuration;
 }
 
 export function requirePreviewServerBoundary(requestOrigin: string) {

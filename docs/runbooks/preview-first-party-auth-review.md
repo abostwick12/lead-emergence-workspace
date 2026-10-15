@@ -87,8 +87,11 @@ dependency, service, table, schema, role, or database function is introduced.
 | Session cookie | `sb-entry-dev-workspace-preview` |
 
 The existing dedicated hostname assignment remains unchanged; a generated Preview
-origin has not been selected. The origin pin rejects missing values, noncanonical
-URLs, the Production Workspace origin, and requests from any other origin.
+origin has not been selected. Browser initialization validates only the public
+project, app origin, and client pin so it can use the Preview session cookie and
+refresh path without a server-only variable. Both server routes still require the
+private approved-origin pin and reject missing values, noncanonical URLs, the
+Production Workspace origin, and requests from any other origin.
 Every configuration row above is proposed, not provisioned. With the feature flag
 absent the code retains the existing Custom Provider path. With the database pin
 absent OAuth tokens remain denied. A fresh read-only query returned **zero** rows
