@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
     const callback = new URL("/auth/callback/sign-in", origin);
     const returnPath = normalizeWorkspaceReturnPath(request.nextUrl.searchParams.get("next"));
     if (previewOAuthConfiguration()) {
-      const { clientId } = requirePreviewServerBoundary(request.nextUrl.origin);
-      const authorization = await createPreviewAuthorization(clientId);
+      const configuration = requirePreviewServerBoundary(request.nextUrl.origin);
+      const authorization = await createPreviewAuthorization(configuration);
       cookieStore.set(PREVIEW_TRANSACTION_COOKIE, authorization.transaction, entryCookieOptions("/auth/callback/sign-in"));
       cookieStore.set(ENTRY_RETURN_COOKIE, returnPath, entryCookieOptions("/"));
       return NextResponse.redirect(authorization.url, 303);

@@ -27,9 +27,10 @@ export async function GET(request: NextRequest) {
     const preview = previewOAuthConfiguration();
     let canonicalUserId: string | null = null;
     if (preview) {
-      const { clientId } = requirePreviewServerBoundary(request.nextUrl.origin);
+      const configuration = requirePreviewServerBoundary(request.nextUrl.origin);
+      const { clientId } = configuration;
       const verifier = consumePreviewTransaction(transaction, request.nextUrl.searchParams.get("state"), clientId);
-      const tokens = await exchangePreviewCode(code, verifier, clientId);
+      const tokens = await exchangePreviewCode(code, verifier, configuration);
       const verified = await supabase.auth.getClaims(tokens.access_token);
       if (verified.error || !verified.data) throw new Error("Preview token verification failed.");
       canonicalUserId = verifyPreviewClaims(verified.data.claims, clientId);

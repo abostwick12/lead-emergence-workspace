@@ -3,10 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import {
   consumePreviewTransaction, createPreviewAuthorization, exchangePreviewCode,
   previewOAuthConfiguration, previewSessionFetch, requirePreviewServerBoundary,
-  verifyPreviewClaims, PREVIEW_ISSUER, PREVIEW_PROJECT_URL, PREVIEW_WORKSPACE_ORIGIN
+  verifyPreviewClaims, PREVIEW_ISSUER, PREVIEW_PROJECT_URL
 } from "@/lib/auth/preview-oauth";
 
 const clientId = "11111111-1111-4111-8111-111111111111";
+const previewOrigin = "https://workspace-preview-abc.vercel.app";
+const configuration = { clientId, origin: previewOrigin };
 const userId = "22222222-2222-4222-8222-222222222222";
 const sessionId = "33333333-3333-4333-8333-333333333333";
 const claims = () => ({ sub: userId, session_id: sessionId, iss: PREVIEW_ISSUER,
@@ -19,33 +21,45 @@ describe("Preview boundary", () => {
     expect(previewOAuthConfiguration("false", "wrong", "wrong", "wrong")).toBeNull();
   });
   it.each([
-    ["https://neabiaimygdviwobpicj.supabase.co", PREVIEW_WORKSPACE_ORIGIN, clientId],
+    ["https://neabiaimygdviwobpicj.supabase.co", previewOrigin, clientId],
     [PREVIEW_PROJECT_URL, "https://workspace.leademergence.com", clientId],
-    [PREVIEW_PROJECT_URL, PREVIEW_WORKSPACE_ORIGIN, "wrong"]
+    [PREVIEW_PROJECT_URL, previewOrigin, "wrong"]
   ])("rejects mismatched project, origin or client", (project, origin, client) => {
-    expect(() => previewOAuthConfiguration("true", project, origin, client)).toThrow();
+    expect(() => previewOAuthConfiguration("true", project, origin, client, previewOrigin)).toThrow();
+  });
+  it.each([
+    undefined, "https://workspace.leademergence.com", "http://workspace-preview-abc.vercel.app",
+    `${previewOrigin}/path`, `${previewOrigin}/`, `${previewOrigin}?x=1`,
+    "https://workspace-preview-abc.vercel.app@wrong.example"
+  ])("rejects absent or noncanonical approved origin %s", (approvedOrigin) => {
+    expect(() => previewOAuthConfiguration("true", PREVIEW_PROJECT_URL, approvedOrigin, clientId, approvedOrigin)).toThrow();
+  });
+  it("requires the app origin to match the separately approved origin", () => {
+    expect(() => previewOAuthConfiguration("true", PREVIEW_PROJECT_URL, "https://other-preview.vercel.app", clientId, previewOrigin)).toThrow();
+    expect(previewOAuthConfiguration("true", PREVIEW_PROJECT_URL, previewOrigin, clientId, previewOrigin)).toEqual(configuration);
   });
   it("rejects a Production deployment even with Preview inputs", () => {
     vi.stubEnv("NEXT_PUBLIC_ENTRY_FIRST_PARTY_PREVIEW_ENABLED", "true");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", PREVIEW_PROJECT_URL);
-    vi.stubEnv("NEXT_PUBLIC_APP_URL", PREVIEW_WORKSPACE_ORIGIN);
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", previewOrigin);
     vi.stubEnv("NEXT_PUBLIC_ENTRY_PREVIEW_CLIENT_ID", clientId);
+    vi.stubEnv("ENTRY_PREVIEW_APPROVED_ORIGIN", previewOrigin);
     vi.stubEnv("VERCEL_ENV", "production");
-    expect(() => requirePreviewServerBoundary(PREVIEW_WORKSPACE_ORIGIN)).toThrow();
+    expect(() => requirePreviewServerBoundary(previewOrigin)).toThrow();
     vi.stubEnv("VERCEL_ENV", "preview");
-    expect(requirePreviewServerBoundary(PREVIEW_WORKSPACE_ORIGIN)).toEqual({ clientId });
+    expect(requirePreviewServerBoundary(previewOrigin)).toEqual(configuration);
     expect(() => requirePreviewServerBoundary("https://wrong.example")).toThrow();
   });
 });
 
 describe("Authorization transaction", () => {
   it("binds the callback and an S256 challenge to a fresh verifier/state", async () => {
-    const first = await createPreviewAuthorization(clientId, 10_000);
-    const second = await createPreviewAuthorization(clientId, 10_000);
+    const first = await createPreviewAuthorization(configuration, 10_000);
+    const second = await createPreviewAuthorization(configuration, 10_000);
     const url = new URL(first.url);
     const transaction = JSON.parse(first.transaction);
     expect(url.origin + url.pathname).toBe(`${PREVIEW_ISSUER}/oauth/authorize`);
-    expect(url.searchParams.get("redirect_uri")).toBe(`${PREVIEW_WORKSPACE_ORIGIN}/auth/callback/sign-in`);
+    expect(url.searchParams.get("redirect_uri")).toBe(`${previewOrigin}/auth/callback/sign-in`);
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(transaction.verifier)));
     expect(url.searchParams.get("code_challenge")).toBe(Buffer.from(hash).toString("base64url"));
@@ -60,16 +74,17 @@ describe("Authorization transaction", () => {
   });
   it("exchanges at the pinned endpoint without exposing the verifier in the URL", async () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json({ access_token: "synthetic", refresh_token: "synthetic-refresh", token_type: "bearer" }));
-    await exchangePreviewCode("synthetic-code", "synthetic-verifier", clientId, fetcher);
+    await exchangePreviewCode("synthetic-code", "synthetic-verifier", configuration, fetcher);
     const [url, init] = fetcher.mock.calls[0];
     expect(url).toBe(`${PREVIEW_ISSUER}/oauth/token`);
     expect(init.redirect).toBe("error");
     expect(init.body.get("client_id")).toBe(clientId);
     expect(init.body.get("code_verifier")).toBe("synthetic-verifier");
+    expect(init.body.get("redirect_uri")).toBe(`${previewOrigin}/auth/callback/sign-in`);
   });
   it("rejects a failed or incomplete exchange", async () => {
-    await expect(exchangePreviewCode("x", "y", clientId, vi.fn().mockResolvedValue(new Response("", { status: 400 })))).rejects.toThrow();
-    await expect(exchangePreviewCode("x", "y", clientId, vi.fn().mockResolvedValue(Response.json({ access_token: "x" })))).rejects.toThrow();
+    await expect(exchangePreviewCode("x", "y", configuration, vi.fn().mockResolvedValue(new Response("", { status: 400 })))).rejects.toThrow();
+    await expect(exchangePreviewCode("x", "y", configuration, vi.fn().mockResolvedValue(Response.json({ access_token: "x" })))).rejects.toThrow();
   });
 });
 
@@ -97,7 +112,7 @@ describe("OAuth session renewal", () => {
     };
     const supabase = createClient(PREVIEW_PROJECT_URL, "synthetic-public-key", {
       auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-      global: { fetch: previewSessionFetch({ clientId }, fetcher) }
+      global: { fetch: previewSessionFetch(configuration, fetcher) }
     });
     const { data, error } = await supabase.auth.refreshSession({ refresh_token: "synthetic-old" });
     expect(error).toBeNull();
@@ -109,7 +124,7 @@ describe("OAuth session renewal", () => {
     const fetcher = vi.fn()
       .mockResolvedValueOnce(Response.json({ access_token: jwt({ ...claims(), client_id: userId }), refresh_token: "synthetic-rotated", expires_in: 3600, token_type: "bearer" }))
       .mockResolvedValueOnce(Response.json({ id: userId }));
-    const wrapped = previewSessionFetch({ clientId }, fetcher);
+    const wrapped = previewSessionFetch(configuration, fetcher);
     await expect(wrapped(`${PREVIEW_ISSUER}/token?grant_type=refresh_token`, {
       method: "POST", body: JSON.stringify({ refresh_token: "synthetic" })
     })).rejects.toThrow("The token is not a Workspace Preview browser token.");
@@ -120,7 +135,7 @@ describe("OAuth session renewal", () => {
   ])("rejects a %s replacement refresh token without retaining the old token", async (_case, replacement) => {
     const tokens = { access_token: jwt(), expires_in: 3600, token_type: "bearer", refresh_token: replacement };
     const fetcher = vi.fn().mockResolvedValueOnce(Response.json(tokens));
-    const wrapped = previewSessionFetch({ clientId }, fetcher);
+    const wrapped = previewSessionFetch(configuration, fetcher);
     await expect(wrapped(`${PREVIEW_PROJECT_URL}/auth/v1/token?grant_type=refresh_token`, {
       method: "POST", body: JSON.stringify({ refresh_token: "synthetic-old" })
     })).rejects.toThrow("Invalid Preview refresh response.");
@@ -131,7 +146,7 @@ describe("OAuth session renewal", () => {
     expect(previewSessionFetch(null, fetcher)).toBe(fetcher);
     const url = "https://wrong.example/auth/v1/token?grant_type=refresh_token";
     const init = { method: "POST", body: "{}" };
-    await previewSessionFetch({ clientId }, fetcher)(url, init);
+    await previewSessionFetch(configuration, fetcher)(url, init);
     expect(fetcher).toHaveBeenCalledWith(url, init);
   });
   it("preserves the body of an ordinary Request when passing it through", async () => {
@@ -140,6 +155,6 @@ describe("OAuth session renewal", () => {
       expect(await (input as Request).text()).toBe('{"synthetic":true}');
       return Response.json({});
     };
-    await previewSessionFetch({ clientId }, fetcher)(request);
+    await previewSessionFetch(configuration, fetcher)(request);
   });
 });

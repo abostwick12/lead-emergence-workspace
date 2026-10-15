@@ -1,6 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { PREVIEW_ISSUER, PREVIEW_PROJECT_URL, PREVIEW_WORKSPACE_ORIGIN, PREVIEW_TRANSACTION_COOKIE } from "@/lib/auth/preview-oauth";
+import { PREVIEW_ISSUER, PREVIEW_PROJECT_URL, PREVIEW_TRANSACTION_COOKIE } from "@/lib/auth/preview-oauth";
+
+const previewOrigin = "https://workspace-preview-abc.vercel.app";
 
 const fixture = vi.hoisted(() => ({
   jar: new Map<string, string>(),
@@ -14,7 +16,7 @@ vi.mock("next/headers", () => ({ cookies: async () => ({
   }
 }) }));
 vi.mock("@/lib/supabase/server", () => ({ createWorkspaceServerClient: async () => ({ auth: fixture.auth, rpc: fixture.rpc }) }));
-vi.mock("@/lib/http/origin", () => ({ trustedWorkspaceOrigin: () => PREVIEW_WORKSPACE_ORIGIN }));
+vi.mock("@/lib/http/origin", () => ({ trustedWorkspaceOrigin: () => previewOrigin }));
 import { GET as start } from "@/app/auth/entry/route";
 import { GET as callback } from "@/app/auth/callback/sign-in/route";
 
@@ -26,8 +28,9 @@ beforeEach(() => {
   vi.stubEnv("VERCEL_ENV", "preview");
   vi.stubEnv("NEXT_PUBLIC_ENTRY_FIRST_PARTY_PREVIEW_ENABLED", "true");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", PREVIEW_PROJECT_URL);
-  vi.stubEnv("NEXT_PUBLIC_APP_URL", PREVIEW_WORKSPACE_ORIGIN);
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", previewOrigin);
   vi.stubEnv("NEXT_PUBLIC_ENTRY_PREVIEW_CLIENT_ID", clientId);
+  vi.stubEnv("ENTRY_PREVIEW_APPROVED_ORIGIN", previewOrigin);
   fixture.auth.getClaims.mockResolvedValue({ data: { claims: { sub: userId, iss: PREVIEW_ISSUER,
     aud: "authenticated", role: "authenticated", client_id: clientId,
     session_id: "33333333-3333-4333-8333-333333333333" } }, error: null });
@@ -40,7 +43,7 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 async function begin() {
-  const response = await start(new NextRequest(`${PREVIEW_WORKSPACE_ORIGIN}/auth/entry?next=/workspace/career`));
+  const response = await start(new NextRequest(`${previewOrigin}/auth/entry?next=/workspace/career`));
   const authorization = new URL(response.headers.get("location")!);
   return authorization.searchParams.get("state")!;
 }
@@ -48,8 +51,8 @@ async function begin() {
 describe("Preview callback boundary", () => {
   it("consumes the transaction, verifies identity, and provisions only after installing the verified token", async () => {
     const state = await begin();
-    const response = await callback(new NextRequest(`${PREVIEW_WORKSPACE_ORIGIN}/auth/callback/sign-in?code=synthetic&state=${state}`));
-    expect(response.headers.get("location")).toBe(`${PREVIEW_WORKSPACE_ORIGIN}/workspace/career`);
+    const response = await callback(new NextRequest(`${previewOrigin}/auth/callback/sign-in?code=synthetic&state=${state}`));
+    expect(response.headers.get("location")).toBe(`${previewOrigin}/workspace/career`);
     expect(fixture.jar.has(PREVIEW_TRANSACTION_COOKIE)).toBe(false);
     expect(fixture.auth.signInWithOAuth).not.toHaveBeenCalled();
     expect(fixture.auth.exchangeCodeForSession).not.toHaveBeenCalled();
@@ -59,7 +62,7 @@ describe("Preview callback boundary", () => {
   });
   it("rejects mismatched state before exchanging or provisioning", async () => {
     await begin();
-    const response = await callback(new NextRequest(`${PREVIEW_WORKSPACE_ORIGIN}/auth/callback/sign-in?code=synthetic&state=wrong`));
+    const response = await callback(new NextRequest(`${previewOrigin}/auth/callback/sign-in?code=synthetic&state=wrong`));
     expect(response.headers.get("location")).toContain("error=entry_denied");
     expect(fetch).not.toHaveBeenCalled();
     expect(fixture.rpc).not.toHaveBeenCalled();
@@ -67,7 +70,7 @@ describe("Preview callback boundary", () => {
   });
   it("rejects replay after the first callback", async () => {
     const state = await begin();
-    const request = new NextRequest(`${PREVIEW_WORKSPACE_ORIGIN}/auth/callback/sign-in?code=synthetic&state=${state}`);
+    const request = new NextRequest(`${previewOrigin}/auth/callback/sign-in?code=synthetic&state=${state}`);
     await callback(request);
     vi.mocked(fetch).mockClear();
     fixture.rpc.mockClear();
@@ -79,7 +82,7 @@ describe("Preview callback boundary", () => {
   it("rejects an Auth user different from the verified token subject", async () => {
     const state = await begin();
     fixture.auth.getUser.mockResolvedValue({ data: { user: { id: clientId } }, error: null });
-    const response = await callback(new NextRequest(`${PREVIEW_WORKSPACE_ORIGIN}/auth/callback/sign-in?code=synthetic&state=${state}`));
+    const response = await callback(new NextRequest(`${previewOrigin}/auth/callback/sign-in?code=synthetic&state=${state}`));
     expect(response.headers.get("location")).toContain("error=entry_denied");
     expect(fixture.rpc).not.toHaveBeenCalled();
     expect(fixture.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
@@ -87,15 +90,32 @@ describe("Preview callback boundary", () => {
   it("does not provision when token verification fails", async () => {
     const state = await begin();
     fixture.auth.getClaims.mockResolvedValue({ data: null, error: { message: "synthetic verification failure" } });
-    await callback(new NextRequest(`${PREVIEW_WORKSPACE_ORIGIN}/auth/callback/sign-in?code=synthetic&state=${state}`));
+    await callback(new NextRequest(`${previewOrigin}/auth/callback/sign-in?code=synthetic&state=${state}`));
     expect(fixture.auth.setSession).not.toHaveBeenCalled();
     expect(fixture.rpc).not.toHaveBeenCalled();
   });
   it("rejects a Production start without initiating authorization", async () => {
     vi.stubEnv("VERCEL_ENV", "production");
-    const response = await start(new NextRequest(`${PREVIEW_WORKSPACE_ORIGIN}/auth/entry`));
+    const response = await start(new NextRequest(`${previewOrigin}/auth/entry`));
     expect(response.headers.get("location")).toContain("error=entry_unavailable");
     expect(fixture.jar.has(PREVIEW_TRANSACTION_COOKIE)).toBe(false);
     expect(fetch).not.toHaveBeenCalled();
   });
+  it.each(["https://other-preview.vercel.app", "https://lead-emergence-workspace-entry-dev.vercel.app"])(
+    "rejects a start request from nonapproved origin %s before authorization", async (origin) => {
+      const response = await start(new NextRequest(`${origin}/auth/entry`));
+      expect(response.headers.get("location")).toContain("error=entry_unavailable");
+      expect(fixture.jar.has(PREVIEW_TRANSACTION_COOKIE)).toBe(false);
+      expect(fixture.auth.signInWithOAuth).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  it.each(["https://other-preview.vercel.app", "https://lead-emergence-workspace-entry-dev.vercel.app"])(
+    "rejects a callback from nonapproved origin %s before code exchange or provisioning", async (origin) => {
+      const state = await begin();
+      const response = await callback(new NextRequest(`${origin}/auth/callback/sign-in?code=synthetic&state=${state}`));
+      expect(response.headers.get("location")).toContain("error=entry_denied");
+      expect(fetch).not.toHaveBeenCalled();
+      expect(fixture.rpc).not.toHaveBeenCalled();
+      expect(fixture.jar.has(PREVIEW_TRANSACTION_COOKIE)).toBe(false);
+    });
 });

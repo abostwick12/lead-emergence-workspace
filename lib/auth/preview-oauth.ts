@@ -1,30 +1,43 @@
 // Draft first-party client path. Disabled unless every Preview boundary matches.
 export const PREVIEW_PROJECT_URL = "https://vnjdubrnmxvmsccxmhst.supabase.co";
-export const PREVIEW_WORKSPACE_ORIGIN = "https://lead-emergence-workspace-entry-dev.vercel.app";
 export const PREVIEW_ISSUER = `${PREVIEW_PROJECT_URL}/auth/v1`;
 export const PREVIEW_SESSION_COOKIE = "sb-entry-dev-workspace-preview";
 export const PREVIEW_TRANSACTION_COOKIE = "le_preview_oauth_transaction";
 export const PREVIEW_IDENTITY_MARKER = "first-party:workspace-preview";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type PreviewOAuthConfiguration = { clientId: string };
+export type PreviewOAuthConfiguration = { clientId: string; origin: string };
+
+function isCanonicalPreviewOrigin(origin: string | undefined): origin is string {
+  if (!origin) return false;
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === "https:" && parsed.origin === origin
+      && !parsed.username && !parsed.password && parsed.pathname === "/"
+      && !parsed.search && !parsed.hash && origin !== "https://workspace.leademergence.com";
+  } catch {
+    return false;
+  }
+}
 
 export function previewOAuthConfiguration(
   enabled = process.env.NEXT_PUBLIC_ENTRY_FIRST_PARTY_PREVIEW_ENABLED,
   projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
   appOrigin = process.env.NEXT_PUBLIC_APP_URL,
-  clientId = process.env.NEXT_PUBLIC_ENTRY_PREVIEW_CLIENT_ID
+  clientId = process.env.NEXT_PUBLIC_ENTRY_PREVIEW_CLIENT_ID,
+  approvedOrigin = process.env.ENTRY_PREVIEW_APPROVED_ORIGIN
 ): PreviewOAuthConfiguration | null {
   if (enabled !== "true") return null;
-  if (projectUrl !== PREVIEW_PROJECT_URL || appOrigin !== PREVIEW_WORKSPACE_ORIGIN || !clientId || !UUID.test(clientId)) {
+  if (projectUrl !== PREVIEW_PROJECT_URL || !isCanonicalPreviewOrigin(approvedOrigin)
+      || appOrigin !== approvedOrigin || !clientId || !UUID.test(clientId)) {
     throw new Error("Preview OAuth boundary is not configured.");
   }
-  return { clientId };
+  return { clientId, origin: approvedOrigin };
 }
 
 export function requirePreviewServerBoundary(requestOrigin: string) {
   const configuration = previewOAuthConfiguration();
-  if (!configuration || process.env.VERCEL_ENV !== "preview" || requestOrigin !== PREVIEW_WORKSPACE_ORIGIN) {
+  if (!configuration || process.env.VERCEL_ENV !== "preview" || requestOrigin !== configuration.origin) {
     throw new Error("First-party OAuth is restricted to the dedicated Preview.");
   }
   return configuration;
@@ -35,7 +48,8 @@ function randomBase64Url() {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-export async function createPreviewAuthorization(clientId: string, now = Date.now()) {
+export async function createPreviewAuthorization(configuration: PreviewOAuthConfiguration, now = Date.now()) {
+  const { clientId, origin } = configuration;
   const verifier = randomBase64Url();
   const state = randomBase64Url();
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
@@ -43,7 +57,7 @@ export async function createPreviewAuthorization(clientId: string, now = Date.no
   const url = new URL(`${PREVIEW_ISSUER}/oauth/authorize`);
   url.search = new URLSearchParams({
     response_type: "code", client_id: clientId,
-    redirect_uri: `${PREVIEW_WORKSPACE_ORIGIN}/auth/callback/sign-in`,
+    redirect_uri: `${origin}/auth/callback/sign-in`,
     scope: "email profile", state, code_challenge: challenge, code_challenge_method: "S256"
   }).toString();
   return { url: url.toString(), transaction: JSON.stringify({ verifier, state, clientId, createdAt: now }) };
@@ -71,12 +85,13 @@ export function verifyPreviewClaims(claims: Record<string, unknown>, clientId: s
   return claims.sub;
 }
 
-export async function exchangePreviewCode(code: string, verifier: string, clientId: string, fetcher: typeof fetch = fetch) {
+export async function exchangePreviewCode(code: string, verifier: string, configuration: PreviewOAuthConfiguration, fetcher: typeof fetch = fetch) {
+  const { clientId, origin } = configuration;
   const response = await fetcher(`${PREVIEW_ISSUER}/oauth/token`, {
     method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(10_000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "authorization_code", code, code_verifier: verifier,
-      client_id: clientId, redirect_uri: `${PREVIEW_WORKSPACE_ORIGIN}/auth/callback/sign-in` })
+      client_id: clientId, redirect_uri: `${origin}/auth/callback/sign-in` })
   });
   if (!response.ok) throw new Error("Preview code exchange failed.");
   const tokens = await response.json() as Record<string, unknown>;

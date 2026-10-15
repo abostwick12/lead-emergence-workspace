@@ -36,7 +36,7 @@ Base: Workspace main `5523eb62b333a2e60fd033c471fb99354a05a6db`.
 Branch: `codex/p2-5-preview-first-party-auth`.
 No existing checkout was repaired, reset, staged, or deleted.
 
-The customer observable remains: start at the dedicated Workspace Preview login,
+The customer observable remains: start at the explicitly approved Workspace Preview login,
 authenticate at Entry-dev, return to the same user's owned workspace, renew the
 session, and deny wrong-client/wrong-user access. This draft does not close that
 observable or any production/ChatGPT acceptance gate.
@@ -76,15 +76,19 @@ dependency, service, table, schema, role, or database function is introduced.
 | --- | --- |
 | Supabase project | `https://vnjdubrnmxvmsccxmhst.supabase.co` |
 | Token issuer | `https://vnjdubrnmxvmsccxmhst.supabase.co/auth/v1` |
-| Workspace origin | `https://lead-emergence-workspace-entry-dev.vercel.app` |
-| OAuth callback | `https://lead-emergence-workspace-entry-dev.vercel.app/auth/callback/sign-in` |
+| Approved Workspace Preview origin | `ENTRY_PREVIEW_APPROVED_ORIGIN=<one exact HTTPS origin>`; no value selected or installed |
+| App URL | `NEXT_PUBLIC_APP_URL` must equal the approved origin exactly |
+| OAuth callback | `<approved origin>/auth/callback/sign-in` for authorization and code exchange |
 | OAuth scopes | `email profile` (no ID token assumed) |
-| Deployment | `VERCEL_ENV=preview`; sign-in request must use the dedicated host |
+| Deployment | `VERCEL_ENV=preview`; sign-in and callback requests must use the approved origin |
 | Public feature gate | `NEXT_PUBLIC_ENTRY_FIRST_PARTY_PREVIEW_ENABLED=true` |
 | Public client pin | `NEXT_PUBLIC_ENTRY_PREVIEW_CLIENT_ID=<actual newly approved public client UUID>` |
 | Database client pin | Existing private `product_settings` key `workspace_preview_browser_client_id`, same actual UUID |
 | Session cookie | `sb-entry-dev-workspace-preview` |
 
+The existing dedicated hostname assignment remains unchanged; a generated Preview
+origin has not been selected. The origin pin rejects missing values, noncanonical
+URLs, the Production Workspace origin, and requests from any other origin.
 Every configuration row above is proposed, not provisioned. With the feature flag
 absent the code retains the existing Custom Provider path. With the database pin
 absent OAuth tokens remain denied. A fresh read-only query returned **zero** rows

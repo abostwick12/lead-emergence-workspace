@@ -980,3 +980,25 @@ invite, external send, auth configuration, or route cutover was performed.
 - `npm run typecheck`, `npm run lint`, `npm run check:boundaries` (95 runtime files), `npm run test:schema` (32/32), and `npm run test:unit` (29 files, 239/239) passed. The focused route/access test passed 15/15 outside the Windows sandbox. Its first sandboxed invocation failed before collecting tests because Vitest could not rename a temporary transform-cache file (`EPERM`); that was an environment failure, not a source assertion failure.
 - `npm run build` was attempted once outside the sandbox and failed before compiling application code: Turbopack could not resolve `next/package.json` from this nested isolated worktree. The package exists in the parent checkout's `node_modules`, but not under this worktree's own root. This is an isolated-worktree dependency-resolution limit, not proof of a route defect. No third build-path workaround was attempted.
 - Production acceptance remains NOT TESTED. The observable is an eligible signed-in owner opening `/workspace/sotf/networking` and seeing the weekly metric cards near the top without changing the base SOTF Today route. A staged build and owner browser check still require separate publication/release decisions.
+
+## 2026-10-15 — configured Preview OAuth origin (local draft)
+
+- Isolated local branch `codex/preview-auth-configured-origin` started at PR #74 head
+  `1c6ee79cf3a986c1d12a4ce1356aa5ae5b1e5efc`. No hostname assignment,
+  hosted setting, client registration, SQL, or feature activation changed.
+- The enabled Preview path requires one canonical HTTPS
+  `ENTRY_PREVIEW_APPROVED_ORIGIN`, an identical `NEXT_PUBLIC_APP_URL`, the pinned
+  Entry-dev project and UUID client, `VERCEL_ENV=preview`, and the matching
+  request origin. Authorization and code exchange use that same origin for the
+  callback. The origin is not selected or installed; tests use a synthetic URL.
+- Focused Preview auth tests **42/42 PASS**, including alternate generated and
+  former dedicated host rejection at both routes. Full unit suite **297/297
+  PASS** (33 files), schema contracts **32/32 PASS**, typecheck, lint, and
+  product-boundary scan **PASS** (97 runtime files).
+- `npm run build` did not compile: Turbopack could not find `next/package.json`
+  under this isolated worktree. The existing dependencies are in an older
+  sibling worktree. A local junction attempt was denied by Windows; an offline
+  `npm ci --ignore-scripts` failed because `zod-validation-error-4.0.2.tgz`
+  was not cached. This is a build-environment limit, not a passing build.
+- Production and hosted Preview behavior **NOT TESTED**. The current PR head
+  remains `1c6ee79`; this local change has no CodeRabbit exact-head review.
