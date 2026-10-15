@@ -65,3 +65,26 @@ export async function readCalendarCredential(workspaceId: string, accountSlot: C
     await sql.end({ timeout: 1 });
   }
 }
+
+/** Owner-facing status without returning ciphertext or a token to the browser. */
+export async function calendarAccountConnected(workspaceId: string, accountSlot: CalendarAccountSlot): Promise<boolean> {
+  assertBinding(workspaceId, accountSlot);
+  const databaseUrl = process.env.WORKSPACE_CALENDAR_READER_DB_URL?.trim();
+  if (!databaseUrl || !/^postgres(?:ql)?:\/\//.test(databaseUrl)) {
+    throw new Error("Calendar credential reader is not configured.");
+  }
+  const sql = postgres(databaseUrl, { max: 1, connect_timeout: 3, idle_timeout: 1 });
+  try {
+    const [identity] = await sql<{ role: string }[]>`select current_user as role`;
+    if (identity?.role !== "workspace_calendar_reader") throw new Error("Calendar reader role mismatch.");
+    const [record] = await sql<{ refresh_token_present: boolean }[]>`
+      select refresh_token_present
+        from workspace.read_calendar_credential(${workspaceId}::uuid, ${accountSlot}::text)
+    `;
+    return record?.refresh_token_present === true;
+  } catch {
+    throw new Error("Calendar connection status is unavailable.");
+  } finally {
+    await sql.end({ timeout: 1 });
+  }
+}

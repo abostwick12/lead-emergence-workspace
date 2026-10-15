@@ -9,6 +9,7 @@ const { postgresMock, queryMock, endMock } = vi.hoisted(() => ({
 vi.mock("postgres", () => ({ default: postgresMock }));
 
 import {
+  calendarAccountConnected,
   calendarCredentialAAD,
   decryptCalendarCredential,
   encryptCalendarCredential,
@@ -58,5 +59,24 @@ describe("Calendar credential boundary", () => {
     await expect(readCalendarCredential(alice, "personal")).rejects.toThrow("unavailable");
     expect(queryMock).toHaveBeenCalledTimes(1);
     expect(endMock).toHaveBeenCalledOnce();
+  });
+
+  it("returns sanitized status from the dedicated reader without selecting ciphertext", async () => {
+    process.env.WORKSPACE_CALENDAR_READER_DB_URL = "postgresql://synthetic@example.invalid/postgres";
+    queryMock.mockResolvedValueOnce([{ role: "workspace_calendar_reader" }])
+      .mockResolvedValueOnce([{ refresh_token_present: true }]);
+    postgresMock.mockReturnValue(Object.assign(queryMock, { end: endMock }));
+    await expect(calendarAccountConnected(alice, "personal")).resolves.toBe(true);
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(endMock).toHaveBeenCalledOnce();
+  });
+
+  it("reports an empty slot as disconnected and fails closed on reader errors", async () => {
+    process.env.WORKSPACE_CALENDAR_READER_DB_URL = "postgresql://synthetic@example.invalid/postgres";
+    postgresMock.mockReturnValue(Object.assign(queryMock, { end: endMock }));
+    queryMock.mockResolvedValueOnce([{ role: "workspace_calendar_reader" }]).mockResolvedValueOnce([]);
+    await expect(calendarAccountConnected(alice, "business")).resolves.toBe(false);
+    queryMock.mockResolvedValueOnce([{ role: "other_role" }]);
+    await expect(calendarAccountConnected(alice, "business")).rejects.toThrow("status is unavailable");
   });
 });

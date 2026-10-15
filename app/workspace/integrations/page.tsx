@@ -46,6 +46,12 @@ import { getIntegrationProvider } from "@/lib/integrations/providers";
 import type { IntegrationConnection, McpAuthorizationRecord } from "@/lib/workspace/types";
 import styles from "./integrations.module.css";
 
+type CalendarSlot = "personal" | "business";
+const CALENDAR_ACCOUNTS: { slot: CalendarSlot; email: string; label: string }[] = [
+  { slot: "personal", email: "andrew.w.bostwick12@gmail.com", label: "Personal" },
+  { slot: "business", email: "andrew@leademergence.com", label: "Lead Emergence" }
+];
+
 const PROVIDER_ICONS: Record<string, LucideIcon> = {
   logos: BookOpenText,
   chatgpt: Bot,
@@ -148,6 +154,9 @@ export default function IntegrationsPage() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
+  const [calendarStatus, setCalendarStatus] = useState<Record<CalendarSlot, boolean | null>>({ personal: null, business: null });
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [calendarBusy, setCalendarBusy] = useState<CalendarSlot | null>(null);
   const popoverRootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -171,6 +180,30 @@ export default function IntegrationsPage() {
       active = false;
     };
   }, [workspace]);
+
+  useEffect(() => {
+    if (!workspace || !user || user.id !== workspace.owner_user_id) return;
+    let active = true;
+    const load = async () => {
+      try {
+        const { data } = await getWorkspaceClient().auth.getSession();
+        if (!data.session?.access_token) throw new Error("Sign in to review Calendar accounts.");
+        const statuses = await Promise.all(CALENDAR_ACCOUNTS.map(async ({ slot }) => {
+          const response = await fetch(`/api/calendar/accounts/${slot}?workspaceId=${encodeURIComponent(workspace.id)}`, {
+            headers: { Authorization: `Bearer ${data.session!.access_token}` }, cache: "no-store"
+          });
+          if (!response.ok) throw new Error("Calendar account status is unavailable.");
+          const payload = await response.json() as { connected?: boolean };
+          return [slot, payload.connected === true] as const;
+        }));
+        if (active) setCalendarStatus(Object.fromEntries(statuses) as Record<CalendarSlot, boolean>);
+      } catch (caught) {
+        if (active) setCalendarError(caught instanceof Error ? caught.message : "Calendar account status is unavailable.");
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [workspace, user]);
 
   useEffect(() => {
     if (!open) return;
@@ -221,6 +254,33 @@ export default function IntegrationsPage() {
     const { data, error: sessionError } = await getWorkspaceClient().auth.getSession();
     if (sessionError || !data.session?.access_token) throw new Error("Sign in before connecting an integration.");
     return data.session.access_token;
+  };
+
+  const changeCalendarAccount = async (slot: CalendarSlot, disconnect: boolean) => {
+    if (!workspace || !user || user.id !== workspace.owner_user_id) return;
+    setCalendarBusy(slot);
+    setCalendarError(null);
+    try {
+      const token = await accessToken();
+      const response = await fetch(`/api/calendar/accounts/${slot}`, {
+        method: disconnect ? "DELETE" : "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: workspace.id })
+      });
+      const payload = await response.json() as { authorizationUrl?: string; message?: string };
+      if (!response.ok) throw new Error(payload.message || "Could not change Calendar account.");
+      if (disconnect) {
+        setCalendarStatus((current) => ({ ...current, [slot]: false }));
+      } else if (payload.authorizationUrl) {
+        window.location.assign(payload.authorizationUrl);
+      } else {
+        throw new Error("Google authorization did not open.");
+      }
+    } catch (caught) {
+      setCalendarError(caught instanceof Error ? caught.message : "Could not change Calendar account.");
+    } finally {
+      setCalendarBusy(null);
+    }
   };
 
   const startExternalConnection = async (entry: McpCatalogEntry) => {
@@ -439,6 +499,30 @@ export default function IntegrationsPage() {
         <div><p className="eyebrow">Recommended interface</p><h2>Connect your AI assistant</h2><p>ChatGPT and Claude use the same controlled Workspace tools. Connect either one, both, or neither.</p></div>
         <div>{(["chatgpt", "claude"] as const).map((provider) => { const record = assistantConnections.find((item) => item.assistant_provider === provider && item.status === "connected"); return <article key={provider}><ProviderBrandMark providerId={provider} /><div><strong>{provider === "chatgpt" ? "ChatGPT" : "Claude"}</strong><span>{record ? "Connected" : "Not connected"}</span></div><Link className="button secondary" href={`/workspace/integrations/assistant?provider=${provider}`}>{record ? "Review" : "Connect"}</Link></article>; })}</div>
       </section>
+
+      {workspace && user?.id === workspace.owner_user_id ? (
+        <section className={styles.calendarAccounts} aria-label="Calendar accounts">
+          <div>
+            <p className="eyebrow">Owner settings</p>
+            <h2>Calendar accounts</h2>
+            <p>Connect both accounts so scheduling can check each calendar. You choose which account organizes each meeting type.</p>
+          </div>
+          <div className={styles.calendarAccountGrid}>
+            {CALENDAR_ACCOUNTS.map(({ slot, email, label }) => (
+              <div className={styles.calendarAccount} key={slot}>
+                <div><strong>{label}</strong><span>{email}</span></div>
+                <span>{calendarStatus[slot] === null ? "Status unavailable" : calendarStatus[slot] ? "Saved" : "Not connected"}</span>
+                <button type="button" disabled={calendarBusy !== null || calendarStatus[slot] === null}
+                  onClick={() => void changeCalendarAccount(slot, calendarStatus[slot] === true)}>
+                  {calendarBusy === slot ? "Working…" : calendarStatus[slot] ? "Disconnect" : "Connect"}
+                </button>
+              </div>
+            ))}
+          </div>
+          {calendarError ? <p className={styles.connectionError} role="alert">{calendarError}</p> : null}
+          <p className={styles.providerSetupNote}>Saved means Workspace has a credential; it does not confirm current Google access. Disconnecting removes the Workspace copy. You can also revoke access in Google.</p>
+        </section>
+      ) : null}
 
       <section className={styles.connectionsGrid} aria-label="Workspace connections">
         {MCP_CATALOG.map((entry) => {
