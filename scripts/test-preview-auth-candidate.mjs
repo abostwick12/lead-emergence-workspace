@@ -16,7 +16,9 @@ export function validateCandidate({ repoRoot, portBase = randomInt(20000, 60000)
     throw new Error("port-base must be an integer between 1024 and 65000.");
   }
   const lab = mkdtempSync(join(tmpdir(), "preview-auth-candidate-"));
-  const projectId = `preview-auth-${randomUUID()}`;
+  // Config loading truncates IDs to 40 characters, while stop --project-id
+  // uses its argument unchanged. Keep the configured ID below that limit.
+  const projectId = `preview-auth-${randomUUID().replaceAll("-", "").slice(0, 24)}`;
   const cli = process.platform === "win32" ? "supabase.exe" : "supabase";
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
@@ -62,7 +64,22 @@ export function validateCandidate({ repoRoot, portBase = randomInt(20000, 60000)
     command(["test", "db", "--local", ...fixtures.map(name => `supabase/tests/database/${name}`)]);
   } finally {
     if (attemptedStart) {
-      try { command(["stop", "--project-id", projectId, "--no-backup"]); }
+      try {
+        command(["stop", "--project-id", projectId, "--no-backup"]);
+        const filter = `label=com.supabase.cli.project=${projectId}`;
+        const inspections = [
+          ["ps", "--all", "--filter", filter, "--format", "{{.ID}}"],
+          ["volume", "ls", "--filter", filter, "--format", "{{.Name}}"],
+          ["network", "ls", "--filter", filter, "--format", "{{.ID}}"]
+        ];
+        for (const args of inspections) {
+          const result = run("docker", args, { cwd: lab, env, encoding: "utf8", shell: false });
+          if (result.error || result.status !== 0 || typeof result.stdout !== "string") {
+            throw new Error(`Cannot verify owned Docker ${args[0]} cleanup.`);
+          }
+          if (result.stdout.trim()) throw new Error(`Owned Docker ${args[0]} resources remain after stop.`);
+        }
+      }
       catch (error) {
         cleanupFailed = true;
         throw new Error(`${error.message} Inspect owned project ${projectId}; workdir retained at ${lab}.`);

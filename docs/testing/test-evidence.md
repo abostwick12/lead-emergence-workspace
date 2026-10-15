@@ -1,5 +1,31 @@
 # Test evidence
 
+## Candidate runner cleanup correction — 2026-10-15
+
+- The Desktop validation report at `480ee8e` records candidate 167/167 PASS
+  and ordinary PASS across ten fixtures (319/319 in its earlier exact-head run).
+  Its candidate stop returned success while two owned containers remained;
+  a later exact-project stop removed them. Those are reported Desktop results,
+  not database runs independently repeated in this cloud environment.
+- Source inspection found that the runner generated a 49-character project ID.
+  Supabase CLI v2.115.0 normalizes config IDs to at most 40 characters, while
+  `stop --project-id` passes its explicit value through unchanged. See
+  [CLI project-ID handling](https://github.com/supabase/cli/blob/v2.115.0/apps/cli/src/legacy/shared/legacy-docker-ids.ts)
+  and [stop flag handling](https://github.com/supabase/cli/blob/v2.115.0/apps/cli/src/legacy/commands/stop/stop.handler.ts).
+- The runner now generates a 37-character ID and checks Docker's exact project
+  label for containers (including stopped ones), volumes and networks after
+  stop. A failed inventory or remaining resource makes cleanup fail and retains
+  the owned workdir for recovery; no global cleanup or unrelated-stack removal
+  is attempted.
+- `npm run test:rls:runner` passed 9/9 simulated-CLI tests, including the ID
+  contract, residual resources despite stop exit zero, and unavailable Docker
+  inventory. Syntax and whitespace checks passed. No runtime, SQL candidate or
+  database assertion changed.
+- BLOCKER — The corrected runner's real cleanup remains NOT TESTED in this
+  cloud environment, which has neither Supabase CLI nor Docker. Repeat only
+  the candidate runner in a separate verification checkout at its published
+  head; prior SQL assertions do not establish the corrected cleanup behavior.
+
 ## Preview Auth test-tooling follow-up — 2026-10-15 UTC
 
 - The ordinary `test:rls` command again includes all 70 original productization

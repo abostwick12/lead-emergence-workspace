@@ -29,7 +29,7 @@ function source() {
 test("stages exact candidate bytes only in a fresh lab, selects both fixtures, and removes owned resources", () => {
   const root = source(); const calls = []; let lab;
   try {
-    validateCandidate({ repoRoot: root, portBase: 41000, run: (_cli, args, options) => {
+    validateCandidate({ repoRoot: root, portBase: 41000, run: (cli, args, options) => {
       lab = options.cwd; calls.push(args);
       assert.notEqual(lab, root);
       assert.equal(options.shell, false);
@@ -38,6 +38,10 @@ test("stages exact candidate bytes only in a fresh lab, selects both fixtures, a
       assert.ok(!Object.keys(options.env).some(key => /^(SUPABASE_|PG)/i.test(key)));
       const config = readFileSync(join(lab, "supabase/config.toml"), "utf8");
       assert.match(config, /project_id = "preview-auth-[a-f0-9-]+"/);
+      const id = config.match(/project_id = "([^"]+)"/)[1];
+      assert.ok(id.length <= 40, "configured ID must survive CLI normalization unchanged");
+      if (args[0] === "stop") assert.equal(args[2], id);
+      if (cli === "docker") assert.ok(args.includes(`label=com.supabase.cli.project=${id}`));
       assert.match(config, /port = 41002/);
       if (args[0] === "start") assert.equal(readdirSync(join(lab, "supabase/migrations")).length, 1);
       if (args[0] === "db") {
@@ -62,9 +66,9 @@ test("a failed start still cleans only its own project and does not reset or tes
   try {
     assert.throws(() => validateCandidate({ repoRoot: root, run: (_cli, args, options) => {
       lab = options.cwd; calls.push(args[0]);
-      return { status: args[0] === "start" ? 1 : 0 };
+      return { status: args[0] === "start" ? 1 : 0, stdout: "" };
     } }), /start.*failed/);
-    assert.deepEqual(calls, ["start", "stop"]);
+    assert.deepEqual(calls, ["start", "stop", "ps", "volume", "network"]);
     assert.equal(existsSync(lab), false);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
@@ -73,9 +77,9 @@ test("a candidate-install failure stops the owned stack and skips assertions", (
   const root = source(); const calls = [];
   try {
     assert.throws(() => validateCandidate({ repoRoot: root, run: (_cli, args) => {
-      calls.push(args[0]); return { status: args[0] === "db" ? 1 : 0 };
+      calls.push(args[0]); return { status: args[0] === "db" ? 1 : 0, stdout: "" };
     } }), /reset.*failed/);
-    assert.deepEqual(calls, ["start", "db", "stop"]);
+    assert.deepEqual(calls, ["start", "db", "stop", "ps", "volume", "network"]);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -89,6 +93,35 @@ test("a cleanup failure retains the owned workdir for recovery", () => {
     assert.throws(() => validateCandidate({ repoRoot: root, run: (_cli, args, options) => {
       lab = options.cwd; return { status: args[0] === "stop" ? 1 : 0 };
     } }), /workdir retained/);
+    assert.equal(existsSync(lab), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    if (lab) rmSync(lab, { recursive: true, force: true });
+  }
+});
+
+for (const kind of ["ps", "volume", "network"]) {
+  test(`stop exit zero cannot hide residual owned ${kind} resources`, () => {
+    const root = source(); let lab;
+    try {
+      assert.throws(() => validateCandidate({ repoRoot: root, run: (cli, args, options) => {
+        lab = options.cwd;
+        return { status: 0, stdout: cli === "docker" && args[0] === kind ? "owned-resource\n" : "" };
+      } }), /resources remain.*workdir retained/);
+      assert.equal(existsSync(lab), true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      if (lab) rmSync(lab, { recursive: true, force: true });
+    }
+  });
+}
+
+test("an unavailable Docker inventory fails cleanup verification", () => {
+  const root = source(); let lab;
+  try {
+    assert.throws(() => validateCandidate({ repoRoot: root, run: (cli, _args, options) => {
+      lab = options.cwd; return { status: cli === "docker" ? 1 : 0, stdout: "" };
+    } }), /Cannot verify.*workdir retained/);
     assert.equal(existsSync(lab), true);
   } finally {
     rmSync(root, { recursive: true, force: true });

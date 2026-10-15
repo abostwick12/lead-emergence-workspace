@@ -125,7 +125,10 @@ Both database phases are required:
    fixture plus `supabase/tests/candidates/workspace_productization.sql`.
    The latter preserves the 70 previously validated strict-candidate assertions.
    The runner never copies `.temp`, linked-project metadata or environment files.
-   It stops its own project with `--no-backup` and removes its temporary workdir.
+   It stops its own project with `--no-backup`, verifies that Docker reports no
+   containers, volumes or networks with its exact project label, and only then
+   removes its temporary workdir. Project IDs stay below the CLI's 40-character
+   normalization limit so start and explicit stop use the same ID.
    If cleanup fails, it retains that workdir and reports the owned project ID.
 
 The candidate runner uses a random local port range. To select an unused range,
