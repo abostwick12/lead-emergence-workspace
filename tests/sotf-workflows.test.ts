@@ -543,6 +543,17 @@ describe("SOTF persistence integrity", () => {
     expect(applyCommand(h.state, realOperation, now).chapter?.carryForward).toEqual(["real-person"]);
   });
 
+  it("rejects a test-person ID shared with a hypothesis in new chapter links", () => {
+    const h = harness();
+    h.run({ type: "save_person", person: { ...contact, id: hypothesis.id, testRecord: true } });
+    const operation = envelope(h.state, {
+      type: "close_chapter", reflection: "Keep useful relationships", carryForward: [hypothesis.id], nextFocus: "Continue learning",
+    });
+
+    expect(applyCommand(h.state, operation, now, "persisted_event").chapter?.carryForward).toEqual([hypothesis.id]);
+    expect(() => applyCommand(h.state, operation, now)).toThrow("Choose existing operational records to carry forward.");
+  });
+
   it("replays a historical approved message and its completed result without a review declaration", () => {
     const h = harness();
     h.run({ type: "save_person", person: contact });
