@@ -276,7 +276,9 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     }
     case "close_chapter": {
       if (!state.chapter) throw new Error("No transition chapter exists.");
-      const allowed = new Set([...state.stories, ...state.people, ...state.hypotheses, ...state.commitments].map((item) => item.id));
+      const eligiblePeople = source === "persisted_event" ? state.people : state.people.filter((item) => !item.testRecord);
+      const allowed = new Set([...state.stories, ...eligiblePeople, ...state.hypotheses, ...state.commitments].map((item) => item.id));
+      if (source === "new_command") for (const item of state.people) if (item.testRecord) allowed.delete(item.id);
       if (command.carryForward.some((id) => !allowed.has(id))) throw new Error("Choose existing operational records to carry forward.");
       state.chapter.phase = "professional_work"; state.chapter.reflection = command.reflection; state.chapter.carryForward = command.carryForward; state.chapter.nextFocus = command.nextFocus;
       summary = `Continuity reviewed: ${command.nextFocus}. Transition history remains retained.`; break;

@@ -29,6 +29,22 @@ function candidateForm(existingPersonId = savedPerson.id) {
 }
 
 describe("Networking candidate saved-person selection", () => {
+  it("excludes test people from ordinary person selectors while keeping real choices", () => {
+    const state = emptyPilotState();
+    state.people = [savedPerson, { ...savedPerson, id: "test-person", name: "Synthetic test person", testRecord: true }, { ...savedPerson, id: "other-test-person", name: "Other synthetic person", testRecord: true }];
+    state.meetings = [{ id: "linked-test-meeting", title: "Existing test meeting", personId: "test-person", hypothesisIds: [], kind: "networking", startsAt: "2026-10-14T15:00:00.000Z", endsAt: "2026-10-14T15:30:00.000Z", status: "accepted", provider: "manual", objective: "Retain the linked person" }];
+    const savedOptions = definition("networking-candidate", state).fields.find((item) => item.name === "existingPersonId")?.options;
+    const carryOptions = definition("close-chapter", state).fields.find((item) => item.name === "carryForward")?.options;
+    const newMeetingOptions = definition("meeting", state).fields.find((item) => item.name === "personId")?.options;
+    const linkedMeetingOptions = definition("meeting", state, "linked-test-meeting").fields.find((item) => item.name === "personId")?.options;
+    expect(savedOptions?.map((item) => item.value)).toEqual([savedPerson.id]);
+    expect(carryOptions?.filter((item) => item.label.startsWith("Person: ")).map((item) => item.value)).toEqual([savedPerson.id]);
+    expect(newMeetingOptions?.map((item) => item.value)).toEqual([savedPerson.id]);
+    expect(linkedMeetingOptions?.map((item) => item.value)).toEqual([savedPerson.id, "test-person"]);
+    expect(() => definition("networking-candidate", state).build(candidateForm("test-person")))
+      .toThrow("Choose an unplanned saved person.");
+  });
+
   it("prefills reviewed questions in the Person editor and allows an explicit clear", () => {
     const state = emptyPilotState();
     state.people = [{ ...savedPerson, conversationQuestions: ["Who owns the program budget?", "What changes the weekly plan?"] }];
