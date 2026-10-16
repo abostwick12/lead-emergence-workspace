@@ -1,6 +1,6 @@
 begin;
 
-select plan(33);
+select plan(35);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -208,6 +208,22 @@ do $booking_case$
 declare actual text := 'ok';
 begin
   begin
+    perform workspace.finish_calendar_booking('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'confirmed', 'provider-event-a');
+  exception when others then
+    actual := SQLSTATE || ':' || SQLERRM;
+  end;
+  perform set_config('booking_test.case_cross', actual, true);
+end
+$booking_case$;
+reset role;
+select is(current_setting('booking_test.case_cross', true), '22023:Calendar booking claim was not found.', 'another workspace cannot finish this receipt');
+reset role;
+
+set local role workspace_calendar_booker;
+do $booking_case$
+declare actual text := 'ok';
+begin
+  begin
     perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'confirmed', 'provider-event-a');
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
@@ -234,6 +250,20 @@ end
 $booking_case$;
 reset role;
 select is(current_setting('booking_test.case_13', true), 'ok', 'confirmation retry is idempotent');
+set local role workspace_calendar_booker;
+do $booking_case$
+declare actual text := 'ok';
+begin
+  begin
+    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'confirmed', 'provider-event-b');
+  exception when others then
+    actual := SQLSTATE || ':' || SQLERRM;
+  end;
+  perform set_config('booking_test.case_13_mismatch', actual, true);
+end
+$booking_case$;
+reset role;
+select is(current_setting('booking_test.case_13_mismatch', true), '22023:Calendar booking claim cannot be finished.', 'confirmation retry rejects a different provider event');
 set local role workspace_calendar_booker;
 do $booking_case$
 declare actual text := 'ok';
