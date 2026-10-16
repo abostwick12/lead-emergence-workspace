@@ -106,6 +106,23 @@ test("networking strategy shows the 10-person goal and selectable conversation p
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
 
+test("a prior-week contact opens conversation prep without joining this week's plan", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const history = page.getByRole("region", { name: "Contact history", exact: true });
+  const priorWeekContact = history.getByRole("row", { name: /Fictional candidate 11/ });
+  await priorWeekContact.getByRole("button", { name: "Prepare conversation", exact: true }).click();
+
+  const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
+  await expect(prep.getByRole("heading", { name: "Conversation prep · Fictional candidate 11" })).toBeVisible();
+  await expect(prep.getByText("This person has direct public evidence of doing the work being explored")).toBeVisible();
+  await expect(prep.getByRole("link", { name: "Review supplied source" })).toHaveAttribute("href", "https://example.com/networking/candidate-11");
+  await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("value", "10");
+  await expect(page.locator('[aria-label="People planned this week"] article')).toHaveCount(10);
+  await expect(page.locator('[aria-label="People planned this week"]').getByRole("heading", { name: "Fictional candidate 11" })).toHaveCount(0);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("networking view supports the full manual action lifecycle", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   const candidate = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) });
