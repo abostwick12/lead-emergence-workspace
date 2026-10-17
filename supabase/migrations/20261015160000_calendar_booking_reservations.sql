@@ -33,6 +33,32 @@ create index calendar_booking_reservations_overlap_idx
 alter table workspace_private.calendar_booking_reservations enable row level security;
 revoke all on table workspace_private.calendar_booking_reservations from public, anon, authenticated, service_role;
 
+-- A retry can read its exact receipt before availability checks without
+-- creating a new hold when the original Google event has made the slot busy.
+create function workspace.find_calendar_booking(
+  p_workspace_id uuid,
+  p_request_digest text
+)
+returns table (reservation_id uuid, reservation_state text, meeting_type text,
+  starts_at timestamptz, ends_at timestamptz, hold_expires_at timestamptz)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_workspace_id is null or not exists (
+      select 1 from workspace.workspaces as w
+       where w.id = p_workspace_id and w.workspace_type = 'personal'
+    ) or p_request_digest is null or p_request_digest !~ '^[0-9a-f]{64}$' then
+    raise exception 'Invalid Calendar booking lookup.' using errcode = '22023';
+  end if;
+  return query
+    select r.id, r.state, r.meeting_type, r.starts_at, r.ends_at, r.hold_expires_at
+      from workspace_private.calendar_booking_reservations as r
+     where r.workspace_id = p_workspace_id and r.request_digest = p_request_digest;
+end;
+$$;
+
 -- A workspace-wide transaction lock serializes claims for different 30/60-minute
 -- starts that overlap. The private table is never readable by the public page.
 create function workspace.claim_calendar_booking(
@@ -43,7 +69,8 @@ create function workspace.claim_calendar_booking(
   p_ends_at timestamptz,
   p_begin_write boolean default false
 )
-returns table (reservation_id uuid, reservation_state text, hold_expires_at timestamptz)
+returns table (reservation_id uuid, reservation_state text, hold_expires_at timestamptz,
+  write_started boolean)
 language plpgsql
 security definer
 set search_path = ''
@@ -51,6 +78,7 @@ as $$
 declare
   existing workspace_private.calendar_booking_reservations%rowtype;
   claim_time timestamptz;
+  started_now boolean := false;
 begin
   if p_workspace_id is null or not exists (
       select 1 from workspace.workspaces as w
@@ -89,8 +117,9 @@ begin
          set state = 'writing', updated_at = claim_time
        where r.id = existing.id;
       existing.state := 'writing';
+      started_now := true;
     end if;
-    return query select existing.id, existing.state, existing.hold_expires_at;
+    return query select existing.id, existing.state, existing.hold_expires_at, started_now;
     return;
   end if;
 
@@ -115,6 +144,7 @@ begin
     p_starts_at, p_ends_at, claim_time + interval '10 minutes', claim_time, claim_time
   ) returning id, state, calendar_booking_reservations.hold_expires_at
     into reservation_id, reservation_state, hold_expires_at;
+  write_started := false;
   return next;
 end;
 $$;
@@ -169,6 +199,8 @@ revoke all on function workspace.claim_calendar_booking(uuid,text,text,timestamp
   from public, anon, authenticated, service_role;
 revoke all on function workspace.finish_calendar_booking(uuid,text,uuid,text,text)
   from public, anon, authenticated, service_role;
+revoke all on function workspace.find_calendar_booking(uuid,text)
+  from public, anon, authenticated, service_role;
 
 do $$
 begin
@@ -182,6 +214,8 @@ grant usage on schema workspace to workspace_calendar_booker;
 grant execute on function workspace.claim_calendar_booking(uuid,text,text,timestamptz,timestamptz,boolean)
   to workspace_calendar_booker;
 grant execute on function workspace.finish_calendar_booking(uuid,text,uuid,text,text)
+  to workspace_calendar_booker;
+grant execute on function workspace.find_calendar_booking(uuid,text)
   to workspace_calendar_booker;
 
 comment on table workspace_private.calendar_booking_reservations is
