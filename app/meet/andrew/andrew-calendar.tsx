@@ -67,6 +67,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
   const [submitting, setSubmitting] = useState(false);
   const [bookingResult, setBookingResult] = useState<BookingResult>(null);
   const submission = useRef<{ key: string; token: string } | null>(null);
+  const bookingLocked = submitting || bookingResult === "pending" || bookingResult === "confirmed";
   const timeZones = useMemo(() => {
     const supported = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
     return [...new Set([timeZone, ...baseTimeZones, ...supported])].sort((a, b) => a.localeCompare(b));
@@ -113,6 +114,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
     const email = guestEmail.trim().toLowerCase();
     if (!name || !email) return;
     const key = JSON.stringify([selectedDate, meetingType, selectedSlot.start, selectedSlot.end, name, email]);
+    if (bookingResult === "pending" && submission.current?.key !== key) return;
     if (submission.current?.key !== key) submission.current = { key, token: crypto.randomUUID() };
     setSubmitting(true);
     setBookingResult(null);
@@ -138,6 +140,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
   }
 
   function changeMonth(delta: number) {
+    if (bookingLocked) return;
     setMonth(current => new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + delta, 1)));
     setSelectedDate(null);
     clearSelection();
@@ -160,7 +163,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
         <section className={styles.scheduler} aria-label="Choose a meeting time">
           <div className={styles.controls}>
             <label>Meeting type
-              <select value={meetingType} onChange={event => { setMeetingType(event.target.value as (typeof meetingTypes)[number]["value"]); clearSelection(); }}>
+              <select value={meetingType} disabled={bookingLocked} onChange={event => { setMeetingType(event.target.value as (typeof meetingTypes)[number]["value"]); clearSelection(); }}>
                 {meetingTypes.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
               </select>
             </label>
@@ -173,8 +176,8 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
           <div className={styles.calendarHeader}>
             <h2>{monthLabel}</h2>
             <div className={styles.monthActions}>
-              <button type="button" onClick={() => changeMonth(-1)} aria-label="Previous month"><ArrowLeft size={18} /></button>
-              <button type="button" onClick={() => changeMonth(1)} aria-label="Next month"><ArrowRight size={18} /></button>
+              <button type="button" disabled={bookingLocked} onClick={() => changeMonth(-1)} aria-label="Previous month"><ArrowLeft size={18} /></button>
+              <button type="button" disabled={bookingLocked} onClick={() => changeMonth(1)} aria-label="Next month"><ArrowRight size={18} /></button>
             </div>
           </div>
           <div className={styles.calendarAndTimes}>
@@ -183,7 +186,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
               <div className={styles.days}>{days.map(day => {
                 const key = dateKey(day);
                 const inMonth = day.getUTCMonth() === month.getUTCMonth();
-                return <button key={key} type="button" disabled={key < todayKey || key > lastDateKey || submitting} className={selectedDate === key ? styles.selectedDay : undefined} data-outside-month={!inMonth} aria-label={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(day)} aria-pressed={selectedDate === key} onClick={() => { setSelectedDate(key); clearSelection(); if (!inMonth) setMonth(new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1))); }}>{day.getUTCDate()}</button>;
+                return <button key={key} type="button" disabled={key < todayKey || key > lastDateKey || bookingLocked} className={selectedDate === key ? styles.selectedDay : undefined} data-outside-month={!inMonth} aria-label={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(day)} aria-pressed={selectedDate === key} onClick={() => { setSelectedDate(key); clearSelection(); if (!inMonth) setMonth(new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1))); }}>{day.getUTCDate()}</button>;
               })}</div>
             </div>
             <div className={styles.times}>
@@ -195,7 +198,7 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
                 : visibleAvailability.slots.length === 0 ? <div className={styles.unavailable} role="status">No times available on this date.</div>
                 : <ul className={styles.slotList} aria-label="Available times">{visibleAvailability.slots.map(slot =>
                     <li key={slot.start} className={bookingEnabled ? styles.selectableSlot : undefined}>{bookingEnabled
-                      ? <button type="button" disabled={submitting || bookingResult === "confirmed"} className={selectedSlot?.start === slot.start ? styles.selectedSlot : undefined} aria-pressed={selectedSlot?.start === slot.start} onClick={() => { setSelectedSlot(slot); setShowGuestForm(false); setBookingResult(null); submission.current = null; }}>{slotFormatter.formatRange(new Date(slot.start), new Date(slot.end))}</button>
+                      ? <button type="button" disabled={bookingLocked} className={selectedSlot?.start === slot.start ? styles.selectedSlot : undefined} aria-pressed={selectedSlot?.start === slot.start} onClick={() => { setSelectedSlot(slot); setShowGuestForm(false); setBookingResult(null); submission.current = null; }}>{slotFormatter.formatRange(new Date(slot.start), new Date(slot.end))}</button>
                       : slotFormatter.formatRange(new Date(slot.start), new Date(slot.end))}</li>
                   )}</ul>}
             </div>
@@ -204,8 +207,8 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
             <h3>Your details</h3>
             <p>{slotFormatter.formatRange(new Date(selectedSlot.start), new Date(selectedSlot.end))} · {selectedMeeting.minutes} minutes</p>
             <div className={styles.guestFields}>
-              <label>Name<input required maxLength={120} autoComplete="name" value={guestName} onChange={event => setGuestName(event.target.value)} disabled={submitting || bookingResult === "confirmed"} /></label>
-              <label>Email<input required type="email" maxLength={254} autoComplete="email" value={guestEmail} onChange={event => setGuestEmail(event.target.value)} disabled={submitting || bookingResult === "confirmed"} /></label>
+              <label>Name<input required maxLength={120} autoComplete="name" value={guestName} onChange={event => setGuestName(event.target.value)} disabled={bookingLocked} /></label>
+              <label>Email<input required type="email" maxLength={254} autoComplete="email" value={guestEmail} onChange={event => setGuestEmail(event.target.value)} disabled={bookingLocked} /></label>
             </div>
             <button type="submit" disabled={submitting || bookingResult === "confirmed" || bookingResult === "unavailable"}>{submitting ? "Checking this time…" : bookingResult === "pending" ? "Check booking again" : "Book this time"}</button>
             {bookingResult === "confirmed" ? <p className={styles.bookingResult} role="status">Your meeting is booked.</p> : null}
@@ -214,9 +217,9 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
           </form> : null}
           <div className={styles.footer}>
             <p>{bookingEnabled ? selectedSlot ? "Add your details to book this time." : "Choose a time to continue." : "This page doesn’t book meetings yet."}</p>
-            <button type="button" disabled={!bookingEnabled || !selectedSlot || showGuestForm || submitting || bookingResult === "confirmed"} onClick={() => setShowGuestForm(true)}>Continue <ArrowRight size={18} aria-hidden="true" /></button>
+            <button type="button" disabled={!bookingEnabled || !selectedSlot || showGuestForm || bookingLocked} onClick={() => setShowGuestForm(true)}>Continue <ArrowRight size={18} aria-hidden="true" /></button>
           </div>
-          {currentBookingUrl ? <p className={styles.fallback}>Need to book now? <a href={currentBookingUrl} target="_blank" rel="noreferrer">Use the current Google booking page <ExternalLink size={14} aria-hidden="true" /></a></p> : null}
+          {currentBookingUrl && !bookingLocked ? <p className={styles.fallback}>Need to book now? <a href={currentBookingUrl} target="_blank" rel="noreferrer">Use the current Google booking page <ExternalLink size={14} aria-hidden="true" /></a></p> : null}
         </section>
       </div>
     </div>
