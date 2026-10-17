@@ -160,15 +160,18 @@ test("networking scheduling uses the branded page only after a positive response
   expect(browserErrors).toEqual([]);
 });
 
-test("public Lead Emergence scheduling page hands booking to Google without sign-in", async ({ page }) => {
+test("public Lead Emergence calendar keeps the current Google booking link when booking is off", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
   await page.goto("/meet/andrew");
   await expect(page).toHaveURL(/\/meet\/andrew$/);
-  await expect(page.getByRole("heading", { name: "Conversation with Andrew Bostwick", exact: true })).toBeVisible();
-  await expect(page.getByText(/Google will show available times in your local timezone/i)).toBeVisible();
-  const handoff = page.getByRole("link", { name: /View available times in Google Calendar/i });
+  await expect(page.getByRole("heading", { name: "Book time with Andrew", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Meeting type" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Time zone" })).toBeVisible();
+  await expect(page.getByText("This page doesn’t book meetings yet.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+  const handoff = page.getByRole("link", { name: /Use the current Google booking page/i });
   await expect(handoff).toBeVisible();
   await expect(handoff).toHaveAttribute("href", "https://calendar.app.google/syntheticE2EBookingPage");
   await expect(handoff).toHaveAttribute("target", "_blank");
