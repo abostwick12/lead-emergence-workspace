@@ -13,10 +13,17 @@ test("the owner's current week begins Monday in Chicago, including the DST bound
 test("a new week shows zero without carrying the previous plan forward", () => {
   const state = createPreviewState();
   for (const person of state.people.slice(0, 10)) person.networking!.weekOf = "2026-10-06";
-  const currentWeek = latestNetworkingWeek(state, "2026-10-14T15:00:00Z");
+  const now = "2026-10-14T15:00:00Z";
+  const currentWeek = latestNetworkingWeek(state, now);
 
   expect(currentWeek).toBe("2026-10-12");
-  expect(networkingStrategy(state, currentWeek).queued).toBe(0);
+  const current = networkingStrategy(state, currentWeek, now);
+  expect(current.queued).toBe(0);
+  expect(current.target).toBe(10);
+  expect(current.adjustments).toEqual(["No one is planned this week. Add 10 people to start."]);
+  const historical = networkingStrategy(state, "2026-09-28", now);
+  expect(historical.queued).toBe(0);
+  expect(historical.adjustments).toEqual(["No one is planned for the selected week."]);
   expect(networkingStrategy(state, "2026-10-05").queued).toBe(10);
   expect(state.people.slice(0, 10).every((person) => person.networking!.weekOf === "2026-10-06")).toBe(true);
 });
