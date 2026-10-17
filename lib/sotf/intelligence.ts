@@ -174,7 +174,10 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   const pathways = group((item) => item.networking!.pathway);
   const bestCategory = categories.find((item) => item.responses > 0);
   const bestPathway = pathways.find((item) => item.responses > 0);
-  const adjustments = mature.length === 0
+  const isCurrentWeek = weekStart === latestNetworkingWeek(state, now);
+  const adjustments = candidates.length === 0
+    ? [isCurrentWeek ? "No one is planned this week. Add 10 people to start." : "No one is planned for the selected week."]
+    : mature.length === 0
     ? ["No contact attempt is ready to judge yet. Keep this week's plan for now."]
     : conversion !== null && conversion >= conversionTarget
       ? [`The meeting rate meets the ${Math.round(conversionTarget * 100)}% goal. Keep ${bestCategory?.name ?? "the current groups"} and ${bestPathway?.name.replaceAll("_", " ") ?? "the current contact methods"} in next week's plan, then check the recorded replies again.`]
