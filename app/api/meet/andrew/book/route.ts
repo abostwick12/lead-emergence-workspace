@@ -111,10 +111,27 @@ export async function POST(request: Request) {
   const workspaceId = process.env.WORKSPACE_CALENDAR_OWNER_WORKSPACE_ID?.trim();
   if (!workspaceId || !uuid.test(workspaceId)) return result("unavailable", 503);
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return result("unavailable", 400);
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength !== null && (!/^\d+$/.test(declaredLength) || Number(declaredLength) > 2048)) {
+    return result("unavailable", 400);
+  }
   let input: BookingInput | null;
   try {
-    const raw = await request.text();
-    input = raw.length <= 2048 ? parseInput(JSON.parse(raw), new Date()) : null;
+    const reader = request.body?.getReader();
+    if (!reader) return result("unavailable", 400);
+    const chunks: Uint8Array[] = [];
+    let byteLength = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      byteLength += value.byteLength;
+      if (byteLength > 2048) {
+        void reader.cancel().catch(() => {});
+        return result("unavailable", 400);
+      }
+      chunks.push(value);
+    }
+    input = parseInput(JSON.parse(Buffer.concat(chunks).toString("utf8")), new Date());
   } catch {
     input = null;
   }

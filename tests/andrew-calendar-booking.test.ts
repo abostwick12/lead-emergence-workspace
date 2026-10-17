@@ -137,6 +137,29 @@ describe("disabled-by-default Andrew booking", () => {
     expect(model.claims).toEqual([]);
   });
 
+  it("rejects declared and streamed oversized bodies before any Calendar call", async () => {
+    const declared = new Request("http://localhost/api/meet/andrew/book", {
+      method: "POST", headers: { "Content-Type": "application/json", "Content-Length": "2049" }, body: "{}"
+    });
+    expect((await POST(declared)).status).toBe(400);
+
+    let pulls = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        controller.enqueue(new Uint8Array(2049));
+      }
+    }, { highWaterMark: 0 });
+    const streamed = new Request("http://localhost/api/meet/andrew/book", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: stream, duplex: "half"
+    } as RequestInit & { duplex: "half" });
+    expect((await POST(streamed)).status).toBe(400);
+    expect(pulls).toBe(1);
+    expect(model.budgetClaims).toEqual([]);
+    expect(model.claims).toEqual([]);
+    expect(model.insertCalls).toBe(0);
+  });
+
   it("checks both calendars twice and confirms only after the event receipt is stored", async () => {
     expect(process.env.WORKSPACE_CALENDAR_BOOKING_ENABLED).toBe("true");
     expect(process.env.WORKSPACE_CALENDAR_OWNER_WORKSPACE_ID).toBe(workspaceId);
