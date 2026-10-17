@@ -156,7 +156,6 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
           <div className={styles.introRule} />
           <div className={styles.detail}><Clock3 aria-hidden="true" size={21} /><div><strong>{selectedMeeting.minutes} minutes</strong><span>{selectedMeeting.label}</span></div></div>
           <div className={styles.detail}><CalendarDays aria-hidden="true" size={21} /><div><strong>Your time zone</strong><span>Times will appear in {timeZoneLabel(timeZone)}.</span></div></div>
-          <p className={styles.before}>You can share more context when you book.</p>
         </section>
         <section className={styles.scheduler} aria-label="Choose a meeting time">
           <div className={styles.controls}>
