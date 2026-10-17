@@ -175,6 +175,18 @@ test("public Lead Emergence calendar keeps the current Google booking link when 
   await expect(handoff).toBeVisible();
   await expect(handoff).toHaveAttribute("href", "https://calendar.app.google/syntheticE2EBookingPage");
   await expect(handoff).toHaveAttribute("target", "_blank");
+  const chicagoParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date()).map(part => [part.type, part.value]));
+  const today = new Date(Date.UTC(Number(chicagoParts.year), Number(chicagoParts.month) - 1, Number(chicagoParts.day)));
+  const saturday = Array.from({ length: 35 }, (_, index) => new Date(today.getTime() + (index + 1) * 86_400_000))
+    .find(date => date.getUTCDay() === 6 && new Date(date.getTime() + 2 * 86_400_000).getUTCMonth() === date.getUTCMonth());
+  if (!saturday) throw new Error("No Saturday with an adjacent Monday in the booking range");
+  if (saturday.getUTCMonth() !== today.getUTCMonth()) await page.getByRole("button", { name: "Next month" }).click();
+  const dayLabel = (date: Date) => new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(date);
+  await expect(page.getByRole("button", { name: dayLabel(saturday) })).toBeDisabled();
+  await expect(page.getByRole("button", { name: dayLabel(new Date(saturday.getTime() + 86_400_000)) })).toBeDisabled();
+  await expect(page.getByRole("button", { name: dayLabel(new Date(saturday.getTime() + 2 * 86_400_000)) })).toBeEnabled();
   await page.screenshot({ path: `test-results/sotf-scheduling-handoff-${test.info().project.name}.png`, fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   expect(browserErrors).toEqual([]);

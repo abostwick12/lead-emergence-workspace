@@ -186,7 +186,8 @@ export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: 
               <div className={styles.days}>{days.map(day => {
                 const key = dateKey(day);
                 const inMonth = day.getUTCMonth() === month.getUTCMonth();
-                return <button key={key} type="button" disabled={key < todayKey || key > lastDateKey || bookingLocked} className={selectedDate === key ? styles.selectedDay : undefined} data-outside-month={!inMonth} aria-label={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(day)} aria-pressed={selectedDate === key} onClick={() => { setSelectedDate(key); clearSelection(); if (!inMonth) setMonth(new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1))); }}>{day.getUTCDate()}</button>;
+                const weekend = day.getUTCDay() === 0 || day.getUTCDay() === 6;
+                return <button key={key} type="button" disabled={weekend || key < todayKey || key > lastDateKey || bookingLocked} className={selectedDate === key ? styles.selectedDay : undefined} data-outside-month={!inMonth} aria-label={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(day)} aria-pressed={selectedDate === key} onClick={() => { setSelectedDate(key); clearSelection(); if (!inMonth) setMonth(new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1))); }}>{day.getUTCDate()}</button>;
               })}</div>
             </div>
             <div className={styles.times}>
