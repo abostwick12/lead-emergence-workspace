@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, Clock3, ExternalLink } from "lucide-react";
 import styles from "./scheduling.module.css";
 
@@ -12,6 +12,7 @@ const meetingTypes = [
 const baseTimeZones = ["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles"];
 type AvailableSlot = { start: string; end: string };
 type Availability = { key: string; status: "loading" | "available" | "unavailable"; slots: AvailableSlot[] };
+type BookingResult = "confirmed" | "unavailable" | "pending" | null;
 
 function isAvailableSlots(value: unknown): value is AvailableSlot[] {
   return Array.isArray(value) && value.length <= 16 && value.every(slot =>
@@ -43,7 +44,11 @@ function ownerScheduleMonth(instant: Date) {
   return new Date(Date.UTC(year, month - 1, 1));
 }
 
-export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBookingUrl: string | null; todayIso: string }) {
+export function AndrewCalendar({ currentBookingUrl, todayIso, bookingEnabled }: {
+  currentBookingUrl: string | null;
+  todayIso: string;
+  bookingEnabled: boolean;
+}) {
   const today = useMemo(() => new Date(todayIso), [todayIso]);
   const chicagoTodayParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
@@ -55,6 +60,14 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
   const [meetingType, setMeetingType] = useState<(typeof meetingTypes)[number]["value"]>("networking_30");
   const [timeZone, setTimeZone] = useState("America/Chicago");
   const [availability, setAvailability] = useState<Availability | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [bookingResult, setBookingResult] = useState<BookingResult>(null);
+  const submission = useRef<{ key: string; token: string } | null>(null);
+  const bookingLocked = submitting || bookingResult === "pending" || bookingResult === "confirmed";
   const timeZones = useMemo(() => {
     const supported = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
     return [...new Set([timeZone, ...baseTimeZones, ...supported])].sort((a, b) => a.localeCompare(b));
@@ -87,9 +100,50 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
     return () => controller.abort();
   }, [availabilityKey, meetingType, selectedDate]);
 
+  function clearSelection() {
+    setSelectedSlot(null);
+    setShowGuestForm(false);
+    setBookingResult(null);
+    submission.current = null;
+  }
+
+  async function submitBooking(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!bookingEnabled || !selectedDate || !selectedSlot || submitting || bookingResult === "confirmed") return;
+    const name = guestName.trim();
+    const email = guestEmail.trim().toLowerCase();
+    if (!name || !email) return;
+    const key = JSON.stringify([selectedDate, meetingType, selectedSlot.start, selectedSlot.end, name, email]);
+    if (bookingResult === "pending" && submission.current?.key !== key) return;
+    if (submission.current?.key !== key) submission.current = { key, token: crypto.randomUUID() };
+    setSubmitting(true);
+    setBookingResult(null);
+    try {
+      const response = await fetch("/api/meet/andrew/book", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          date: selectedDate, meetingType, start: selectedSlot.start, end: selectedSlot.end,
+          guestName: name, guestEmail: email, requestToken: submission.current.token
+        })
+      });
+      const payload: unknown = await response.json();
+      const status = payload && typeof payload === "object" ? (payload as { status?: unknown }).status : null;
+      setBookingResult(status === "confirmed" || status === "unavailable" || status === "pending" ? status : "pending");
+    } catch {
+      // The request may have reached the server. Keep the same token for a retry.
+      setBookingResult("pending");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   function changeMonth(delta: number) {
+    if (bookingLocked) return;
     setMonth(current => new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + delta, 1)));
     setSelectedDate(null);
+    clearSelection();
   }
 
   return <main className={styles.page}>
@@ -105,12 +159,11 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
           <div className={styles.introRule} />
           <div className={styles.detail}><Clock3 aria-hidden="true" size={21} /><div><strong>{selectedMeeting.minutes} minutes</strong><span>{selectedMeeting.label}</span></div></div>
           <div className={styles.detail}><CalendarDays aria-hidden="true" size={21} /><div><strong>Your time zone</strong><span>Times will appear in {timeZoneLabel(timeZone)}.</span></div></div>
-          <p className={styles.before}>You can share more context when you book.</p>
         </section>
         <section className={styles.scheduler} aria-label="Choose a meeting time">
           <div className={styles.controls}>
             <label>Meeting type
-              <select value={meetingType} onChange={event => setMeetingType(event.target.value as (typeof meetingTypes)[number]["value"])}>
+              <select value={meetingType} disabled={bookingLocked} onChange={event => { setMeetingType(event.target.value as (typeof meetingTypes)[number]["value"]); clearSelection(); }}>
                 {meetingTypes.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}
               </select>
             </label>
@@ -123,8 +176,8 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
           <div className={styles.calendarHeader}>
             <h2>{monthLabel}</h2>
             <div className={styles.monthActions}>
-              <button type="button" onClick={() => changeMonth(-1)} aria-label="Previous month"><ArrowLeft size={18} /></button>
-              <button type="button" onClick={() => changeMonth(1)} aria-label="Next month"><ArrowRight size={18} /></button>
+              <button type="button" disabled={bookingLocked} onClick={() => changeMonth(-1)} aria-label="Previous month"><ArrowLeft size={18} /></button>
+              <button type="button" disabled={bookingLocked} onClick={() => changeMonth(1)} aria-label="Next month"><ArrowRight size={18} /></button>
             </div>
           </div>
           <div className={styles.calendarAndTimes}>
@@ -133,7 +186,8 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
               <div className={styles.days}>{days.map(day => {
                 const key = dateKey(day);
                 const inMonth = day.getUTCMonth() === month.getUTCMonth();
-                return <button key={key} type="button" disabled={key < todayKey || key > lastDateKey} className={selectedDate === key ? styles.selectedDay : undefined} data-outside-month={!inMonth} aria-label={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(day)} aria-pressed={selectedDate === key} onClick={() => { setSelectedDate(key); if (!inMonth) setMonth(new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1))); }}>{day.getUTCDate()}</button>;
+                const weekend = day.getUTCDay() === 0 || day.getUTCDay() === 6;
+                return <button key={key} type="button" disabled={weekend || key < todayKey || key > lastDateKey || bookingLocked} className={selectedDate === key ? styles.selectedDay : undefined} data-outside-month={!inMonth} aria-label={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(day)} aria-pressed={selectedDate === key} onClick={() => { setSelectedDate(key); clearSelection(); if (!inMonth) setMonth(new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1))); }}>{day.getUTCDate()}</button>;
               })}</div>
             </div>
             <div className={styles.times}>
@@ -144,15 +198,29 @@ export function AndrewCalendar({ currentBookingUrl, todayIso }: { currentBooking
                 : visibleAvailability.status === "unavailable" ? <div className={styles.unavailable} role="status">Availability cannot be checked right now.</div>
                 : visibleAvailability.slots.length === 0 ? <div className={styles.unavailable} role="status">No times available on this date.</div>
                 : <ul className={styles.slotList} aria-label="Available times">{visibleAvailability.slots.map(slot =>
-                    <li key={slot.start}>{slotFormatter.formatRange(new Date(slot.start), new Date(slot.end))}</li>
+                    <li key={slot.start} className={bookingEnabled ? styles.selectableSlot : undefined}>{bookingEnabled
+                      ? <button type="button" disabled={bookingLocked} className={selectedSlot?.start === slot.start ? styles.selectedSlot : undefined} aria-pressed={selectedSlot?.start === slot.start} onClick={() => { setSelectedSlot(slot); setShowGuestForm(false); setBookingResult(null); submission.current = null; }}>{slotFormatter.formatRange(new Date(slot.start), new Date(slot.end))}</button>
+                      : slotFormatter.formatRange(new Date(slot.start), new Date(slot.end))}</li>
                   )}</ul>}
             </div>
           </div>
+          {bookingEnabled && showGuestForm && selectedSlot ? <form className={styles.guestForm} onSubmit={event => void submitBooking(event)}>
+            <h3>Your details</h3>
+            <p>{slotFormatter.formatRange(new Date(selectedSlot.start), new Date(selectedSlot.end))} · {selectedMeeting.minutes} minutes</p>
+            <div className={styles.guestFields}>
+              <label>Name<input required maxLength={120} autoComplete="name" value={guestName} onChange={event => setGuestName(event.target.value)} disabled={bookingLocked} /></label>
+              <label>Email<input required type="email" maxLength={254} autoComplete="email" value={guestEmail} onChange={event => setGuestEmail(event.target.value)} disabled={bookingLocked} /></label>
+            </div>
+            <button type="submit" disabled={submitting || bookingResult === "confirmed" || bookingResult === "unavailable"}>{submitting ? "Checking this time…" : bookingResult === "pending" ? "Check booking again" : "Book this time"}</button>
+            {bookingResult === "confirmed" ? <p className={styles.bookingResult} role="status">Your meeting is booked.</p> : null}
+            {bookingResult === "unavailable" ? <p className={styles.bookingResult} role="status">That time is no longer available. Choose another time.</p> : null}
+            {bookingResult === "pending" ? <p className={styles.bookingResult} role="status">We couldn&apos;t confirm the booking yet. Use the same details to check again.</p> : null}
+          </form> : null}
           <div className={styles.footer}>
-            <p>This page doesn&apos;t book meetings yet.</p>
-            <button type="button" disabled>Continue <ArrowRight size={18} aria-hidden="true" /></button>
+            <p>{bookingEnabled ? selectedSlot ? "Add your details to book this time." : "Choose a time to continue." : "This page doesn’t book meetings yet."}</p>
+            <button type="button" disabled={!bookingEnabled || !selectedSlot || showGuestForm || bookingLocked} onClick={() => setShowGuestForm(true)}>Continue <ArrowRight size={18} aria-hidden="true" /></button>
           </div>
-          {currentBookingUrl ? <p className={styles.fallback}>Need to book now? <a href={currentBookingUrl} target="_blank" rel="noreferrer">Use the current Google booking page <ExternalLink size={14} aria-hidden="true" /></a></p> : null}
+          {currentBookingUrl && !bookingLocked ? <p className={styles.fallback}>Need to book now? <a href={currentBookingUrl} target="_blank" rel="noreferrer">Use the current Google booking page <ExternalLink size={14} aria-hidden="true" /></a></p> : null}
         </section>
       </div>
     </div>

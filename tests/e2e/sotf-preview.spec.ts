@@ -160,18 +160,33 @@ test("networking scheduling uses the branded page only after a positive response
   expect(browserErrors).toEqual([]);
 });
 
-test("public Lead Emergence scheduling page hands booking to Google without sign-in", async ({ page }) => {
+test("public Lead Emergence calendar keeps the current Google booking link when booking is off", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
   await page.goto("/meet/andrew");
   await expect(page).toHaveURL(/\/meet\/andrew$/);
-  await expect(page.getByRole("heading", { name: "Conversation with Andrew Bostwick", exact: true })).toBeVisible();
-  await expect(page.getByText(/Google will show available times in your local timezone/i)).toBeVisible();
-  const handoff = page.getByRole("link", { name: /View available times in Google Calendar/i });
+  await expect(page.getByRole("heading", { name: "Book time with Andrew", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Meeting type" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Time zone" })).toBeVisible();
+  await expect(page.getByText("This page doesn’t book meetings yet.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+  const handoff = page.getByRole("link", { name: /Use the current Google booking page/i });
   await expect(handoff).toBeVisible();
   await expect(handoff).toHaveAttribute("href", "https://calendar.app.google/syntheticE2EBookingPage");
   await expect(handoff).toHaveAttribute("target", "_blank");
+  const chicagoParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date()).map(part => [part.type, part.value]));
+  const today = new Date(Date.UTC(Number(chicagoParts.year), Number(chicagoParts.month) - 1, Number(chicagoParts.day)));
+  const saturday = Array.from({ length: 35 }, (_, index) => new Date(today.getTime() + (index + 1) * 86_400_000))
+    .find(date => date.getUTCDay() === 6 && new Date(date.getTime() + 2 * 86_400_000).getUTCMonth() === date.getUTCMonth());
+  if (!saturday) throw new Error("No Saturday with an adjacent Monday in the booking range");
+  if (saturday.getUTCMonth() !== today.getUTCMonth()) await page.getByRole("button", { name: "Next month" }).click();
+  const dayLabel = (date: Date) => new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(date);
+  await expect(page.getByRole("button", { name: dayLabel(saturday) })).toBeDisabled();
+  await expect(page.getByRole("button", { name: dayLabel(new Date(saturday.getTime() + 86_400_000)) })).toBeDisabled();
+  await expect(page.getByRole("button", { name: dayLabel(new Date(saturday.getTime() + 2 * 86_400_000)) })).toBeEnabled();
   await page.screenshot({ path: `test-results/sotf-scheduling-handoff-${test.info().project.name}.png`, fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   expect(browserErrors).toEqual([]);

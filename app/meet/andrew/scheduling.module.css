@@ -40,6 +40,20 @@
 .unavailable { padding:18px; border:1px solid rgb(100 200 209 / .22); border-radius:8px; background:rgb(100 200 209 / .08); color:#c8d8df; font-size:14px; line-height:1.6; }
 .slotList { display:grid; gap:8px; max-height:340px; margin:0; padding:0; overflow:auto; list-style:none; }
 .slotList li { padding:11px 12px; border:1px solid rgb(100 200 209 / .27); border-radius:8px; background:rgb(100 200 209 / .09); color:#f1f6f5; font-size:13px; line-height:1.45; }
+.slotList .selectableSlot { padding:0; }
+.slotList button { width:100%; padding:11px 12px; border:0; border-radius:7px; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.slotList button:hover:not(:disabled),.slotList .selectedSlot { background:rgb(100 200 209 / .2); }
+.slotList .selectedSlot { box-shadow:inset 3px 0 var(--brass); }
+.slotList button:disabled { cursor:not-allowed; opacity:.65; }
+.guestForm { display:grid; gap:15px; margin-top:22px; padding:22px; border:1px solid rgb(100 200 209 / .3); border-radius:10px; background:rgb(3 22 34 / .55); }
+.guestForm h3 { margin:0; color:#fff; font:500 22px Georgia,serif; }
+.guestForm p { margin:0; color:#c4d4db; font-size:13px; line-height:1.5; }
+.guestFields { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.guestFields label { display:grid; gap:8px; color:#d9e6ea; font-size:13px; font-weight:700; }
+.guestFields input { min-width:0; height:44px; padding:0 12px; border:1px solid rgb(100 200 209 / .42); border-radius:7px; background:#0a2b3d; color:#f5f7f6; font:inherit; font-weight:400; }
+.guestForm > button { justify-self:start; min-height:44px; padding:0 18px; border:0; border-radius:7px; background:var(--brass); color:#14202c; font-weight:800; cursor:pointer; }
+.guestForm > button:disabled { opacity:.5; cursor:not-allowed; }
+.guestForm .bookingResult { padding:12px 14px; border-left:3px solid var(--teal); background:rgb(100 200 209 / .09); color:#e1edef; }
 .footer { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-top:22px; }
 .footer p { max-width:32ch; margin:0; color:#bacbd3; font-size:13px; line-height:1.5; }
 .footer button { display:inline-flex; align-items:center; justify-content:center; gap:12px; min-width:170px; min-height:47px; border:0; border-radius:7px; background:var(--brass); color:#14202c; font-weight:800; }
@@ -47,4 +61,4 @@
 .fallback { margin:21px 0 0; padding-top:18px; border-top:1px solid rgb(224 230 239 / .12); color:#a9bdc8; font-size:13px; }
 .fallback a { display:inline-flex; align-items:center; gap:5px; color:var(--teal); font-weight:700; }
 @media (max-width:980px) { .layout { grid-template-columns:1fr; } .intro { border-right:0; border-bottom:1px solid rgb(224 230 239 / .12); } .intro h1 br { display:none; } .introRule,.detail,.before { display:none; } .lede { max-width:60ch; } }
-@media (max-width:680px) { .brand { padding:14px 20px; } .path { display:none; } .intro,.scheduler { padding:28px 20px; } .controls,.calendarAndTimes { grid-template-columns:1fr; } .footer { align-items:stretch; flex-direction:column; } .footer button { width:100%; } }
+@media (max-width:680px) { .brand { padding:14px 20px; } .path { display:none; } .intro,.scheduler { padding:28px 20px; } .controls,.calendarAndTimes,.guestFields { grid-template-columns:1fr; } .footer { align-items:stretch; flex-direction:column; } .footer button { width:100%; } }

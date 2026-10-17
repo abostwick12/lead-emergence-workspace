@@ -23,7 +23,8 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       SOTF_NETWORKING_BOOKING_URL: "https://calendar.app.google/syntheticE2EBookingPage",
-      NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000"
+      NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000",
+      WORKSPACE_CALENDAR_BOOKING_ENABLED: process.env.E2E_BOOKING === "true" ? "true" : "false"
     }
   },
   projects: [
