@@ -160,7 +160,8 @@ test("networking scheduling uses the branded page only after a positive response
   expect(browserErrors).toEqual([]);
 });
 
-test("public Lead Emergence calendar keeps the current Google booking link when booking is off", async ({ page }) => {
+const bookingOffTest = process.env.E2E_BOOKING === "true" ? test.skip : test;
+bookingOffTest("public Lead Emergence calendar keeps the current Google booking link when booking is off", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
