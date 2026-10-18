@@ -177,7 +177,17 @@ export async function POST(request: Request) {
   }
   if (reservation.state === "confirmed") return result("confirmed", 200);
   if (reservation.state === "writing") return result("pending", 202);
-  if (!await slotIsStillFree(workspaceId, input)) return result("unavailable", 409);
+  if (!await slotIsStillFree(workspaceId, input)) {
+    try {
+      await finishCalendarBooking({
+        workspaceId, requestDigest: digest, reservationId: reservation.reservationId,
+        outcome: "released"
+      });
+      return result("unavailable", 409);
+    } catch {
+      return result("pending", 202);
+    }
+  }
 
   let writer;
   try {

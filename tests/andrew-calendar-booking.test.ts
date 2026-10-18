@@ -8,7 +8,9 @@ const model = vi.hoisted(() => ({
   calendarReads: [] as string[],
   busy: [] as { start: string; end: string }[],
   calendarFailure: null as string | null,
+  failReadAt: null as number | null,
   claimFailure: false,
+  finishFailure: false,
   receipt: null as null | {
     reservationId: string; state: "held" | "writing" | "confirmed" | "released";
     meetingType: "networking_30" | "networking_60"; startsAt: string; endsAt: string; holdExpiresAt: string;
@@ -32,7 +34,9 @@ vi.mock("@/lib/calendar/google-freebusy", () => ({
   googleCalendarReadAdapter: (_workspaceId: string, accountSlot: string) => ({
     async readBusy() {
       model.calendarReads.push(accountSlot);
-      if (model.calendarFailure === accountSlot) return { status: "unavailable", reason: "private Google error" };
+      if (model.calendarFailure === accountSlot || model.failReadAt === model.calendarReads.length) {
+        return { status: "unavailable", reason: "private Google error" };
+      }
       return { status: "available", busy: model.busy, checkedAt: new Date().toISOString(), source: "Google Calendar busy time" };
     }
   })
@@ -54,6 +58,7 @@ vi.mock("@/lib/calendar/booking-reservations", () => ({
   },
   finishCalendarBooking: async (input: { outcome: "confirmed" | "released" }) => {
     model.finishes.push(input.outcome);
+    if (model.finishFailure) throw new Error("private database error");
     if (!model.receipt) throw new Error("no receipt");
     model.receipt.state = input.outcome;
     return input.outcome;
@@ -97,7 +102,9 @@ beforeEach(() => {
   model.calendarReads = [];
   model.busy = [];
   model.calendarFailure = null;
+  model.failReadAt = null;
   model.claimFailure = false;
+  model.finishFailure = false;
   model.receipt = null;
   model.claims = [];
   model.finishes = [];
@@ -172,6 +179,29 @@ describe("disabled-by-default Andrew booking", () => {
     expect(model.claims).toEqual([false, true]);
     expect(model.insertCalls).toBe(1);
     expect(model.finishes).toEqual(["confirmed"]);
+  });
+
+  it("releases a held slot when the second Calendar check fails before provider write", async () => {
+    model.failReadAt = 4;
+    const response = await POST(request());
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ status: "unavailable" });
+    expect(model.claims).toEqual([false]);
+    expect(model.finishes).toEqual(["released"]);
+    expect(model.receipt?.state).toBe("released");
+    expect(model.insertCalls).toBe(0);
+  });
+
+  it("keeps a failed hold release pending instead of claiming the slot is free", async () => {
+    model.failReadAt = 4;
+    model.finishFailure = true;
+    const response = await POST(request());
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ status: "pending" });
+    expect(model.claims).toEqual([false]);
+    expect(model.finishes).toEqual(["released"]);
+    expect(model.receipt?.state).toBe("held");
+    expect(model.insertCalls).toBe(0);
   });
 
   it("returns an existing confirmation after a lost HTTP response without another Google call", async () => {

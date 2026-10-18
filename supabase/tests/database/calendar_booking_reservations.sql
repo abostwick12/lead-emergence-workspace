@@ -1,6 +1,6 @@
 begin;
 
-select plan(46);
+select plan(51);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -386,6 +386,84 @@ reset role;
 select is(current_setting('booking_test.case_19', true), 'ok', 'new request may claim an expired hold');
 reset role;
 select is((select count(*) from workspace_private.calendar_booking_reservations where workspace_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'), 2::bigint, 'expired hold remains as an audit record');
+
+-- A failed second availability read must release an exact held claim before
+-- any provider write. It must not permit confirmation from the held state.
+set local role workspace_calendar_booker;
+select set_config('booking_test.prewrite_receipt', (
+  select reservation_id::text from workspace.claim_calendar_booking(
+    'baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('1',64), 'networking_30',
+    now() + interval '3 days', now() + interval '3 days 30 minutes'
+  )
+), true);
+reset role;
+set local role workspace_calendar_booker;
+do $booking_case$
+declare actual text := 'ok';
+begin
+  begin
+    perform workspace.finish_calendar_booking(
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', repeat('1',64),
+      current_setting('booking_test.prewrite_receipt')::uuid, 'released'
+    );
+  exception when others then
+    actual := SQLSTATE || ':' || SQLERRM;
+  end;
+  perform set_config('booking_test.prewrite_wrong_workspace', actual, true);
+end
+$booking_case$;
+reset role;
+select is(current_setting('booking_test.prewrite_wrong_workspace', true),
+  '22023:Calendar booking claim was not found.', 'another workspace cannot release the held claim');
+set local role workspace_calendar_booker;
+do $booking_case$
+declare actual text := 'ok';
+begin
+  begin
+    perform workspace.finish_calendar_booking(
+      'baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('1',64),
+      current_setting('booking_test.prewrite_receipt')::uuid, 'confirmed', 'unexpected-event'
+    );
+  exception when others then
+    actual := SQLSTATE || ':' || SQLERRM;
+  end;
+  perform set_config('booking_test.prewrite_confirm', actual, true);
+end
+$booking_case$;
+reset role;
+select is(current_setting('booking_test.prewrite_confirm', true),
+  '22023:Calendar booking claim cannot be finished.', 'held claim cannot be confirmed without provider write');
+set local role workspace_calendar_booker;
+do $booking_case$
+declare actual text := 'ok';
+begin
+  begin
+    perform workspace.finish_calendar_booking(
+      'baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('1',64),
+      current_setting('booking_test.prewrite_receipt')::uuid, 'released'
+    );
+  exception when others then
+    actual := SQLSTATE || ':' || SQLERRM;
+  end;
+  perform set_config('booking_test.prewrite_release', actual, true);
+end
+$booking_case$;
+reset role;
+select is(current_setting('booking_test.prewrite_release', true), 'ok',
+  'booker can release the exact held claim before provider write');
+select is((select state from workspace_private.calendar_booking_reservations
+    where id = current_setting('booking_test.prewrite_receipt')::uuid),
+  'released', 'prewrite release is durable');
+set local role workspace_calendar_booker;
+select set_config('booking_test.prewrite_reuse', (
+  select reservation_id::text from workspace.claim_calendar_booking(
+    'baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('2',64), 'networking_30',
+    now() + interval '3 days 15 minutes', now() + interval '3 days 45 minutes'
+  )
+), true);
+reset role;
+select ok(nullif(current_setting('booking_test.prewrite_reuse', true), '') is not null,
+  'another request can claim time that overlaps the released hold');
 
 select * from finish();
 rollback;

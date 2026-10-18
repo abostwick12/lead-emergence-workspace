@@ -149,8 +149,8 @@ begin
 end;
 $$;
 
--- Only a definite provider failure may release a write-in-progress claim.
--- An ambiguous provider outcome stays reserved for later reconciliation.
+-- A held claim may be released before provider write begins. Once writing,
+-- only a definite provider failure may release it; ambiguous outcomes stay reserved.
 create function workspace.finish_calendar_booking(
   p_workspace_id uuid,
   p_request_digest text,
@@ -185,7 +185,8 @@ begin
   if existing.state = p_outcome and existing.provider_event_id is not distinct from p_provider_event_id then
     return existing.state;
   end if;
-  if existing.state <> 'writing' then
+  if existing.state <> 'writing'
+    and not (existing.state = 'held' and p_outcome = 'released') then
     raise exception 'Calendar booking claim cannot be finished.' using errcode = '22023';
   end if;
   update workspace_private.calendar_booking_reservations as r
