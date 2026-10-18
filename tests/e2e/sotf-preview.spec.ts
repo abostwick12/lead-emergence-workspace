@@ -44,6 +44,27 @@ test("People page labels the new-person action accurately", async ({ page }) => 
   await expect(dialog.getByLabel("Name", { exact: true })).toBeVisible();
 });
 
+test("networking shows saved people and a linked source-backed prep", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const savedContext = page.getByRole("group", { name: "Saved networking context" });
+  await expect(savedContext.locator("div strong")).toHaveText("25");
+  await expect(savedContext.locator("div span")).toHaveText("people saved across weeks");
+  await page.screenshot({ path: `test-results/networking-saved-context-${test.info().project.name}.png`, fullPage: false });
+  await savedContext.getByRole("link", { name: /1 recorded meeting/ }).click();
+  const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
+  await expect(prep).toBeInViewport();
+  await expect(prep).toContainText("Conversation prep · Understand the work with Morgan");
+  await page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) }).getByRole("button", { name: "Prepare conversation" }).click();
+  await expect(savedContext.getByRole("link", { name: /Fictional candidate 6/ })).toContainText("1 reviewed note · 0 saved questions");
+  await expect(savedContext.getByRole("link", { name: /Fictional candidate 6/ })).toHaveAttribute("href", "#networking-conversation-prep");
+  await savedContext.getByRole("link", { name: /Fictional candidate 6/ }).click();
+  await expect(prep.getByRole("heading", { name: "Conversation prep · Fictional candidate 6" })).toBeVisible();
+  await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("max", "10");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("networking strategy shows the 10-person goal and selectable conversation prep", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Plan 10 people this week." })).toBeVisible();
@@ -108,12 +129,14 @@ test("networking strategy shows the 10-person goal and selectable conversation p
 
 test("a prior-week contact opens conversation prep without joining this week's plan", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const savedContext = page.getByRole("group", { name: "Saved networking context" });
   const history = page.getByRole("region", { name: "Contact history", exact: true });
   const priorWeekContact = history.getByRole("row", { name: /Fictional candidate 11/ });
   await priorWeekContact.getByRole("button", { name: "Prepare conversation", exact: true }).click();
 
   const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
   await expect(prep.getByRole("heading", { name: "Conversation prep · Fictional candidate 11" })).toBeVisible();
+  await expect(savedContext.getByRole("link", { name: /Fictional candidate 11/ })).toHaveAttribute("href", "#networking-conversation-prep");
   await expect(prep.getByText("This person has direct public evidence of doing the work being explored")).toBeVisible();
   await expect(prep.getByRole("link", { name: "Review supplied source" })).toHaveAttribute("href", "https://example.com/networking/candidate-11");
   await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("value", "10");
