@@ -537,7 +537,7 @@ describe("SOTF persistence integrity", () => {
     const command = {
       type: "review_networking_week", weekOf: "2026-10-12",
       counts: { planned: 0, attempts: 0, replies: 0, meetings: 0 },
-      happened: "No one was planned this week", learned: "I need to choose contacts before evaluating results", nextChange: "Plan ten relevant people"
+      happened: "No one was planned this week", learned: "", nextChange: "Plan ten relevant people"
     };
     expect(commandSchema.safeParse(command).success).toBe(false);
     expect(commandEnvelopeSchema.safeParse({ requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command }).success).toBe(false);

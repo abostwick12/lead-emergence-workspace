@@ -94,7 +94,7 @@ const persistedCommandSchema = z.union([
   z.strictObject({
     type: z.literal("review_networking_week"), weekOf: monday,
     counts: z.strictObject({ planned: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), meetings: z.number().int().nonnegative() }),
-    happened: text, learned: text, nextChange: text
+    happened: text, learned: z.string().trim().max(5000), nextChange: text
   }),
   z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),
   // Read the review marker before any writer is allowed to emit it, so this release can safely read a later one.
