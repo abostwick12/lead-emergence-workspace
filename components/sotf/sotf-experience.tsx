@@ -242,7 +242,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
         </> : null}
         {pendingEvidence.length ? <section className={styles.reviewQueue}><h2>Review evidence before it changes the assessment.</h2>{pendingEvidence.map((item) => <EvidenceReview key={item.id} item={item} busy={busy || Boolean(pending)} onSave={save} />)}</section> : null}
         {openActions.length ? <section className={styles.reviewQueue}><h2>Follow-through to review</h2><p className={styles.help}>Mail, sharing, and invitations are completed manually in this pilot. A draft or approval is not evidence that anything was sent.</p>{openActions.map((action) => {
-          const message = ["email", "direct_message", "public_comment"].includes(action.kind);
+          const message = ["email", "direct_message", "public_comment", "calendar_invite", "coach_share"].includes(action.kind);
           const reviewMissing = message && (action.skillReviewRevision !== action.revision || action.body.startsWith("Preparation only:"));
           return <article className={styles.sheet} key={action.id}>
             <p className={styles.eyebrow}>{action.kind.replaceAll("_", " ")} · {action.state.replaceAll("_", " ")}</p><h3>{action.subject}</h3><p>To: {action.recipient}</p><pre>{action.body}</pre>{action.receipt ? <p>{action.receipt}</p> : null}

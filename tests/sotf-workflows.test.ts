@@ -6,6 +6,7 @@ import { applyCommand, resumeTransition, RevisionConflict } from "@/lib/sotf/eng
 import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
 import { OperationNotApplied, replayEvents, SotfStore, type WorkflowEvent } from "@/lib/sotf/persistence";
 import { invitationDraft, proposeConversationTimes } from "@/lib/sotf/scheduling";
+import { definition } from "@/components/sotf/workflow-editor";
 
 // Fictional fellow and employer. These fixtures contain no personal or ministry data.
 const workspaceId = "70000000-0000-4000-8000-000000000001";
@@ -181,6 +182,24 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
     h.run({ type: "approve_action", actionId: id, exactRevision: 6 });
     h.run({ type: "record_action_result", actionId: id, outcome: "manually_completed", receipt: "Fellow verified the message in Sent" });
     expect(() => h.run({ type: "retry_action", actionId: id, confirmedNotExecuted: true })).toThrow("must not be retried");
+  });
+
+  it.each(["calendar_invite", "coach_share"] as const)("requires reviewed text for a new %s draft while preserving historical approval", (kind) => {
+    const h = harness();
+    h.run({ type: "prepare_action", kind, recipient: "Fictional recipient", subject: "Synthetic preparation", body: "Synthetic unreviewed draft; no external send." });
+    const action = h.state.actions.at(-1)!;
+    const actionId = action.id;
+    expect(definition("action", h.state, actionId).fields.some((field) => field.name === "skillReviewed")).toBe(true);
+    expect(() => h.run({ type: "approve_action", actionId, exactRevision: 1 })).toThrow("AI Slop Killer");
+    h.run({ type: "revise_action", actionId, recipient: action.recipient, subject: action.subject, body: "Synthetic revised text without review." });
+    const historicalApproval = envelope(h.state, { type: "approve_action", actionId, exactRevision: 2 });
+    expect(() => applyCommand(h.state, historicalApproval, now)).toThrow("AI Slop Killer");
+    expect(applyCommand(h.state, historicalApproval, now, "persisted_event").actions.at(-1)?.state).toBe("approved_for_manual_execution");
+    h.run({ type: "revise_action", actionId, recipient: action.recipient, subject: action.subject, body: "Synthetic reviewed text; no external send.", skillReviewed: true });
+    expect(h.state.actions.at(-1)?.skillReviewRevision).toBe(3);
+    expect(() => h.run({ type: "approve_action", actionId, exactRevision: 2 })).toThrow("exact current draft");
+    h.run({ type: "approve_action", actionId, exactRevision: 3 });
+    expect(h.state.actions.at(-1)?.state).toBe("approved_for_manual_execution");
   });
 
   it("prepares coaching from developments and commitments without including unrelated person-less meeting notes", () => {
