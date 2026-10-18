@@ -8,6 +8,7 @@ const short = z.string().trim().min(1).max(240);
 const text = z.string().trim().min(1).max(5000);
 const note = z.string().trim().max(5000).default("");
 const date = z.string().date();
+const monday = date.refine((value) => new Date(`${value}T12:00:00Z`).getUTCDay() === 1, "Use the Monday starting the Chicago week.");
 const timestamp = z.string().datetime({ offset: true }).transform((value) => new Date(value).toISOString());
 const ids = z.array(id).max(100).default([]);
 export const publicUrl = z.string().url().refine((value) => ["https:", "http:"].includes(new URL(value).protocol), "Use an HTTP or HTTPS source URL.");
@@ -89,6 +90,12 @@ const persistedPersonSchema = z.strictObject({
   ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true, testRecord: true }).shape
 });
 const persistedCommandSchema = z.union([
+  // Replay week-specific Networking reviews before a later writer can create them.
+  z.strictObject({
+    type: z.literal("review_networking_week"), weekOf: monday,
+    counts: z.strictObject({ planned: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), meetings: z.number().int().nonnegative() }),
+    happened: text, learned: text, nextChange: text
+  }),
   z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),
   // Read the review marker before any writer is allowed to emit it, so this release can safely read a later one.
   z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text, skillReviewed: z.literal(true).optional() }),
@@ -101,6 +108,7 @@ const persistedCommandSchema = z.union([
 export const persistedCommandEnvelopeSchema = commandEnvelopeSchema.extend({ command: persistedCommandSchema });
 export type Command = z.infer<typeof commandSchema>;
 export type CommandEnvelope = z.infer<typeof commandEnvelopeSchema>;
+export type PersistedCommandEnvelope = z.infer<typeof persistedCommandEnvelopeSchema>;
 export type Criterion = z.infer<typeof criterionSchema>;
 export type Hypothesis = z.infer<typeof hypothesisSchema> & { updatedAt: string };
 export type Evidence = z.infer<typeof evidenceSchema> & { review: "pending" | "accepted" | "rejected"; reviewedAt?: string; reviewRationale?: string; createdAt: string; criterionDesired?: string };
@@ -120,7 +128,8 @@ export type PilotState = {
   criteria: Criterion[]; hypotheses: Hypothesis[]; opportunities: Opportunity[]; evidence: Evidence[]; people: Person[]; meetings: Meeting[]; commitments: Commitment[]; stories: Story[]; materials: Material[]; applications: Application[]; interviews: Interview[]; offers: Offer[]; actions: OutboundAction[];
   checkpoints: z.infer<typeof checkpointSchema>[];
   weeklyReviews: { id: string; at: string; learned: string; start: string; stop: string; change: string }[];
-  changes: { id: string; at: string; kind: Command["type"]; summary: string }[];
+  networkingWeekReviews: { id: string; at: string; weekOf: string; counts: { planned: number; attempts: number; replies: number; meetings: number }; happened: string; learned: string; nextChange: string }[];
+  changes: { id: string; at: string; kind: PersistedCommandEnvelope["command"]["type"]; summary: string }[];
   receipts: { requestId: string; command: string; revision: number }[];
 };
-export function emptyPilotState(): PilotState { return { schemaVersion: 1, revision: 0, chapter: null, criteria: [], hypotheses: [], opportunities: [], evidence: [], people: [], meetings: [], commitments: [], stories: [], materials: [], applications: [], interviews: [], offers: [], actions: [], checkpoints: [], weeklyReviews: [], changes: [], receipts: [] }; }
+export function emptyPilotState(): PilotState { return { schemaVersion: 1, revision: 0, chapter: null, criteria: [], hypotheses: [], opportunities: [], evidence: [], people: [], meetings: [], commitments: [], stories: [], materials: [], applications: [], interviews: [], offers: [], actions: [], checkpoints: [], weeklyReviews: [], networkingWeekReviews: [], changes: [], receipts: [] }; }
