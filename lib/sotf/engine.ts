@@ -249,13 +249,13 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       if (command.skillReviewed && command.body.startsWith("Preparation only:")) throw new Error("Replace the preparation note with reviewed message text before recording AI Slop Killer review.");
       item.recipient = command.recipient; item.subject = command.subject; item.body = command.body;
       item.revision += 1; item.state = "draft"; item.approvedAt = undefined; item.updatedAt = now;
-      item.skillReviewRevision = command.skillReviewed && ["email", "direct_message", "public_comment"].includes(item.kind) ? item.revision : undefined;
+      item.skillReviewRevision = command.skillReviewed && ["email", "direct_message", "public_comment", "calendar_invite", "coach_share"].includes(item.kind) ? item.revision : undefined;
       summary = "Draft revised; previous approval no longer applies."; break;
     }
     case "approve_action": {
       const item = requireRecord(state.actions, command.actionId, "Action");
       if (item.revision !== command.exactRevision || item.state !== "draft") throw new Error("Review the exact current draft before approving it.");
-      if (source === "new_command" && ["email", "direct_message", "public_comment"].includes(item.kind) && (item.skillReviewRevision !== item.revision || item.body.startsWith("Preparation only:"))) throw new Error("Review this exact message with AI Slop Killer in Codex, save the reviewed text, and record the review before approval.");
+      if (source === "new_command" && ["email", "direct_message", "public_comment", "calendar_invite", "coach_share"].includes(item.kind) && (item.skillReviewRevision !== item.revision || item.body.startsWith("Preparation only:"))) throw new Error("Review this exact message with AI Slop Killer in Codex, save the reviewed text, and record the review before approval.");
       item.state = "approved_for_manual_execution"; item.approvedAt = now; item.updatedAt = now;
       summary = "Exact draft approved. External execution is manual; approval is not evidence of sending."; break;
     }
