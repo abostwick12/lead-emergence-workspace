@@ -158,7 +158,7 @@ export async function POST(request: Request) {
     if (existing?.status !== "confirmed") return result("pending", 202);
     try {
       await finishCalendarBooking({ workspaceId, requestDigest: digest, reservationId: receipt.reservationId,
-        outcome: "confirmed", providerEventId: existing.eventId });
+        expectedState: "writing", outcome: "confirmed", providerEventId: existing.eventId });
       return result("confirmed", 200);
     } catch {
       return result("pending", 202);
@@ -181,7 +181,7 @@ export async function POST(request: Request) {
     try {
       await finishCalendarBooking({
         workspaceId, requestDigest: digest, reservationId: reservation.reservationId,
-        outcome: "released"
+        expectedState: "held", outcome: "released"
       });
       return result("unavailable", 409);
     } catch {
@@ -208,6 +208,7 @@ export async function POST(request: Request) {
     const outcome = inserted.status === "confirmed" ? "confirmed" : "released";
     await finishCalendarBooking({
       workspaceId, requestDigest: digest, reservationId: writer.reservationId, outcome,
+      expectedState: "writing",
       providerEventId: outcome === "confirmed" ? inserted.eventId : null
     });
     return outcome === "confirmed" ? result("confirmed", 200) : result("unavailable", 409);

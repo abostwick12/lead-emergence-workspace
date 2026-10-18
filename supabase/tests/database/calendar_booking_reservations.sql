@@ -1,6 +1,6 @@
 begin;
 
-select plan(51);
+select plan(53);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -18,10 +18,10 @@ select is((select rolcanlogin and not rolbypassrls and not rolinherit from pg_ro
 select is(has_schema_privilege('workspace_calendar_booker', 'workspace_private', 'usage'), false, 'booker cannot use private schema');
 select is(has_table_privilege('workspace_calendar_booker', 'workspace_private.calendar_booking_reservations', 'select'), false, 'booker cannot read private reservations');
 select is(has_function_privilege('workspace_calendar_booker', 'workspace.claim_calendar_booking(uuid,text,text,timestamptz,timestamptz,boolean)', 'execute'), true, 'booker can claim');
-select is(has_function_privilege('workspace_calendar_booker', 'workspace.finish_calendar_booking(uuid,text,uuid,text,text)', 'execute'), true, 'booker can finish');
+select is(has_function_privilege('workspace_calendar_booker', 'workspace.finish_calendar_booking(uuid,text,uuid,text,text,text)', 'execute'), true, 'booker can finish');
 select is(has_function_privilege('anon', 'workspace.claim_calendar_booking(uuid,text,text,timestamptz,timestamptz,boolean)', 'execute'), false, 'anonymous visitor cannot claim');
 select is(has_function_privilege('authenticated', 'workspace.claim_calendar_booking(uuid,text,text,timestamptz,timestamptz,boolean)', 'execute'), false, 'signed-in browser cannot claim');
-select is(has_function_privilege('service_role', 'workspace.finish_calendar_booking(uuid,text,uuid,text,text)', 'execute'), false, 'service role cannot finish');
+select is(has_function_privilege('service_role', 'workspace.finish_calendar_booking(uuid,text,uuid,text,text,text)', 'execute'), false, 'service role cannot finish');
 select is(has_function_privilege('workspace_calendar_reader', 'workspace.claim_calendar_booking(uuid,text,text,timestamptz,timestamptz,boolean)', 'execute'), false, 'Calendar reader cannot book');
 select is(has_function_privilege('workspace_calendar_booker', 'workspace.find_calendar_booking(uuid,text)', 'execute'), true, 'booker can read one exact receipt');
 select is(has_function_privilege('anon', 'workspace.find_calendar_booking(uuid,text)', 'execute'), false, 'anonymous visitor cannot read receipts');
@@ -196,7 +196,7 @@ do $booking_case$
 declare actual text := 'ok';
 begin
   begin
-    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('f',64), (select id from workspace_private.calendar_booking_reservations where request_digest = repeat('a',64) and workspace_id = 'baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), 'confirmed', 'provider-event-a');
+    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('f',64), (select id from workspace_private.calendar_booking_reservations where request_digest = repeat('a',64) and workspace_id = 'baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), 'writing', 'confirmed', 'provider-event-a');
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
   end;
@@ -212,7 +212,7 @@ do $booking_case$
 declare actual text := 'ok';
 begin
   begin
-    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('f',64), '00000000-0000-0000-0000-000000000000', 'confirmed', 'provider-event-a');
+    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('f',64), '00000000-0000-0000-0000-000000000000', 'writing', 'confirmed', 'provider-event-a');
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
   end;
@@ -233,7 +233,7 @@ do $booking_case$
 declare actual text := 'ok';
 begin
   begin
-    perform workspace.finish_calendar_booking('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'confirmed', 'provider-event-a');
+    perform workspace.finish_calendar_booking('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'writing', 'confirmed', 'provider-event-a');
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
   end;
@@ -249,7 +249,7 @@ do $booking_case$
 declare actual text := 'ok';
 begin
   begin
-    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'confirmed', 'provider-event-a');
+    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'writing', 'confirmed', 'provider-event-a');
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
   end;
@@ -266,7 +266,7 @@ do $booking_case$
 declare actual text := 'ok';
 begin
   begin
-    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'confirmed', 'provider-event-a');
+    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'writing', 'confirmed', 'provider-event-a');
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
   end;
@@ -280,7 +280,7 @@ do $booking_case$
 declare actual text := 'ok';
 begin
   begin
-    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'confirmed', 'provider-event-b');
+    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'writing', 'confirmed', 'provider-event-b');
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
   end;
@@ -294,7 +294,7 @@ do $booking_case$
 declare actual text := 'ok';
 begin
   begin
-    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'released');
+    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('a',64), current_setting('booking_test.receipt')::uuid, 'writing', 'released');
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
   end;
@@ -328,7 +328,22 @@ do $booking_case$
 declare actual text := 'ok';
 begin
   begin
-    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('c',64), current_setting('booking_test.adjacent')::uuid, 'released');
+    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('c',64), current_setting('booking_test.adjacent')::uuid, 'held', 'released');
+  exception when others then
+    actual := SQLSTATE || ':' || SQLERRM;
+  end;
+  perform set_config('booking_test.stale_held_release', actual, true);
+end
+$booking_case$;
+reset role;
+select is(current_setting('booking_test.stale_held_release', true), '22023:Calendar booking claim cannot be finished.', 'stale held release cannot clear a writing claim');
+select is((select state from workspace_private.calendar_booking_reservations where id = current_setting('booking_test.adjacent')::uuid), 'writing', 'writing claim remains reserved after stale held release');
+set local role workspace_calendar_booker;
+do $booking_case$
+declare actual text := 'ok';
+begin
+  begin
+    perform workspace.finish_calendar_booking('baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('c',64), current_setting('booking_test.adjacent')::uuid, 'writing', 'released');
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
   end;
@@ -404,7 +419,7 @@ begin
   begin
     perform workspace.finish_calendar_booking(
       'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', repeat('1',64),
-      current_setting('booking_test.prewrite_receipt')::uuid, 'released'
+      current_setting('booking_test.prewrite_receipt')::uuid, 'held', 'released'
     );
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
@@ -422,7 +437,7 @@ begin
   begin
     perform workspace.finish_calendar_booking(
       'baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('1',64),
-      current_setting('booking_test.prewrite_receipt')::uuid, 'confirmed', 'unexpected-event'
+      current_setting('booking_test.prewrite_receipt')::uuid, 'held', 'confirmed', 'unexpected-event'
     );
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;
@@ -440,7 +455,7 @@ begin
   begin
     perform workspace.finish_calendar_booking(
       'baaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', repeat('1',64),
-      current_setting('booking_test.prewrite_receipt')::uuid, 'released'
+      current_setting('booking_test.prewrite_receipt')::uuid, 'held', 'released'
     );
   exception when others then
     actual := SQLSTATE || ':' || SQLERRM;

@@ -168,11 +168,13 @@ export async function finishCalendarBooking(input: {
   workspaceId: string;
   requestDigest: string;
   reservationId: string;
+  expectedState: "held" | "writing";
   outcome: "confirmed" | "released";
   providerEventId?: string | null;
 }): Promise<"confirmed" | "released"> {
   assertBinding(input.workspaceId, input.requestDigest);
   if (!UUID_PATTERN.test(input.reservationId)
+    || !["held", "writing"].includes(input.expectedState)
     || !["confirmed", "released"].includes(input.outcome)
     || (input.outcome === "confirmed" && (typeof input.providerEventId !== "string"
       || input.providerEventId.length < 1 || input.providerEventId.length > 256))
@@ -187,7 +189,7 @@ export async function finishCalendarBooking(input: {
     const [result] = await sql<{ state: string }[]>`
       select workspace.finish_calendar_booking(
         ${input.workspaceId}::uuid, ${input.requestDigest}::text,
-        ${input.reservationId}::uuid, ${input.outcome}::text,
+        ${input.reservationId}::uuid, ${input.expectedState}::text, ${input.outcome}::text,
         ${input.providerEventId ?? null}::text
       ) as state
     `;

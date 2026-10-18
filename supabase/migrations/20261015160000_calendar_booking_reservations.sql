@@ -155,6 +155,7 @@ create function workspace.finish_calendar_booking(
   p_workspace_id uuid,
   p_request_digest text,
   p_reservation_id uuid,
+  p_expected_state text,
   p_outcome text,
   p_provider_event_id text default null
 )
@@ -167,7 +168,8 @@ declare
   existing workspace_private.calendar_booking_reservations%rowtype;
 begin
   if p_workspace_id is null or p_request_digest is null or p_request_digest !~ '^[0-9a-f]{64}$'
-    or p_reservation_id is null or p_outcome is null or p_outcome not in ('confirmed', 'released')
+    or p_reservation_id is null or p_expected_state is null or p_expected_state not in ('held', 'writing')
+    or p_outcome is null or p_outcome not in ('confirmed', 'released')
     or (p_outcome = 'confirmed' and (p_provider_event_id is null or char_length(p_provider_event_id) not between 1 and 256))
     or (p_outcome = 'released' and p_provider_event_id is not null) then
     raise exception 'Invalid Calendar booking result.' using errcode = '22023';
@@ -185,8 +187,8 @@ begin
   if existing.state = p_outcome and existing.provider_event_id is not distinct from p_provider_event_id then
     return existing.state;
   end if;
-  if existing.state <> 'writing'
-    and not (existing.state = 'held' and p_outcome = 'released') then
+  if existing.state <> p_expected_state
+    or (p_expected_state = 'held' and p_outcome <> 'released') then
     raise exception 'Calendar booking claim cannot be finished.' using errcode = '22023';
   end if;
   update workspace_private.calendar_booking_reservations as r
@@ -198,7 +200,7 @@ $$;
 
 revoke all on function workspace.claim_calendar_booking(uuid,text,text,timestamptz,timestamptz,boolean)
   from public, anon, authenticated, service_role;
-revoke all on function workspace.finish_calendar_booking(uuid,text,uuid,text,text)
+revoke all on function workspace.finish_calendar_booking(uuid,text,uuid,text,text,text)
   from public, anon, authenticated, service_role;
 revoke all on function workspace.find_calendar_booking(uuid,text)
   from public, anon, authenticated, service_role;
@@ -214,7 +216,7 @@ grant connect on database postgres to workspace_calendar_booker;
 grant usage on schema workspace to workspace_calendar_booker;
 grant execute on function workspace.claim_calendar_booking(uuid,text,text,timestamptz,timestamptz,boolean)
   to workspace_calendar_booker;
-grant execute on function workspace.finish_calendar_booking(uuid,text,uuid,text,text)
+grant execute on function workspace.finish_calendar_booking(uuid,text,uuid,text,text,text)
   to workspace_calendar_booker;
 grant execute on function workspace.find_calendar_booking(uuid,text)
   to workspace_calendar_booker;

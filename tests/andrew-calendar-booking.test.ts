@@ -11,12 +11,14 @@ const model = vi.hoisted(() => ({
   failReadAt: null as number | null,
   claimFailure: false,
   finishFailure: false,
+  raceToWritingOnHeldFinish: false,
   receipt: null as null | {
     reservationId: string; state: "held" | "writing" | "confirmed" | "released";
     meetingType: "networking_30" | "networking_60"; startsAt: string; endsAt: string; holdExpiresAt: string;
   },
   claims: [] as boolean[],
   finishes: [] as string[],
+  finishExpectedStates: [] as string[],
   insertCalls: 0,
   insertStatus: "confirmed" as "confirmed" | "failed" | "ambiguous",
   readCalls: 0,
@@ -56,10 +58,14 @@ vi.mock("@/lib/calendar/booking-reservations", () => ({
     if (writeStarted) model.receipt.state = "writing";
     return { ...model.receipt, writeStarted };
   },
-  finishCalendarBooking: async (input: { outcome: "confirmed" | "released" }) => {
+  finishCalendarBooking: async (input: { expectedState: "held" | "writing"; outcome: "confirmed" | "released" }) => {
     model.finishes.push(input.outcome);
+    model.finishExpectedStates.push(input.expectedState);
+    if (model.raceToWritingOnHeldFinish && input.expectedState === "held" && model.receipt?.state === "held") {
+      model.receipt.state = "writing";
+    }
     if (model.finishFailure) throw new Error("private database error");
-    if (!model.receipt) throw new Error("no receipt");
+    if (!model.receipt || model.receipt.state !== input.expectedState) throw new Error("claim state changed");
     model.receipt.state = input.outcome;
     return input.outcome;
   }
@@ -105,9 +111,11 @@ beforeEach(() => {
   model.failReadAt = null;
   model.claimFailure = false;
   model.finishFailure = false;
+  model.raceToWritingOnHeldFinish = false;
   model.receipt = null;
   model.claims = [];
   model.finishes = [];
+  model.finishExpectedStates = [];
   model.insertCalls = 0;
   model.insertStatus = "confirmed";
   model.readCalls = 0;
@@ -188,6 +196,7 @@ describe("disabled-by-default Andrew booking", () => {
     expect(await response.json()).toEqual({ status: "unavailable" });
     expect(model.claims).toEqual([false]);
     expect(model.finishes).toEqual(["released"]);
+    expect(model.finishExpectedStates).toEqual(["held"]);
     expect(model.receipt?.state).toBe("released");
     expect(model.insertCalls).toBe(0);
   });
@@ -201,6 +210,18 @@ describe("disabled-by-default Andrew booking", () => {
     expect(model.claims).toEqual([false]);
     expect(model.finishes).toEqual(["released"]);
     expect(model.receipt?.state).toBe("held");
+    expect(model.insertCalls).toBe(0);
+  });
+
+  it("keeps a writing claim pending when another exact retry wins the pre-write release race", async () => {
+    model.failReadAt = 4;
+    model.raceToWritingOnHeldFinish = true;
+    const response = await POST(request());
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ status: "pending" });
+    expect(model.claims).toEqual([false]);
+    expect(model.finishExpectedStates).toEqual(["held"]);
+    expect(model.receipt?.state).toBe("writing");
     expect(model.insertCalls).toBe(0);
   });
 
