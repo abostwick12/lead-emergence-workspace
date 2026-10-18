@@ -4,7 +4,12 @@ test("a pending booking can only recheck its original request", async ({ page })
   const chicagoParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
   }).formatToParts(new Date()).map(part => [part.type, part.value]));
-  const date = `${chicagoParts.year}-${chicagoParts.month}-${chicagoParts.day}`;
+  const today = new Date(`${chicagoParts.year}-${chicagoParts.month}-${chicagoParts.day}T00:00:00Z`);
+  const dayToBook = new Date(today.valueOf() + 3 * 24 * 60 * 60_000);
+  while (dayToBook.getUTCDay() === 0 || dayToBook.getUTCDay() === 6) {
+    dayToBook.setUTCDate(dayToBook.getUTCDate() + 1);
+  }
+  const date = dayToBook.toISOString().slice(0, 10);
   const dayLabel = new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" })
     .format(new Date(`${date}T12:00:00Z`));
   const requests: unknown[] = [];
@@ -30,6 +35,9 @@ test("a pending booking can only recheck its original request", async ({ page })
   await page.goto("/meet/andrew");
   const fallback = page.getByRole("link", { name: "Use the current Google booking page" });
   await expect(fallback).toBeVisible();
+  if (dayToBook.getUTCMonth() !== today.getUTCMonth()) {
+    await page.getByRole("button", { name: "Next month" }).click();
+  }
   const day = page.getByRole("button", { name: dayLabel });
   await day.click();
   const slot = page.getByRole("list", { name: "Available times" }).getByRole("button").first();
