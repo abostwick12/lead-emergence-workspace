@@ -1,4 +1,4 @@
-import { commandEnvelopeSchema, persistedCommandEnvelopeSchema, type CommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
+import { commandEnvelopeSchema, persistedCommandEnvelopeSchema, type CommandEnvelope, type PersistedCommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
 import { assessOpportunity, requireRecord } from "./intelligence";
 
 export class RevisionConflict extends Error { constructor() { super("Your SOTF Bundle changed in another session. Refresh and review the current state before retrying."); } }
@@ -13,7 +13,7 @@ function advanceNetworking(person: PilotState["people"][number], status: typeof 
 }
 
 /** New commands stay strict; only canonical log replay uses the historical reader contract. */
-export function applyCommand(previous: PilotState, input: CommandEnvelope, now = new Date().toISOString(), source: "new_command" | "persisted_event" = "new_command"): PilotState {
+export function applyCommand(previous: PilotState, input: CommandEnvelope | PersistedCommandEnvelope, now = new Date().toISOString(), source: "new_command" | "persisted_event" = "new_command"): PilotState {
   const envelope = persistedCommandEnvelopeSchema.parse(source === "persisted_event" ? input : commandEnvelopeSchema.parse(input));
   const serialized = JSON.stringify(envelope.command);
   const receipt = previous.receipts.find((item) => item.requestId === envelope.requestId);
@@ -237,6 +237,10 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       command.hypothesisUpdates.forEach((value) => upsert(state.hypotheses, { ...value, updatedAt: now })); command.commitments.forEach((value) => saveCommitment(value));
       state.weeklyReviews.push({ id: envelope.requestId, at: now, learned: command.learned, start: command.start, stop: command.stop, change: command.change });
       summary = `Weekly change: ${command.change}`; break;
+    }
+    case "review_networking_week": {
+      state.networkingWeekReviews.push({ id: envelope.requestId, at: now, weekOf: command.weekOf, counts: { ...command.counts }, happened: command.happened, learned: command.learned, nextChange: command.nextChange });
+      summary = `Networking week reviewed: ${command.weekOf}`; break;
     }
     case "prepare_action": {
       const { type: _type, ...value } = command; void _type;

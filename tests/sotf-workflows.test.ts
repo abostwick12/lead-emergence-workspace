@@ -550,6 +550,42 @@ describe("SOTF reusable evidence, applications, and next chapter", () => {
 });
 
 describe("SOTF persistence integrity", () => {
+  it("replays a Networking week review without enabling new writes or changing general reviews", () => {
+    const h = harness();
+    h.run({ type: "review_week", learned: "A fictional role needs more research", start: "Ask about decision rights", stop: "Assuming a title explains the work", change: "Review one role description", hypothesisUpdates: [], commitments: [] });
+    const command = {
+      type: "review_networking_week", weekOf: "2026-10-12",
+      counts: { planned: 0, attempts: 0, replies: 0, meetings: 0 },
+      happened: "No one was planned this week", learned: "", nextChange: "Plan ten relevant people"
+    };
+    expect(commandSchema.safeParse(command).success).toBe(false);
+    expect(commandEnvelopeSchema.safeParse({ requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command }).success).toBe(false);
+    const operation = persistedCommandEnvelopeSchema.parse({
+      requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true,
+      dataClass: "ordinary_transition_operations", command
+    });
+    expect(() => applyCommand(h.state, operation)).toThrow();
+    const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: operation }];
+    const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+    expect(recovered.weeklyReviews).toEqual(h.state.weeklyReviews);
+    expect(recovered.networkingWeekReviews).toEqual([{
+      id: operation.requestId, at: now, weekOf: "2026-10-12", counts: command.counts,
+      happened: command.happened, learned: command.learned, nextChange: command.nextChange
+    }]);
+    expect(recovered.changes.at(-1)).toMatchObject({ kind: "review_networking_week", summary: "Networking week reviewed: 2026-10-12" });
+    expect(recovered.receipts.at(-1)?.command).toBe(JSON.stringify(operation.command));
+
+    for (const invalid of [
+      { ...command, weekOf: "2026-10-13" },
+      { ...command, weekOf: "2026-02-30" },
+      { ...command, counts: { ...command.counts, attempts: -1 } },
+      { ...command, counts: { ...command.counts, meetings: 0.5 } },
+      { ...command, counts: { ...command.counts, unrecorded: 1 } }
+    ]) {
+      expect(persistedCommandEnvelopeSchema.safeParse({ ...operation, command: invalid }).success).toBe(false);
+    }
+  });
+
   it("rejects test people in new chapter links while replaying earlier links", () => {
     const h = harness();
     h.run({ type: "save_person", person: { ...contact, testRecord: true } });
