@@ -113,9 +113,11 @@ test("networking strategy shows the 10-person goal and selectable conversation p
   await expect(page.getByText(/meeting rate meets the 20% goal/i)).toBeVisible();
   const history = page.getByRole("region", { name: "Contact history", exact: true });
   await expect(history.getByText("25 people", { exact: true })).toBeVisible();
-  for (const heading of ["Why they matter", "Last touch", "Status", "Outcome", "Context / notes"]) await expect(history.getByRole("columnheader", { name: heading })).toBeVisible();
-  await expect(history.getByRole("row")).toHaveCount(26);
-  await expect(history.getByRole("row", { name: /Fictional candidate 25/ }).getByText("No touch recorded", { exact: true })).toBeVisible();
+  await expect(history.getByRole("article")).toHaveCount(25);
+  const lastContact = history.getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 25", exact: true }) });
+  await expect(lastContact.getByText("No touch recorded", { exact: true })).toBeVisible();
+  await expect(lastContact.getByText("Outcome", { exact: true })).toBeVisible();
+  await expect(lastContact.getByText("Context / notes", { exact: true })).toBeVisible();
   await page.getByText("Drafts and recorded contact", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Thoughtful public comment", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Follow up after public conversation", exact: true }).first()).toBeVisible();
@@ -131,7 +133,7 @@ test("a prior-week contact opens conversation prep without joining this week's p
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   const savedContext = page.getByRole("group", { name: "Saved networking context" });
   const history = page.getByRole("region", { name: "Contact history", exact: true });
-  const priorWeekContact = history.getByRole("row", { name: /Fictional candidate 11/ });
+  const priorWeekContact = history.getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 11", exact: true }) });
   await priorWeekContact.getByRole("button", { name: "Prepare conversation", exact: true }).click();
 
   const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
@@ -142,6 +144,31 @@ test("a prior-week contact opens conversation prep without joining this week's p
   await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("value", "10");
   await expect(page.locator('[aria-label="People planned this week"] article')).toHaveCount(10);
   await expect(page.locator('[aria-label="People planned this week"]').getByRole("heading", { name: "Fictional candidate 11" })).toHaveCount(0);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
+test("contact history cards stay readable at desktop and mobile widths", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const history = page.getByRole("region", { name: "Contact history", exact: true });
+  await expect(history.getByRole("article")).toHaveCount(25);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    const layout = await history.evaluate((section) => {
+      const cards = [...section.querySelectorAll("article")];
+      const lastTouch = cards[0]?.querySelector("dl dd");
+      return {
+        overflow: section.scrollWidth - section.clientWidth,
+        firstTop: cards[0]?.getBoundingClientRect().top,
+        secondTop: cards[1]?.getBoundingClientRect().top,
+        lastTouchWidth: lastTouch?.getBoundingClientRect().width
+      };
+    });
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+    expect(layout.lastTouchWidth).toBeGreaterThan(100);
+    if (width === 1280) expect(layout.secondTop).toBe(layout.firstTop);
+    else expect(layout.secondTop).toBeGreaterThan(layout.firstTop ?? 0);
+  }
   expect(accountRequests).toEqual([]);
   expect(browserErrors).toEqual([]);
 });
