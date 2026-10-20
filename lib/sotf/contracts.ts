@@ -74,6 +74,11 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("record_offer"), offer: offerSchema }),
   z.strictObject({ type: z.literal("accept_offer"), offerId: id, rationale: text, confirmedAccepted: z.literal(true), startDate: date, checkpoints: z.array(checkpointSchema).min(3).max(15) }),
   z.strictObject({ type: z.literal("review_week"), learned: text, start: text, stop: text, change: text, hypothesisUpdates: z.array(hypothesisSchema).max(5), commitments: z.array(commitmentSchema).max(10) }),
+  z.strictObject({
+    type: z.literal("review_networking_week"), weekOf: monday,
+    counts: z.strictObject({ planned: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), meetings: z.number().int().nonnegative() }),
+    happened: text, learned: z.string().trim().max(5000), nextChange: text
+  }),
   z.strictObject({ type: z.literal("prepare_action"), kind: z.enum(["email", "calendar_invite", "coach_share", "public_comment", "direct_message"]), recipient: short, subject: short, body: text, personId: id.optional(), meetingId: id.optional() }),
   z.strictObject({ type: z.literal("approve_action"), actionId: id, exactRevision: z.number().int().min(1) }),
   z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text, skillReviewed: z.literal(true).optional() }),
@@ -90,7 +95,7 @@ const persistedPersonSchema = z.strictObject({
   ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true, testRecord: true }).shape
 });
 const persistedCommandSchema = z.union([
-  // Replay week-specific Networking reviews before a later writer can create them.
+  // Preserve the reader-first field order for historical review receipts.
   z.strictObject({
     type: z.literal("review_networking_week"), weekOf: monday,
     counts: z.strictObject({ planned: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), meetings: z.number().int().nonnegative() }),

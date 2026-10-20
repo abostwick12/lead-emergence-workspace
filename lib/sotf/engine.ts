@@ -1,5 +1,5 @@
 import { commandEnvelopeSchema, persistedCommandEnvelopeSchema, type CommandEnvelope, type PersistedCommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
-import { assessOpportunity, requireRecord } from "./intelligence";
+import { assessOpportunity, latestNetworkingWeek, networkingStrategy, requireRecord } from "./intelligence";
 
 export class RevisionConflict extends Error { constructor() { super("Your SOTF Bundle changed in another session. Refresh and review the current state before retrying."); } }
 function upsert<T extends { id: string }>(records: T[], item: T) { const index = records.findIndex((record) => record.id === item.id); if (index < 0) records.push(item); else records[index] = item; }
@@ -239,6 +239,14 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope | Pers
       summary = `Weekly change: ${command.change}`; break;
     }
     case "review_networking_week": {
+      if (source === "new_command") {
+        const currentWeek = latestNetworkingWeek(state, now);
+        if (!currentWeek || command.weekOf > currentWeek) throw new Error("Choose the current Chicago week or an earlier week to review.");
+        const cohort = networkingStrategy(state, command.weekOf, now);
+        const replies = cohort.candidates.filter(({ person }) => ["replied", "conversation_scheduled", "conversation_completed"].includes(person.networking!.status)).length;
+        const recorded = { planned: cohort.queued, attempts: cohort.attemptsMade, replies, meetings: cohort.conversationsGenerated };
+        if (command.counts.planned !== recorded.planned || command.counts.attempts !== recorded.attempts || command.counts.replies !== recorded.replies || command.counts.meetings !== recorded.meetings) throw new Error("Networking results changed. Refresh the week and review its recorded counts before saving.");
+      }
       state.networkingWeekReviews.push({ id: envelope.requestId, at: now, weekOf: command.weekOf, counts: { ...command.counts }, happened: command.happened, learned: command.learned, nextChange: command.nextChange });
       summary = `Networking week reviewed: ${command.weekOf}`; break;
     }
