@@ -140,7 +140,11 @@ export function latestNetworkingWeek(state: PilotState, now?: string) {
     monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
     return monday.toISOString().slice(0, 10);
   }
-  return state.people.filter((item) => !item.testRecord).map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
+  const latestDate = state.people.filter((item) => !item.testRecord).map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
+  if (!latestDate) return undefined;
+  const monday = new Date(`${latestDate}T00:00:00.000Z`);
+  monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+  return monday.toISOString().slice(0, 10);
 }
 
 export function networkingStrategy(state: PilotState, weekOf = latestNetworkingWeek(state), now = new Date().toISOString()) {

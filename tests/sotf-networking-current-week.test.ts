@@ -10,6 +10,14 @@ test("the owner's current week begins Monday in Chicago, including the DST bound
   expect(latestNetworkingWeek(state, "2026-11-02T06:30:00Z")).toBe("2026-11-02");
 });
 
+test("the preview uses the Monday of its latest dated person without changing that date", () => {
+  const state = createPreviewState();
+  state.people[0].networking!.weekOf = "2026-10-21";
+
+  expect(latestNetworkingWeek(state)).toBe("2026-10-19");
+  expect(state.people[0].networking!.weekOf).toBe("2026-10-21");
+});
+
 test("a new week shows zero without carrying the previous plan forward", () => {
   const state = createPreviewState();
   for (const person of state.people.slice(0, 10)) person.networking!.weekOf = "2026-10-06";
