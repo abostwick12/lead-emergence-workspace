@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { commandSchema, DIMENSIONS, type Command, type PilotState } from "@/lib/sotf/contracts";
-import { prepareCoaching } from "@/lib/sotf/intelligence";
+import { networkingStrategy, prepareCoaching } from "@/lib/sotf/intelligence";
 import styles from "./sotf.module.css";
 
-export type Intent = "opportunity" | "evidence" | "decision" | "person" | "networking-candidate" | "networking-outcome" | "meeting" | "debrief" | "hypothesis" | "criteria" | "promise" | "resolve-promise" | "weekly" | "story" | "material" | "submission" | "interview" | "offer" | "accept-offer" | "close-chapter" | "action" | "action-result" | "requirement" | "application-outcome" | "coach-share";
+export type Intent = "opportunity" | "evidence" | "decision" | "person" | "networking-candidate" | "networking-outcome" | "networking-week-review" | "meeting" | "debrief" | "hypothesis" | "criteria" | "promise" | "resolve-promise" | "weekly" | "story" | "material" | "submission" | "interview" | "offer" | "accept-offer" | "close-chapter" | "action" | "action-result" | "requirement" | "application-outcome" | "coach-share";
 type Option = { value: string; label: string };
 type Field = { name: string; label: string; value?: string | string[]; type?: string; options?: Option[]; multiple?: boolean; optional?: boolean; help?: string };
 type Definition = { title: string; description: string; fields: Field[]; submit: string; build: (values: FormData) => unknown };
@@ -21,7 +21,7 @@ const linkFields = (state: PilotState): Field[] => [
 ];
 const hypothesisValue = (data: FormData, id: string) => ({ id, proposition: get(data, "proposition"), whyPromising: get(data, "whyPromising"), assumptions: lines(data, "assumptions"), gaps: lines(data, "gaps"), nextExperiment: get(data, "nextExperiment"), reviewTrigger: get(data, "reviewTrigger"), confidenceExplanation: get(data, "confidenceExplanation"), status: get(data, "status") || "continue" });
 
-export function definition(intent: Intent, state: PilotState, recordId?: string): Definition {
+export function definition(intent: Intent, state: PilotState, recordId?: string, now = new Date().toISOString()): Definition {
   const selectedOpportunity = state.opportunities.find((item) => item.id === recordId || item.id === state.meetings.find((meeting) => meeting.id === recordId)?.opportunityId);
   const selectedPerson = state.people.find((item) => item.id === recordId);
   const selectedMeeting = state.meetings.find((item) => item.id === recordId);
@@ -77,6 +77,24 @@ export function definition(intent: Intent, state: PilotState, recordId?: string)
       const { statusUpdatedAt: _statusUpdatedAt, ...networking } = selectedPerson.networking; void _statusUpdatedAt;
       return { ...common, title: `Record the real outcome for ${selectedPerson.name}`, description: "Record only what the user actually did or observed. Recent silence remains pending unless a follow-up is genuinely due or the cohort has matured.", fields: [field("status", "Observed outcome", selectedPerson.networking.status, { options: options(["identified", "attempted", "connection_accepted", "replied", "conversation_scheduled", "conversation_completed", "no_response", "follow_up_due"]) }), field("recommendedNextAction", "Recommended next action", selectedPerson.networking.recommendedNextAction, { type: "textarea" }), field("nextTouch", "Next touch", selectedPerson.nextTouch, { optional: true, type: "date" })], build: (data) => ({ type: "save_person", person: { id: selectedPerson.id, name: selectedPerson.name, company: selectedPerson.company, role: selectedPerson.role, email: selectedPerson.email, source: selectedPerson.source, overlap: selectedPerson.overlap, whyNow: selectedPerson.whyNow, objective: selectedPerson.objective, introductionPath: selectedPerson.introductionPath, hypothesisIds: selectedPerson.hypothesisIds, opportunityId: selectedPerson.opportunityId, nextTouch: optional(data, "nextTouch"), networking: { ...networking, status: get(data, "status"), recommendedNextAction: get(data, "recommendedNextAction") } } }) };
     }
+    case "networking-week-review": {
+      if (!recordId) throw new Error("Choose a Networking week to review.");
+      const week = networkingStrategy(state, recordId, now);
+      const counts = {
+        planned: week.queued,
+        attempts: week.attemptsMade,
+        replies: week.candidates.filter(({ person }) => ["replied", "conversation_scheduled", "conversation_completed"].includes(person.networking!.status)).length,
+        meetings: week.conversationsGenerated
+      };
+      const saved = state.networkingWeekReviews.filter((review) => review.weekOf === recordId).at(-1);
+      return { ...common, title: `Review week of ${recordId}`, description: `Planned ${counts.planned} · Attempts ${counts.attempts} · Replies ${counts.replies} · Meetings ${counts.meetings}. These are recorded results for this week.`,
+        fields: [
+          field("happened", "What happened?", saved?.happened ?? "", { type: "textarea" }),
+          field("learned", "What did you learn from people?", saved?.learned ?? "", { type: "textarea", optional: true, help: "Leave this blank if you had no conversations." }),
+          field("nextChange", "What will you change next week?", saved?.nextChange ?? "", { type: "textarea" })
+        ], submit: "Save this week's review",
+        build: (data) => ({ type: "review_networking_week", weekOf: recordId, counts, happened: get(data, "happened"), learned: get(data, "learned"), nextChange: get(data, "nextChange") }) };
+    }
     case "meeting": return { ...common, title: selectedMeeting ? "Reconcile this meeting" : "Record an agreed meeting", description: "Record timing already agreed, or a planned conversation. This does not send a calendar invitation.", fields: [field("title", "Conversation", selectedMeeting?.title), field("personId", "Person", selectedMeeting?.personId ?? selectedPerson?.id, { optional: true, options: state.people.filter((item) => !item.testRecord || item.id === selectedMeeting?.personId).map((item) => ({ value: item.id, label: item.name })) }), field("kind", "Purpose", selectedMeeting?.kind ?? "networking", { options: options(["networking", "coaching", "interview", "mentor"]) }), field("startsAt", "Starts at (your local time)", selectedMeeting ? localTime(selectedMeeting.startsAt) : "", { type: "datetime-local" }), field("endsAt", "Ends at (your local time)", selectedMeeting ? localTime(selectedMeeting.endsAt) : "", { type: "datetime-local" }), field("status", "Meeting status", selectedMeeting?.status ?? "accepted", { options: options(["planned", "accepted", "cancelled"]) }), field("objective", "What should this conversation resolve?", selectedMeeting?.objective ?? selectedPerson?.objective), ...linkFields(state).map((item) => ({ ...item, value: item.name === "opportunityId" ? selectedMeeting?.opportunityId ?? selectedPerson?.opportunityId : selectedMeeting?.hypothesisIds ?? selectedPerson?.hypothesisIds ?? [], multiple: item.name === "hypothesisId" }))], build: (data) => ({ type: "record_meeting", meeting: { id: selectedMeeting?.id ?? fresh(), title: get(data, "title"), personId: optional(data, "personId"), opportunityId: optional(data, "opportunityId"), hypothesisIds: data.getAll("hypothesisId").map(String).filter(Boolean), kind: get(data, "kind"), startsAt: new Date(get(data, "startsAt")).toISOString(), endsAt: new Date(get(data, "endsAt")).toISOString(), status: get(data, "status"), provider: selectedMeeting?.provider ?? "manual", sourceEventId: selectedMeeting?.sourceEventId, objective: get(data, "objective") } }) };
     case "debrief": return { ...common, title: "What did you learn?", description: "Record what you heard and what remains open. Review detailed evidence separately; this debrief will not change your criteria by itself.", fields: [field("said", "What was actually said?", "", { type: "textarea" }), field("inferred", "What do you infer from it?", "", { type: "textarea", optional: true }), field("unresolved", "Questions still open — one per line", "", { type: "textarea", optional: true }), field("introductions", "Introductions offered — one per line", "", { type: "textarea", optional: true }), field("promise", "My next commitment", "", { optional: true }), field("definitionOfDone", "How will I know that commitment is complete?", "", { optional: true }), field("due", "Commitment due", "", { optional: true, type: "date" }), field("nextTouch", "Next relationship touch", "", { optional: true, type: "date" })], build: (data) => ({ type: "debrief_meeting", meetingId: recordId, said: get(data, "said"), inferred: get(data, "inferred"), unresolved: lines(data, "unresolved"), introductions: lines(data, "introductions"), nextTouch: optional(data, "nextTouch"), evidence: [], commitments: get(data, "promise") ? [{ id: fresh(), title: get(data, "promise"), owner: "Fellow", due: optional(data, "due"), definitionOfDone: get(data, "definitionOfDone"), reviewTrigger: "If the agreed follow-through becomes blocked" }] : [] }) };
     case "hypothesis": return { ...common, title: "Test a direction", fields: [field("proposition", "Direction to test", selectedHypothesis?.proposition), field("whyPromising", "Why is it worth testing?", selectedHypothesis?.whyPromising, { type: "textarea" }), field("assumptions", "Assumptions — one per line", selectedHypothesis?.assumptions.join("\n"), { type: "textarea", optional: true }), field("gaps", "Skill or evidence gaps — one per line", selectedHypothesis?.gaps.join("\n"), { type: "textarea", optional: true }), field("confidenceExplanation", "What supports your current confidence?", selectedHypothesis?.confidenceExplanation, { type: "textarea" }), field("nextExperiment", "Next experiment", selectedHypothesis?.nextExperiment), field("reviewTrigger", "When or why should you review it?", selectedHypothesis?.reviewTrigger), field("status", "Direction decision", selectedHypothesis?.status ?? "continue", { options: options(["continue", "refine", "split", "pause", "reject"]) })], build: (data) => ({ type: "save_hypothesis", hypothesis: hypothesisValue(data, selectedHypothesis?.id ?? fresh()) }) };
@@ -109,12 +127,12 @@ export function definition(intent: Intent, state: PilotState, recordId?: string)
 
 export function localTime(iso: string) { const value = new Date(iso); return new Date(value.valueOf() - value.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
 
-export function WorkflowEditor({ intent, state, recordId, onSave, onClose }: { intent: Intent; state: PilotState; recordId?: string; onSave: (command: Command) => Promise<void>; onClose: () => void }) {
+export function WorkflowEditor({ intent, state, recordId, now, onSave, onClose }: { intent: Intent; state: PilotState; recordId?: string; now?: string; onSave: (command: Command) => Promise<void>; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [existingPersonId, setExistingPersonId] = useState("");
-  const config = definition(intent, state, intent === "networking-candidate" ? existingPersonId || undefined : recordId);
+  const config = definition(intent, state, intent === "networking-candidate" ? existingPersonId || undefined : recordId, now);
   useEffect(() => { dialog.current?.showModal(); }, []);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError(""); setPending(true);

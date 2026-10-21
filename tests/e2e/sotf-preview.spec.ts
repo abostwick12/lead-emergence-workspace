@@ -65,6 +65,38 @@ test("networking shows saved people and a linked source-backed prep", async ({ p
   expect(browserErrors).toEqual([]);
 });
 
+test("networking review uses the displayed week and shows the saved answers", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await page.getByRole("button", { name: "Complete weekly review" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Review week of 2026-08-31" })).toBeVisible();
+  await expect(dialog).toContainText("Planned 10 · Attempts 5 · Replies 2 · Meetings 1");
+  await dialog.getByLabel("What happened?").fill("Ten fictional people were planned. This review records only what the preview shows.");
+  await dialog.getByLabel("What will you change next week?").fill("Check each recorded outcome before planning another week.");
+  await dialog.getByRole("button", { name: "Save this week's review" }).click();
+  await expect(dialog).not.toBeVisible();
+  const results = page.getByRole("region", { name: "Weekly results" });
+  await expect(results.getByText("Ten fictional people were planned. This review records only what the preview shows.")).toBeVisible();
+  await expect(results.getByText("No conversation learning recorded.")).toBeVisible();
+  await expect(results.getByText("Check each recorded outcome before planning another week.")).toBeVisible();
+  await page.getByRole("button", { name: "Complete weekly review" }).click();
+  await expect(dialog.getByLabel("What happened?")).toHaveValue("Ten fictional people were planned. This review records only what the preview shows.");
+  await dialog.getByLabel("What happened?").fill("The fictional week was reviewed again after checking the recorded outcomes.");
+  await dialog.getByLabel("What will you change next week?").fill("Use the revised outcome notes before making the next plan.");
+  await dialog.getByRole("button", { name: "Save this week's review" }).click();
+  await expect(dialog).not.toBeVisible();
+  const savedReviews = results.getByRole("heading", { name: "Saved weekly reviews" }).locator("..");
+  await expect(savedReviews.getByRole("article").filter({ hasText: "Week of 2026-08-31" })).toHaveCount(1);
+  await expect(savedReviews).toContainText("Planned 10 · Attempts 5 · Replies 2 · Meetings 1");
+  await expect(savedReviews.getByText("Ten fictional people were planned. This review records only what the preview shows.")).toHaveCount(0);
+  await expect(savedReviews.getByText("The fictional week was reviewed again after checking the recorded outcomes.")).toBeVisible();
+  await page.getByRole("button", { name: "Today", exact: true }).click();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await expect(savedReviews.getByText("The fictional week was reviewed again after checking the recorded outcomes.")).toBeVisible();
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("networking strategy shows the 10-person goal and selectable conversation prep", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Plan 10 people this week." })).toBeVisible();
