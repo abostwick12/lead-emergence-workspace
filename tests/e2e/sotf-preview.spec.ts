@@ -70,7 +70,7 @@ test("networking review uses the displayed week and shows the saved answers", as
   await page.getByRole("button", { name: "Complete weekly review" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Review week of 2026-08-31" })).toBeVisible();
-  await expect(dialog).toContainText("10 planned");
+  await expect(dialog).toContainText("Planned 10 · Attempts 5 · Replies 2 · Meetings 1");
   await dialog.getByLabel("What happened?").fill("Ten fictional people were planned. This review records only what the preview shows.");
   await dialog.getByLabel("What will you change next week?").fill("Check each recorded outcome before planning another week.");
   await dialog.getByRole("button", { name: "Save this week's review" }).click();
@@ -87,6 +87,7 @@ test("networking review uses the displayed week and shows the saved answers", as
   await expect(dialog).not.toBeVisible();
   const savedReviews = results.getByRole("heading", { name: "Saved weekly reviews" }).locator("..");
   await expect(savedReviews.getByRole("article").filter({ hasText: "Week of 2026-08-31" })).toHaveCount(1);
+  await expect(savedReviews).toContainText("Planned 10 · Attempts 5 · Replies 2 · Meetings 1");
   await expect(savedReviews.getByText("Ten fictional people were planned. This review records only what the preview shows.")).toHaveCount(0);
   await expect(savedReviews.getByText("The fictional week was reviewed again after checking the recorded outcomes.")).toBeVisible();
   await page.getByRole("button", { name: "Today", exact: true }).click();

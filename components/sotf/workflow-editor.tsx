@@ -87,7 +87,7 @@ export function definition(intent: Intent, state: PilotState, recordId?: string,
         meetings: week.conversationsGenerated
       };
       const saved = state.networkingWeekReviews.filter((review) => review.weekOf === recordId).at(-1);
-      return { ...common, title: `Review week of ${recordId}`, description: `${counts.planned} planned · ${counts.attempts} attempts · ${counts.replies} replies · ${counts.meetings} meetings. These are recorded results for this week.`,
+      return { ...common, title: `Review week of ${recordId}`, description: `Planned ${counts.planned} · Attempts ${counts.attempts} · Replies ${counts.replies} · Meetings ${counts.meetings}. These are recorded results for this week.`,
         fields: [
           field("happened", "What happened?", saved?.happened ?? "", { type: "textarea" }),
           field("learned", "What did you learn from people?", saved?.learned ?? "", { type: "textarea", optional: true, help: "Leave this blank if you had no conversations." }),
