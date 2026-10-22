@@ -6,6 +6,7 @@ import { applyCommand, resumeTransition, RevisionConflict } from "@/lib/sotf/eng
 import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
 import { OperationNotApplied, replayEvents, SotfStore, type WorkflowEvent } from "@/lib/sotf/persistence";
 import { invitationDraft, proposeConversationTimes } from "@/lib/sotf/scheduling";
+import { definition } from "@/components/sotf/workflow-editor";
 
 // Fictional fellow and employer. These fixtures contain no personal or ministry data.
 const workspaceId = "70000000-0000-4000-8000-000000000001";
@@ -104,7 +105,7 @@ describe("SOTF opportunity learning and continuity", () => {
 });
 
 describe("SOTF relationships, preparation, follow-through, and recovery", () => {
-  it("replays saved conversation questions while current commands remain read-only", () => {
+  it("saves, preserves, clears, and replays reviewed conversation questions", () => {
     const h = harness();
     h.run({ type: "save_person", person: contact });
     const oldHistory = { workspace_id: workspaceId, revision: h.state.revision, events: h.events };
@@ -112,16 +113,21 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
 
     const questions = ["What decisions does this team own?", "What work takes most of your week?"];
     const nextCommand = { type: "save_person", person: { ...contact, conversationQuestions: questions } };
-    expect(commandSchema.safeParse(nextCommand).success).toBe(false);
-    const savedEnvelope = persistedCommandEnvelopeSchema.parse({
-      requestId: randomUUID(), expectedRevision: h.state.revision,
-      userConfirmed: true, dataClass: "ordinary_transition_operations", command: nextCommand
-    });
-    const recovered = replayEvents({
-      workspace_id: workspaceId, revision: h.state.revision + 1,
-      events: [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: savedEnvelope }]
-    }).state;
-    expect(recovered.people[0].conversationQuestions).toEqual(questions);
+    expect(commandSchema.safeParse(nextCommand).success).toBe(true);
+    h.run(nextCommand);
+    expect(h.state.people[0].conversationQuestions).toEqual(questions);
+    h.run({ type: "record_meeting", meeting });
+    expect(prepareMeeting(h.state, meeting.id).questions).toEqual(questions);
+
+    h.run({ type: "save_person", person: { ...contact, objective: "Learn who owns the program budget" } });
+    expect(h.state.people[0].conversationQuestions).toEqual(questions);
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state.people[0].conversationQuestions).toEqual(questions);
+
+    h.run({ type: "save_person", person: { ...contact, conversationQuestions: [] } });
+    expect(h.state.people[0].conversationQuestions).toEqual([]);
+    expect(prepareMeeting(h.state, meeting.id).questions.length).toBeGreaterThan(3);
+    expect(commandSchema.safeParse({ type: "save_person", person: { ...contact, conversationQuestions: [...questions, "A third question?", "A fourth question?"] } }).success).toBe(false);
+    expect(commandSchema.safeParse({ type: "save_person", person: { ...contact, conversationQuestions: ["Q".repeat(241)] } }).success).toBe(false);
   });
 
   it("closes the relationship loop and resumes it from the saved event log", () => {
@@ -176,6 +182,24 @@ describe("SOTF relationships, preparation, follow-through, and recovery", () => 
     h.run({ type: "approve_action", actionId: id, exactRevision: 6 });
     h.run({ type: "record_action_result", actionId: id, outcome: "manually_completed", receipt: "Fellow verified the message in Sent" });
     expect(() => h.run({ type: "retry_action", actionId: id, confirmedNotExecuted: true })).toThrow("must not be retried");
+  });
+
+  it.each(["calendar_invite", "coach_share"] as const)("requires reviewed text for a new %s draft while preserving historical approval", (kind) => {
+    const h = harness();
+    h.run({ type: "prepare_action", kind, recipient: "Fictional recipient", subject: "Synthetic preparation", body: "Synthetic unreviewed draft; no external send." });
+    const action = h.state.actions.at(-1)!;
+    const actionId = action.id;
+    expect(definition("action", h.state, actionId).fields.some((field) => field.name === "skillReviewed")).toBe(true);
+    expect(() => h.run({ type: "approve_action", actionId, exactRevision: 1 })).toThrow("AI Slop Killer");
+    h.run({ type: "revise_action", actionId, recipient: action.recipient, subject: action.subject, body: "Synthetic revised text without review." });
+    const historicalApproval = envelope(h.state, { type: "approve_action", actionId, exactRevision: 2 });
+    expect(() => applyCommand(h.state, historicalApproval, now)).toThrow("AI Slop Killer");
+    expect(applyCommand(h.state, historicalApproval, now, "persisted_event").actions.at(-1)?.state).toBe("approved_for_manual_execution");
+    h.run({ type: "revise_action", actionId, recipient: action.recipient, subject: action.subject, body: "Synthetic reviewed text; no external send.", skillReviewed: true });
+    expect(h.state.actions.at(-1)?.skillReviewRevision).toBe(3);
+    expect(() => h.run({ type: "approve_action", actionId, exactRevision: 2 })).toThrow("exact current draft");
+    h.run({ type: "approve_action", actionId, exactRevision: 3 });
+    expect(h.state.actions.at(-1)?.state).toBe("approved_for_manual_execution");
   });
 
   it("prepares coaching from developments and commitments without including unrelated person-less meeting notes", () => {
@@ -526,6 +550,104 @@ describe("SOTF reusable evidence, applications, and next chapter", () => {
 });
 
 describe("SOTF persistence integrity", () => {
+  it("replays a historical Networking week review without changing general reviews", () => {
+    const h = harness();
+    h.run({ type: "review_week", learned: "A fictional role needs more research", start: "Ask about decision rights", stop: "Assuming a title explains the work", change: "Review one role description", hypothesisUpdates: [], commitments: [] });
+    const command = {
+      type: "review_networking_week", weekOf: "2026-10-12",
+      counts: { planned: 0, attempts: 0, replies: 0, meetings: 0 },
+      happened: "No one was planned this week", learned: "", nextChange: "Plan ten relevant people"
+    };
+    expect(commandSchema.safeParse(command).success).toBe(true);
+    expect(commandEnvelopeSchema.safeParse({ requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command }).success).toBe(true);
+    const operation = persistedCommandEnvelopeSchema.parse({
+      requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true,
+      dataClass: "ordinary_transition_operations", command
+    });
+    expect(() => applyCommand(h.state, operation, now)).toThrow("current Chicago week");
+    const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: now, envelope: operation }];
+    const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+    expect(recovered.weeklyReviews).toEqual(h.state.weeklyReviews);
+    expect(recovered.networkingWeekReviews).toEqual([{
+      id: operation.requestId, at: now, weekOf: "2026-10-12", counts: command.counts,
+      happened: command.happened, learned: command.learned, nextChange: command.nextChange
+    }]);
+    expect(recovered.changes.at(-1)).toMatchObject({ kind: "review_networking_week", summary: "Networking week reviewed: 2026-10-12" });
+    expect(recovered.receipts.at(-1)?.command).toBe(JSON.stringify(operation.command));
+
+    for (const invalid of [
+      { ...command, weekOf: "2026-10-13" },
+      { ...command, weekOf: "2026-02-30" },
+      { ...command, counts: { ...command.counts, attempts: -1 } },
+      { ...command, counts: { ...command.counts, meetings: 0.5 } },
+      { ...command, counts: { ...command.counts, unrecorded: 1 } }
+    ]) {
+      expect(persistedCommandEnvelopeSchema.safeParse({ ...operation, command: invalid }).success).toBe(false);
+    }
+  });
+
+  it("saves a Networking week review only with the recorded cohort counts", () => {
+    const h = harness();
+    const weekOf = "2026-10-12";
+    const candidate = networkingCandidate("weekly-contact", "Fictional weekly contact", "program leadership");
+    h.run({ type: "save_person", person: { ...candidate, networking: { ...candidate.networking, weekOf } } }, "2026-10-12T12:00:00Z");
+    h.run({ type: "save_person", person: { ...candidate, id: "test-contact", testRecord: true, networking: { ...candidate.networking, weekOf } } }, "2026-10-12T12:01:00Z");
+    h.run({ type: "prepare_outreach", personId: candidate.id }, "2026-10-13T12:00:00Z");
+    const action = h.state.actions.at(-1)!;
+    reviewSyntheticMessage(h, action.id, "2026-10-13T12:01:00Z");
+    h.run({ type: "approve_action", actionId: action.id, exactRevision: h.state.actions.at(-1)!.revision }, "2026-10-13T12:02:00Z");
+    h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic manual-action receipt" }, "2026-10-13T12:03:00Z");
+    h.run({ type: "save_person", person: { ...candidate, networking: { ...candidate.networking, weekOf, status: "replied" } } }, "2026-10-14T12:00:00Z");
+    h.run({ type: "record_meeting", meeting: { ...meeting, id: "weekly-conversation", personId: candidate.id, opportunityId: undefined, startsAt: "2026-10-15T10:00:00-05:00", endsAt: "2026-10-15T10:30:00-05:00", provider: "manual", sourceEventId: undefined } }, "2026-10-15T15:00:00Z");
+    const counts = { planned: 1, attempts: 1, replies: 1, meetings: 1 };
+    const command = { type: "review_networking_week", weekOf, counts, happened: "One fictional contact replied and a meeting was recorded", learned: "Ask about the work itself", nextChange: "Plan another relevant contact" };
+    const reviewAt = "2026-10-18T18:00:00Z";
+
+    for (const key of Object.keys(counts) as (keyof typeof counts)[]) {
+      expect(() => h.run({ ...command, counts: { ...counts, [key]: counts[key] + 1 } }, reviewAt)).toThrow("Networking results changed");
+    }
+    expect(() => h.run({ ...command, weekOf: "2026-10-19" }, reviewAt)).toThrow("current Chicago week");
+    expect(h.state.networkingWeekReviews).toHaveLength(0);
+
+    h.run(command, reviewAt);
+    expect(h.state.networkingWeekReviews).toMatchObject([{ weekOf, counts, happened: command.happened, learned: command.learned, nextChange: command.nextChange }]);
+    expect(h.state.weeklyReviews).toHaveLength(0);
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.state.revision, events: h.events }).state.networkingWeekReviews).toEqual(h.state.networkingWeekReviews);
+
+    const retry = h.events.at(-1)!.envelope;
+    expect(applyCommand(h.state, retry, reviewAt)).toBe(h.state);
+
+    h.run({ ...command, weekOf: "2026-10-05", counts: { planned: 0, attempts: 0, replies: 0, meetings: 0 }, happened: "No one was planned", learned: "", nextChange: "Plan ten people" }, reviewAt);
+    expect(h.state.networkingWeekReviews.at(-1)).toMatchObject({ weekOf: "2026-10-05", counts: { planned: 0, attempts: 0, replies: 0, meetings: 0 }, learned: "" });
+
+    const empty = harness();
+    empty.run({ ...command, counts: { planned: 0, attempts: 0, replies: 0, meetings: 0 }, happened: "No one was planned", learned: "" }, reviewAt);
+    expect(empty.state.networkingWeekReviews).toMatchObject([{ weekOf, counts: { planned: 0, attempts: 0, replies: 0, meetings: 0 }, learned: "" }]);
+  });
+
+  it("rejects test people in new chapter links while replaying earlier links", () => {
+    const h = harness();
+    h.run({ type: "save_person", person: { ...contact, testRecord: true } });
+    h.run({ type: "save_person", person: { ...contact, id: "real-person", name: "Fictional Real Contact", testRecord: false } });
+    const command = { type: "close_chapter", reflection: "Keep useful relationships", carryForward: [contact.id], nextFocus: "Continue learning" };
+    const operation = envelope(h.state, command);
+    expect(() => applyCommand(h.state, operation, now)).toThrow("Choose existing operational records to carry forward.");
+    expect(applyCommand(h.state, operation, now, "persisted_event").chapter?.carryForward).toEqual([contact.id]);
+    const realOperation = envelope(h.state, { ...command, carryForward: ["real-person"] });
+    expect(applyCommand(h.state, realOperation, now).chapter?.carryForward).toEqual(["real-person"]);
+  });
+
+  it("rejects a test-person ID shared with a hypothesis in new chapter links", () => {
+    const h = harness();
+    h.run({ type: "save_person", person: { ...contact, id: hypothesis.id, testRecord: true } });
+    const operation = envelope(h.state, {
+      type: "close_chapter", reflection: "Keep useful relationships", carryForward: [hypothesis.id], nextFocus: "Continue learning",
+    });
+
+    expect(applyCommand(h.state, operation, now, "persisted_event").chapter?.carryForward).toEqual([hypothesis.id]);
+    expect(() => applyCommand(h.state, operation, now)).toThrow("Choose existing operational records to carry forward.");
+  });
+
   it("replays a historical approved message and its completed result without a review declaration", () => {
     const h = harness();
     h.run({ type: "save_person", person: contact });

@@ -80,6 +80,13 @@ test('synthetic test people stay out of relationship cards and meeting choices',
   await expect(linkedPerson.getByRole('option', { name: 'SOTF AI Slop Gate Test', exact: true })).toHaveCount(1);
   await expect(linkedPerson.getByRole('option', { name: 'Another Synthetic Contact', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: 'Networking', exact: true }).click();
+  await page.getByRole('button', { name: 'Add person', exact: true }).click();
+  const savedPerson = page.getByRole('combobox', { name: 'Saved person Optional', exact: true });
+  await expect(savedPerson.getByRole('option', { name: 'Real professional contact · Fictional company', exact: true })).toHaveCount(1);
+  await expect(savedPerson.getByRole('option', { name: 'SOTF AI Slop Gate Test · Fictional company', exact: true })).toHaveCount(0);
+  await expect(savedPerson.getByRole('option', { name: 'Another Synthetic Contact · Fictional company', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   const saved = await request.get('/api/sotf', { headers: { authorization: 'Bearer synthetic-local-session' } });
   const result = await saved.json();
   expect(result.state.people.map((item: { id: string }) => item.id)).toEqual(['real-person', 'synthetic-person', 'other-synthetic-person']);

@@ -1,5 +1,5 @@
-import { commandEnvelopeSchema, persistedCommandEnvelopeSchema, type CommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
-import { assessOpportunity, requireRecord } from "./intelligence";
+import { commandEnvelopeSchema, persistedCommandEnvelopeSchema, type CommandEnvelope, type PersistedCommandEnvelope, type Commitment, type Evidence, type OutboundAction, type PilotState } from "./contracts";
+import { assessOpportunity, latestNetworkingWeek, networkingStrategy, requireRecord } from "./intelligence";
 
 export class RevisionConflict extends Error { constructor() { super("Your SOTF Bundle changed in another session. Refresh and review the current state before retrying."); } }
 function upsert<T extends { id: string }>(records: T[], item: T) { const index = records.findIndex((record) => record.id === item.id); if (index < 0) records.push(item); else records[index] = item; }
@@ -13,7 +13,7 @@ function advanceNetworking(person: PilotState["people"][number], status: typeof 
 }
 
 /** New commands stay strict; only canonical log replay uses the historical reader contract. */
-export function applyCommand(previous: PilotState, input: CommandEnvelope, now = new Date().toISOString(), source: "new_command" | "persisted_event" = "new_command"): PilotState {
+export function applyCommand(previous: PilotState, input: CommandEnvelope | PersistedCommandEnvelope, now = new Date().toISOString(), source: "new_command" | "persisted_event" = "new_command"): PilotState {
   const envelope = persistedCommandEnvelopeSchema.parse(source === "persisted_event" ? input : commandEnvelopeSchema.parse(input));
   const serialized = JSON.stringify(envelope.command);
   const receipt = previous.receipts.find((item) => item.requestId === envelope.requestId);
@@ -105,7 +105,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       links(command.person); const current = state.people.find((item) => item.id === command.person.id);
       if (command.person.networking && !command.person.networking.sourceUrl && (!current || current.source !== command.person.source)) throw new Error("A public source URL is required for a new networking candidate. Reuse a saved person's source note when no public URL exists.");
       const networking = command.person.networking === undefined ? current?.networking : { ...command.person.networking, statusUpdatedAt: current?.networking?.status === command.person.networking.status ? current.networking.statusUpdatedAt ?? now : now };
-      upsert(state.people, { ...command.person, testRecord: ("testRecord" in command.person ? command.person.testRecord : undefined) ?? current?.testRecord, networking, firstContact: current?.firstContact, lastInteraction: current?.lastInteraction });
+      upsert(state.people, { ...command.person, testRecord: ("testRecord" in command.person ? command.person.testRecord : undefined) ?? current?.testRecord, networking, conversationQuestions: command.person.conversationQuestions ?? current?.conversationQuestions, firstContact: current?.firstContact, lastInteraction: current?.lastInteraction });
       summary = `${command.person.name} matters now: ${command.person.whyNow}`; break;
     }
     case "prepare_outreach": {
@@ -238,6 +238,18 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       state.weeklyReviews.push({ id: envelope.requestId, at: now, learned: command.learned, start: command.start, stop: command.stop, change: command.change });
       summary = `Weekly change: ${command.change}`; break;
     }
+    case "review_networking_week": {
+      if (source === "new_command") {
+        const currentWeek = latestNetworkingWeek(state, now);
+        if (!currentWeek || command.weekOf > currentWeek) throw new Error("Choose the current Chicago week or an earlier week to review.");
+        const cohort = networkingStrategy(state, command.weekOf, now);
+        const replies = cohort.candidates.filter(({ person }) => ["replied", "conversation_scheduled", "conversation_completed"].includes(person.networking!.status)).length;
+        const recorded = { planned: cohort.queued, attempts: cohort.attemptsMade, replies, meetings: cohort.conversationsGenerated };
+        if (command.counts.planned !== recorded.planned || command.counts.attempts !== recorded.attempts || command.counts.replies !== recorded.replies || command.counts.meetings !== recorded.meetings) throw new Error("Networking results changed. Refresh the week and review its recorded counts before saving.");
+      }
+      state.networkingWeekReviews.push({ id: envelope.requestId, at: now, weekOf: command.weekOf, counts: { ...command.counts }, happened: command.happened, learned: command.learned, nextChange: command.nextChange });
+      summary = `Networking week reviewed: ${command.weekOf}`; break;
+    }
     case "prepare_action": {
       const { type: _type, ...value } = command; void _type;
       if (value.kind === "calendar_invite" && value.meetingId && meeting(value.meetingId).status !== "accepted") throw new Error("Confirm the agreed meeting time before preparing its invitation.");
@@ -249,13 +261,13 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
       if (command.skillReviewed && command.body.startsWith("Preparation only:")) throw new Error("Replace the preparation note with reviewed message text before recording AI Slop Killer review.");
       item.recipient = command.recipient; item.subject = command.subject; item.body = command.body;
       item.revision += 1; item.state = "draft"; item.approvedAt = undefined; item.updatedAt = now;
-      item.skillReviewRevision = command.skillReviewed && ["email", "direct_message", "public_comment"].includes(item.kind) ? item.revision : undefined;
+      item.skillReviewRevision = command.skillReviewed && ["email", "direct_message", "public_comment", "calendar_invite", "coach_share"].includes(item.kind) ? item.revision : undefined;
       summary = "Draft revised; previous approval no longer applies."; break;
     }
     case "approve_action": {
       const item = requireRecord(state.actions, command.actionId, "Action");
       if (item.revision !== command.exactRevision || item.state !== "draft") throw new Error("Review the exact current draft before approving it.");
-      if (source === "new_command" && ["email", "direct_message", "public_comment"].includes(item.kind) && (item.skillReviewRevision !== item.revision || item.body.startsWith("Preparation only:"))) throw new Error("Review this exact message with AI Slop Killer in Codex, save the reviewed text, and record the review before approval.");
+      if (source === "new_command" && ["email", "direct_message", "public_comment", "calendar_invite", "coach_share"].includes(item.kind) && (item.skillReviewRevision !== item.revision || item.body.startsWith("Preparation only:"))) throw new Error("Review this exact message with AI Slop Killer in Codex, save the reviewed text, and record the review before approval.");
       item.state = "approved_for_manual_execution"; item.approvedAt = now; item.updatedAt = now;
       summary = "Exact draft approved. External execution is manual; approval is not evidence of sending."; break;
     }
@@ -276,7 +288,9 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope, now =
     }
     case "close_chapter": {
       if (!state.chapter) throw new Error("No transition chapter exists.");
-      const allowed = new Set([...state.stories, ...state.people, ...state.hypotheses, ...state.commitments].map((item) => item.id));
+      const eligiblePeople = source === "persisted_event" ? state.people : state.people.filter((item) => !item.testRecord);
+      const allowed = new Set([...state.stories, ...eligiblePeople, ...state.hypotheses, ...state.commitments].map((item) => item.id));
+      if (source === "new_command") for (const item of state.people) if (item.testRecord) allowed.delete(item.id);
       if (command.carryForward.some((id) => !allowed.has(id))) throw new Error("Choose existing operational records to carry forward.");
       state.chapter.phase = "professional_work"; state.chapter.reflection = command.reflection; state.chapter.carryForward = command.carryForward; state.chapter.nextFocus = command.nextFocus;
       summary = `Continuity reviewed: ${command.nextFocus}. Transition history remains retained.`; break;

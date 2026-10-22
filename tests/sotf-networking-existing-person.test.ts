@@ -29,6 +29,50 @@ function candidateForm(existingPersonId = savedPerson.id) {
 }
 
 describe("Networking candidate saved-person selection", () => {
+  it("excludes test people from ordinary person selectors while keeping real choices", () => {
+    const state = emptyPilotState();
+    state.people = [savedPerson, { ...savedPerson, id: "test-person", name: "Synthetic test person", testRecord: true }, { ...savedPerson, id: "other-test-person", name: "Other synthetic person", testRecord: true }];
+    state.meetings = [{ id: "linked-test-meeting", title: "Existing test meeting", personId: "test-person", hypothesisIds: [], kind: "networking", startsAt: "2026-10-14T15:00:00.000Z", endsAt: "2026-10-14T15:30:00.000Z", status: "accepted", provider: "manual", objective: "Retain the linked person" }];
+    const savedOptions = definition("networking-candidate", state).fields.find((item) => item.name === "existingPersonId")?.options;
+    const carryOptions = definition("close-chapter", state).fields.find((item) => item.name === "carryForward")?.options;
+    const newMeetingOptions = definition("meeting", state).fields.find((item) => item.name === "personId")?.options;
+    const linkedMeetingOptions = definition("meeting", state, "linked-test-meeting").fields.find((item) => item.name === "personId")?.options;
+    expect(savedOptions?.map((item) => item.value)).toEqual([savedPerson.id]);
+    expect(carryOptions?.filter((item) => item.label.startsWith("Person: ")).map((item) => item.value)).toEqual([savedPerson.id]);
+    expect(newMeetingOptions?.map((item) => item.value)).toEqual([savedPerson.id]);
+    expect(linkedMeetingOptions?.map((item) => item.value)).toEqual([savedPerson.id, "test-person"]);
+    expect(() => definition("networking-candidate", state).build(candidateForm("test-person")))
+      .toThrow("Choose an unplanned saved person.");
+  });
+
+  it("prefills reviewed questions in the Person editor and allows an explicit clear", () => {
+    const state = emptyPilotState();
+    state.people = [{ ...savedPerson, conversationQuestions: ["Who owns the program budget?", "What changes the weekly plan?"] }];
+    const config = definition("person", state, savedPerson.id);
+    const markup = renderToStaticMarkup(createElement(WorkflowEditor, {
+      intent: "person", state, recordId: savedPerson.id, onSave: async () => {}, onClose: () => {}
+    }));
+    expect(markup).toContain("Question 1");
+    expect(markup).toContain("Who owns the program budget?");
+    expect(config.fields.find((item) => item.name === "question2")?.value).toBe("What changes the weekly plan?");
+
+    const form = new FormData();
+    for (const item of config.fields) {
+      if (typeof item.value === "string") form.set(item.name, item.value);
+      else if (Array.isArray(item.value)) item.value.forEach((value) => form.append(item.name, value));
+    }
+    const saved = commandSchema.parse(config.build(form));
+    expect(saved.type).toBe("save_person");
+    if (saved.type !== "save_person") throw new Error("Expected a person update");
+    expect(saved.person.conversationQuestions).toEqual(state.people[0].conversationQuestions);
+
+    for (const key of ["question1", "question2", "question3"]) form.set(key, "");
+    const cleared = commandSchema.parse(config.build(form));
+    expect(cleared.type).toBe("save_person");
+    if (cleared.type !== "save_person") throw new Error("Expected a person update");
+    expect(cleared.person.conversationQuestions).toEqual([]);
+  });
+
   it("offers an unplanned saved person and updates that record without duplicating identity", () => {
     const state = emptyPilotState();
     state.people = [savedPerson];

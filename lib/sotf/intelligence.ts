@@ -99,7 +99,7 @@ export function prepareMeeting(state: PilotState, meetingId: string) {
   const person = state.people.find((item) => item.id === meeting.personId);
   const opportunity = state.opportunities.find((item) => item.id === meeting.opportunityId);
   const prior = state.meetings.filter((item) => item.id !== meetingId && Boolean(meeting.personId) && item.personId === meeting.personId && item.debrief && item.startsAt < meeting.startsAt);
-  const questions = [...new Set([`What would we need to learn to answer: ${meeting.objective}`, ...(opportunity ? assessOpportunity(state, opportunity.id).questions : []), "What changes are most affecting the work your team does?", "What surprised you about the day-to-day work?", "Which decisions can someone in this role make independently?", "What would you suggest I test or demonstrate next?", "Which work samples, resources, or conversations would help me learn more?"])].slice(0, 8);
+  const questions = person?.conversationQuestions?.length ? person.conversationQuestions : [...new Set([`What would we need to learn to answer: ${meeting.objective}`, ...(opportunity ? assessOpportunity(state, opportunity.id).questions : []), "What changes are most affecting the work your team does?", "What surprised you about the day-to-day work?", "Which decisions can someone in this role make independently?", "What would you suggest I test or demonstrate next?", "Which work samples, resources, or conversations would help me learn more?"])].slice(0, 8);
   return { meeting, person: person ?? null, company: opportunity?.company ?? person?.company ?? "Company context not supplied", functionContext: opportunity?.actualWork || person?.role || "Ask for function context", priorInteractions: prior.map((item) => ({ title: item.title, at: item.startsAt, said: item.debrief!.said })), hypotheses: meeting.hypothesisIds.map((id) => hypothesisLearning(state, id)), objective: meeting.objective, alreadyKnown: state.evidence.filter((item) => item.review === "accepted" && ((meeting.opportunityId && item.opportunityId === meeting.opportunityId) || (meeting.personId && item.personId === meeting.personId))), questions,
     introduction: `I’m looking at ${meeting.hypothesisIds.map((id) => state.hypotheses.find((item) => item.id === id)?.proposition).filter(Boolean).join(" and ") || "my next professional chapter"}. Could you help me understand ${meeting.objective.toLowerCase()}?`,
     avoid: ["Do not ask for confidential employer information.", "Do not assume an introduction or referral has been agreed.", "Avoid asking questions already answered in the prior interaction notes."], commitments: state.commitments.filter((item) => (item.meetingId === meetingId || (meeting.personId && item.personId === meeting.personId)) && item.status !== "cancelled") };
@@ -140,7 +140,11 @@ export function latestNetworkingWeek(state: PilotState, now?: string) {
     monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
     return monday.toISOString().slice(0, 10);
   }
-  return state.people.filter((item) => !item.testRecord).map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
+  const latestDate = state.people.filter((item) => !item.testRecord).map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
+  if (!latestDate) return undefined;
+  const monday = new Date(`${latestDate}T00:00:00.000Z`);
+  monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+  return monday.toISOString().slice(0, 10);
 }
 
 export function networkingStrategy(state: PilotState, weekOf = latestNetworkingWeek(state), now = new Date().toISOString()) {
@@ -174,7 +178,10 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   const pathways = group((item) => item.networking!.pathway);
   const bestCategory = categories.find((item) => item.responses > 0);
   const bestPathway = pathways.find((item) => item.responses > 0);
-  const adjustments = mature.length === 0
+  const isCurrentWeek = weekStart === latestNetworkingWeek(state, now);
+  const adjustments = candidates.length === 0
+    ? [isCurrentWeek ? "No one is planned this week. Add 10 people to start." : "No one is planned for the selected week."]
+    : mature.length === 0
     ? ["No contact attempt is ready to judge yet. Keep this week's plan for now."]
     : conversion !== null && conversion >= conversionTarget
       ? [`The meeting rate meets the ${Math.round(conversionTarget * 100)}% goal. Keep ${bestCategory?.name ?? "the current groups"} and ${bestPathway?.name.replaceAll("_", " ") ?? "the current contact methods"} in next week's plan, then check the recorded replies again.`]
