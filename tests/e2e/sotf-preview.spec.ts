@@ -65,6 +65,42 @@ test("networking shows saved people and a linked source-backed prep", async ({ p
   expect(browserErrors).toEqual([]);
 });
 
+test("networking places saved prep and the weekly plan ahead of the action queue", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const featured = page.getByRole("region", { name: "Selected conversation prep" });
+  await expect(featured.getByRole("group", { name: "Saved networking context" })).toBeVisible();
+  for (const width of [1265, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    const layout = await page.evaluate(() => {
+      const position = (name: string) => {
+        const element = document.querySelector(`[aria-label="${name}"]`);
+        const rect = element?.getBoundingClientRect();
+        return rect ? { top: rect.top + window.scrollY, bottom: rect.bottom + window.scrollY } : { top: -1, bottom: -1 };
+      };
+      const featured = position("Selected conversation prep");
+      const plan = position("Weekly plan");
+      const queue = position("This week's people");
+      return {
+        featured: featured.top,
+        plan: plan.top,
+        queue: queue.top,
+        queueGap: queue.top - Math.max(featured.bottom, plan.bottom),
+        rate: position("Meeting rate").top,
+        overflow: document.documentElement.scrollWidth - window.innerWidth
+      };
+    });
+    expect(layout.featured).toBeGreaterThanOrEqual(0);
+    expect(layout.plan).toBeGreaterThanOrEqual(layout.featured);
+    expect(layout.queue).toBeGreaterThan(layout.plan);
+    expect(layout.queueGap).toBeGreaterThanOrEqual(12);
+    expect(layout.queueGap).toBeLessThanOrEqual(20);
+    expect(layout.rate).toBeGreaterThan(layout.queue);
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+  }
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("networking review uses the displayed week and shows the saved answers", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await page.getByRole("button", { name: "Complete weekly review" }).click();
