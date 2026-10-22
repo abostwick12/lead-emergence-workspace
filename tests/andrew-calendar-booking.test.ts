@@ -6,6 +6,7 @@ const model = vi.hoisted(() => ({
   budgetAllowed: true,
   budgetClaims: [] as string[],
   calendarReads: [] as string[],
+  beforeCalendarRead: null as null | ((readNumber: number) => Promise<void>),
   busy: [] as { start: string; end: string }[],
   calendarFailure: null as string | null,
   failReadAt: null as number | null,
@@ -36,6 +37,7 @@ vi.mock("@/lib/calendar/google-freebusy", () => ({
   googleCalendarReadAdapter: (_workspaceId: string, accountSlot: string) => ({
     async readBusy() {
       model.calendarReads.push(accountSlot);
+      if (model.beforeCalendarRead) await model.beforeCalendarRead(model.calendarReads.length);
       if (model.calendarFailure === accountSlot || model.failReadAt === model.calendarReads.length) {
         return { status: "unavailable", reason: "private Google error" };
       }
@@ -45,7 +47,7 @@ vi.mock("@/lib/calendar/google-freebusy", () => ({
 }));
 
 vi.mock("@/lib/calendar/booking-reservations", () => ({
-  findCalendarBooking: async () => model.receipt,
+  findCalendarBooking: async () => model.receipt ? { ...model.receipt } : null,
   claimCalendarBooking: async (input: { beginWrite?: boolean; meetingType: "networking_30" | "networking_60"; startsAt: string; endsAt: string }) => {
     model.claims.push(input.beginWrite === true);
     if (model.claimFailure) throw new Error("private database error");
@@ -106,6 +108,7 @@ beforeEach(() => {
   model.budgetAllowed = true;
   model.budgetClaims = [];
   model.calendarReads = [];
+  model.beforeCalendarRead = null;
   model.busy = [];
   model.calendarFailure = null;
   model.failReadAt = null;
@@ -232,6 +235,50 @@ describe("disabled-by-default Andrew booking", () => {
     expect(model.insertCalls).toBe(1);
     expect(model.budgetClaims).toHaveLength(2);
     expect(model.claims).toEqual([false, true]);
+  });
+
+  it("keeps an exact concurrent retry pending when its first recheck sees the original booking", async () => {
+    let resumeOriginal!: () => void;
+    let resumeRetry!: () => void;
+    let originalAtRecheck!: () => void;
+    let retryAtRecheck!: () => void;
+    const originalGate = new Promise<void>(resolve => { resumeOriginal = resolve; });
+    const retryGate = new Promise<void>(resolve => { resumeRetry = resolve; });
+    const originalReached = new Promise<void>(resolve => { originalAtRecheck = resolve; });
+    const retryReached = new Promise<void>(resolve => { retryAtRecheck = resolve; });
+    model.beforeCalendarRead = async readNumber => {
+      if (readNumber === 3 || readNumber === 4) {
+        originalAtRecheck();
+        await originalGate;
+      } else if (readNumber === 5 || readNumber === 6) {
+        retryAtRecheck();
+        await retryGate;
+      }
+    };
+
+    const originalRequest = POST(request());
+    await originalReached;
+    expect(model.receipt?.state).toBe("held");
+    const retryRequest = POST(request());
+    await retryReached;
+    resumeOriginal();
+    const original = await originalRequest;
+    expect(original.status).toBe(200);
+    expect(await original.json()).toEqual({ status: "confirmed" });
+    model.busy = [{ start: booking.start, end: booking.end }];
+    resumeRetry();
+
+    const retry = await retryRequest;
+    expect(retry.status).toBe(202);
+    expect(await retry.json()).toEqual({ status: "pending" });
+    expect(model.receipt?.state).toBe("confirmed");
+    const recovered = await POST(request());
+    expect(recovered.status).toBe(200);
+    expect(await recovered.json()).toEqual({ status: "confirmed" });
+    expect(model.calendarReads).toHaveLength(6);
+    expect(model.claims).toEqual([false, true]);
+    expect(model.finishes).toEqual(["confirmed"]);
+    expect(model.insertCalls).toBe(1);
   });
 
   it("resolves a writing receipt by read-only exact-event check", async () => {

@@ -165,7 +165,9 @@ export async function POST(request: Request) {
     }
   }
 
-  if (!await slotIsStillFree(workspaceId, input)) return result("unavailable", 409);
+  if (!await slotIsStillFree(workspaceId, input)) {
+    return receipt?.state === "held" ? result("pending", 202) : result("unavailable", 409);
+  }
   let reservation;
   try {
     reservation = await claimCalendarBooking({
