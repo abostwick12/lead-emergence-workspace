@@ -38,3 +38,9 @@ test("allows the existing named environment helper and harmless computed keys", 
   const result = scan('function required(name: string) { return process.env[name]; }\nprocess.env["NEXT_PUBLIC_" + "APP_URL"];');
   assert.equal(result.status, 0, result.stderr);
 });
+
+test("rejects a computed key after a TypeScript angle-bracket assertion", () => {
+  const result = scan('const value = <string>unknownValue;\nconst key = "SUPABASE_" + "SERVICE_ROLE_KEY"; process.env[key];');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /computed service-role environment access/);
+});
