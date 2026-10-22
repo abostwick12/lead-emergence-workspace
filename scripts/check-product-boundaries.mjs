@@ -7,8 +7,10 @@ const forbidden = [/from\s+["'][^"']*(?:emergence-ministry|consulting-os|\/minis
 const forbiddenEnvironmentKey = "SUPABASE_SERVICE_ROLE_KEY";
 
 function constantEnvironmentReads(content, file) {
-  const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true,
-    /\.tsx?$/.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.JS);
+  const kind = file.endsWith(".tsx") ? ts.ScriptKind.TSX
+    : file.endsWith(".ts") ? ts.ScriptKind.TS
+    : ts.ScriptKind.JS;
+  const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, kind);
   const constants = new Map();
   const aliases = new Map();
 
