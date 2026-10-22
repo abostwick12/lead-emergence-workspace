@@ -72,23 +72,29 @@ test("networking places saved prep and the weekly plan ahead of the action queue
   for (const width of [1265, 390]) {
     await page.setViewportSize({ width, height: 800 });
     const layout = await page.evaluate(() => {
-      const top = (name: string) => {
+      const position = (name: string) => {
         const element = document.querySelector(`[aria-label="${name}"]`);
-        return element ? element.getBoundingClientRect().top + window.scrollY : -1;
+        const rect = element?.getBoundingClientRect();
+        return rect ? { top: rect.top + window.scrollY, bottom: rect.bottom + window.scrollY } : { top: -1, bottom: -1 };
       };
+      const featured = position("Selected conversation prep");
+      const plan = position("Weekly plan");
+      const queue = position("This week's people");
       return {
-        featured: top("Selected conversation prep"),
-        plan: top("Weekly plan"),
-        queue: top("This week's people"),
-        rate: top("Meeting rate"),
+        featured: featured.top,
+        plan: plan.top,
+        queue: queue.top,
+        queueGap: queue.top - Math.max(featured.bottom, plan.bottom),
+        rate: position("Meeting rate").top,
         overflow: document.documentElement.scrollWidth - window.innerWidth
       };
     });
     expect(layout.featured).toBeGreaterThanOrEqual(0);
     expect(layout.plan).toBeGreaterThanOrEqual(layout.featured);
     expect(layout.queue).toBeGreaterThan(layout.plan);
+    expect(layout.queueGap).toBeGreaterThanOrEqual(12);
+    expect(layout.queueGap).toBeLessThanOrEqual(20);
     expect(layout.rate).toBeGreaterThan(layout.queue);
-    if (width === 1265) expect(layout.queue).toBeLessThan(800);
     expect(layout.overflow).toBeLessThanOrEqual(1);
   }
   expect(accountRequests).toEqual([]);
