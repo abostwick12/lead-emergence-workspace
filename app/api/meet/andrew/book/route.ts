@@ -166,6 +166,19 @@ export async function POST(request: Request) {
   }
 
   if (!await slotIsStillFree(workspaceId, input)) {
+    if (!receipt) {
+      try {
+        receipt = await findCalendarBooking({ workspaceId, requestDigest: digest });
+      } catch {
+        return result("pending", 503);
+      }
+      if (receipt && (!matchesReceipt(receipt, input)
+        || (receipt.state === "held" && Date.parse(receipt.holdExpiresAt) <= Date.now()))) {
+        return result("unavailable", 409);
+      }
+      if (receipt?.state === "confirmed") return result("confirmed", 200);
+      if (receipt?.state === "writing") return result("pending", 202);
+    }
     return receipt?.state === "held" ? result("pending", 202) : result("unavailable", 409);
   }
   let reservation;
