@@ -35,8 +35,10 @@ describe("Networking candidate saved-person selection", () => {
     try {
       vi.setSystemTime(new Date("2026-10-19T04:30:00Z"));
       expect(definition("networking-candidate", state).fields.find((item) => item.name === "weekOf")?.value).toBe("2026-10-12");
+      expect(definition("networking-candidate", state, undefined, "2026-10-19T05:30:00Z").fields.find((item) => item.name === "weekOf")?.value).toBe("2026-10-19");
       vi.setSystemTime(new Date("2026-10-19T05:30:00Z"));
       expect(definition("networking-candidate", state).fields.find((item) => item.name === "weekOf")?.value).toBe("2026-10-19");
+      expect(definition("networking-candidate", state, undefined, "2026-10-19T04:30:00Z").fields.find((item) => item.name === "weekOf")?.value).toBe("2026-10-12");
     } finally {
       vi.useRealTimers();
     }
