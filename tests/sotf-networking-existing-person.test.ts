@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { WorkflowEditor, definition } from "@/components/sotf/workflow-editor";
 import { commandSchema, commandEnvelopeSchema, emptyPilotState } from "@/lib/sotf/contracts";
 import { applyCommand } from "@/lib/sotf/engine";
@@ -29,6 +29,21 @@ function candidateForm(existingPersonId = savedPerson.id) {
 }
 
 describe("Networking candidate saved-person selection", () => {
+  it("defaults the Networking week to Chicago Monday across Sunday night", () => {
+    const state = emptyPilotState();
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-19T04:30:00Z"));
+      expect(definition("networking-candidate", state).fields.find((item) => item.name === "weekOf")?.value).toBe("2026-10-12");
+      expect(definition("networking-candidate", state, undefined, "2026-10-19T05:30:00Z").fields.find((item) => item.name === "weekOf")?.value).toBe("2026-10-19");
+      vi.setSystemTime(new Date("2026-10-19T05:30:00Z"));
+      expect(definition("networking-candidate", state).fields.find((item) => item.name === "weekOf")?.value).toBe("2026-10-19");
+      expect(definition("networking-candidate", state, undefined, "2026-10-19T04:30:00Z").fields.find((item) => item.name === "weekOf")?.value).toBe("2026-10-12");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("excludes test people from ordinary person selectors while keeping real choices", () => {
     const state = emptyPilotState();
     state.people = [savedPerson, { ...savedPerson, id: "test-person", name: "Synthetic test person", testRecord: true }, { ...savedPerson, id: "other-test-person", name: "Other synthetic person", testRecord: true }];
