@@ -54,13 +54,49 @@ test("networking shows saved people and a linked source-backed prep", async ({ p
   const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
   await expect(prep).toBeInViewport();
   await expect(prep).toContainText("Conversation prep · Understand the work with Morgan");
-  await page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) }).getByRole("button", { name: "Prepare conversation" }).click();
+  await page.getByRole("region", { name: "This week's people", exact: true }).getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) }).getByRole("button", { name: "Prepare conversation" }).click();
   await expect(savedContext.getByRole("link", { name: /Fictional candidate 6/ })).toContainText("1 reviewed note · 0 saved questions");
   await expect(savedContext.getByRole("link", { name: /Fictional candidate 6/ })).toHaveAttribute("href", "#networking-conversation-prep");
   await savedContext.getByRole("link", { name: /Fictional candidate 6/ }).click();
   await expect(prep.getByRole("heading", { name: "Conversation prep · Fictional candidate 6" })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("max", "10");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
+test("networking places saved prep and the weekly plan ahead of the action queue", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const featured = page.getByRole("region", { name: "Selected conversation prep" });
+  await expect(featured.getByRole("group", { name: "Saved networking context" })).toBeVisible();
+  for (const width of [1265, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    const layout = await page.evaluate(() => {
+      const position = (name: string) => {
+        const element = document.querySelector(`[aria-label="${name}"]`);
+        const rect = element?.getBoundingClientRect();
+        return rect ? { top: rect.top + window.scrollY, bottom: rect.bottom + window.scrollY } : { top: -1, bottom: -1 };
+      };
+      const featured = position("Selected conversation prep");
+      const plan = position("Weekly plan");
+      const queue = position("This week's people");
+      return {
+        featured: featured.top,
+        plan: plan.top,
+        queue: queue.top,
+        queueGap: queue.top - Math.max(featured.bottom, plan.bottom),
+        rate: position("Meeting rate").top,
+        overflow: document.documentElement.scrollWidth - window.innerWidth
+      };
+    });
+    expect(layout.featured).toBeGreaterThanOrEqual(0);
+    expect(layout.plan).toBeGreaterThanOrEqual(layout.featured);
+    expect(layout.queue).toBeGreaterThan(layout.plan);
+    expect(layout.queueGap).toBeGreaterThanOrEqual(12);
+    expect(layout.queueGap).toBeLessThanOrEqual(20);
+    expect(layout.rate).toBeGreaterThan(layout.queue);
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+  }
   expect(accountRequests).toEqual([]);
   expect(browserErrors).toEqual([]);
 });
