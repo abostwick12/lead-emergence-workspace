@@ -12,5 +12,9 @@ export const metadata: Metadata = {
 export default async function AndrewSchedulingPage() {
   await connection();
   const booking = networkingBookingConfiguration();
-  return <AndrewCalendar currentBookingUrl={booking.status === "ready" ? booking.targetUrl : null} todayIso={new Date().toISOString()} />;
+  return <AndrewCalendar
+    currentBookingUrl={booking.status === "ready" ? booking.targetUrl : null}
+    todayIso={new Date().toISOString()}
+    bookingEnabled={process.env.WORKSPACE_CALENDAR_BOOKING_ENABLED === "true"}
+  />;
 }

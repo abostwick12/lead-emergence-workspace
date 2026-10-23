@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 const { readCredential } = vi.hoisted(() => ({ readCredential: vi.fn() }));
 vi.mock("@/lib/calendar/credentials", () => ({ readCalendarCredential: readCredential }));
 
-import { googleEventId, insertGoogleCalendarEvent, type GoogleEventInput } from "@/lib/calendar/google-events";
+import { googleEventId, insertGoogleCalendarEvent, readGoogleCalendarEvent, type GoogleEventInput } from "@/lib/calendar/google-events";
 
 const input: GoogleEventInput = {
   workspaceId: "caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -82,6 +82,37 @@ describe("Google Calendar event adapter", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[2][0]).toBe(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId(input.reservationId)}`);
     expect(fetchMock.mock.calls[2][1].method).toBeUndefined();
+  });
+
+  it("checks an uncertain event by exact ID without inserting again", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response(200, { access_token: "synthetic-access" }))
+      .mockResolvedValueOnce(response(200, event()));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await readGoogleCalendarEvent(input)).toEqual({ status: "confirmed", eventId: googleEventId(input.reservationId) });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][0]).toBe(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId(input.reservationId)}`);
+    expect(fetchMock.mock.calls[1][1].method).toBeUndefined();
+  });
+
+  it("distinguishes an absent event from an uncertain or mismatched read", async () => {
+    const absent = vi.fn()
+      .mockResolvedValueOnce(response(200, { access_token: "synthetic-access" }))
+      .mockResolvedValueOnce(response(404, {}));
+    vi.stubGlobal("fetch", absent);
+    expect((await readGoogleCalendarEvent(input)).status).toBe("absent");
+
+    const mismatch = vi.fn()
+      .mockResolvedValueOnce(response(200, { access_token: "synthetic-access" }))
+      .mockResolvedValueOnce(response(200, event(input, { organizer: { email: "wrong@example.com" } })));
+    vi.stubGlobal("fetch", mismatch);
+    expect((await readGoogleCalendarEvent(input)).status).toBe("ambiguous");
+
+    const timeout = vi.fn()
+      .mockResolvedValueOnce(response(200, { access_token: "synthetic-access" }))
+      .mockRejectedValueOnce(new Error("private timeout detail"));
+    vi.stubGlobal("fetch", timeout);
+    expect((await readGoogleCalendarEvent(input)).status).toBe("ambiguous");
   });
 
   it("keeps a duplicate or timeout ambiguous when the read-back does not match", async () => {

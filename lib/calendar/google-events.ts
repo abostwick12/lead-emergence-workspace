@@ -29,6 +29,11 @@ export type GoogleEventResult = {
   eventId: string;
 };
 
+export type GoogleEventReadResult = {
+  status: "confirmed" | "absent" | "ambiguous";
+  eventId: string;
+};
+
 /** A retry for the same reservation addresses one Google event ID. */
 export function googleEventId(reservationId: string): string {
   if (!UUID.test(reservationId)) throw new Error("Invalid Calendar reservation.");
@@ -82,6 +87,43 @@ async function readBack(accessToken: string, input: GoogleEventInput, eventId: s
     // A failed read cannot prove that the insert did not happen.
   }
   return { status: "ambiguous", eventId };
+}
+
+/** Resolve an uncertain insert by exact event ID without issuing another write. */
+export async function readGoogleCalendarEvent(input: GoogleEventInput): Promise<GoogleEventReadResult> {
+  validateInput(input);
+  const eventId = googleEventId(input.reservationId);
+  const ambiguous = { status: "ambiguous" as const, eventId };
+  const clientId = process.env.WORKSPACE_GOOGLE_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.WORKSPACE_GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) return ambiguous;
+  try {
+    const refreshToken = await readCalendarCredential(input.workspaceId, input.accountSlot);
+    if (!refreshToken.trim()) return ambiguous;
+    const tokenResponse = await fetch(TOKEN_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken, grant_type: "refresh_token" }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(DEADLINE_MS)
+    });
+    if (!tokenResponse.ok) return ambiguous;
+    const token: unknown = await tokenResponse.json();
+    const accessToken = token && typeof token === "object" ? (token as { access_token?: unknown }).access_token : null;
+    if (typeof accessToken !== "string" || !accessToken.trim()) return ambiguous;
+    const response = await fetch(`${EVENTS_ENDPOINT}/${eventId}`, {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(DEADLINE_MS)
+    });
+    if (response.status === 404) return { status: "absent", eventId };
+    if (response.ok && matchesEvent(await response.json(), input, eventId)) {
+      return { status: "confirmed", eventId };
+    }
+  } catch {
+    // A failed or mismatched read cannot establish whether the insert happened.
+  }
+  return ambiguous;
 }
 
 /** Server-only event write. No caller may release a reservation after an ambiguous result. */
