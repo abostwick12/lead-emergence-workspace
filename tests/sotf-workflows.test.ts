@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { commandEnvelopeSchema, commandSchema, persistedCommandEnvelopeSchema, emptyPilotState, type PilotState } from "@/lib/sotf/contracts";
 import { applyCommand, resumeTransition, RevisionConflict } from "@/lib/sotf/engine";
-import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
+import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingPlanMemberships, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
 import { OperationNotApplied, replayEvents, SotfStore, type WorkflowEvent } from "@/lib/sotf/persistence";
 import { invitationDraft, proposeConversationTimes } from "@/lib/sotf/scheduling";
 import { definition } from "@/components/sotf/workflow-editor";
@@ -43,6 +43,27 @@ function harness() {
 function networkingCandidate(id: string, name: string, list: string, pathway: "direct_outreach" | "warm_introduction" = "direct_outreach") {
   return { ...contact, id, name, networking: { weekOf: "2026-09-01", sourceUrl: `https://example.org/people/${id}`, whyPerson: "Public work shows direct experience", lamp: { list, alumniAffinity: "", motivation: "Relevant work", posting: "" }, contributionAngle: "Offer a delivery perspective", recommendedNextAction: "Send a short note", pathway, status: "identified" as const } };
 }
+
+it("reads repeated plans without changing historical replay, receipts, people, or saved review snapshots", () => {
+  const h = harness();
+  const candidate = networkingCandidate("repeat-contact", "Fictional repeat contact", "program leadership");
+  h.run({ type: "save_person", person: { ...candidate, networking: { ...candidate.networking, weekOf: "2026-10-06" } } }, "2026-10-06T12:00:00Z");
+  const review = persistedCommandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "review_networking_week", weekOf: "2026-10-05", counts: { planned: 1, attempts: 0, replies: 0, meetings: 0 }, happened: "One fictional person planned", learned: "", nextChange: "Continue learning" } });
+  const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: "2026-10-11T18:00:00Z", envelope: review }];
+  const earlier = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+  const next = envelope(earlier, { type: "save_person", person: { ...candidate, networking: { ...candidate.networking, weekOf: "2026-10-12" } } });
+  events.push({ revision: earlier.revision + 1, recorded_at: "2026-10-12T12:00:00Z", envelope: next });
+  const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+  const before = structuredClone(recovered);
+  expect(networkingPlanMemberships(recovered).map(({ weekOf }) => weekOf)).toEqual(["2026-10-05", "2026-10-12"]);
+  expect(recovered).toEqual(before);
+  expect(recovered.people).toEqual(applyCommand(earlier, next, "2026-10-12T12:00:00Z").people);
+  expect(recovered.networkingWeekReviews).toEqual(earlier.networkingWeekReviews);
+  expect(recovered.weeklyReviews).toEqual(earlier.weeklyReviews);
+  expect(recovered.receipts.slice(0, -1)).toEqual(earlier.receipts);
+  expect(replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state).toEqual(before);
+  expect(applyCommand(recovered, next, "2026-10-13T12:00:00Z")).toBe(recovered);
+});
 
 function recordVerifiedOutreach(h: ReturnType<typeof harness>, personId: string) {
   h.run({ type: "prepare_outreach", personId });

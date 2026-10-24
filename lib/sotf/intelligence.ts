@@ -1,4 +1,4 @@
-import { DIMENSIONS, type Dimension, type Evidence, type PilotState, type Story } from "./contracts";
+import { DIMENSIONS, type Dimension, type Evidence, type PilotState, type PersistedCommandEnvelope, type Story } from "./contracts";
 
 export function requireRecord<T extends { id: string }>(records: T[], id: string, label: string): T {
   const record = records.find((item) => item.id === id);
@@ -145,6 +145,29 @@ export function latestNetworkingWeek(state: PilotState, now?: string) {
   const monday = new Date(`${latestDate}T00:00:00.000Z`);
   monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
   return monday.toISOString().slice(0, 10);
+}
+
+/** Additive plan history only. weekOf is a Chicago calendar date, not a UTC instant. */
+export function networkingPlanMemberships(state: PilotState): Array<{ personId: string; weekOf: string; plannedAt: string }> {
+  const changes = new Map(state.changes.filter((change) => change.kind === "save_person").map((change) => [change.id, change]));
+  const visiblePeople = new Set(state.people.filter((person) => !person.testRecord).map((person) => person.id));
+  const memberships = new Map<string, { personId: string; weekOf: string; plannedAt: string }>();
+  const testRecords = new Map<string, boolean>();
+  for (const receipt of [...state.receipts].sort((left, right) => left.revision - right.revision)) {
+    const change = changes.get(receipt.requestId);
+    if (!change) continue;
+    const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+    if (command.type !== "save_person") continue;
+    const testRecord = command.person.testRecord ?? testRecords.get(command.person.id) ?? false;
+    testRecords.set(command.person.id, testRecord);
+    if (testRecord || !command.person.networking || !visiblePeople.has(command.person.id)) continue;
+    const monday = new Date(`${command.person.networking.weekOf}T00:00:00.000Z`);
+    monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+    const weekOf = monday.toISOString().slice(0, 10);
+    const key = `${command.person.id}:${weekOf}`;
+    if (!memberships.has(key)) memberships.set(key, { personId: command.person.id, weekOf, plannedAt: change.at });
+  }
+  return [...memberships.values()];
 }
 
 export function networkingStrategy(state: PilotState, weekOf = latestNetworkingWeek(state), now = new Date().toISOString()) {
