@@ -35,6 +35,25 @@ test("saved plans retain two weeks and deduplicate edits by person and Chicago M
   expect(networkingStrategy(state, "2026-10-12").queued).toBe(1);
 });
 
+test.each([true, false])("historical test flags are inherited until explicitly cleared (initial networking: %s)", (initialNetworking) => {
+  let state = emptyPilotState();
+  const person = createPreviewState().people.find((person) => person.networking && !person.testRecord)!;
+  const savedPerson = Object.fromEntries(Object.entries(person).filter(([key]) => !["firstContact", "lastInteraction", "networking", "testRecord"].includes(key)));
+  const networking = Object.fromEntries(Object.entries(person.networking!).filter(([key]) => key !== "statusUpdatedAt"));
+  const save = (patch: Record<string, unknown>, at: string) => {
+    state = applyCommand(state, commandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "save_person", person: { ...savedPerson, hypothesisIds: [], opportunityId: undefined, ...patch } } }), at);
+  };
+  save({ testRecord: true, ...(initialNetworking ? { networking: { ...networking, weekOf: "2026-10-05" } } : {}) }, "2026-10-05T12:00:00Z");
+  save({ networking: { ...networking, weekOf: "2026-10-12" } }, "2026-10-12T12:00:00Z");
+  expect(state.people[0].testRecord).toBe(true);
+  expect(networkingPlanMemberships(state)).toEqual([]);
+  save({ testRecord: false, networking: { ...networking, weekOf: "2026-10-19" } }, "2026-10-19T12:00:00Z");
+  const before = structuredClone(state);
+  expect(networkingPlanMemberships(state)).toEqual([{ personId: person.id, weekOf: "2026-10-19", plannedAt: "2026-10-19T12:00:00.000Z" }]);
+  expect(state.people[0].testRecord).toBe(false);
+  expect(state).toEqual(before);
+});
+
 test("the preview uses the Monday of its latest dated person without changing that date", () => {
   const state = createPreviewState();
   state.people[0].networking!.weekOf = "2026-10-21";
