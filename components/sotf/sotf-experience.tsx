@@ -241,6 +241,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
                 <dl className={styles.networkingHistoryFacts}><div><dt>Last touch</dt><dd>{person.lastInteraction ? displayDate(person.lastInteraction) : "No touch recorded"}</dd></div><div><dt>Outcome</dt><dd>{networkingOutcomeLabels[status]}</dd></div></dl>
                 <div className={styles.networkingHistoryNotes}><span>Context / notes</span><p>{person.overlap || "No context note recorded"}</p></div>
                 <button type="button" aria-pressed={networkingPrepPersonId === person.id} onClick={() => { setNetworkingPrepPersonId(person.id); document.getElementById("networking-conversation-prep")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Prepare conversation</button>
+                <button type="button" onClick={() => edit("meeting", person.id)}>Record a meeting</button>
               </article>;
             })}</div> : <p className={styles.empty}>No networking contacts recorded yet.</p>}
           </section>
