@@ -107,6 +107,13 @@ describe("Networking candidate saved-person selection", () => {
       contributionAngle: "Share workshop notes", recommendedNextAction: "Check the program details",
       pathway: "research_wait", status: "replied"
     } } }, "2026-10-19T15:00:00Z");
+    const savedNetworking = state.people[0].networking!;
+    save({ type: "save_person", person: { ...savedPerson, networking: {
+      weekOf: savedNetworking.weekOf, sourceUrl: undefined, whyPerson: savedNetworking.whyPerson,
+      lamp: savedNetworking.lamp, contributionAngle: savedNetworking.contributionAngle,
+      recommendedNextAction: savedNetworking.recommendedNextAction,
+      pathway: savedNetworking.pathway, status: savedNetworking.status
+    } } }, "2026-10-19T15:00:30Z");
     save({ type: "save_person", person: { ...savedPerson, id: "other-person" } }, "2026-10-19T15:01:00Z");
     save({ type: "prepare_outreach", personId: "other-person" }, "2026-10-19T15:02:00Z");
     const before = structuredClone(state);
@@ -127,6 +134,7 @@ describe("Networking candidate saved-person selection", () => {
       if (typeof item.value === "string") form.set(item.name, item.value);
       else if (Array.isArray(item.value)) item.value.forEach((value) => form.append(item.name, value));
     }
+    form.set("source", "Updated source note from a private conversation");
     const unchanged = commandSchema.parse(config.build(form));
     expect(unchanged.type === "save_person" && unchanged.person.networking?.pathway).toBe("research_wait");
     form.delete("pathway");
@@ -134,6 +142,7 @@ describe("Networking candidate saved-person selection", () => {
     expect(omitted.type === "save_person" && omitted.person.networking?.pathway).toBe("research_wait");
     form.set("pathway", pathway);
     save(config.build(form), "2026-10-20T15:01:00Z");
+    expect(state.people[0].source).toBe("Updated source note from a private conversation");
     expect(state.people[0].networking).toEqual({ ...before.people[0].networking, pathway });
     expect(state.actions).toEqual(before.actions);
     expect(state.people[1]).toEqual(before.people[1]);
@@ -248,5 +257,22 @@ describe("Networking candidate saved-person selection", () => {
     expect(optionsFor("2026-10-19")).toEqual([]);
     expect(networkingStrategy(state, "2026-10-05").queued).toBe(0);
     expect(networkingStrategy(state, "2026-10-12").queued).toBe(0);
+  });
+
+  it("still requires a public URL when adding Networking to a saved person with a changed source note", () => {
+    const state = emptyPilotState();
+    state.people = [savedPerson];
+    const envelope = commandEnvelopeSchema.parse({
+      requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true,
+      dataClass: "ordinary_transition_operations",
+      command: { type: "save_person", person: { ...savedPerson, source: "New unsupported source note", networking: {
+        weekOf: "2026-10-19", whyPerson: "Can explain program ownership",
+        lamp: { list: "Program leads", alumniAffinity: "", motivation: "Relevant work", posting: "" },
+        contributionAngle: "Share workshop notes", recommendedNextAction: "Check the program details",
+        pathway: "research_wait", status: "identified"
+      } } }
+    });
+    expect(() => applyCommand(state, envelope, "2026-10-07T12:00:00Z"))
+      .toThrow("A public source URL is required for a new networking candidate.");
   });
 });
