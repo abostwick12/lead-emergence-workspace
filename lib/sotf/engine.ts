@@ -102,6 +102,11 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope | Pers
       summary = `${item.company}: ${command.decision} — ${command.rationale}`; break;
     }
     case "save_person": {
+      if (source === "new_command" && command.replyOccurredOn) {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(now)).map((part) => [part.type, part.value]));
+        const chicagoDay = `${parts.year}-${parts.month}-${parts.day}`;
+        if (command.replyOccurredOn > chicagoDay) throw new Error("The actual reply date cannot be after today in Chicago.");
+      }
       links(command.person); const current = state.people.find((item) => item.id === command.person.id);
       if (command.person.networking && !command.person.networking.sourceUrl && (!current || current.source !== command.person.source)) throw new Error("A public source URL is required for a new networking candidate. Reuse a saved person's source note when no public URL exists.");
       const networking = command.person.networking === undefined ? current?.networking : { ...command.person.networking, statusUpdatedAt: current?.networking?.status === command.person.networking.status ? current.networking.statusUpdatedAt ?? now : now };

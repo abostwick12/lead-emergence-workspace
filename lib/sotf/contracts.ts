@@ -59,7 +59,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("review_evidence"), evidenceId: id, decision: z.enum(["accept", "reject"]), rationale: text }),
   z.strictObject({ type: z.literal("resolve_requirement"), opportunityId: id, requirementId: id, status: z.enum(["met", "unknown", "not_met"]), evidenceIds: ids }),
   z.strictObject({ type: z.literal("decide_opportunity"), opportunityId: id, decision: z.enum(["pursue", "investigate", "decline", "pause"]), rationale: text, nextAction: text, revisitWhen: text, due: date.optional() }),
-  z.strictObject({ type: z.literal("save_person"), person: personSchema }),
+  z.strictObject({ type: z.literal("save_person"), person: personSchema, replyOccurredOn: date.optional() }),
   z.strictObject({ type: z.literal("prepare_outreach"), personId: id, stage: z.enum(["initial", "private_follow_up"]).default("initial") }),
   z.strictObject({ type: z.literal("prepare_scheduling_reply"), personId: id, schedulingUrl: brandedSchedulingUrl }),
   z.strictObject({ type: z.literal("record_meeting"), meeting: meetingSchema }),
@@ -101,7 +101,7 @@ const persistedCommandSchema = z.union([
     counts: z.strictObject({ planned: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), meetings: z.number().int().nonnegative() }),
     happened: text, learned: z.string().trim().max(5000), nextChange: text
   }),
-  // A later writer may record an actual reply date. Historical commands keep their exact shape.
+  // Historical commands keep their exact shape and person field order.
   z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema, replyOccurredOn: date.optional() }),
   // Read the review marker before any writer is allowed to emit it, so this release can safely read a later one.
   z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text, skillReviewed: z.literal(true).optional() }),

@@ -154,6 +154,41 @@ test("a completed conversation appears in its scheduled week without a plan", as
   expect(browserErrors).toEqual([]);
 });
 
+test("networking outcomes save only an entered actual reply date and reopen blank", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const results = page.getByRole("region", { name: "Weekly results", exact: true });
+  const row = results.getByRole("row", { name: /2026-08-31/ });
+  await expect(row.getByRole("cell").nth(2)).toHaveText("0");
+  const candidate = page.getByRole("region", { name: "This week's people", exact: true }).getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) });
+  await candidate.getByRole("button", { name: "Record outcome", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Actual reply date, if known")).toHaveValue("");
+  await dialog.getByLabel("Observed outcome").selectOption("replied");
+  await dialog.getByLabel("Actual reply date, if known").fill("2026-09-02");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await expect(row.getByRole("cell").nth(2)).toHaveText("1");
+  await candidate.getByRole("button", { name: "Record outcome", exact: true }).click();
+  await expect(dialog.getByLabel("Actual reply date, if known")).toHaveValue("");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await expect(row.getByRole("cell").nth(2)).toHaveText("1");
+  const undatedBefore = Number((await results.innerText()).match(/(\d+) people have undated reply outcomes/)?.[1]);
+  const unknown = page.getByRole("region", { name: "This week's people", exact: true }).getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 7", exact: true }) });
+  await unknown.getByRole("button", { name: "Record outcome", exact: true }).click();
+  await expect(dialog.getByLabel("Actual reply date, if known")).toHaveValue("");
+  await dialog.getByLabel("Observed outcome").selectOption("replied");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await expect(row.getByRole("cell").nth(2)).toHaveText("1");
+  await expect(results).toContainText(`${undatedBefore + 1} people have undated reply outcomes that remain unassigned.`);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("networking strategy shows the 10-person goal and selectable conversation prep", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Plan 10 people this week." })).toBeVisible();
