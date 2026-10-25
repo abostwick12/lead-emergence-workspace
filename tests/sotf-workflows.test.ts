@@ -291,7 +291,7 @@ describe("SOTF networking strategy v1", () => {
     h.run({ type: "record_meeting", meeting: { ...meeting, id: "test-meeting", personId: testContact.id } });
 
     const strategy = networkingStrategy(h.state, undefined, "2026-09-15T12:00:00Z");
-    expect(strategy).toMatchObject({ weekOf: "2026-09-01", queued: 1, attemptsMade: 1, conversationsGenerated: 0, matureCohortSize: 1, matureCohortConversionRate: 0 });
+    expect(strategy).toMatchObject({ weekOf: "2026-08-31", queued: 1, attemptsMade: 1, conversationsGenerated: 0, matureCohortSize: 1, matureCohortConversionRate: 0 });
     expect(strategy.candidates.map(({ person }) => person.id)).toEqual([ordinary.id]);
     expect(strategy.categories.map(item => item.name)).toEqual(["ordinary category"]);
     expect(strategy.adjustments.join(" ")).not.toContain("test category");
