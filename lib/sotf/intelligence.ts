@@ -201,19 +201,29 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   const candidates = state.people.filter((item) => !item.testRecord && item.networking && (!weekStart || item.networking.weekOf >= weekStart && item.networking.weekOf < nextWeek!));
   const candidateIds = new Set(candidates.map((item) => item.id));
   // Weekly activity is independent of the selected plan. All counts remain distinct people.
-  const contactIds = new Set(state.people.filter((item) => !item.testRecord && item.networking).map((item) => item.id));
-  const datedAttempts = state.actions.filter((item) => item.personId && contactIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind))
+  const visiblePersonIds = new Set(state.people.filter((item) => !item.testRecord).map((item) => item.id));
+  const networkingPersonIds = new Set(state.people.filter((item) => !item.testRecord && item.networking).map((item) => item.id));
+  const datedAttempts = state.actions.filter((item) => item.personId && networkingPersonIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind))
     .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.updatedAt)! }));
-  const datedReplies = networkingReplyOccurrences(state).filter((item) => contactIds.has(item.personId))
+  const datedReplies = networkingReplyOccurrences(state).filter((item) => visiblePersonIds.has(item.personId))
     // Noon Chicago is safely inside the explicit local calendar day, including DST changes.
     .map((item) => ({ personId: item.personId, weekOf: latestNetworkingWeek(state, `${item.replyOccurredOn}T12:00:00-06:00`)! }));
-  const datedMeetings = state.meetings.filter((item) => item.kind === "networking" && item.status === "completed" && item.personId && contactIds.has(item.personId))
+  const datedMeetings = state.meetings.filter((item) => item.kind === "networking" && item.status === "completed" && item.personId && visiblePersonIds.has(item.personId))
     .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.startsAt)! }));
   const countInWeek = (items: Array<{ personId: string; weekOf: string }>) => new Set(items.filter((item) => item.weekOf === weekStart).map((item) => item.personId)).size;
   const weeklyCounts = { planned: candidates.length, attempts: countInWeek(datedAttempts), replies: countInWeek(datedReplies), meetings: countInWeek(datedMeetings) };
   const activityWeeks = [...new Set([...datedAttempts, ...datedReplies, ...datedMeetings].map((item) => item.weekOf))].sort().reverse();
   const datedReplyPeople = new Set(datedReplies.map((item) => item.personId));
-  const undatedReplyPeople = state.people.filter((item) => contactIds.has(item.id) && ["replied", "conversation_scheduled", "conversation_completed"].includes(item.networking!.status) && !datedReplyPeople.has(item.id)).length;
+  const undatedReplyIds = new Set<string>();
+  const historicalTestRecords = new Map<string, boolean>();
+  for (const receipt of [...state.receipts].sort((left, right) => left.revision - right.revision)) {
+    const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+    if (command.type !== "save_person") continue;
+    const testRecord = command.person.testRecord ?? historicalTestRecords.get(command.person.id) ?? false;
+    historicalTestRecords.set(command.person.id, testRecord);
+    if (!testRecord && command.person.networking?.status === "replied" && !("replyOccurredOn" in command && command.replyOccurredOn)) undatedReplyIds.add(command.person.id);
+  }
+  const undatedReplyPeople = [...undatedReplyIds].filter((id) => visiblePersonIds.has(id) && !datedReplyPeople.has(id)).length;
   const attempts = state.actions.filter((item) => item.personId && candidateIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind));
   const firstAttempt = new Map<string, string>();
   attempts.forEach((item) => { if (item.personId && (!firstAttempt.has(item.personId) || item.updatedAt < firstAttempt.get(item.personId)!)) firstAttempt.set(item.personId, item.updatedAt); });
