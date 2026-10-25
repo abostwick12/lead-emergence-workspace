@@ -31,7 +31,7 @@ describe("SOTF UI manifest routes", () => {
     ["opportunities", "Is this worth more of your time?"],
     ["briefs", "For today"],
     ["learning", "What should change next week?"],
-    ["networking", "Networking weekly progress"]
+    ["networking", "Weekly plan"]
   ] as const)("opens the existing %s view", async (section, heading) => {
     const page = await sectionPage(section);
     expect(page.type).toBe(SotfExperience);
