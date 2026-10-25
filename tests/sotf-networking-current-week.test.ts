@@ -99,6 +99,41 @@ test("September activity stays in its occurrence weeks after an October plan", (
   expect(october.conversationsGenerated).toBe(1);
 });
 
+test("an ordinary person's dated reply and networking meeting count without generic outreach", () => {
+  let state = emptyPilotState();
+  const preview = createPreviewState();
+  const person = preview.people.find((item) => item.id === "morgan")!;
+  const { networking: _networking, firstContact: _firstContact, lastInteraction: _lastInteraction, ...ordinary } = person;
+  void _networking; void _firstContact; void _lastInteraction;
+  state = applyCommand(state, persistedCommandEnvelopeSchema.parse({
+    requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations",
+    command: { type: "save_person", person: { ...ordinary, hypothesisIds: [], opportunityId: undefined }, replyOccurredOn: "2026-10-20" }
+  }), "2026-10-21T12:00:00Z", "persisted_event");
+  const action = preview.actions.find((item) => item.personId === person.id && item.state === "manually_completed")!;
+  state.actions.push({ ...action, updatedAt: "2026-10-20T12:00:00Z" });
+  const meeting = preview.meetings.find((item) => item.id === "conversation")!;
+  state.meetings.push({ ...meeting, startsAt: "2026-10-20T15:00:00Z", endsAt: "2026-10-20T15:30:00Z", status: "completed" });
+
+  expect(networkingStrategy(state, "2026-10-19").weeklyCounts).toEqual({ planned: 0, attempts: 0, replies: 1, meetings: 1 });
+  state.people[0].testRecord = true;
+  expect(networkingStrategy(state, "2026-10-19").weeklyCounts).toEqual({ planned: 0, attempts: 0, replies: 0, meetings: 0 });
+});
+
+test("a meeting-only status is not an undated reply, while an earlier recorded reply remains one", () => {
+  const preview = createPreviewState();
+  const person = preview.people.find((item) => item.id === "network-person-3")!;
+  const { debrief: _debrief, ...meeting } = preview.meetings.find((item) => item.id === "conversation")!;
+  void _debrief;
+  const state = applyCommand(preview, commandEnvelopeSchema.parse({
+    requestId: randomUUID(), expectedRevision: preview.revision, userConfirmed: true, dataClass: "ordinary_transition_operations",
+    command: { type: "record_meeting", meeting: { ...meeting, id: "meeting-without-reply", personId: person.id, status: "accepted" } }
+  }), "2026-09-08T12:00:00Z");
+
+  expect(state.people.find((item) => item.id === person.id)?.networking?.status).toBe("conversation_scheduled");
+  expect(state.people.find((item) => item.id === "morgan")?.networking?.status).toBe("conversation_scheduled");
+  expect(networkingStrategy(state, "2026-09-07").undatedReplyPeople).toBe(2);
+});
+
 test.each([
   ["2026-10-12T04:59:59Z", "2026-10-05"],
   ["2026-10-12T05:00:00Z", "2026-10-12"],

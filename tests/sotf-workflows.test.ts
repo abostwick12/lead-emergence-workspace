@@ -291,7 +291,7 @@ describe("SOTF networking strategy v1", () => {
     h.run({ type: "record_meeting", meeting: { ...meeting, id: "test-meeting", personId: testContact.id } });
 
     const strategy = networkingStrategy(h.state, undefined, "2026-09-15T12:00:00Z");
-    expect(strategy).toMatchObject({ weekOf: "2026-09-01", queued: 1, attemptsMade: 1, conversationsGenerated: 0, matureCohortSize: 1, matureCohortConversionRate: 0 });
+    expect(strategy).toMatchObject({ weekOf: "2026-08-31", queued: 1, attemptsMade: 1, conversationsGenerated: 0, matureCohortSize: 1, matureCohortConversionRate: 0 });
     expect(strategy.candidates.map(({ person }) => person.id)).toEqual([ordinary.id]);
     expect(strategy.categories.map(item => item.name)).toEqual(["ordinary category"]);
     expect(strategy.adjustments.join(" ")).not.toContain("test category");
@@ -329,6 +329,27 @@ describe("SOTF networking strategy v1", () => {
 
     h.run({ type: "save_person", person: { ...contact, role: "Senior Program Lead", networking: { ...networking, status: "replied", recommendedNextAction: "Prepare for the scheduled conversation" } } }, "2026-09-08T12:00:00Z");
     expect(h.state.people[0].networking).toMatchObject({ status: "replied", recommendedNextAction: "Prepare for the scheduled conversation" });
+  });
+
+  it("keeps current group and approach counts from claiming credit for an older reply", () => {
+    const h = harness();
+    const candidate = networkingCandidate("edited-approach", "Fictional edited contact", "First group");
+    h.run({ type: "save_person", person: candidate });
+    recordVerifiedOutreach(h, candidate.id);
+    const replied = { ...candidate, networking: { ...candidate.networking, status: "replied" as const } };
+    h.run({ type: "save_person", person: replied }, "2026-09-07T12:00:00Z");
+    const before = networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+    expect(before.pathways.find((item) => item.name === "direct_outreach")).toMatchObject({ attempted: 1, responses: 1 });
+
+    h.run({ type: "save_person", person: { ...replied, networking: {
+      ...replied.networking, lamp: { ...replied.networking.lamp, list: "Edited group" }, pathway: "warm_introduction" as const
+    } } }, "2026-09-08T12:00:00Z");
+    const after = networkingStrategy(h.state, "2026-09-01", "2026-09-15T12:00:00Z");
+    expect(after.categories.find((item) => item.name === "Edited group")).toMatchObject({ attempted: 1, responses: 1 });
+    expect(after.pathways.find((item) => item.name === "warm_introduction")).toMatchObject({ attempted: 1, responses: 1 });
+    expect(after.adjustments).toEqual(["Review the recorded contact and meeting outcomes before changing next week's plan."]);
+    expect(after.adjustments.join(" ")).not.toContain("Edited group");
+    expect(after.adjustments.join(" ")).not.toContain("warm introduction");
   });
 
   it("reconciles cancellation, reactivation, remaining meetings, and completed conversations", () => {

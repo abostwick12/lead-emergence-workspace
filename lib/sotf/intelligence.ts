@@ -201,19 +201,29 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   const candidates = state.people.filter((item) => !item.testRecord && item.networking && (!weekStart || item.networking.weekOf >= weekStart && item.networking.weekOf < nextWeek!));
   const candidateIds = new Set(candidates.map((item) => item.id));
   // Weekly activity is independent of the selected plan. All counts remain distinct people.
-  const contactIds = new Set(state.people.filter((item) => !item.testRecord && item.networking).map((item) => item.id));
-  const datedAttempts = state.actions.filter((item) => item.personId && contactIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind))
+  const visiblePersonIds = new Set(state.people.filter((item) => !item.testRecord).map((item) => item.id));
+  const networkingPersonIds = new Set(state.people.filter((item) => !item.testRecord && item.networking).map((item) => item.id));
+  const datedAttempts = state.actions.filter((item) => item.personId && networkingPersonIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind))
     .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.updatedAt)! }));
-  const datedReplies = networkingReplyOccurrences(state).filter((item) => contactIds.has(item.personId))
+  const datedReplies = networkingReplyOccurrences(state).filter((item) => visiblePersonIds.has(item.personId))
     // Noon Chicago is safely inside the explicit local calendar day, including DST changes.
     .map((item) => ({ personId: item.personId, weekOf: latestNetworkingWeek(state, `${item.replyOccurredOn}T12:00:00-06:00`)! }));
-  const datedMeetings = state.meetings.filter((item) => item.kind === "networking" && item.status === "completed" && item.personId && contactIds.has(item.personId))
+  const datedMeetings = state.meetings.filter((item) => item.kind === "networking" && item.status === "completed" && item.personId && visiblePersonIds.has(item.personId))
     .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.startsAt)! }));
   const countInWeek = (items: Array<{ personId: string; weekOf: string }>) => new Set(items.filter((item) => item.weekOf === weekStart).map((item) => item.personId)).size;
   const weeklyCounts = { planned: candidates.length, attempts: countInWeek(datedAttempts), replies: countInWeek(datedReplies), meetings: countInWeek(datedMeetings) };
   const activityWeeks = [...new Set([...datedAttempts, ...datedReplies, ...datedMeetings].map((item) => item.weekOf))].sort().reverse();
   const datedReplyPeople = new Set(datedReplies.map((item) => item.personId));
-  const undatedReplyPeople = state.people.filter((item) => contactIds.has(item.id) && ["replied", "conversation_scheduled", "conversation_completed"].includes(item.networking!.status) && !datedReplyPeople.has(item.id)).length;
+  const undatedReplyIds = new Set<string>();
+  const historicalTestRecords = new Map<string, boolean>();
+  for (const receipt of [...state.receipts].sort((left, right) => left.revision - right.revision)) {
+    const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+    if (command.type !== "save_person") continue;
+    const testRecord = command.person.testRecord ?? historicalTestRecords.get(command.person.id) ?? false;
+    historicalTestRecords.set(command.person.id, testRecord);
+    if (!testRecord && command.person.networking?.status === "replied" && !("replyOccurredOn" in command && command.replyOccurredOn)) undatedReplyIds.add(command.person.id);
+  }
+  const undatedReplyPeople = [...undatedReplyIds].filter((id) => visiblePersonIds.has(id) && !datedReplyPeople.has(id)).length;
   const attempts = state.actions.filter((item) => item.personId && candidateIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind));
   const firstAttempt = new Map<string, string>();
   attempts.forEach((item) => { if (item.personId && (!firstAttempt.has(item.personId) || item.updatedAt < firstAttempt.get(item.personId)!)) firstAttempt.set(item.personId, item.updatedAt); });
@@ -233,18 +243,16 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   }).sort((left, right) => right.responses - left.responses || (right.responseRate ?? -1) - (left.responseRate ?? -1) || left.name.localeCompare(right.name));
   const categories = group((item) => item.networking!.lamp.list);
   const pathways = group((item) => item.networking!.pathway);
-  const bestCategory = categories.find((item) => item.responses > 0);
-  const bestPathway = pathways.find((item) => item.responses > 0);
   const isCurrentWeek = weekStart === latestNetworkingWeek(state, now);
   const adjustments = candidates.length === 0
     ? [isCurrentWeek ? "No one is planned this week. Add 10 people to start." : "No one is planned for the selected week."]
     : mature.length === 0
     ? ["No contact attempt is ready to judge yet. Keep this week's plan for now."]
     : conversion !== null && conversion >= conversionTarget
-      ? [`The meeting rate meets the ${Math.round(conversionTarget * 100)}% goal. Keep ${bestCategory?.name ?? "the current groups"} and ${bestPathway?.name.replaceAll("_", " ") ?? "the current contact methods"} in next week's plan, then check the recorded replies again.`]
-      : bestCategory || bestPathway
-        ? [`Next week, try more people in ${bestCategory?.name ?? "the group with recorded replies"} using ${bestPathway?.name.replaceAll("_", " ") ?? "the contact method with recorded replies"}. Those are where replies have been recorded.`, "Keep other groups in the plan. Recent silence is too early to judge."]
-        : ["No replies are recorded yet. Check why each person is relevant and what you hope to learn. Wait for more results before changing the plan."];
+      ? [`The meeting rate meets the ${Math.round(conversionTarget * 100)}% goal. Review the recorded outcomes before choosing next week's plan.`]
+      : categories.some((item) => item.responses > 0)
+        ? ["Review the recorded contact and meeting outcomes before changing next week's plan."]
+        : ["No response or meeting follows a recorded contact attempt yet. Check the contact records before changing next week's plan."];
   return {
     weekOf: weekOf ?? null,
     weeklyCounts,
