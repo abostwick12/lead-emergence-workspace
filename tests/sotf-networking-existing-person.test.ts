@@ -3,8 +3,9 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { WorkflowEditor, definition } from "@/components/sotf/workflow-editor";
-import { commandSchema, commandEnvelopeSchema, emptyPilotState } from "@/lib/sotf/contracts";
+import { commandSchema, commandEnvelopeSchema, persistedCommandEnvelopeSchema, emptyPilotState } from "@/lib/sotf/contracts";
 import { applyCommand } from "@/lib/sotf/engine";
+import { replayEvents, type WorkflowEvent } from "@/lib/sotf/persistence";
 
 const savedPerson = {
   id: "saved-person", name: "Fictional Taylor", company: "Fictional Northstar", role: "Program Lead",
@@ -64,6 +65,7 @@ describe("Networking candidate saved-person selection", () => {
     const state = emptyPilotState();
     state.people = [{ ...savedPerson, conversationQuestions: ["Who owns the program budget?", "What changes the weekly plan?"] }];
     const config = definition("person", state, savedPerson.id);
+    expect(config.fields.some((item) => item.name === "pathway")).toBe(false);
     const markup = renderToStaticMarkup(createElement(WorkflowEditor, {
       intent: "person", state, recordId: savedPerson.id, onSave: async () => {}, onClose: () => {}
     }));
@@ -79,6 +81,7 @@ describe("Networking candidate saved-person selection", () => {
     const saved = commandSchema.parse(config.build(form));
     expect(saved.type).toBe("save_person");
     if (saved.type !== "save_person") throw new Error("Expected a person update");
+    expect(saved.person).not.toHaveProperty("networking");
     expect(saved.person.conversationQuestions).toEqual(state.people[0].conversationQuestions);
 
     for (const key of ["question1", "question2", "question3"]) form.set(key, "");
@@ -86,6 +89,60 @@ describe("Networking candidate saved-person selection", () => {
     expect(cleared.type).toBe("save_person");
     if (cleared.type !== "save_person") throw new Error("Expected a person update");
     expect(cleared.person.conversationQuestions).toEqual([]);
+  });
+
+  it.each(["direct_outreach", "thoughtful_comment", "warm_introduction"])("saves an owner-selected %s approach from a research hold without drafting or changing status", (pathway) => {
+    let state = emptyPilotState();
+    const events: WorkflowEvent[] = [];
+    const save = (command: unknown, at: string) => {
+      const envelope = commandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command });
+      const recorded = envelope.command.type === "prepare_outreach" ? persistedCommandEnvelopeSchema.parse({ ...envelope, command: { ...envelope.command, draftTemplateVersion: "preparation_v2" } }) : envelope;
+      state = applyCommand(state, recorded, at, "persisted_event");
+      events.push({ revision: state.revision, envelope: recorded, recorded_at: at });
+    };
+    save({ type: "save_person", person: { ...savedPerson, networking: {
+      weekOf: "2026-10-19", sourceUrl: "https://example.org/people/taylor", whyPerson: "Can explain program ownership",
+      lamp: { list: "Program leads", alumniAffinity: "", motivation: "Relevant work", posting: "" },
+      contributionAngle: "Share workshop notes", recommendedNextAction: "Check the program details",
+      pathway: "research_wait", status: "replied"
+    } } }, "2026-10-19T15:00:00Z");
+    save({ type: "save_person", person: { ...savedPerson, id: "other-person" } }, "2026-10-19T15:01:00Z");
+    save({ type: "prepare_outreach", personId: "other-person" }, "2026-10-19T15:02:00Z");
+    const before = structuredClone(state);
+    const prepare = commandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "prepare_outreach", personId: savedPerson.id } });
+    expect(() => applyCommand(state, prepare, "2026-10-20T15:00:00Z")).toThrow("marked for more research");
+    expect(state).toEqual(before);
+
+    const config = definition("person", state, savedPerson.id);
+    const approach = config.fields.find((item) => item.name === "pathway");
+    expect(approach).toMatchObject({ label: "Contact approach", value: "research_wait", help: "Changing the approach does not draft or send a message." });
+    expect(approach?.options?.map((option) => option.value)).toEqual(["direct_outreach", "thoughtful_comment", "warm_introduction", "research_wait"]);
+    const markup = renderToStaticMarkup(createElement(WorkflowEditor, { intent: "person", state, recordId: savedPerson.id, onSave: async () => {}, onClose: () => {} }));
+    expect(markup).toContain("Contact approach");
+    expect(markup).toContain('value="research_wait" selected=""');
+    expect(markup).toContain("Changing the approach does not draft or send a message.");
+    const form = new FormData();
+    for (const item of config.fields) {
+      if (typeof item.value === "string") form.set(item.name, item.value);
+      else if (Array.isArray(item.value)) item.value.forEach((value) => form.append(item.name, value));
+    }
+    const unchanged = commandSchema.parse(config.build(form));
+    expect(unchanged.type === "save_person" && unchanged.person.networking?.pathway).toBe("research_wait");
+    form.delete("pathway");
+    const omitted = commandSchema.parse(config.build(form));
+    expect(omitted.type === "save_person" && omitted.person.networking?.pathway).toBe("research_wait");
+    form.set("pathway", pathway);
+    save(config.build(form), "2026-10-20T15:01:00Z");
+    expect(state.people[0].networking).toEqual({ ...before.people[0].networking, pathway });
+    expect(state.actions).toEqual(before.actions);
+    expect(state.people[1]).toEqual(before.people[1]);
+    expect(state.changes.slice(0, -1)).toEqual(before.changes);
+    expect(state.receipts.slice(0, -1)).toEqual(before.receipts);
+    expect(state.changes.at(-1)?.kind).toBe("save_person");
+    // Rebuild the projection from serialized events, as a reload does.
+    const reloaded = replayEvents(JSON.parse(JSON.stringify({ workspace_id: "70000000-0000-4000-8000-000000000001", revision: state.revision, events }))).state;
+    expect(reloaded).toEqual(state);
+    expect(definition("person", reloaded, savedPerson.id).fields.find((item) => item.name === "pathway")?.value).toBe(pathway);
   });
 
   it("offers an unplanned saved person and updates that record without duplicating identity", () => {
