@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { WorkflowEditor, definition } from "@/components/sotf/workflow-editor";
 import { commandSchema, commandEnvelopeSchema, persistedCommandEnvelopeSchema, emptyPilotState } from "@/lib/sotf/contracts";
+import { networkingPlanMemberships, networkingStrategy } from "@/lib/sotf/intelligence";
 import { applyCommand } from "@/lib/sotf/engine";
 import { replayEvents, type WorkflowEvent } from "@/lib/sotf/persistence";
 
@@ -58,7 +59,7 @@ describe("Networking candidate saved-person selection", () => {
     expect(newMeetingOptions?.map((item) => item.value)).toEqual([savedPerson.id]);
     expect(linkedMeetingOptions?.map((item) => item.value)).toEqual([savedPerson.id, "test-person"]);
     expect(() => definition("networking-candidate", state).build(candidateForm("test-person")))
-      .toThrow("Choose an unplanned saved person.");
+      .toThrow("Choose a saved person not already planned for this week.");
   });
 
   it("prefills reviewed questions in the Person editor and allows an explicit clear", () => {
@@ -167,7 +168,7 @@ describe("Networking candidate saved-person selection", () => {
       role: savedPerson.role, email: savedPerson.email, source: savedPerson.source,
       testRecord: false, introductionPath: savedPerson.introductionPath,
       overlap: savedPerson.overlap, whyNow: savedPerson.whyNow, objective: savedPerson.objective,
-      networking: { weekOf: "2026-10-06", status: "identified", sourceUrl: undefined }
+      networking: { weekOf: "2026-10-05", status: "identified", sourceUrl: undefined }
     });
     const envelope = commandEnvelopeSchema.parse({
       requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true,
@@ -176,7 +177,7 @@ describe("Networking candidate saved-person selection", () => {
     const updated = applyCommand(state, envelope, "2026-10-07T12:00:00Z");
     expect(updated.people).toHaveLength(1);
     expect(updated.people[0].id).toBe(savedPerson.id);
-    expect(updated.people[0].networking?.weekOf).toBe("2026-10-06");
+    expect(updated.people[0].networking?.weekOf).toBe("2026-10-05");
     expect(updated.people[0]).toMatchObject({ overlap: savedPerson.overlap, whyNow: savedPerson.whyNow, objective: savedPerson.objective });
 
     form.set("objective", "Learn how a specific program decision is made");
@@ -190,7 +191,7 @@ describe("Networking candidate saved-person selection", () => {
     const state = emptyPilotState();
     state.people = [savedPerson];
     expect(() => definition("networking-candidate", state).build(candidateForm("missing-person")))
-      .toThrow("Choose an unplanned saved person.");
+      .toThrow("Choose a saved person not already planned for this week.");
   });
 
   it("still requires a public URL for a brand-new networking candidate", () => {
@@ -204,5 +205,48 @@ describe("Networking candidate saved-person selection", () => {
     });
     expect(() => applyCommand(state, envelope, "2026-10-07T12:00:00Z"))
       .toThrow("A public source URL is required for a new networking candidate.");
+  });
+  it.each(["replied", "conversation_completed"].flatMap((status) => ["direct_outreach", "thoughtful_comment", "warm_introduction", "research_wait"].map((pathway) => ({ status, pathway }))))("replans $status with $pathway without changing the relationship or creating activity", ({ status, pathway }) => {
+    let state = emptyPilotState();
+    state.people = [{ ...savedPerson, conversationQuestions: ["What makes the work useful?"] }];
+    const operations: Array<{ envelope: ReturnType<typeof commandEnvelopeSchema.parse>; at: string }> = [];
+    const save = (command: unknown, at: string) => {
+      const envelope = commandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command });
+      operations.push({ envelope, at });
+      state = applyCommand(state, envelope, at);
+    };
+    const initial = commandSchema.parse(definition("networking-candidate", state).build(candidateForm()));
+    if (initial.type !== "save_person") throw new Error("Expected save_person");
+    save({ ...initial, person: { ...initial.person, conversationQuestions: state.people[0].conversationQuestions, networking: { ...initial.person.networking, status, pathway } } }, "2026-10-06T12:00:00Z");
+    const before = structuredClone(state.people[0]);
+    const optionsFor = (date: string) => definition("networking-candidate", state, undefined, "2026-10-14T12:00:00Z", date).fields.find((item) => item.name === "existingPersonId")?.options?.map((item) => item.value);
+    expect(optionsFor("2026-10-11")).toEqual([]);
+    expect(optionsFor("2026-10-18")).toEqual([savedPerson.id]);
+    const repeat = candidateForm(); repeat.set("weekOf", "2026-10-18");
+    const command = commandSchema.parse(definition("networking-candidate", state).build(repeat));
+    expect(command.type).toBe("save_person");
+    if (command.type !== "save_person") throw new Error("Expected save_person");
+    expect(command.person.networking).not.toHaveProperty("statusUpdatedAt");
+    save(command, "2026-10-14T12:00:00Z");
+    expect(state.people).toHaveLength(1);
+    expect(state.people[0]).toEqual({ ...before, networking: { ...before.networking, weekOf: "2026-10-12" } });
+    expect(state.actions).toEqual([]); expect(state.meetings).toEqual([]);
+    expect(networkingPlanMemberships(state).map(({ weekOf }) => weekOf)).toEqual(["2026-10-05", "2026-10-12"]);
+    for (const week of ["2026-10-05", "2026-10-12"]) {
+      const queue = networkingStrategy(state, week, "2026-10-14T12:00:00Z");
+      expect(queue.candidates.map(({ person }) => person.id)).toEqual([savedPerson.id]);
+      expect(queue.attemptsMade).toBe(0); expect(queue.conversationsGenerated).toBe(0);
+      expect(queue.weeklyCounts).toEqual({ planned: 1, attempts: 0, replies: 0, meetings: 0 });
+    }
+    expect(networkingStrategy(state, "2026-10-19").queued).toBe(0);
+    expect(() => definition("networking-candidate", state).build(repeat)).toThrow("already planned for this week");
+    let reloaded = emptyPilotState(); reloaded.people = [{ ...savedPerson, conversationQuestions: ["What makes the work useful?"] }];
+    for (const { envelope, at } of operations) reloaded = applyCommand(reloaded, envelope, at, "persisted_event");
+    expect(reloaded).toEqual(state);
+    expect(networkingPlanMemberships(reloaded)).toEqual(networkingPlanMemberships(state));
+    state.people[0].testRecord = true;
+    expect(optionsFor("2026-10-19")).toEqual([]);
+    expect(networkingStrategy(state, "2026-10-05").queued).toBe(0);
+    expect(networkingStrategy(state, "2026-10-12").queued).toBe(0);
   });
 });
