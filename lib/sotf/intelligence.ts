@@ -170,6 +170,26 @@ export function networkingPlanMemberships(state: PilotState): Array<{ personId: 
   return [...memberships.values()];
 }
 
+/** Explicit dated replies only; an undated historical status is not assigned to a week. */
+export function networkingReplyOccurrences(state: PilotState): Array<{ personId: string; requestId: string; replyOccurredOn: string; recordedAt: string }> {
+  const changes = new Map(state.changes.filter((change) => change.kind === "save_person").map((change) => [change.id, change]));
+  const visiblePeople = new Set(state.people.filter((person) => !person.testRecord).map((person) => person.id));
+  const testRecords = new Map<string, boolean>();
+  const replies: Array<{ personId: string; requestId: string; replyOccurredOn: string; recordedAt: string }> = [];
+  for (const receipt of [...state.receipts].sort((left, right) => left.revision - right.revision)) {
+    const change = changes.get(receipt.requestId);
+    if (!change) continue;
+    const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+    if (command.type !== "save_person") continue;
+    const testRecord = command.person.testRecord ?? testRecords.get(command.person.id) ?? false;
+    testRecords.set(command.person.id, testRecord);
+    const replyOccurredOn = "replyOccurredOn" in command ? command.replyOccurredOn : undefined;
+    if (!replyOccurredOn || testRecord || !visiblePeople.has(command.person.id)) continue;
+    replies.push({ personId: command.person.id, requestId: receipt.requestId, replyOccurredOn, recordedAt: change.at });
+  }
+  return replies;
+}
+
 export function networkingStrategy(state: PilotState, weekOf = latestNetworkingWeek(state), now = new Date().toISOString()) {
   const target = 10;
   const conversionTarget = 0.2;
@@ -180,6 +200,20 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   const nextWeek = monday?.toISOString().slice(0, 10);
   const candidates = state.people.filter((item) => !item.testRecord && item.networking && (!weekStart || item.networking.weekOf >= weekStart && item.networking.weekOf < nextWeek!));
   const candidateIds = new Set(candidates.map((item) => item.id));
+  // Weekly activity is independent of the selected plan. All counts remain distinct people.
+  const contactIds = new Set(state.people.filter((item) => !item.testRecord && item.networking).map((item) => item.id));
+  const datedAttempts = state.actions.filter((item) => item.personId && contactIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind))
+    .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.updatedAt)! }));
+  const datedReplies = networkingReplyOccurrences(state).filter((item) => contactIds.has(item.personId))
+    // Noon Chicago is safely inside the explicit local calendar day, including DST changes.
+    .map((item) => ({ personId: item.personId, weekOf: latestNetworkingWeek(state, `${item.replyOccurredOn}T12:00:00-06:00`)! }));
+  const datedMeetings = state.meetings.filter((item) => item.kind === "networking" && item.status === "completed" && item.personId && contactIds.has(item.personId))
+    .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.startsAt)! }));
+  const countInWeek = (items: Array<{ personId: string; weekOf: string }>) => new Set(items.filter((item) => item.weekOf === weekStart).map((item) => item.personId)).size;
+  const weeklyCounts = { planned: candidates.length, attempts: countInWeek(datedAttempts), replies: countInWeek(datedReplies), meetings: countInWeek(datedMeetings) };
+  const activityWeeks = [...new Set([...datedAttempts, ...datedReplies, ...datedMeetings].map((item) => item.weekOf))].sort().reverse();
+  const datedReplyPeople = new Set(datedReplies.map((item) => item.personId));
+  const undatedReplyPeople = state.people.filter((item) => contactIds.has(item.id) && ["replied", "conversation_scheduled", "conversation_completed"].includes(item.networking!.status) && !datedReplyPeople.has(item.id)).length;
   const attempts = state.actions.filter((item) => item.personId && candidateIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind));
   const firstAttempt = new Map<string, string>();
   attempts.forEach((item) => { if (item.personId && (!firstAttempt.has(item.personId) || item.updatedAt < firstAttempt.get(item.personId)!)) firstAttempt.set(item.personId, item.updatedAt); });
@@ -213,10 +247,14 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
         : ["No replies are recorded yet. Check why each person is relevant and what you hope to learn. Wait for more results before changing the plan."];
   return {
     weekOf: weekOf ?? null,
+    weeklyCounts,
+    activityWeeks,
+    undatedReplyPeople,
     target,
     conversionTarget,
     queued: candidates.length,
     queueRemaining: Math.max(0, target - candidates.length),
+    // Lifetime results for the selected planned cohort, not occurrence-week activity.
     attemptsMade: firstAttempt.size,
     conversationsGenerated: conversations.length,
     matureCohortSize: mature.length,

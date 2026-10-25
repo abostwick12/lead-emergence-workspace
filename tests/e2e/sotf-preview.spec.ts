@@ -103,10 +103,16 @@ test("networking places saved prep and the weekly plan ahead of the action queue
 
 test("networking review uses the displayed week and shows the saved answers", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const plan = page.getByRole("region", { name: "Weekly plan", exact: true });
+  await expect(plan).toContainText("Attempts 5");
+  await expect(plan).toContainText("Replies 0");
+  await expect(plan).toContainText("Meetings 0");
+  await expect(page.getByRole("region", { name: "Weekly results" }).getByRole("row", { name: /2026-08-31/ }).getByRole("cell")).toHaveText(["10", "5", "0", "0"]);
   await page.getByRole("button", { name: "Complete weekly review" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Review week of 2026-08-31" })).toBeVisible();
-  await expect(dialog).toContainText("Planned 10 · Attempts 5 · Replies 2 · Meetings 1");
+  await expect(dialog).toContainText("Planned 10 · Attempts 5 · Replies 0 · Meetings 0");
+  await expect(dialog).toContainText("2 people have undated reply outcomes that remain unassigned");
   await dialog.getByLabel("What happened?").fill("Ten fictional people were planned. This review records only what the preview shows.");
   await dialog.getByLabel("What will you change next week?").fill("Check each recorded outcome before planning another week.");
   await dialog.getByRole("button", { name: "Save this week's review" }).click();
@@ -123,12 +129,27 @@ test("networking review uses the displayed week and shows the saved answers", as
   await expect(dialog).not.toBeVisible();
   const savedReviews = results.getByRole("heading", { name: "Saved weekly reviews" }).locator("..");
   await expect(savedReviews.getByRole("article").filter({ hasText: "Week of 2026-08-31" })).toHaveCount(1);
-  await expect(savedReviews).toContainText("Planned 10 · Attempts 5 · Replies 2 · Meetings 1");
+  await expect(savedReviews).toContainText("Planned 10 · Attempts 5 · Replies 0 · Meetings 0");
   await expect(savedReviews.getByText("Ten fictional people were planned. This review records only what the preview shows.")).toHaveCount(0);
   await expect(savedReviews.getByText("The fictional week was reviewed again after checking the recorded outcomes.")).toBeVisible();
   await page.getByRole("button", { name: "Today", exact: true }).click();
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(savedReviews.getByText("The fictional week was reviewed again after checking the recorded outcomes.")).toBeVisible();
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
+test("a completed conversation appears in its scheduled week without a plan", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const results = page.getByRole("region", { name: "Weekly results" });
+  await expect(results.getByRole("row", { name: /2026-09-07/ })).toHaveCount(0);
+  await page.getByRole("region", { name: "Conversation prep", exact: true }).getByRole("button", { name: "Debrief this conversation" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("What was actually said?").fill("Fictional Morgan described the team's decision process.");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(results.getByRole("row", { name: /2026-09-07/ }).getByRole("cell")).toHaveText(["0", "0", "0", "1"]);
+  await expect(results.getByRole("row", { name: /2026-08-31/ }).getByRole("cell")).toHaveText(["10", "5", "0", "0"]);
   expect(accountRequests).toEqual([]);
   expect(browserErrors).toEqual([]);
 });

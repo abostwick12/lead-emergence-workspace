@@ -80,14 +80,9 @@ export function definition(intent: Intent, state: PilotState, recordId?: string,
     case "networking-week-review": {
       if (!recordId) throw new Error("Choose a Networking week to review.");
       const week = networkingStrategy(state, recordId, now);
-      const counts = {
-        planned: week.queued,
-        attempts: week.attemptsMade,
-        replies: week.candidates.filter(({ person }) => ["replied", "conversation_scheduled", "conversation_completed"].includes(person.networking!.status)).length,
-        meetings: week.conversationsGenerated
-      };
+      const counts = week.weeklyCounts;
       const saved = state.networkingWeekReviews.filter((review) => review.weekOf === recordId).at(-1);
-      return { ...common, title: `Review week of ${recordId}`, description: `Planned ${counts.planned} · Attempts ${counts.attempts} · Replies ${counts.replies} · Meetings ${counts.meetings}. These are recorded results for this week.`,
+      return { ...common, title: `Review week of ${recordId}`, description: `Planned ${counts.planned} · Attempts ${counts.attempts} · Replies ${counts.replies} · Meetings ${counts.meetings}. Each activity count is distinct people in this Chicago week, including people not planned. Replies need an actual reply date; ${week.undatedReplyPeople} people have undated reply outcomes that remain unassigned. Meetings count only completed conversations in their scheduled week.`,
         fields: [
           field("happened", "What happened?", saved?.happened ?? "", { type: "textarea" }),
           field("learned", "What did you learn from people?", saved?.learned ?? "", { type: "textarea", optional: true, help: "Leave this blank if you had no conversations." }),

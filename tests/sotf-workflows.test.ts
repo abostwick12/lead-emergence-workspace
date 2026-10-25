@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { commandEnvelopeSchema, commandSchema, persistedCommandEnvelopeSchema, emptyPilotState, type PilotState } from "@/lib/sotf/contracts";
 import { applyCommand, resumeTransition, RevisionConflict } from "@/lib/sotf/engine";
-import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingPlanMemberships, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
+import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingPlanMemberships, networkingReplyOccurrences, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "@/lib/sotf/intelligence";
 import { OperationNotApplied, replayEvents, SotfStore, type WorkflowEvent } from "@/lib/sotf/persistence";
 import { invitationDraft, proposeConversationTimes } from "@/lib/sotf/scheduling";
 import { definition } from "@/components/sotf/workflow-editor";
@@ -63,6 +63,47 @@ it("reads repeated plans without changing historical replay, receipts, people, o
   expect(recovered.receipts.slice(0, -1)).toEqual(earlier.receipts);
   expect(replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state).toEqual(before);
   expect(applyCommand(recovered, next, "2026-10-13T12:00:00Z")).toBe(recovered);
+});
+
+it("replays dated replies without assigning a week to older undated replies or changing saved reviews", () => {
+  const h = harness();
+  const candidate = networkingCandidate("dated-replies", "Fictional dated contact", "program leadership");
+  const repliedPerson = { ...candidate, networking: { ...candidate.networking, status: "replied" as const } };
+  h.run({ type: "save_person", person: repliedPerson }, "2026-10-10T12:00:00Z");
+  const oldReceipts = structuredClone(h.state.receipts);
+  const oldSerialized = oldReceipts.at(-1)!.command;
+  const review = persistedCommandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: h.state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "review_networking_week", weekOf: "2026-10-05", counts: { planned: 1, attempts: 0, replies: 0, meetings: 0 }, happened: "An older reply has no known date", learned: "", nextChange: "Record dates when known" } });
+  const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: "2026-10-11T12:00:00Z", envelope: review }];
+  const first = persistedCommandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: events.length, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "save_person", person: repliedPerson, replyOccurredOn: "2026-10-11" } });
+  const second = persistedCommandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: events.length + 1, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "save_person", person: repliedPerson, replyOccurredOn: "2026-10-12" } });
+  expect(commandSchema.safeParse(first.command).success).toBe(false);
+  events.push({ revision: events.length + 1, recorded_at: "2026-10-12T12:00:00Z", envelope: first });
+  events.push({ revision: events.length + 1, recorded_at: "2026-10-13T12:00:00Z", envelope: second });
+  const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
+  const before = structuredClone(recovered);
+  expect(networkingReplyOccurrences(recovered)).toEqual([
+    { personId: candidate.id, requestId: first.requestId, replyOccurredOn: "2026-10-11", recordedAt: "2026-10-12T12:00:00.000Z" },
+    { personId: candidate.id, requestId: second.requestId, replyOccurredOn: "2026-10-12", recordedAt: "2026-10-13T12:00:00.000Z" }
+  ]);
+  expect(recovered.receipts.slice(0, oldReceipts.length)).toEqual(oldReceipts);
+  expect(recovered.people.find((person) => person.id === candidate.id)?.networking?.status).toBe("replied");
+  expect(recovered.receipts[oldReceipts.length - 1].command).toBe(oldSerialized);
+  expect(recovered.networkingWeekReviews).toEqual(replayEvents({ workspace_id: workspaceId, revision: h.events.length + 1, events: events.slice(0, h.events.length + 1) }).state.networkingWeekReviews);
+  expect(recovered).toEqual(before);
+  expect(applyCommand(recovered, second, "2026-10-14T12:00:00Z", "persisted_event")).toBe(recovered);
+  const changedRequest = persistedCommandEnvelopeSchema.parse({ ...second, command: { ...second.command, replyOccurredOn: "2026-10-13" } });
+  expect(() => applyCommand(recovered, changedRequest, "2026-10-14T12:00:00Z", "persisted_event")).toThrow("different operation");
+  const form = definition("networking-week-review", recovered, "2026-10-12", "2026-10-18T12:00:00Z");
+  const data = new FormData();
+  data.set("happened", "A dated reply arrived in an unplanned week");
+  data.set("learned", "");
+  data.set("nextChange", "Follow up on the recorded reply");
+  const command = commandSchema.parse(form.build(data));
+  expect(command).toMatchObject({ counts: { planned: 0, attempts: 0, replies: 1, meetings: 0 } });
+  expect(form.description).toContain("Planned 0 · Attempts 0 · Replies 1 · Meetings 0");
+  const reviewed = applyCommand(recovered, envelope(recovered, command), "2026-10-18T12:00:00Z");
+  expect(reviewed.networkingWeekReviews.at(-1)?.counts).toEqual(networkingStrategy(recovered, "2026-10-12").weeklyCounts);
+  expect(recovered).toEqual(before);
 });
 
 function recordVerifiedOutreach(h: ReturnType<typeof harness>, personId: string) {
@@ -620,7 +661,8 @@ describe("SOTF persistence integrity", () => {
     h.run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic manual-action receipt" }, "2026-10-13T12:03:00Z");
     h.run({ type: "save_person", person: { ...candidate, networking: { ...candidate.networking, weekOf, status: "replied" } } }, "2026-10-14T12:00:00Z");
     h.run({ type: "record_meeting", meeting: { ...meeting, id: "weekly-conversation", personId: candidate.id, opportunityId: undefined, startsAt: "2026-10-15T10:00:00-05:00", endsAt: "2026-10-15T10:30:00-05:00", provider: "manual", sourceEventId: undefined } }, "2026-10-15T15:00:00Z");
-    const counts = { planned: 1, attempts: 1, replies: 1, meetings: 1 };
+    // A status-only reply is undated; an accepted meeting is not a completed conversation.
+    const counts = { planned: 1, attempts: 1, replies: 0, meetings: 0 };
     const command = { type: "review_networking_week", weekOf, counts, happened: "One fictional contact replied and a meeting was recorded", learned: "Ask about the work itself", nextChange: "Plan another relevant contact" };
     const reviewAt = "2026-10-18T18:00:00Z";
 

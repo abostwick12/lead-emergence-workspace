@@ -101,7 +101,8 @@ const persistedCommandSchema = z.union([
     counts: z.strictObject({ planned: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), meetings: z.number().int().nonnegative() }),
     happened: text, learned: z.string().trim().max(5000), nextChange: text
   }),
-  z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),
+  // A later writer may record an actual reply date. Historical commands keep their exact shape.
+  z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema, replyOccurredOn: date.optional() }),
   // Read the review marker before any writer is allowed to emit it, so this release can safely read a later one.
   z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text, skillReviewed: z.literal(true).optional() }),
   // Read versioned generated drafts before a later writer emits them; unmarked historical commands keep their existing shape.
