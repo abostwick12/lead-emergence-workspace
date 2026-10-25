@@ -1,5 +1,214 @@
 # Test evidence
 
+## Candidate cleanup result and failure diagnostics — 2026-10-15
+
+- The supplied Desktop report for clean detached commit
+  `6df003b5025c90d8eda77d6eebd045a3f4d90b99` records candidate **167/167 PASS**
+  at port base 61900. Independent before/after checks reported zero new containers,
+  volumes, networks or candidate workdirs. Its sanitized evidence SHA-256 is
+  `54691e99ddab5b6e3eaef4f625965c9400f4fbd60423370f00bd24ef902ff857`.
+  This is supplied Desktop evidence, not a database run repeated or an evidence
+  file independently inspected in this cloud environment. It supersedes the
+  earlier request below to establish real cleanup behavior at that commit.
+- A subsequent bounded review correction preserves the original operation error
+  when cleanup also fails: both diagnostics are included and the original error
+  is attached as `cause`. Failed cleanup still retains the owned workdir.
+- Local native runner tests passed **10/10**, including simultaneous database-reset
+  and stop failures. This diagnostic correction changes no SQL, fixtures, Auth
+  runtime, project-ID generation, stop command or Docker ownership checks.
+- Hosted Entry-dev visibility and browser acceptance remain unverified. The
+  supplied report still records a permission denial; no hosted retry or change
+  was performed for this follow-up.
+
+## Historical candidate runner cleanup correction — 2026-10-15
+
+- The Desktop validation report at `480ee8e` records candidate 167/167 PASS
+  and ordinary PASS across ten fixtures (319/319 in its earlier exact-head run).
+  Its candidate stop returned success while two owned containers remained;
+  a later exact-project stop removed them. Those are reported Desktop results,
+  not database runs independently repeated in this cloud environment.
+- Source inspection found that the runner generated a 49-character project ID.
+  Supabase CLI v2.115.0 normalizes config IDs to at most 40 characters, while
+  `stop --project-id` passes its explicit value through unchanged. See
+  [CLI project-ID handling](https://github.com/supabase/cli/blob/v2.115.0/apps/cli/src/legacy/shared/legacy-docker-ids.ts)
+  and [stop flag handling](https://github.com/supabase/cli/blob/v2.115.0/apps/cli/src/legacy/commands/stop/stop.handler.ts).
+- The runner now generates a 37-character ID and checks Docker's exact project
+  label for containers (including stopped ones), volumes and networks after
+  stop. A failed inventory or remaining resource makes cleanup fail and retains
+  the owned workdir for recovery; no global cleanup or unrelated-stack removal
+  is attempted.
+- `npm run test:rls:runner` passed 9/9 simulated-CLI tests, including the ID
+  contract, residual resources despite stop exit zero, and unavailable Docker
+  inventory. Syntax and whitespace checks passed. No runtime, SQL candidate or
+  database assertion changed.
+- BLOCKER — The corrected runner's real cleanup remains NOT TESTED in this
+  cloud environment, which has neither Supabase CLI nor Docker. Repeat only
+  the candidate runner in a separate verification checkout at its published
+  head; prior SQL assertions do not establish the corrected cleanup behavior.
+
+## Preview Auth test-tooling follow-up — 2026-10-15 UTC
+
+- The ordinary `test:rls` command again includes all 70 original productization
+  assertions. Its fixture is restored byte-for-byte from checked main
+  `7e43efd1d545cf838ba9bef9968edb2b272cabae`. The earlier strict expectations are
+  retained unchanged in `supabase/tests/candidates/workspace_productization.sql`.
+- `npm run test:rls:candidate` stages the canonical SQL and both candidate fixtures
+  in an owned disposable workdir. Run both database phases using the
+  [current instructions](../runbooks/preview-first-party-auth-review.md#validate-ordinary-migrations-and-the-sql-candidate-locally).
+- `npm run test:rls:runner` passed five simulated-CLI tests covering staging,
+  fixture selection, unchanged repository sources and cleanup on failure.
+- BLOCKER — Database execution of the restored ordinary selection and the new
+  candidate runner is NOT TESTED here: this cloud environment has neither the
+  Supabase CLI nor Docker. The 249/249 and 167/167 totals below remain saved
+  evidence for the earlier manual paths, not fresh results for these scripts.
+- The runbook `.sql.draft` is now a non-executable pointer to the candidate,
+  removing the risk of independently edited SQL copies. No runtime or SQL body
+  changed in this tooling follow-up.
+
+## Saved Preview Auth validation checkpoint — 2026-10-14
+
+- At local validation commit `23e320ebf2da74a4231c4f5829f6bfe03b9aebd3`,
+  the ordinary `npm run test:rls` path passed **249/249 assertions across nine
+  fixtures** with the 40 ordinary migrations and no Preview candidate installed.
+- The separate required candidate path passed **167/167 assertions across two
+  fixtures**, including all 70 historical productization assertions, after the
+  candidate was explicitly copied into an owned disposable stack. Its ledger
+  contained 40 ordinary migrations plus one candidate. The repository candidate
+  remains outside automatic migration discovery.
+- Run both phases using the [two-phase local validation instructions](../runbooks/preview-first-party-auth-review.md#validate-ordinary-migrations-and-the-sql-candidate-locally).
+  `test:rls` alone does not validate the Preview feature. These are saved local
+  results, not hosted acceptance or exact-head CodeRabbit approval.
+
+## Historical Preview first-party Auth review follow-up — 2026-10-14
+
+- At this earlier checkpoint, the standard `npm run test:rls` script included
+  `supabase/tests/database/preview_first_party_auth.sql` in its explicit file list.
+  On disposable local project `preview-auth-review-20261014`, all 10 listed
+  fixtures passed: **384/384 assertions**, `Files=10`, `Result: PASS`, exit 0.
+- Read-only postflight found 39 local migrations and zero synthetic Auth users,
+  identities, OAuth clients or sessions; Workspace workspaces, profiles,
+  memberships, plans, onboarding and tasks; MCP grants; or browser-pin rows.
+  The owned stack stopped without backup, its containers and volumes were absent,
+  and temporary `supabase/config.toml` was restored to SHA-256
+  `c44548b0a24aa5dfe3a1753caaad3c82078c90a3ba27a0071f0b4c80a2349f38`.
+- The earlier 67/70 historical checkpoint is preserved below. The
+  [final expectation correction](preview-first-party-auth-historical-expectations.md)
+  records 163/163 passing local assertions. No runtime, migration, SQL draft,
+  fixture, dependency or lockfile changed in this review follow-up.
+
+## Current legacy integrity correction — 2026-10-14
+
+This pre-correction checkpoint recorded 93/93 affected assertions and 67/70
+historical assertions. The [final expectation correction](preview-first-party-auth-historical-expectations.md)
+records 163/163 passing local assertions.
+
+- IN SCOPE — VERIFIED: resumed `codex/p2-5-preview-first-party-auth-local-db` at
+  `95f28f6a2e7ac527f62a67670f4be20ede5d4847`, tree
+  `02f6ad1dde63715dfa050f30c1c43b17b4f27a6f`. Local preflight found no overlap in
+  72 other worktrees. No remote fetch or hosted CLI call was made under this task's
+  explicit no-hosted-calls restriction.
+- IN SCOPE — VERIFIED: restored the original draft's complete provisioner body
+  (apart from its already repaired terminator). Legacy `trusted_identity_count <> 1`
+  rejects before provisioning; an existing workspace requires `profile_count = 1`,
+  canonical subject/provider equality and `owner_membership_count = 1`. Removed the
+  legacy automatic-linkage UPDATE/INSERT branch. The complete direct-session
+  predicate, including dedicated first-party admission and `coalesce(..., false)`,
+  matches the pre-correction source unchanged.
+- IN SCOPE — VERIFIED: `supabase test db --local supabase/tests/database/preview_first_party_auth.sql`
+  passed **93/93** on the dedicated disposable stack. Twelve added assertions cover
+  six existing-legacy denial cases and one complete-graph preservation check per
+  case. Successful coherent legacy and first-party provisioning/retry remain tested.
+- IN SCOPE — VERIFIED: at this pre-correction checkpoint, the unchanged
+  `workspace_productization.sql` suite ran separately: **67/70 pass, 3 stale
+  expectations fail (18, 20, 21)**. Current hosted integrity rules govern; the
+  suite was not changed and security behavior was not
+  weakened to make it pass. Full conflicts are in the [current proof](preview-first-party-auth-legacy-integrity-correction.md).
+- IN SCOPE — VERIFIED: SQL draft and forward local-validation migration are byte
+  identical. Tested working-tree SQL SHA-256:
+  `2f1cc3eb76a13bc52fd6e89061be54ecaf544c749902e635ed0ed2b63b507502`.
+  Fixture SHA-256: `a4a07de57c5ebf6a2c33b50aaed338d62130e1f19db8825b3607a3e97d1741f9`.
+- IN SCOPE — VERIFIED: fresh local ledger count 39; all synthetic users, clients,
+  sessions, workspaces, profiles, tasks, grants and browser pins rolled back to zero.
+  Existing MCP fingerprints, owners and ACLs are unchanged. Only this task's local
+  containers/volumes were removed and temporary config restored.
+- IN SCOPE — No TypeScript/runtime or dependency change. Earlier application checks
+  remain historical supporting evidence; they were not rerun. Current SQL results
+  supersede the older all-green 151-assertion claim for legacy integrity.
+- IN SCOPE — No hosted action, publishing, PR, merge or deployment. Real OAuth and
+  ChatGPT acceptance remain NOT TESTED; exact-head CodeRabbit review remains open.
+
+## Entry-dev first-party Preview sign-in — Desktop local validation, 2026-10-14
+
+- IN SCOPE — VERIFIED: the ZIP's original patch matched its `SHA256SUMS.txt` and
+  approved SHA-256 `0f786f583e4d5d330e9ad474ea18ad3ee86b029789f5018e26ea6911da1c9e88`.
+  `git apply --check` and import passed from exact main/base
+  `5523eb62b333a2e60fd033c471fb99354a05a6db` in the dedicated local branch
+  `codex/p2-5-preview-first-party-auth-local-db`; unrelated checkouts were preserved.
+- IN SCOPE — VERIFIED: 38 existing migrations applied in a dedicated disposable
+  Supabase/PostgreSQL 15.8 stack with the real Auth OAuth client/session schema.
+  CLI-created `20261014101027_preview_first_party_auth_local_validation.sql` is the
+  sole new migration and matches the corrected SQL review draft byte-for-byte.
+  Its SHA-256 is `fa72e26f625fdbf0f952f7a71439ff1d7cfca5dea679cb833c7bef4a5524358e`.
+- IN SCOPE — VERIFIED: real transactional database tests passed **151/151**:
+  **81** new Preview assertions and **70** unchanged legacy assertions. Positive
+  provisioning uses `authenticated` without RLS bypass; denials use real RLS/RPC
+  contexts. Incompatible graphs and denied writes preserve the graph fingerprint.
+  Postflight counts for users/clients/sessions/workspaces/profiles/tasks/grants/pin
+  were zero. Existing MCP hook/predicate bodies, owners and ACLs remained unchanged.
+- IN SCOPE — VERIFIED: boundary scan 96 runtime files, schema 32/32, typecheck,
+  lint, unit tests 31 files/266 tests, and build with 30 generated pages passed.
+  The initial sandbox unit run could not import tests because Windows denied temp
+  cache renames; the normal-access run passed. No dependencies were added.
+- IN SCOPE — VERIFIED: bounded SQL corrections address the missing terminator,
+  observed legacy regression (initial 3/70 failures), and missing-pin NULL admission
+  bypass. Fixture-only corrections remove private-schema calls and fix write-count
+  CTE syntax. Earlier failures are preserved in the [full proof](preview-first-party-auth-local-validation.md).
+- IN SCOPE — VERIFIED: only the task-owned local stack and volumes were removed;
+  temporary project/port changes were restored. Generated runtime logs are ignored.
+- BLOCKER — Overall result PARTIAL, acceptance NO: the final Entry-dev metadata
+  SELECT used `supabase db query --linked --project-ref vnjdubrnmxvmsccxmhst`.
+  The CLI initialized hosted login credentials: stderr reported the initialization
+  and the local trace records a `POST cli/login-role` with HTTP 201 at 10:28:28 UTC.
+  Installed-version source requests `ReadOnly:false`. This violated the hosted-
+  mutation restriction; no subsequent hosted call or cleanup was attempted. Exact
+  resulting role/expiry and residual impact are unknown. See the full proof's
+  incident record; do not report hosted impact as None.
+- BLOCKER — Full hosted baseline/configuration equivalence remains ASSUMED. The
+  metadata read found zero browser-pin rows and no installed first-party marker.
+  Real OAuth sign-in, signature/issuer integration, cookie
+  roundtrip, concurrent refresh/rotation, revocation, sign-out and ChatGPT acceptance
+  remain NOT TESTED. No login/consent, client registration, push, PR, review, merge
+  or deployment occurred. CodeRabbit remains required before merge.
+
+## Entry-dev first-party Preview sign-in draft — 2026-10-13 (local only)
+
+- IN SCOPE — VERIFIED: isolated `codex/p2-5-preview-first-party-auth` from main
+  `5523eb62b333a2e60fd033c471fb99354a05a6db`, after Andrew explicitly approved
+  preserving the existing root checkout's staged deletions and using a new checkout.
+- IN SCOPE — VERIFIED: `npm ci --ignore-scripts --no-audit --no-fund` completed
+  from the existing lockfile; no manifest/lockfile or dependency change.
+- IN SCOPE — VERIFIED: `npm run check:boundaries` passes for 96 runtime files;
+  `npm run test:schema` passes 32/32; `npm run typecheck` and `npm run lint` pass;
+  final `npm run test:unit` passes 31 files / 266 tests. The 27 new tests include
+  the actual installed SDK's refresh lifecycle and mocked callback routes.
+- IN SCOPE — VERIFIED: final `npm run build` compiles, completes TypeScript and
+  generates all 30 pages. The first build also passed; the final build followed
+  the Request-body preservation correction and additional regression test.
+  `git diff --check` passes. No pre-existing validation failure was observed.
+- IN SCOPE — VERIFIED: read-only Entry-dev function/constraint/schema queries
+  supplied the provisioning baseline and Auth session client field. The private
+  `workspace_preview_browser_client_id` setting count is zero. No hosted setting,
+  function, constraint, client, record, consent, or session changed.
+- BLOCKER — Database SQL behavior NOT TESTED: Docker, `postgres`, and `psql`
+  are unavailable here. SQL remains a review-only `.sql.draft`, not a numbered
+  migration or applied change. The required disposable database matrix is in
+  `docs/runbooks/preview-first-party-auth-review.md`; it must pass before any
+  execution recommendation. Do not use the hosted target as a test runner.
+- BLOCKER — Real sign-in, cookie roundtrip, concurrent renewal, sign-out, access
+  denial and ChatGPT continuation are NOT TESTED. No client registered, feature
+  enabled, PR published, CodeRabbit review, merge, or deployment occurred.
+  This evidence supports a disabled implementation draft, not production readiness.
+
 ## SOTF message-review append gate — 2026-10-09 (local only)
 
 - Worktree `codex/networking-db-review-gate` at `ab2e33604d0139bca74ca765f03ca579c9ab0c8d` adds one forward migration and rollback-only synthetic pgTAP cases. No hosted migration or data write was performed.
@@ -771,3 +980,25 @@ invite, external send, auth configuration, or route cutover was performed.
 - `npm run typecheck`, `npm run lint`, `npm run check:boundaries` (95 runtime files), `npm run test:schema` (32/32), and `npm run test:unit` (29 files, 239/239) passed. The focused route/access test passed 15/15 outside the Windows sandbox. Its first sandboxed invocation failed before collecting tests because Vitest could not rename a temporary transform-cache file (`EPERM`); that was an environment failure, not a source assertion failure.
 - `npm run build` was attempted once outside the sandbox and failed before compiling application code: Turbopack could not resolve `next/package.json` from this nested isolated worktree. The package exists in the parent checkout's `node_modules`, but not under this worktree's own root. This is an isolated-worktree dependency-resolution limit, not proof of a route defect. No third build-path workaround was attempted.
 - Production acceptance remains NOT TESTED. The observable is an eligible signed-in owner opening `/workspace/sotf/networking` and seeing the weekly metric cards near the top without changing the base SOTF Today route. A staged build and owner browser check still require separate publication/release decisions.
+
+## 2026-10-15 — configured Preview OAuth origin (local draft)
+
+- Isolated local branch `codex/preview-auth-configured-origin` started at PR #74 head
+  `1c6ee79cf3a986c1d12a4ce1356aa5ae5b1e5efc`. No hostname assignment,
+  hosted setting, client registration, SQL, or feature activation changed.
+- The enabled Preview path requires one canonical HTTPS
+  `ENTRY_PREVIEW_APPROVED_ORIGIN`, an identical `NEXT_PUBLIC_APP_URL`, the pinned
+  Entry-dev project and UUID client, `VERCEL_ENV=preview`, and the matching
+  request origin. Authorization and code exchange use that same origin for the
+  callback. The origin is not selected or installed; tests use a synthetic URL.
+- Focused Preview auth tests **42/42 PASS**, including alternate generated and
+  former dedicated host rejection at both routes. Full unit suite **297/297
+  PASS** (33 files), schema contracts **32/32 PASS**, typecheck, lint, and
+  product-boundary scan **PASS** (97 runtime files).
+- `npm run build` did not compile: Turbopack could not find `next/package.json`
+  under this isolated worktree. The existing dependencies are in an older
+  sibling worktree. A local junction attempt was denied by Windows; an offline
+  `npm ci --ignore-scripts` failed because `zod-validation-error-4.0.2.tgz`
+  was not cached. This is a build-environment limit, not a passing build.
+- Production and hosted Preview behavior **NOT TESTED**. The current PR head
+  remains `1c6ee79`; this local change has no CodeRabbit exact-head review.

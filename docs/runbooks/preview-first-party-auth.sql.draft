@@ -1,0 +1,5 @@
+-- REVIEW POINTER ONLY. This file contains no executable migration.
+-- Canonical candidate SQL:
+-- supabase/candidates/20261014101027_preview_first_party_auth_local_validation.sql
+-- Review and test that exact file. Hosted application requires separate target
+-- preflight and written authorization; this pointer grants no execution approval.
