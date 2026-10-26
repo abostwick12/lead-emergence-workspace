@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { commandEnvelopeSchema } from "./contracts";
 import { resumeTransition } from "./engine";
-import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "./intelligence";
+import { assessOpportunity, compareOffers, prepareInterview, prepareProfessionalChapter, dailyBrief, hypothesisLearning, latestNetworkingWeek, networkingStrategy, prepareCoaching, prepareMeeting, recallStories, weeklyReview } from "./intelligence";
 import { invitationDraft, proposeConversationTimes, schedulingSchema } from "./scheduling";
 import { createSotfStore } from "./server";
 
@@ -37,7 +37,7 @@ export function registerSotfTools(server: McpServer, client: SupabaseClient<any,
     if (["opportunity", "meeting", "direction", "interview"].includes(workflow) && !recordId) throw new Error("Choose the existing opportunity, meeting, or hypothesis from the resumed state.");
     if (workflow === "scheduling") { if (!availability) throw new Error("Supply offered times and calendar availability you explicitly checked. No live calendar connection is implied."); return { workflow, revision: state.revision, prepared: proposeConversationTimes(availability, now) }; }
     if (workflow === "invitation") { if (!recordId) throw new Error("Choose an agreed meeting."); return { workflow, revision: state.revision, draftForReview: invitationDraft(state, recordId) }; }
-    const prepared = workflow === "interview" ? prepareInterview(state, recordId!, { interviewerContext: query }) : workflow === "offers" ? compareOffers(state) : workflow === "professional_work" ? prepareProfessionalChapter(state) : workflow === "opportunity" ? assessOpportunity(state, recordId!) : workflow === "meeting" ? prepareMeeting(state, recordId!) : workflow === "direction" ? hypothesisLearning(state, recordId!) : workflow === "coaching" ? prepareCoaching(state, since) : workflow === "weekly" ? weeklyReview(state, since ?? new Date(Date.now() - 7 * 86400000).toISOString()) : workflow === "networking" ? networkingStrategy(state, recordId) : workflow === "stories" ? recallStories(state, query ?? "") : dailyBrief(state, now);
+    const prepared = workflow === "interview" ? prepareInterview(state, recordId!, { interviewerContext: query }) : workflow === "offers" ? compareOffers(state) : workflow === "professional_work" ? prepareProfessionalChapter(state) : workflow === "opportunity" ? assessOpportunity(state, recordId!) : workflow === "meeting" ? prepareMeeting(state, recordId!) : workflow === "direction" ? hypothesisLearning(state, recordId!) : workflow === "coaching" ? prepareCoaching(state, since) : workflow === "weekly" ? weeklyReview(state, since ?? new Date(new Date(now).valueOf() - 7 * 86400000).toISOString(), now) : workflow === "networking" ? networkingStrategy(state, recordId ?? latestNetworkingWeek(state, now), now) : workflow === "stories" ? recallStories(state, query ?? "") : dailyBrief(state, now);
     return { workflow, revision: state.revision, prepared };
   }));
   server.registerTool("sotf_record_transition_step", {

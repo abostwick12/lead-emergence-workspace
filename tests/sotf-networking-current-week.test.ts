@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import { randomUUID } from "node:crypto";
 import { commandEnvelopeSchema, emptyPilotState, persistedCommandEnvelopeSchema } from "../lib/sotf/contracts";
 import { applyCommand } from "../lib/sotf/engine";
-import { latestNetworkingWeek, networkingPlanMemberships, networkingReplyOccurrences, networkingStrategy } from "../lib/sotf/intelligence";
+import { latestNetworkingWeek, networkingPlanMemberships, networkingReplyOccurrences, networkingStrategy, weeklyReview } from "../lib/sotf/intelligence";
 import { createPreviewState } from "../lib/sotf/preview";
 
 test("the owner's current week begins Monday in Chicago, including the DST boundary", () => {
@@ -11,6 +11,14 @@ test("the owner's current week begins Monday in Chicago, including the DST bound
   expect(latestNetworkingWeek(state, "2026-10-12T05:30:00Z")).toBe("2026-10-12");
   expect(latestNetworkingWeek(state, "2026-11-02T05:30:00Z")).toBe("2026-10-26");
   expect(latestNetworkingWeek(state, "2026-11-02T06:30:00Z")).toBe("2026-11-02");
+});
+
+test("weekly preparation uses the current Chicago week even when an older plan exists", () => {
+  const state = createPreviewState();
+  const before = structuredClone(state);
+  const review = weeklyReview(state, "2026-10-12T00:00:00Z", "2026-10-19T12:00:00Z");
+  expect(review.networking).toMatchObject({ weekOf: "2026-10-19", queued: 0, queueRemaining: 10 });
+  expect(state).toEqual(before);
 });
 
 test("saved plans retain two weeks and deduplicate edits by person and Chicago Monday", () => {
