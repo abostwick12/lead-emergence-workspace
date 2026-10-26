@@ -25,13 +25,15 @@ describe('reviewed scheduling', () => {
     const run = (command: unknown) => { state = applyCommand(state, commandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: 'ordinary_transition_operations', command }), now); };
     const meeting = state.meetings.find((item) => item.status === 'accepted' && item.personId)!;
     run(invitationDraft(state, meeting.id)); const original = state.actions.at(-1)!;
-    run({ type: 'approve_action', actionId: original.id, exactRevision: 1 });
+    run({ type: 'revise_action', actionId: original.id, recipient: original.recipient, subject: original.subject, body: original.body, skillReviewed: true });
+    run({ type: 'approve_action', actionId: original.id, exactRevision: 2 });
     const { debrief: _debrief, ...value } = meeting; void _debrief;
     run({ type: 'record_meeting', meeting: { ...value, startsAt: '2026-09-08T14:00:00Z', endsAt: '2026-09-08T14:30:00Z' } });
     expect(state.actions.find(item => item.id === original.id)?.state).toBe('superseded');
     expect(() => run({ type: 'record_action_result', actionId: original.id, outcome: 'manually_completed', receipt: 'Stale draft' })).toThrow('approved action');
     run(invitationDraft(state, meeting.id)); const second = state.actions.at(-1)!;
-    run({ type: 'approve_action', actionId: second.id, exactRevision: 1 });
+    run({ type: 'revise_action', actionId: second.id, recipient: second.recipient, subject: second.subject, body: second.body, skillReviewed: true });
+    run({ type: 'approve_action', actionId: second.id, exactRevision: 2 });
     run({ type: 'record_action_result', actionId: second.id, outcome: 'uncertain', receipt: 'Provider did not confirm' });
     run({ type: 'record_meeting', meeting: { ...value, status: 'cancelled' } });
     expect(state.actions.find(item => item.id === second.id)?.state).toBe('uncertain');
