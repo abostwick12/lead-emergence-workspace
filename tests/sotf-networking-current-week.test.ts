@@ -119,6 +119,44 @@ test("an ordinary person's dated reply and networking meeting count without gene
   expect(networkingStrategy(state, "2026-10-19").weeklyCounts).toEqual({ planned: 0, attempts: 0, replies: 0, meetings: 0 });
 });
 
+test.each(["record_meeting", "debrief_meeting"] as const)("activity keeps the test flag at completion through %s", (completion) => {
+  const state = createPreviewState();
+  const person = state.people.find((item) => item.id === "morgan")!;
+  const action = state.actions.find((item) => item.personId === person.id && item.state === "manually_completed")!;
+  const meeting = state.meetings.find((item) => item.personId === person.id)!;
+  action.updatedAt = "2026-10-06T12:00:00Z";
+  meeting.startsAt = "2026-10-06T12:00:00Z";
+  meeting.status = "completed";
+  state.actions = [action];
+  state.meetings = [meeting];
+  state.receipts = [];
+  const receipt = (command: object) => state.receipts.push({ requestId: randomUUID(), revision: state.receipts.length + 1, command: JSON.stringify(command) });
+  const save = (testRecord: boolean) => receipt({ type: "save_person", person: { id: person.id, testRecord } });
+  const finish = () => {
+    receipt({ type: "record_action_result", actionId: action.id, outcome: "manually_completed" });
+    receipt(completion === "record_meeting" ? { type: "record_meeting", meeting } : { type: "debrief_meeting", meetingId: meeting.id });
+  };
+  save(true);
+  finish();
+  save(false);
+  finish();
+  expect(networkingStrategy(state, "2026-10-05").weeklyCounts).toMatchObject({ attempts: 0, meetings: 0 });
+  state.receipts = [];
+  save(false);
+  finish();
+  save(true);
+  person.testRecord = true;
+  finish();
+  expect(networkingStrategy(state, "2026-10-05").weeklyCounts).toMatchObject({ attempts: 0, meetings: 0 });
+  save(false);
+  person.testRecord = false;
+  const before = structuredClone(state);
+  expect(networkingStrategy(state, "2026-10-05").weeklyCounts).toMatchObject({ attempts: 1, meetings: 1 });
+  expect(state).toEqual(before);
+  state.receipts = [];
+  expect(networkingStrategy(state, "2026-10-05").weeklyCounts).toMatchObject({ attempts: 1, meetings: 1 });
+});
+
 test("a meeting-only status is not an undated reply, while an earlier recorded reply remains one", () => {
   const preview = createPreviewState();
   const person = preview.people.find((item) => item.id === "network-person-3")!;

@@ -203,12 +203,35 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   // Weekly activity is independent of the selected plan. All counts remain distinct people.
   const visiblePersonIds = new Set(state.people.filter((item) => !item.testRecord).map((item) => item.id));
   const networkingPersonIds = new Set(state.people.filter((item) => !item.testRecord && item.networking).map((item) => item.id));
-  const datedAttempts = state.actions.filter((item) => item.personId && networkingPersonIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind))
+  const activityTestRecords = new Map<string, boolean>();
+  const actionCompletionTest = new Map<string, boolean>();
+  const meetingCompletionTest = new Map<string, boolean>();
+  const historicalMeetings = new Map<string, { personId?: string; provider: string; sourceEventId?: string }>();
+  for (const receipt of [...state.receipts].sort((left, right) => left.revision - right.revision)) {
+    const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+    if (command.type === "save_person") {
+      activityTestRecords.set(command.person.id, command.person.testRecord ?? activityTestRecords.get(command.person.id) ?? false);
+    } else if (command.type === "record_action_result" && command.outcome === "manually_completed") {
+      const action = state.actions.find((item) => item.id === command.actionId);
+      if (action?.personId && !actionCompletionTest.has(action.id)) actionCompletionTest.set(action.id, activityTestRecords.get(action.personId) ?? false);
+    } else if (command.type === "record_meeting") {
+      const value = command.meeting;
+      const canonical = value.sourceEventId ? [...historicalMeetings].find(([, item]) => item.provider === value.provider && item.sourceEventId === value.sourceEventId)?.[0] ?? state.meetings.find((item) => item.provider === value.provider && item.sourceEventId === value.sourceEventId)?.id : undefined;
+      const id = canonical ?? value.id;
+      historicalMeetings.set(id, { personId: value.personId, provider: value.provider, sourceEventId: value.sourceEventId });
+      if (value.status === "completed" && !meetingCompletionTest.has(id) && value.personId) meetingCompletionTest.set(id, activityTestRecords.get(value.personId) ?? false);
+    } else if (command.type === "debrief_meeting") {
+      const previous = historicalMeetings.get(command.meetingId);
+      const personId = previous?.personId ?? state.meetings.find((item) => item.id === command.meetingId)?.personId;
+      if (personId && !meetingCompletionTest.has(command.meetingId)) meetingCompletionTest.set(command.meetingId, activityTestRecords.get(personId) ?? false);
+    }
+  }
+  const datedAttempts = state.actions.filter((item) => item.personId && networkingPersonIds.has(item.personId) && item.state === "manually_completed" && !actionCompletionTest.get(item.id) && ["email", "direct_message", "public_comment"].includes(item.kind))
     .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.updatedAt)! }));
   const datedReplies = networkingReplyOccurrences(state).filter((item) => visiblePersonIds.has(item.personId))
     // Noon Chicago is safely inside the explicit local calendar day, including DST changes.
     .map((item) => ({ personId: item.personId, weekOf: latestNetworkingWeek(state, `${item.replyOccurredOn}T12:00:00-06:00`)! }));
-  const datedMeetings = state.meetings.filter((item) => item.kind === "networking" && item.status === "completed" && item.personId && visiblePersonIds.has(item.personId))
+  const datedMeetings = state.meetings.filter((item) => item.kind === "networking" && item.status === "completed" && !meetingCompletionTest.get(item.id) && item.personId && visiblePersonIds.has(item.personId))
     .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.startsAt)! }));
   const countInWeek = (items: Array<{ personId: string; weekOf: string }>) => new Set(items.filter((item) => item.weekOf === weekStart).map((item) => item.personId)).size;
   const weeklyCounts = { planned: candidates.length, attempts: countInWeek(datedAttempts), replies: countInWeek(datedReplies), meetings: countInWeek(datedMeetings) };
