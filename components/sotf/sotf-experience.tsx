@@ -76,7 +76,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
     setBusy(true); setError(""); setMessage("");
     try {
       const updated = preview ? applyCommand(state, envelope) : (await request(envelope)).state;
-      setState(updated); if (command.type === "record_opportunity") { setView("Opportunities"); setSelected(command.opportunity.id); setPanel(null); } if (command.type === "save_person") { if (view !== "Networking" || editor?.intent !== "person") setView("People"); setPanel(null); } setMessage(updated.changes.at(-1)?.summary ?? "Saved and verified.");
+      setState(updated); if (command.type === "record_opportunity") { setView("Opportunities"); setSelected(command.opportunity.id); setPanel(null); } if (command.type === "save_person") { if (view !== "Networking" || (editor?.intent !== "person" && editor?.intent !== "networking-outcome")) setView("People"); setPanel(null); } setMessage(updated.changes.at(-1)?.summary ?? "Saved and verified.");
     } catch (caught) {
       const text = caught instanceof Error ? caught.message : "The save could not be verified.";
       if (!preview && !(caught instanceof SaveRejected)) setPending(envelope);
