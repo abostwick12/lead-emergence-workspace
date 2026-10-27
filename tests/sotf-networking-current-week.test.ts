@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
 import { randomUUID } from "node:crypto";
-import { commandEnvelopeSchema, emptyPilotState } from "../lib/sotf/contracts";
+import { commandEnvelopeSchema, emptyPilotState, persistedCommandEnvelopeSchema } from "../lib/sotf/contracts";
 import { applyCommand } from "../lib/sotf/engine";
-import { latestNetworkingWeek, networkingPlanMemberships, networkingStrategy } from "../lib/sotf/intelligence";
+import { latestNetworkingWeek, networkingPlanMemberships, networkingReplyOccurrences, networkingStrategy } from "../lib/sotf/intelligence";
 import { createPreviewState } from "../lib/sotf/preview";
 
 test("the owner's current week begins Monday in Chicago, including the DST boundary", () => {
@@ -52,6 +52,146 @@ test.each([true, false])("historical test flags are inherited until explicitly c
   expect(networkingPlanMemberships(state)).toEqual([{ personId: person.id, weekOf: "2026-10-19", plannedAt: "2026-10-19T12:00:00.000Z" }]);
   expect(state.people[0].testRecord).toBe(false);
   expect(state).toEqual(before);
+});
+
+test("dated replies retain each actual day and exclude activity entered while marked test", () => {
+  let state = emptyPilotState();
+  const person = createPreviewState().people.find((item) => item.networking && !item.testRecord)!;
+  const savedPerson = Object.fromEntries(Object.entries(person).filter(([key]) => !["firstContact", "lastInteraction"].includes(key)));
+  const networking = Object.fromEntries(Object.entries(person.networking!).filter(([key]) => key !== "statusUpdatedAt"));
+  const save = (testRecord: boolean | undefined, replyOccurredOn: string, at: string) => {
+    const command = { type: "save_person", person: { ...savedPerson, hypothesisIds: [], opportunityId: undefined, networking, ...(testRecord === undefined ? {} : { testRecord }) }, replyOccurredOn };
+    const operation = persistedCommandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command });
+    state = applyCommand(state, operation, at, "persisted_event");
+    return operation.requestId;
+  };
+  const first = save(false, "2026-10-11", "2026-10-12T12:00:00Z");
+  save(true, "2026-10-12", "2026-10-12T13:00:00Z");
+  expect(networkingReplyOccurrences(state)).toEqual([]);
+  const third = save(false, "2026-10-13", "2026-10-14T12:00:00Z");
+  expect(networkingReplyOccurrences(state)).toEqual([
+    { personId: person.id, requestId: first, replyOccurredOn: "2026-10-11", recordedAt: "2026-10-12T12:00:00.000Z" },
+    { personId: person.id, requestId: third, replyOccurredOn: "2026-10-13", recordedAt: "2026-10-14T12:00:00.000Z" }
+  ]);
+  expect(state.people[0].testRecord).toBe(false);
+  expect(networkingStrategy(state, "2026-10-05").weeklyCounts.replies).toBe(1);
+  expect(networkingStrategy(state, "2026-10-12").weeklyCounts.replies).toBe(1);
+  save(false, "2026-10-14", "2026-10-20T12:00:00Z");
+  expect(networkingStrategy(state, "2026-10-12").weeklyCounts.replies).toBe(1);
+  expect(networkingStrategy(state, "2026-10-19").weeklyCounts.replies).toBe(0);
+});
+
+test("September activity stays in its occurrence weeks after an October plan", () => {
+  const state = createPreviewState();
+  state.meetings.find((item) => item.id === "conversation")!.status = "completed";
+  const before = structuredClone(state);
+  for (const person of state.people.filter((item) => item.networking)) person.networking!.weekOf = "2026-10-19";
+  const october = networkingStrategy(state, "2026-10-19");
+  expect(october.weeklyCounts).toEqual({ planned: 25, attempts: 0, replies: 0, meetings: 0 });
+  expect(networkingStrategy(state, "2026-08-31").weeklyCounts).toEqual({ planned: 0, attempts: 5, replies: 0, meetings: 0 });
+  expect(networkingStrategy(state, "2026-09-07").weeklyCounts).toEqual({ planned: 0, attempts: 0, replies: 0, meetings: 1 });
+  expect(october.activityWeeks).toEqual(["2026-09-07", "2026-08-31"]);
+  expect(october.undatedReplyPeople).toBe(2);
+  expect(state.actions).toEqual(before.actions);
+  expect(state.meetings).toEqual(before.meetings);
+  // Existing cohort analysis remains lifetime-based and separate from weekly counts.
+  expect(october.attemptsMade).toBe(5);
+  expect(october.conversationsGenerated).toBe(1);
+});
+
+test("an ordinary person's dated reply and networking meeting count without generic outreach", () => {
+  let state = emptyPilotState();
+  const preview = createPreviewState();
+  const person = preview.people.find((item) => item.id === "morgan")!;
+  const { networking: _networking, firstContact: _firstContact, lastInteraction: _lastInteraction, ...ordinary } = person;
+  void _networking; void _firstContact; void _lastInteraction;
+  state = applyCommand(state, persistedCommandEnvelopeSchema.parse({
+    requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations",
+    command: { type: "save_person", person: { ...ordinary, hypothesisIds: [], opportunityId: undefined }, replyOccurredOn: "2026-10-20" }
+  }), "2026-10-21T12:00:00Z", "persisted_event");
+  const action = preview.actions.find((item) => item.personId === person.id && item.state === "manually_completed")!;
+  state.actions.push({ ...action, updatedAt: "2026-10-20T12:00:00Z" });
+  const meeting = preview.meetings.find((item) => item.id === "conversation")!;
+  state.meetings.push({ ...meeting, startsAt: "2026-10-20T15:00:00Z", endsAt: "2026-10-20T15:30:00Z", status: "completed" });
+
+  expect(networkingStrategy(state, "2026-10-19").weeklyCounts).toEqual({ planned: 0, attempts: 0, replies: 1, meetings: 1 });
+  state.people[0].testRecord = true;
+  expect(networkingStrategy(state, "2026-10-19").weeklyCounts).toEqual({ planned: 0, attempts: 0, replies: 0, meetings: 0 });
+});
+
+test.each(["record_meeting", "debrief_meeting"] as const)("activity keeps the test flag at completion through %s", (completion) => {
+  const state = createPreviewState();
+  const person = state.people.find((item) => item.id === "morgan")!;
+  const action = state.actions.find((item) => item.personId === person.id && item.state === "manually_completed")!;
+  const meeting = state.meetings.find((item) => item.personId === person.id)!;
+  action.updatedAt = "2026-10-06T12:00:00Z";
+  meeting.startsAt = "2026-10-06T12:00:00Z";
+  meeting.status = "completed";
+  state.actions = [action];
+  state.meetings = [meeting];
+  state.receipts = [];
+  const receipt = (command: object) => state.receipts.push({ requestId: randomUUID(), revision: state.receipts.length + 1, command: JSON.stringify(command) });
+  const save = (testRecord: boolean) => receipt({ type: "save_person", person: { id: person.id, testRecord } });
+  const finish = () => {
+    receipt({ type: "record_action_result", actionId: action.id, outcome: "manually_completed" });
+    receipt(completion === "record_meeting" ? { type: "record_meeting", meeting } : { type: "debrief_meeting", meetingId: meeting.id });
+  };
+  save(true);
+  finish();
+  save(false);
+  finish();
+  expect(networkingStrategy(state, "2026-10-05").weeklyCounts).toMatchObject({ attempts: 0, meetings: 0 });
+  state.receipts = [];
+  save(false);
+  finish();
+  save(true);
+  person.testRecord = true;
+  finish();
+  expect(networkingStrategy(state, "2026-10-05").weeklyCounts).toMatchObject({ attempts: 0, meetings: 0 });
+  save(false);
+  person.testRecord = false;
+  const before = structuredClone(state);
+  expect(networkingStrategy(state, "2026-10-05").weeklyCounts).toMatchObject({ attempts: 1, meetings: 1 });
+  expect(state).toEqual(before);
+  state.receipts = [];
+  expect(networkingStrategy(state, "2026-10-05").weeklyCounts).toMatchObject({ attempts: 1, meetings: 1 });
+});
+
+test("a meeting-only status is not an undated reply, while an earlier recorded reply remains one", () => {
+  const preview = createPreviewState();
+  const person = preview.people.find((item) => item.id === "network-person-3")!;
+  const { debrief: _debrief, ...meeting } = preview.meetings.find((item) => item.id === "conversation")!;
+  void _debrief;
+  const state = applyCommand(preview, commandEnvelopeSchema.parse({
+    requestId: randomUUID(), expectedRevision: preview.revision, userConfirmed: true, dataClass: "ordinary_transition_operations",
+    command: { type: "record_meeting", meeting: { ...meeting, id: "meeting-without-reply", personId: person.id, status: "accepted" } }
+  }), "2026-09-08T12:00:00Z");
+
+  expect(state.people.find((item) => item.id === person.id)?.networking?.status).toBe("conversation_scheduled");
+  expect(state.people.find((item) => item.id === "morgan")?.networking?.status).toBe("conversation_scheduled");
+  expect(networkingStrategy(state, "2026-09-07").undatedReplyPeople).toBe(2);
+});
+
+test.each([
+  ["2026-10-12T04:59:59Z", "2026-10-05"],
+  ["2026-10-12T05:00:00Z", "2026-10-12"],
+  ["2026-11-02T05:59:59Z", "2026-10-26"],
+  ["2026-11-02T06:00:00Z", "2026-11-02"],
+  ["2026-03-09T04:59:59Z", "2026-03-02"],
+  ["2026-03-09T05:00:00Z", "2026-03-09"]
+])("completed activity at %s belongs to Chicago week %s once per person", (at, weekOf) => {
+  const state = createPreviewState();
+  const person = state.people.find((item) => item.id === "morgan")!;
+  person.networking!.weekOf = "2026-01-05";
+  const action = state.actions.find((item) => item.personId === person.id && item.state === "manually_completed")!;
+  state.actions = [ { ...action, updatedAt: at }, { ...action, id: "duplicate-completed", updatedAt: at }, { ...action, id: "draft", state: "draft", updatedAt: at } ];
+  const meeting = state.meetings.find((item) => item.personId === person.id)!;
+  state.meetings = [ { ...meeting, startsAt: at, status: "completed" }, { ...meeting, id: "duplicate-meeting", startsAt: at, status: "completed" }, { ...meeting, id: "accepted", startsAt: at, status: "accepted" }, { ...meeting, id: "coaching", startsAt: at, kind: "coaching", status: "completed" } ];
+  expect(networkingStrategy(state, weekOf).weeklyCounts).toEqual({ planned: 0, attempts: 1, replies: 0, meetings: 1 });
+  state.meetings = state.meetings.filter((item) => item.status !== "completed" || item.kind !== "networking");
+  expect(networkingStrategy(state, weekOf).weeklyCounts.meetings).toBe(0);
+  person.testRecord = true;
+  expect(networkingStrategy(state, weekOf).weeklyCounts).toEqual({ planned: 0, attempts: 0, replies: 0, meetings: 0 });
 });
 
 test("the preview uses the Monday of its latest dated person without changing that date", () => {
