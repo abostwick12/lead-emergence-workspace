@@ -196,9 +196,8 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   const monday = weekOf ? new Date(`${weekOf}T00:00:00.000Z`) : null;
   if (monday) monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
   const weekStart = monday?.toISOString().slice(0, 10);
-  if (monday) monday.setUTCDate(monday.getUTCDate() + 7);
-  const nextWeek = monday?.toISOString().slice(0, 10);
-  const candidates = state.people.filter((item) => !item.testRecord && item.networking && (!weekStart || item.networking.weekOf >= weekStart && item.networking.weekOf < nextWeek!));
+  const plannedIds = new Set(networkingPlanMemberships(state).filter((item) => !weekStart || item.weekOf === weekStart).map((item) => item.personId));
+  const candidates = state.people.filter((item) => !item.testRecord && item.networking && plannedIds.has(item.id));
   const candidateIds = new Set(candidates.map((item) => item.id));
   // Weekly activity is independent of the selected plan. All counts remain distinct people.
   const visiblePersonIds = new Set(state.people.filter((item) => !item.testRecord).map((item) => item.id));

@@ -76,7 +76,7 @@ it("replays dated replies without assigning a week to older undated replies or c
   const events: WorkflowEvent[] = [...h.events, { revision: h.state.revision + 1, recorded_at: "2026-10-11T12:00:00Z", envelope: review }];
   const first = persistedCommandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: events.length, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "save_person", person: repliedPerson, replyOccurredOn: "2026-10-11" } });
   const second = persistedCommandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: events.length + 1, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "save_person", person: repliedPerson, replyOccurredOn: "2026-10-12" } });
-  expect(commandSchema.safeParse(first.command).success).toBe(false);
+  expect(commandSchema.parse(first.command)).toEqual(first.command);
   events.push({ revision: events.length + 1, recorded_at: "2026-10-12T12:00:00Z", envelope: first });
   events.push({ revision: events.length + 1, recorded_at: "2026-10-13T12:00:00Z", envelope: second });
   const recovered = replayEvents({ workspace_id: workspaceId, revision: events.length, events }).state;
@@ -104,6 +104,80 @@ it("replays dated replies without assigning a week to older undated replies or c
   const reviewed = applyCommand(recovered, envelope(recovered, command), "2026-10-18T12:00:00Z");
   expect(reviewed.networkingWeekReviews.at(-1)?.counts).toEqual(networkingStrategy(recovered, "2026-10-12").weeklyCounts);
   expect(recovered).toEqual(before);
+});
+
+describe("optional actual reply date writer", () => {
+  it("saves the explicit date in a receipt and reader, keeps omission unassigned, and counts distinct people", () => {
+    const h = harness();
+    const candidate = networkingCandidate("writer-dated", "Fictional dated reply", "program leadership");
+    const replied = { ...candidate, networking: { ...candidate.networking, status: "replied" } };
+    h.run({ type: "save_person", person: replied }, "2026-10-14T12:00:00Z");
+    const oldReceipts = structuredClone(h.state.receipts);
+    expect(JSON.parse(oldReceipts.at(-1)!.command)).not.toHaveProperty("replyOccurredOn");
+    expect(networkingReplyOccurrences(h.state)).toEqual([]);
+    expect(networkingStrategy(h.state, "2026-10-12").undatedReplyPeople).toBe(1);
+    h.run({ type: "save_person", person: replied, replyOccurredOn: "2026-10-12" }, "2026-10-14T12:00:00Z");
+    h.run({ type: "save_person", person: replied, replyOccurredOn: "2026-10-13" }, "2026-10-14T12:00:00Z");
+    h.run({ type: "save_person", person: { ...replied, id: "writer-second" }, replyOccurredOn: "2026-10-14" }, "2026-10-14T12:00:00Z");
+    h.run({ type: "save_person", person: { ...replied, id: "writer-unknown" } }, "2026-10-14T12:00:00Z");
+    const datedReceipt = h.state.receipts[oldReceipts.length];
+    expect(JSON.parse(datedReceipt.command)).toMatchObject({ replyOccurredOn: "2026-10-12" });
+    expect(networkingReplyOccurrences(h.state)).toContainEqual({ personId: candidate.id, requestId: datedReceipt.requestId, replyOccurredOn: "2026-10-12", recordedAt: "2026-10-14T12:00:00.000Z" });
+    expect(networkingStrategy(h.state, "2026-10-12").weeklyCounts.replies).toBe(2);
+    expect(networkingStrategy(h.state, "2026-10-05").weeklyCounts.replies).toBe(0);
+    expect(networkingStrategy(h.state, "2026-10-12").undatedReplyPeople).toBe(1);
+    expect(h.state.receipts.slice(0, oldReceipts.length)).toEqual(oldReceipts);
+    expect(replayEvents({ workspace_id: workspaceId, revision: h.events.length, events: h.events }).state).toEqual(h.state);
+    expect(applyCommand(h.state, h.events[oldReceipts.length].envelope, "2026-10-15T12:00:00Z")).toBe(h.state);
+  });
+
+  it.each(["2026-02-30", "2026-13-01", "10/14/2026", "2026-10-14T12:00:00Z", ""])("rejects invalid date %s using the existing calendar-date contract", (replyOccurredOn) => {
+    expect(commandSchema.safeParse({ type: "save_person", person: contact, replyOccurredOn }).success).toBe(false);
+  });
+
+  it.each([
+    ["2026-10-14T04:59:59Z", "2026-10-13", "2026-10-14"],
+    ["2026-10-14T05:00:00Z", "2026-10-14", "2026-10-15"],
+    ["2026-12-14T05:59:59Z", "2026-12-13", "2026-12-14"],
+    ["2026-12-14T06:00:00Z", "2026-12-14", "2026-12-15"]
+  ])("uses the Chicago day at %s and preserves historical replay", (at, today, future) => {
+    const h = harness();
+    const candidate = networkingCandidate("date-boundary", "Fictional date boundary", "program leadership");
+    const replied = { ...candidate, networking: { ...candidate.networking, status: "replied" as const } };
+    const command = { type: "save_person", person: replied, replyOccurredOn: today };
+    const operation = envelope(h.state, command);
+    expect(() => applyCommand(h.state, operation, at)).not.toThrow();
+    const futureOperation = envelope(h.state, { ...command, replyOccurredOn: future });
+    expect(() => applyCommand(h.state, futureOperation, at)).toThrow("after today in Chicago");
+    expect(h.state.people).toHaveLength(0);
+    expect(() => replayEvents({ workspace_id: workspaceId, revision: h.events.length + 1, events: [...h.events, { envelope: futureOperation, revision: h.events.length + 1, recorded_at: at }] })).not.toThrow();
+  });
+
+  it.each(["identified", "attempted", "no_response", "follow_up_due"] as const)("rejects a reply date with %s while retaining historical replay", (status) => {
+    const h = harness();
+    const candidate = networkingCandidate("contradictory-reply", "Fictional contradictory reply", "program leadership");
+    const person = { ...candidate, networking: { ...candidate.networking, status } };
+    const operation = envelope(h.state, { type: "save_person", person, replyOccurredOn: "2026-10-14" });
+    expect(() => applyCommand(h.state, operation, "2026-10-14T12:00:00Z")).toThrow("requires a recorded response outcome");
+    expect(h.state.people).toHaveLength(0);
+    expect(() => replayEvents({ workspace_id: workspaceId, revision: h.events.length + 1, events: [...h.events, { envelope: operation, revision: h.events.length + 1, recorded_at: "2026-10-14T12:00:00Z" }] })).not.toThrow();
+  });
+
+  it("opens blank even after a dated save, omits blank dates, and includes only an entered date", () => {
+    const h = harness();
+    const identified = networkingCandidate("outcome-date", "Fictional outcome date", "program leadership");
+    const candidate = { ...identified, networking: { ...identified.networking, status: "replied" as const } };
+    h.run({ type: "save_person", person: candidate, replyOccurredOn: "2026-09-05" });
+    const form = definition("networking-outcome", h.state, candidate.id, now);
+    expect(form.fields.find((item) => item.name === "replyOccurredOn")).toMatchObject({ value: "", optional: true, type: "date" });
+    const data = new FormData();
+    data.set("status", "replied");
+    data.set("recommendedNextAction", "Follow up on the fictional reply");
+    data.set("replyOccurredOn", "");
+    expect(commandSchema.parse(form.build(data))).not.toHaveProperty("replyOccurredOn");
+    data.set("replyOccurredOn", "2026-09-06");
+    expect(commandSchema.parse(form.build(data))).toMatchObject({ replyOccurredOn: "2026-09-06" });
+  });
 });
 
 function recordVerifiedOutreach(h: ReturnType<typeof harness>, personId: string) {

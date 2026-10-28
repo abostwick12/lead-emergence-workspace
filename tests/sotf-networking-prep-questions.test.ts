@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import type { PersistedCommandEnvelope } from "@/lib/sotf/contracts";
 
 const scenario = vi.hoisted(() => ({ includeMeeting: true, historicalContact: false }));
 
@@ -15,6 +16,13 @@ vi.mock("@/lib/sotf/preview", async (importOriginal) => {
       person.conversationQuestions = ["How did the fictional team choose its budget owner?", "Describe the fictional team's weekly tradeoffs."];
       if (scenario.historicalContact) {
         person.networking!.weekOf = "2026-08-24";
+        for (const receipt of state.receipts) {
+          const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+          if (command.type === "save_person" && command.person.id === person.id && command.person.networking) {
+            command.person.networking.weekOf = "2026-08-24";
+            receipt.command = JSON.stringify(command);
+          }
+        }
         state.people.push({ ...person, id: "hidden-history-contact", name: "Fictional hidden history contact", testRecord: true });
       }
       if (!scenario.includeMeeting) state.meetings = state.meetings.filter((item) => item.kind !== "networking");

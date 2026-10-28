@@ -31,7 +31,7 @@ test("saved plans retain two weeks and deduplicate edits by person and Chicago M
   ]);
   expect(state).toEqual(before);
   expect(state.people[0].networking!.weekOf).toBe("2026-10-12");
-  expect(networkingStrategy(state, "2026-10-05").queued).toBe(0);
+  expect(networkingStrategy(state, "2026-10-05").queued).toBe(1);
   expect(networkingStrategy(state, "2026-10-12").queued).toBe(1);
 });
 
@@ -82,14 +82,18 @@ test("dated replies retain each actual day and exclude activity entered while ma
 });
 
 test("September activity stays in its occurrence weeks after an October plan", () => {
-  const state = createPreviewState();
+  let state = createPreviewState();
   state.meetings.find((item) => item.id === "conversation")!.status = "completed";
   const before = structuredClone(state);
-  for (const person of state.people.filter((item) => item.networking)) person.networking!.weekOf = "2026-10-19";
+  for (const person of state.people.filter((item) => item.networking)) {
+    const { firstContact: _firstContact, lastInteraction: _lastInteraction, ...savedPerson } = person; void _firstContact; void _lastInteraction;
+    const { statusUpdatedAt: _statusUpdatedAt, ...networking } = person.networking!; void _statusUpdatedAt;
+    state = applyCommand(state, commandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "save_person", person: { ...savedPerson, networking: { ...networking, weekOf: "2026-10-19" } } } }), "2026-10-19T12:00:00Z");
+  }
   const october = networkingStrategy(state, "2026-10-19");
   expect(october.weeklyCounts).toEqual({ planned: 25, attempts: 0, replies: 0, meetings: 0 });
-  expect(networkingStrategy(state, "2026-08-31").weeklyCounts).toEqual({ planned: 0, attempts: 5, replies: 0, meetings: 0 });
-  expect(networkingStrategy(state, "2026-09-07").weeklyCounts).toEqual({ planned: 0, attempts: 0, replies: 0, meetings: 1 });
+  expect(networkingStrategy(state, "2026-08-31").weeklyCounts).toEqual({ planned: networkingStrategy(before, "2026-08-31").weeklyCounts.planned, attempts: 5, replies: 0, meetings: 0 });
+  expect(networkingStrategy(state, "2026-09-07").weeklyCounts).toEqual({ planned: networkingStrategy(before, "2026-09-07").weeklyCounts.planned, attempts: 0, replies: 0, meetings: 1 });
   expect(october.activityWeeks).toEqual(["2026-09-07", "2026-08-31"]);
   expect(october.undatedReplyPeople).toBe(2);
   expect(state.actions).toEqual(before.actions);
@@ -203,8 +207,7 @@ test("the preview uses the Monday of its latest dated person without changing th
 });
 
 test("a new week shows zero without carrying the previous plan forward", () => {
-  const state = createPreviewState();
-  for (const person of state.people.slice(0, 10)) person.networking!.weekOf = "2026-10-06";
+  const state = plannedState(Array(10).fill("2026-10-06"));
   const now = "2026-10-14T15:00:00Z";
   const currentWeek = latestNetworkingWeek(state, now);
 
@@ -221,11 +224,18 @@ test("a new week shows zero without carrying the previous plan forward", () => {
 });
 
 test("dates from Monday through Sunday count once in the same plan", () => {
-  const state = createPreviewState();
-  state.people[0].networking!.weekOf = "2026-10-12";
-  state.people[1].networking!.weekOf = "2026-10-18";
-  state.people[2].networking!.weekOf = "2026-10-19";
+  const state = plannedState(["2026-10-12", "2026-10-18", "2026-10-19"]);
 
   expect(networkingStrategy(state, "2026-10-12").candidates.map(({ person }) => person.id)).toEqual([state.people[0].id, state.people[1].id]);
   expect(networkingStrategy(state, "2026-10-19").candidates.map(({ person }) => person.id)).toEqual([state.people[2].id]);
 });
+
+function plannedState(weeks: string[]) {
+  let state = emptyPilotState();
+  createPreviewState().people.slice(0, weeks.length).forEach((person, index) => {
+    const { firstContact: _firstContact, lastInteraction: _lastInteraction, networking, ...saved } = person; void _firstContact; void _lastInteraction;
+    const { statusUpdatedAt: _statusUpdatedAt, ...plan } = networking!; void _statusUpdatedAt;
+    state = applyCommand(state, commandEnvelopeSchema.parse({ requestId: randomUUID(), expectedRevision: state.revision, userConfirmed: true, dataClass: "ordinary_transition_operations", command: { type: "save_person", person: { ...saved, hypothesisIds: [], opportunityId: undefined, networking: { ...plan, weekOf: weeks[index] } } } }), "2026-10-07T12:00:00Z");
+  });
+  return state;
+}
