@@ -103,6 +103,7 @@ export function applyCommand(previous: PilotState, input: CommandEnvelope | Pers
     }
     case "save_person": {
       if (source === "new_command" && command.replyOccurredOn) {
+        if (!command.person.networking || !["connection_accepted", "replied", "conversation_scheduled", "conversation_completed"].includes(command.person.networking.status)) throw new Error("An actual reply date requires a recorded response outcome.");
         const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(now)).map((part) => [part.type, part.value]));
         const chicagoDay = `${parts.year}-${parts.month}-${parts.day}`;
         if (command.replyOccurredOn > chicagoDay) throw new Error("The actual reply date cannot be after today in Chicago.");

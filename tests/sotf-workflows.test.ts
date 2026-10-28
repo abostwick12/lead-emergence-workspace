@@ -142,7 +142,9 @@ describe("optional actual reply date writer", () => {
     ["2026-12-14T06:00:00Z", "2026-12-14", "2026-12-15"]
   ])("uses the Chicago day at %s and preserves historical replay", (at, today, future) => {
     const h = harness();
-    const command = { type: "save_person", person: contact, replyOccurredOn: today };
+    const candidate = networkingCandidate("date-boundary", "Fictional date boundary", "program leadership");
+    const replied = { ...candidate, networking: { ...candidate.networking, status: "replied" as const } };
+    const command = { type: "save_person", person: replied, replyOccurredOn: today };
     const operation = envelope(h.state, command);
     expect(() => applyCommand(h.state, operation, at)).not.toThrow();
     const futureOperation = envelope(h.state, { ...command, replyOccurredOn: future });
@@ -151,9 +153,20 @@ describe("optional actual reply date writer", () => {
     expect(() => replayEvents({ workspace_id: workspaceId, revision: h.events.length + 1, events: [...h.events, { envelope: futureOperation, revision: h.events.length + 1, recorded_at: at }] })).not.toThrow();
   });
 
+  it.each(["identified", "attempted", "no_response", "follow_up_due"] as const)("rejects a reply date with %s while retaining historical replay", (status) => {
+    const h = harness();
+    const candidate = networkingCandidate("contradictory-reply", "Fictional contradictory reply", "program leadership");
+    const person = { ...candidate, networking: { ...candidate.networking, status } };
+    const operation = envelope(h.state, { type: "save_person", person, replyOccurredOn: "2026-10-14" });
+    expect(() => applyCommand(h.state, operation, "2026-10-14T12:00:00Z")).toThrow("requires a recorded response outcome");
+    expect(h.state.people).toHaveLength(0);
+    expect(() => replayEvents({ workspace_id: workspaceId, revision: h.events.length + 1, events: [...h.events, { envelope: operation, revision: h.events.length + 1, recorded_at: "2026-10-14T12:00:00Z" }] })).not.toThrow();
+  });
+
   it("opens blank even after a dated save, omits blank dates, and includes only an entered date", () => {
     const h = harness();
-    const candidate = networkingCandidate("outcome-date", "Fictional outcome date", "program leadership");
+    const identified = networkingCandidate("outcome-date", "Fictional outcome date", "program leadership");
+    const candidate = { ...identified, networking: { ...identified.networking, status: "replied" as const } };
     h.run({ type: "save_person", person: candidate, replyOccurredOn: "2026-09-05" });
     const form = definition("networking-outcome", h.state, candidate.id, now);
     expect(form.fields.find((item) => item.name === "replyOccurredOn")).toMatchObject({ value: "", optional: true, type: "date" });
