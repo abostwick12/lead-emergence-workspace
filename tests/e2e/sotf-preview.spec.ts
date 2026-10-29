@@ -189,6 +189,29 @@ test("networking outcomes save only an entered actual reply date and reopen blan
   expect(browserErrors).toEqual([]);
 });
 
+test("contact history records a prior-week reply without replanning the person", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const currentPlan = page.getByRole("region", { name: "This week's people", exact: true });
+  await expect(currentPlan.getByRole("heading", { name: "Fictional candidate 11", exact: true })).toHaveCount(0);
+  const results = page.getByRole("region", { name: "Weekly results", exact: true });
+  const priorWeek = results.getByRole("row", { name: /2026-08-24/ });
+  await expect(priorWeek.getByRole("cell").nth(2)).toHaveText("0");
+
+  const historyCard = page.getByRole("region", { name: "Contact history", exact: true }).getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 11", exact: true }) });
+  await historyCard.getByRole("button", { name: "Record outcome", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Observed outcome").selectOption("replied");
+  await dialog.getByLabel("Actual reply date, if known").fill("2026-08-26");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  await expect(historyCard).toContainText("Reply recorded");
+  await expect(priorWeek.getByRole("cell").nth(2)).toHaveText("1");
+  await expect(currentPlan.getByRole("heading", { name: "Fictional candidate 11", exact: true })).toHaveCount(0);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("networking strategy shows the 10-person goal and selectable conversation prep", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Plan 10 people this week." })).toBeVisible();

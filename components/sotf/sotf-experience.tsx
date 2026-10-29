@@ -76,7 +76,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
     setBusy(true); setError(""); setMessage("");
     try {
       const updated = preview ? applyCommand(state, envelope) : (await request(envelope)).state;
-      setState(updated); if (command.type === "record_opportunity") { setView("Opportunities"); setSelected(command.opportunity.id); setPanel(null); } if (command.type === "save_person") { if (view !== "Networking" || editor?.intent !== "person") setView("People"); setPanel(null); } setMessage(updated.changes.at(-1)?.summary ?? "Saved and verified.");
+      setState(updated); if (command.type === "record_opportunity") { setView("Opportunities"); setSelected(command.opportunity.id); setPanel(null); } if (command.type === "save_person") { if (view !== "Networking" || (editor?.intent !== "person" && editor?.intent !== "networking-outcome")) setView("People"); setPanel(null); } setMessage(updated.changes.at(-1)?.summary ?? "Saved and verified.");
     } catch (caught) {
       const text = caught instanceof Error ? caught.message : "The save could not be verified.";
       if (!preview && !(caught instanceof SaveRejected)) setPending(envelope);
@@ -236,6 +236,7 @@ export function SotfExperience({ mode, scheduling = { status: "unavailable", mes
                 <p className={styles.networkingHistoryWhy}>{person.networking!.whyPerson}</p>
                 <dl className={styles.networkingHistoryFacts}><div><dt>Last touch</dt><dd>{person.lastInteraction ? displayDate(person.lastInteraction) : "No touch recorded"}</dd></div><div><dt>Outcome</dt><dd>{networkingOutcomeLabels[status]}</dd></div></dl>
                 <div className={styles.networkingHistoryNotes}><span>Context / notes</span><p>{person.overlap || "No context note recorded"}</p></div>
+                <button type="button" onClick={() => edit("networking-outcome", person.id)}>Record outcome</button>
                 <button type="button" aria-pressed={networkingPrepPersonId === person.id} onClick={() => { setNetworkingPrepPersonId(person.id); document.getElementById("networking-conversation-prep")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Prepare conversation</button>
                 <button type="button" onClick={() => edit("meeting", person.id)}>Record a meeting</button>
               </article>;
