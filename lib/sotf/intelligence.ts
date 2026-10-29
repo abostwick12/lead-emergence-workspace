@@ -296,8 +296,8 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   };
 }
 
-export function weeklyReview(state: PilotState, since: string) {
-  return { questions: ["What did I learn about the work and environment I want?", "Which hypotheses strengthened or weakened, and which conversations changed my thinking?", "Which opportunities were strongest, and why did I decline others?", "Where did relationships deepen; who needs follow-through?", "What did application and interview feedback reveal about evidence or skills?", "What should I start, stop, or change next week?"], ...prepareCoaching(state, since), networking: networkingStrategy(state, latestNetworkingWeek(state)), declined: state.opportunities.filter((item) => item.status === "decline"), applicationOutcomes: state.applications.filter((item) => item.outcome && item.outcome.at >= since), interviewLearning: state.interviews.filter((item) => item.recordedAt >= since), priorReviews: state.weeklyReviews.slice(-3) };
+export function weeklyReview(state: PilotState, since: string, now = new Date().toISOString()) {
+  return { questions: ["What did I learn about the work and environment I want?", "Which hypotheses strengthened or weakened, and which conversations changed my thinking?", "Which opportunities were strongest, and why did I decline others?", "Where did relationships deepen; who needs follow-through?", "What did application and interview feedback reveal about evidence or skills?", "What should I start, stop, or change next week?"], ...prepareCoaching(state, since), networking: networkingStrategy(state, latestNetworkingWeek(state, now), now), declined: state.opportunities.filter((item) => item.status === "decline"), applicationOutcomes: state.applications.filter((item) => item.outcome && item.outcome.at >= since), interviewLearning: state.interviews.filter((item) => item.recordedAt >= since), priorReviews: state.weeklyReviews.slice(-3) };
 }
 
 /** Preparation uses supplied round/context and real prior feedback; it invents no interviewer facts. */

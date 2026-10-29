@@ -370,7 +370,7 @@ describe("SOTF networking strategy v1", () => {
     expect(strategy.categories.map(item => item.name)).toEqual(["ordinary category"]);
     expect(strategy.adjustments.join(" ")).not.toContain("test category");
     expect(networkingStrategy(h.state, "2026-09-08").queued).toBe(0);
-    expect(weeklyReview(h.state, "2026-09-01").networking.queued).toBe(1);
+    expect(weeklyReview(h.state, "2026-09-01", "2026-09-06T12:00:00Z").networking.queued).toBe(1);
     expect(h.state.people).toHaveLength(2);
     expect(h.state.actions).toHaveLength(2);
     expect(h.state.meetings).toHaveLength(1);
