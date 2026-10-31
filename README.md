@@ -16,6 +16,12 @@ project. Runtime queries target the exposed `workspace` schema using an
 authenticated user's JWT and Postgres RLS. It has no ministry or Consulting OS
 runtime imports and never uses a Supabase service-role key.
 
+## Documentation
+
+- [Agent-owned orchestration architecture](docs/architecture/agent-owned-orchestration.md)
+- [Test evidence index](docs/testing/test-evidence.md)
+- [August 2026 test evidence](docs/testing/test-evidence-history-2026-august.md)
+
 ## Local development
 
 1. Copy `.env.example` to `.env.local` and supply only the public Supabase URL
