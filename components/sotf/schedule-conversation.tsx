@@ -22,7 +22,7 @@ export function ScheduleConversation({ person, onSave, onClose }: { person: Pers
   async function save() {
     if (!proposal?.slots.length) return; setBusy(true); setError('');
     try {
-      await onSave({ type: 'prepare_action', kind: 'email', recipient: person.email ?? person.name, personId: person.id, subject: 'Times for our conversation', body: 'Hi ' + person.name + ',\n\nThank you for being open to a conversation about ' + person.objective + '. Would one of these times work?\n\n' + proposal.slots.map(slot => formatSlot(slot, proposal.timeZone)).join('\n') + '\n\nPlease confirm the time that works for you. I will then prepare the invitation.\n\nAvailability checked: ' + proposal.source + ' at ' + proposal.checkedAt });
+      await onSave({ type: 'prepare_action', kind: 'email', recipient: person.email ?? person.name, personId: person.id, subject: 'Times for our conversation', body: 'Preparation only: use AI Slop Killer in Codex to write and review a reply before approving.\nProposed times:\n' + proposal.slots.map(slot => formatSlot(slot, proposal.timeZone)).join('\n') + '\nAvailability checked: ' + proposal.source + ' at ' + proposal.checkedAt });
       onClose();
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not verify this draft.'); }
     finally { setBusy(false); }

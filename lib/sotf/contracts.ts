@@ -8,6 +8,7 @@ const short = z.string().trim().min(1).max(240);
 const text = z.string().trim().min(1).max(5000);
 const note = z.string().trim().max(5000).default("");
 const date = z.string().date();
+const monday = date.refine((value) => new Date(`${value}T12:00:00Z`).getUTCDay() === 1, "Use the Monday starting the Chicago week.");
 const timestamp = z.string().datetime({ offset: true }).transform((value) => new Date(value).toISOString());
 const ids = z.array(id).max(100).default([]);
 export const publicUrl = z.string().url().refine((value) => ["https:", "http:"].includes(new URL(value).protocol), "Use an HTTP or HTTPS source URL.");
@@ -32,7 +33,7 @@ export const lampContextSchema = z.strictObject({
 });
 export const networkingCandidateSchema = z.strictObject({
   weekOf: date,
-  sourceUrl: publicUrl,
+  sourceUrl: publicUrl.optional(),
   whyPerson: text,
   lamp: lampContextSchema,
   contributionAngle: text,
@@ -40,7 +41,7 @@ export const networkingCandidateSchema = z.strictObject({
   pathway: networkingPathwaySchema,
   status: networkingStatusSchema.default("identified")
 });
-export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, testRecord: z.boolean().optional(), overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional(), networking: networkingCandidateSchema.optional() });
+export const personSchema = z.strictObject({ id, name: short, company: note, role: note, email: z.string().email().optional(), source: short, testRecord: z.boolean().optional(), overlap: note, whyNow: text, objective: text, introductionPath: note, hypothesisIds: ids, opportunityId: id.optional(), nextTouch: date.optional(), networking: networkingCandidateSchema.optional(), conversationQuestions: z.array(short).max(3).optional() });
 export const meetingSchema = z.strictObject({ id, title: short, personId: id.optional(), opportunityId: id.optional(), hypothesisIds: ids, kind: z.enum(["networking", "coaching", "interview", "mentor"]), startsAt: timestamp, endsAt: timestamp, status: z.enum(["planned", "accepted", "completed", "cancelled"]).default("planned"), provider: z.enum(["manual", "google_calendar", "outlook"]).default("manual"), sourceEventId: id.optional(), objective: text });
 export const commitmentSchema = z.strictObject({ id, title: short, owner: short.default("Fellow"), due: date.optional(), definitionOfDone: text, reviewTrigger: text, personId: id.optional(), meetingId: id.optional(), opportunityId: id.optional(), hypothesisId: id.optional() });
 export const storySchema = z.strictObject({ id, title: short, situation: text, contribution: text, scope: text, actions: text, outcome: text, skills: z.array(short).min(1).max(20), evidenceIds: ids, approvedLanguage: text, uncertainNumbers: z.array(short).max(10).default([]), confirmed: z.literal(true) });
@@ -58,7 +59,7 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("review_evidence"), evidenceId: id, decision: z.enum(["accept", "reject"]), rationale: text }),
   z.strictObject({ type: z.literal("resolve_requirement"), opportunityId: id, requirementId: id, status: z.enum(["met", "unknown", "not_met"]), evidenceIds: ids }),
   z.strictObject({ type: z.literal("decide_opportunity"), opportunityId: id, decision: z.enum(["pursue", "investigate", "decline", "pause"]), rationale: text, nextAction: text, revisitWhen: text, due: date.optional() }),
-  z.strictObject({ type: z.literal("save_person"), person: personSchema }),
+  z.strictObject({ type: z.literal("save_person"), person: personSchema, replyOccurredOn: date.optional() }),
   z.strictObject({ type: z.literal("prepare_outreach"), personId: id, stage: z.enum(["initial", "private_follow_up"]).default("initial") }),
   z.strictObject({ type: z.literal("prepare_scheduling_reply"), personId: id, schedulingUrl: brandedSchedulingUrl }),
   z.strictObject({ type: z.literal("record_meeting"), meeting: meetingSchema }),
@@ -73,9 +74,14 @@ export const commandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("record_offer"), offer: offerSchema }),
   z.strictObject({ type: z.literal("accept_offer"), offerId: id, rationale: text, confirmedAccepted: z.literal(true), startDate: date, checkpoints: z.array(checkpointSchema).min(3).max(15) }),
   z.strictObject({ type: z.literal("review_week"), learned: text, start: text, stop: text, change: text, hypothesisUpdates: z.array(hypothesisSchema).max(5), commitments: z.array(commitmentSchema).max(10) }),
+  z.strictObject({
+    type: z.literal("review_networking_week"), weekOf: monday,
+    counts: z.strictObject({ planned: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), meetings: z.number().int().nonnegative() }),
+    happened: text, learned: z.string().trim().max(5000), nextChange: text
+  }),
   z.strictObject({ type: z.literal("prepare_action"), kind: z.enum(["email", "calendar_invite", "coach_share", "public_comment", "direct_message"]), recipient: short, subject: short, body: text, personId: id.optional(), meetingId: id.optional() }),
   z.strictObject({ type: z.literal("approve_action"), actionId: id, exactRevision: z.number().int().min(1) }),
-  z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text }),
+  z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text, skillReviewed: z.literal(true).optional() }),
   z.strictObject({ type: z.literal("record_action_result"), actionId: id, outcome: z.enum(["manually_completed", "failed", "uncertain"]), receipt: text }),
   z.strictObject({ type: z.literal("retry_action"), actionId: id, confirmedNotExecuted: z.literal(true) }),
   z.strictObject({ type: z.literal("close_chapter"), reflection: text, carryForward: z.array(id).max(100), nextFocus: text })
@@ -89,12 +95,26 @@ const persistedPersonSchema = z.strictObject({
   ...personSchema.omit({ id: true, name: true, company: true, role: true, email: true, source: true, testRecord: true }).shape
 });
 const persistedCommandSchema = z.union([
-  z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema }),
+  // Preserve the reader-first field order for historical review receipts.
+  z.strictObject({
+    type: z.literal("review_networking_week"), weekOf: monday,
+    counts: z.strictObject({ planned: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), replies: z.number().int().nonnegative(), meetings: z.number().int().nonnegative() }),
+    happened: text, learned: z.string().trim().max(5000), nextChange: text
+  }),
+  // Historical commands keep their exact shape and person field order.
+  z.strictObject({ type: z.literal("save_person"), person: persistedPersonSchema, replyOccurredOn: date.optional() }),
+  // Read the review marker before any writer is allowed to emit it, so this release can safely read a later one.
+  z.strictObject({ type: z.literal("revise_action"), actionId: id, recipient: short, subject: short, body: text, skillReviewed: z.literal(true).optional() }),
+  // Read versioned generated drafts before a later writer emits them; unmarked historical commands keep their existing shape.
+  z.strictObject({ type: z.literal("prepare_outreach"), personId: id, stage: z.enum(["initial", "private_follow_up"]).default("initial"), draftTemplateVersion: z.literal("preparation_v2") }),
+  z.strictObject({ type: z.literal("prepare_scheduling_reply"), personId: id, schedulingUrl: brandedSchedulingUrl, draftTemplateVersion: z.literal("preparation_v2") }),
+  z.strictObject({ type: z.literal("debrief_meeting"), meetingId: id, said: text, inferred: note, unresolved: z.array(short).max(15), evidence: z.array(evidenceSchema).max(15), commitments: z.array(commitmentSchema).max(15), introductions: z.array(short).max(10).default([]), nextTouch: date.optional(), draftTemplateVersion: z.literal("preparation_v2") }),
   commandSchema
 ]);
 export const persistedCommandEnvelopeSchema = commandEnvelopeSchema.extend({ command: persistedCommandSchema });
 export type Command = z.infer<typeof commandSchema>;
 export type CommandEnvelope = z.infer<typeof commandEnvelopeSchema>;
+export type PersistedCommandEnvelope = z.infer<typeof persistedCommandEnvelopeSchema>;
 export type Criterion = z.infer<typeof criterionSchema>;
 export type Hypothesis = z.infer<typeof hypothesisSchema> & { updatedAt: string };
 export type Evidence = z.infer<typeof evidenceSchema> & { review: "pending" | "accepted" | "rejected"; reviewedAt?: string; reviewRationale?: string; createdAt: string; criterionDesired?: string };
@@ -107,14 +127,15 @@ export type Material = z.infer<typeof materialSchema> & { version: number; creat
 export type Application = { opportunityId: string; submittedAt: string; receipt: string; materials: Material[]; status: "applied" | "rejected" | "withdrawn" | "interview" | "offer"; outcome?: { reason: string; source: string; at: string; nextAction: string } };
 export type Interview = z.infer<typeof interviewSchema> & { recordedAt: string };
 export type Offer = z.infer<typeof offerSchema> & { accepted?: { rationale: string; startDate: string; at: string } };
-export type OutboundAction = { id: string; kind: "email" | "calendar_invite" | "coach_share" | "public_comment" | "direct_message"; recipient: string; subject: string; body: string; personId?: string; meetingId?: string; revision: number; state: "draft" | "approved_for_manual_execution" | "manually_completed" | "failed" | "uncertain" | "superseded"; meetingStamp?: string; receipt?: string; updatedAt: string; approvedAt?: string };
+export type OutboundAction = { id: string; kind: "email" | "calendar_invite" | "coach_share" | "public_comment" | "direct_message"; recipient: string; subject: string; body: string; personId?: string; meetingId?: string; revision: number; state: "draft" | "approved_for_manual_execution" | "manually_completed" | "failed" | "uncertain" | "superseded"; skillReviewRevision?: number; meetingStamp?: string; receipt?: string; updatedAt: string; approvedAt?: string };
 export type PilotState = {
   schemaVersion: 1; revision: number;
   chapter: { timing: string; question: string; weeklyHours: number; phase: "exploring" | "transitioning" | "professional_work"; startedAt: string; nextFocus?: string; reflection?: string; carryForward?: string[] } | null;
   criteria: Criterion[]; hypotheses: Hypothesis[]; opportunities: Opportunity[]; evidence: Evidence[]; people: Person[]; meetings: Meeting[]; commitments: Commitment[]; stories: Story[]; materials: Material[]; applications: Application[]; interviews: Interview[]; offers: Offer[]; actions: OutboundAction[];
   checkpoints: z.infer<typeof checkpointSchema>[];
   weeklyReviews: { id: string; at: string; learned: string; start: string; stop: string; change: string }[];
-  changes: { id: string; at: string; kind: Command["type"]; summary: string }[];
+  networkingWeekReviews: { id: string; at: string; weekOf: string; counts: { planned: number; attempts: number; replies: number; meetings: number }; happened: string; learned: string; nextChange: string }[];
+  changes: { id: string; at: string; kind: PersistedCommandEnvelope["command"]["type"]; summary: string }[];
   receipts: { requestId: string; command: string; revision: number }[];
 };
-export function emptyPilotState(): PilotState { return { schemaVersion: 1, revision: 0, chapter: null, criteria: [], hypotheses: [], opportunities: [], evidence: [], people: [], meetings: [], commitments: [], stories: [], materials: [], applications: [], interviews: [], offers: [], actions: [], checkpoints: [], weeklyReviews: [], changes: [], receipts: [] }; }
+export function emptyPilotState(): PilotState { return { schemaVersion: 1, revision: 0, chapter: null, criteria: [], hypotheses: [], opportunities: [], evidence: [], people: [], meetings: [], commitments: [], stories: [], materials: [], applications: [], interviews: [], offers: [], actions: [], checkpoints: [], weeklyReviews: [], networkingWeekReviews: [], changes: [], receipts: [] }; }

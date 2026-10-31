@@ -41,7 +41,7 @@ export function createPreviewState(): PilotState {
       hypothesisIds: [number % 2 ? "program" : "operations"],
       nextTouch: number <= 5 ? "2026-09-15" : undefined,
       networking: {
-        weekOf: "2026-09-01",
+        weekOf: number <= 10 ? "2026-08-31" : number <= 20 ? "2026-08-24" : "2026-08-17",
         sourceUrl: `https://example.com/networking/candidate-${number}`,
         whyPerson: number === 1 ? "Morgan works close enough to the decisions to explain the actual operating model" : "This person has direct public evidence of doing the work being explored",
         lamp: { list: category, alumniAffinity: number % 4 === 0 ? "Fictional veteran community" : "", motivation: "The organization's public work aligns with the transition hypothesis being tested", posting: number % 2 ? "Related public role signal" : "No posting required; practitioner learning path" },
@@ -53,10 +53,14 @@ export function createPreviewState(): PilotState {
     };
   });
   candidates.forEach((person) => run({ type: "save_person", person }));
+  run({ type: "record_evidence", evidence: { id: "candidate-6-context", statement: "Fictional organization 6 describes cross-team program delivery in its public role overview.", source: { kind: "company_claim", reference: "Fictional role overview", url: "https://example.com/networking/candidate-6", observedAt: "2026-09-05", scope: "Fictional organization 6 role overview only" }, direction: "neutral", reliability: "medium", personId: "network-person-6", hypothesisIds: ["operations"] } });
+  run({ type: "review_evidence", evidenceId: "candidate-6-context", decision: "accept", rationale: "Accepted only within this entirely fictional preview" });
   for (const person of candidates.slice(0, 5)) {
     run({ type: "prepare_outreach", personId: person.id, stage: "initial" });
     const action = state.actions.at(-1)!;
-    run({ type: "approve_action", actionId: action.id, exactRevision: action.revision });
+    // This entire preview is fictional; its review declaration and outcome are sample records.
+    run({ type: "revise_action", actionId: action.id, recipient: action.recipient, subject: action.subject, body: "Synthetic preview only. The example's reviewed message text is omitted; no real recipient was contacted.", skillReviewed: true });
+    run({ type: "approve_action", actionId: action.id, exactRevision: state.actions.at(-1)!.revision });
     run({ type: "record_action_result", actionId: action.id, outcome: "manually_completed", receipt: "Synthetic preview: user manually completed the outreach outside Workspace." });
     if (person.id !== "morgan") run({ type: "save_person", person: { ...person, networking: { ...person.networking, status: "no_response" } } });
   }
@@ -66,7 +70,13 @@ export function createPreviewState(): PilotState {
   run({ type: "record_meeting", meeting: { id: "coaching-session", title: "SOTF coaching session", hypothesisIds: ["program"], kind: "coaching", startsAt: "2026-09-05T16:00:00Z", endsAt: "2026-09-05T17:00:00Z", status: "completed", objective: "Test the work before judging the title" } });
   run({ type: "debrief_meeting", meetingId: "coaching-session", said: "Your coach challenged you to test what you would own day to day instead of judging the opportunity by how the role sounds.", inferred: "The next useful evidence is one concrete example of a decision the program lead owns.", unresolved: ["Which decisions does the program lead make without approval?"], introductions: [], nextTouch: undefined, evidence: [], commitments: [{ id: "coaching-next-step", title: "Ask Morgan for one decision the program lead owns", owner: "Fellow", due: "2026-09-07", definitionOfDone: "From your last coaching session: record one concrete example of a decision the program lead owns.", reviewTrigger: "Return to the question if Morgan can only describe coordination, not decision ownership." }] });
   run({ type: "record_meeting", meeting: { id: "conversation", title: "Understand the work with Morgan", personId: "morgan", opportunityId: "northstar", hypothesisIds: ["program"], kind: "networking", startsAt: "2026-09-08T15:00:00Z", endsAt: "2026-09-08T15:30:00Z", status: "accepted", objective: "Learn which decisions this role actually owns" } });
-  run({ type: "review_week", learned: "One of five mature fictional attempts progressed to a real conversation; technical program leadership produced the response.", start: "Prioritize the strongest recorded category while preserving comparison cohorts.", stop: "Treating recent silence as a failed conversion.", change: "Use the recorded category and pathway response counts to shape the next 25-person queue.", hypothesisUpdates: [], commitments: [] });
+  run({ type: "review_week", learned: "One of five mature fictional attempts progressed to a real conversation; technical program leadership produced the response.", start: "Prioritize the strongest recorded category while preserving comparison cohorts.", stop: "Treating recent silence as a failed conversion.", change: "Use the recorded category and pathway response counts to shape the next 10-person queue.", hypothesisUpdates: [], commitments: [] });
   run({ type: "save_story", story: { id: "delivery-story", title: "Unblocking cross-team delivery", situation: "A fictional project had conflicting priorities across three teams.", contribution: "Facilitated the dependency review and negotiated a shared sequence.", scope: "Three teams; decision approval remained with the accountable leads.", actions: "Mapped dependencies, clarified owners, and tested a revised delivery sequence.", outcome: "The teams agreed on a workable plan; no unverified improvement percentage is claimed.", skills: ["stakeholder alignment", "delivery", "ambiguity"], evidenceIds: ["proof"], approvedLanguage: "Coordinated three teams to resolve delivery dependencies and agree on a shared plan.", uncertainNumbers: ["Time savings have not been verified"], confirmed: true } });
+  const testPerson = { id: "sotf-gate-test-person", name: "SOTF AI Slop Gate Test", company: "Synthetic Test Only", role: "Non-sendable acceptance test", source: "Synthetic review-gate scenario for the fictional preview only.", testRecord: true, overlap: "No real relationship; synthetic acceptance test only.", whyNow: "Verify test-only actions stay out of the owner action queue.", objective: "Keep a test-only action out of owner follow-through.", introductionPath: "", hypothesisIds: [] };
+  run({ type: "save_person", person: testPerson });
+  run({ type: "prepare_outreach", personId: testPerson.id, stage: "initial" });
+  const testAction = state.actions.at(-1)!;
+  run({ type: "revise_action", actionId: testAction.id, recipient: "gate-test@example.invalid", subject: "[SYNTHETIC GATE TEST: DO NOT SEND]", body: "Synthetic review-gate test. No message will be sent.", skillReviewed: true });
+  run({ type: "approve_action", actionId: testAction.id, exactRevision: state.actions.at(-1)!.revision });
   return state;
 }

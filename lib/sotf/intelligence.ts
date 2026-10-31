@@ -1,4 +1,4 @@
-import { DIMENSIONS, type Dimension, type Evidence, type PilotState, type Story } from "./contracts";
+import { DIMENSIONS, type Dimension, type Evidence, type PilotState, type PersistedCommandEnvelope, type Story } from "./contracts";
 
 export function requireRecord<T extends { id: string }>(records: T[], id: string, label: string): T {
   const record = records.find((item) => item.id === id);
@@ -99,7 +99,7 @@ export function prepareMeeting(state: PilotState, meetingId: string) {
   const person = state.people.find((item) => item.id === meeting.personId);
   const opportunity = state.opportunities.find((item) => item.id === meeting.opportunityId);
   const prior = state.meetings.filter((item) => item.id !== meetingId && Boolean(meeting.personId) && item.personId === meeting.personId && item.debrief && item.startsAt < meeting.startsAt);
-  const questions = [...new Set([`What would we need to learn to answer: ${meeting.objective}`, ...(opportunity ? assessOpportunity(state, opportunity.id).questions : []), "What changes are most affecting the work your team does?", "What surprised you about the day-to-day work?", "Which decisions can someone in this role make independently?", "What would you suggest I test or demonstrate next?", "Which work samples, resources, or conversations would help me learn more?"])].slice(0, 8);
+  const questions = person?.conversationQuestions?.length ? person.conversationQuestions : [...new Set([`What would we need to learn to answer: ${meeting.objective}`, ...(opportunity ? assessOpportunity(state, opportunity.id).questions : []), "What changes are most affecting the work your team does?", "What surprised you about the day-to-day work?", "Which decisions can someone in this role make independently?", "What would you suggest I test or demonstrate next?", "Which work samples, resources, or conversations would help me learn more?"])].slice(0, 8);
   return { meeting, person: person ?? null, company: opportunity?.company ?? person?.company ?? "Company context not supplied", functionContext: opportunity?.actualWork || person?.role || "Ask for function context", priorInteractions: prior.map((item) => ({ title: item.title, at: item.startsAt, said: item.debrief!.said })), hypotheses: meeting.hypothesisIds.map((id) => hypothesisLearning(state, id)), objective: meeting.objective, alreadyKnown: state.evidence.filter((item) => item.review === "accepted" && ((meeting.opportunityId && item.opportunityId === meeting.opportunityId) || (meeting.personId && item.personId === meeting.personId))), questions,
     introduction: `I’m looking at ${meeting.hypothesisIds.map((id) => state.hypotheses.find((item) => item.id === id)?.proposition).filter(Boolean).join(" and ") || "my next professional chapter"}. Could you help me understand ${meeting.objective.toLowerCase()}?`,
     avoid: ["Do not ask for confidential employer information.", "Do not assume an introduction or referral has been agreed.", "Avoid asking questions already answered in the prior interaction notes."], commitments: state.commitments.filter((item) => (item.meetingId === meetingId || (meeting.personId && item.personId === meeting.personId)) && item.status !== "cancelled") };
@@ -133,15 +133,119 @@ export function dailyBrief(state: PilotState, now: string): BriefItem[] {
 const networkingResponseStatuses = new Set(["connection_accepted", "replied", "conversation_scheduled", "conversation_completed"]);
 const networkingMatureStatuses = new Set([...networkingResponseStatuses, "no_response"]);
 
-export function latestNetworkingWeek(state: PilotState) {
-  return state.people.filter((item) => !item.testRecord).map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
+export function latestNetworkingWeek(state: PilotState, now?: string) {
+  if (now) {
+    const localDate = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(now)).map((part) => [part.type, part.value]));
+    const monday = new Date(Date.UTC(Number(localDate.year), Number(localDate.month) - 1, Number(localDate.day)));
+    monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+    return monday.toISOString().slice(0, 10);
+  }
+  const latestDate = state.people.filter((item) => !item.testRecord).map((item) => item.networking?.weekOf).filter((value): value is string => Boolean(value)).sort().at(-1);
+  if (!latestDate) return undefined;
+  const monday = new Date(`${latestDate}T00:00:00.000Z`);
+  monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+  return monday.toISOString().slice(0, 10);
+}
+
+/** Additive plan history only. weekOf is a Chicago calendar date, not a UTC instant. */
+export function networkingPlanMemberships(state: PilotState): Array<{ personId: string; weekOf: string; plannedAt: string }> {
+  const changes = new Map(state.changes.filter((change) => change.kind === "save_person").map((change) => [change.id, change]));
+  const visiblePeople = new Set(state.people.filter((person) => !person.testRecord).map((person) => person.id));
+  const memberships = new Map<string, { personId: string; weekOf: string; plannedAt: string }>();
+  const testRecords = new Map<string, boolean>();
+  for (const receipt of [...state.receipts].sort((left, right) => left.revision - right.revision)) {
+    const change = changes.get(receipt.requestId);
+    if (!change) continue;
+    const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+    if (command.type !== "save_person") continue;
+    const testRecord = command.person.testRecord ?? testRecords.get(command.person.id) ?? false;
+    testRecords.set(command.person.id, testRecord);
+    if (testRecord || !command.person.networking || !visiblePeople.has(command.person.id)) continue;
+    const monday = new Date(`${command.person.networking.weekOf}T00:00:00.000Z`);
+    monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+    const weekOf = monday.toISOString().slice(0, 10);
+    const key = `${command.person.id}:${weekOf}`;
+    if (!memberships.has(key)) memberships.set(key, { personId: command.person.id, weekOf, plannedAt: change.at });
+  }
+  return [...memberships.values()];
+}
+
+/** Explicit dated replies only; an undated historical status is not assigned to a week. */
+export function networkingReplyOccurrences(state: PilotState): Array<{ personId: string; requestId: string; replyOccurredOn: string; recordedAt: string }> {
+  const changes = new Map(state.changes.filter((change) => change.kind === "save_person").map((change) => [change.id, change]));
+  const visiblePeople = new Set(state.people.filter((person) => !person.testRecord).map((person) => person.id));
+  const testRecords = new Map<string, boolean>();
+  const replies: Array<{ personId: string; requestId: string; replyOccurredOn: string; recordedAt: string }> = [];
+  for (const receipt of [...state.receipts].sort((left, right) => left.revision - right.revision)) {
+    const change = changes.get(receipt.requestId);
+    if (!change) continue;
+    const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+    if (command.type !== "save_person") continue;
+    const testRecord = command.person.testRecord ?? testRecords.get(command.person.id) ?? false;
+    testRecords.set(command.person.id, testRecord);
+    const replyOccurredOn = "replyOccurredOn" in command ? command.replyOccurredOn : undefined;
+    if (!replyOccurredOn || testRecord || !visiblePeople.has(command.person.id)) continue;
+    replies.push({ personId: command.person.id, requestId: receipt.requestId, replyOccurredOn, recordedAt: change.at });
+  }
+  return replies;
 }
 
 export function networkingStrategy(state: PilotState, weekOf = latestNetworkingWeek(state), now = new Date().toISOString()) {
   const target = 10;
   const conversionTarget = 0.2;
-  const candidates = state.people.filter((item) => !item.testRecord && item.networking && (!weekOf || item.networking.weekOf === weekOf));
+  const monday = weekOf ? new Date(`${weekOf}T00:00:00.000Z`) : null;
+  if (monday) monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+  const weekStart = monday?.toISOString().slice(0, 10);
+  const plannedIds = new Set(networkingPlanMemberships(state).filter((item) => !weekStart || item.weekOf === weekStart).map((item) => item.personId));
+  const candidates = state.people.filter((item) => !item.testRecord && item.networking && plannedIds.has(item.id));
   const candidateIds = new Set(candidates.map((item) => item.id));
+  // Weekly activity is independent of the selected plan. All counts remain distinct people.
+  const visiblePersonIds = new Set(state.people.filter((item) => !item.testRecord).map((item) => item.id));
+  const networkingPersonIds = new Set(state.people.filter((item) => !item.testRecord && item.networking).map((item) => item.id));
+  const activityTestRecords = new Map<string, boolean>();
+  const actionCompletionTest = new Map<string, boolean>();
+  const meetingCompletionTest = new Map<string, boolean>();
+  const historicalMeetings = new Map<string, { personId?: string; provider: string; sourceEventId?: string }>();
+  for (const receipt of [...state.receipts].sort((left, right) => left.revision - right.revision)) {
+    const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+    if (command.type === "save_person") {
+      activityTestRecords.set(command.person.id, command.person.testRecord ?? activityTestRecords.get(command.person.id) ?? false);
+    } else if (command.type === "record_action_result" && command.outcome === "manually_completed") {
+      const action = state.actions.find((item) => item.id === command.actionId);
+      if (action?.personId && !actionCompletionTest.has(action.id)) actionCompletionTest.set(action.id, activityTestRecords.get(action.personId) ?? false);
+    } else if (command.type === "record_meeting") {
+      const value = command.meeting;
+      const canonical = value.sourceEventId ? [...historicalMeetings].find(([, item]) => item.provider === value.provider && item.sourceEventId === value.sourceEventId)?.[0] ?? state.meetings.find((item) => item.provider === value.provider && item.sourceEventId === value.sourceEventId)?.id : undefined;
+      const id = canonical ?? value.id;
+      historicalMeetings.set(id, { personId: value.personId, provider: value.provider, sourceEventId: value.sourceEventId });
+      if (value.status === "completed" && !meetingCompletionTest.has(id) && value.personId) meetingCompletionTest.set(id, activityTestRecords.get(value.personId) ?? false);
+    } else if (command.type === "debrief_meeting") {
+      const previous = historicalMeetings.get(command.meetingId);
+      const personId = previous?.personId ?? state.meetings.find((item) => item.id === command.meetingId)?.personId;
+      if (personId && !meetingCompletionTest.has(command.meetingId)) meetingCompletionTest.set(command.meetingId, activityTestRecords.get(personId) ?? false);
+    }
+  }
+  const datedAttempts = state.actions.filter((item) => item.personId && networkingPersonIds.has(item.personId) && item.state === "manually_completed" && !actionCompletionTest.get(item.id) && ["email", "direct_message", "public_comment"].includes(item.kind))
+    .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.updatedAt)! }));
+  const datedReplies = networkingReplyOccurrences(state).filter((item) => visiblePersonIds.has(item.personId))
+    // Noon Chicago is safely inside the explicit local calendar day, including DST changes.
+    .map((item) => ({ personId: item.personId, weekOf: latestNetworkingWeek(state, `${item.replyOccurredOn}T12:00:00-06:00`)! }));
+  const datedMeetings = state.meetings.filter((item) => item.kind === "networking" && item.status === "completed" && !meetingCompletionTest.get(item.id) && item.personId && visiblePersonIds.has(item.personId))
+    .map((item) => ({ personId: item.personId!, weekOf: latestNetworkingWeek(state, item.startsAt)! }));
+  const countInWeek = (items: Array<{ personId: string; weekOf: string }>) => new Set(items.filter((item) => item.weekOf === weekStart).map((item) => item.personId)).size;
+  const weeklyCounts = { planned: candidates.length, attempts: countInWeek(datedAttempts), replies: countInWeek(datedReplies), meetings: countInWeek(datedMeetings) };
+  const activityWeeks = [...new Set([...datedAttempts, ...datedReplies, ...datedMeetings].map((item) => item.weekOf))].sort().reverse();
+  const datedReplyPeople = new Set(datedReplies.map((item) => item.personId));
+  const undatedReplyIds = new Set<string>();
+  const historicalTestRecords = new Map<string, boolean>();
+  for (const receipt of [...state.receipts].sort((left, right) => left.revision - right.revision)) {
+    const command = JSON.parse(receipt.command) as PersistedCommandEnvelope["command"];
+    if (command.type !== "save_person") continue;
+    const testRecord = command.person.testRecord ?? historicalTestRecords.get(command.person.id) ?? false;
+    historicalTestRecords.set(command.person.id, testRecord);
+    if (!testRecord && command.person.networking?.status === "replied" && !("replyOccurredOn" in command && command.replyOccurredOn)) undatedReplyIds.add(command.person.id);
+  }
+  const undatedReplyPeople = [...undatedReplyIds].filter((id) => visiblePersonIds.has(id) && !datedReplyPeople.has(id)).length;
   const attempts = state.actions.filter((item) => item.personId && candidateIds.has(item.personId) && item.state === "manually_completed" && ["email", "direct_message", "public_comment"].includes(item.kind));
   const firstAttempt = new Map<string, string>();
   attempts.forEach((item) => { if (item.personId && (!firstAttempt.has(item.personId) || item.updatedAt < firstAttempt.get(item.personId)!)) firstAttempt.set(item.personId, item.updatedAt); });
@@ -161,21 +265,26 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   }).sort((left, right) => right.responses - left.responses || (right.responseRate ?? -1) - (left.responseRate ?? -1) || left.name.localeCompare(right.name));
   const categories = group((item) => item.networking!.lamp.list);
   const pathways = group((item) => item.networking!.pathway);
-  const bestCategory = categories.find((item) => item.responses > 0);
-  const bestPathway = pathways.find((item) => item.responses > 0);
-  const adjustments = mature.length === 0
-    ? ["Keep the current targeting mix until at least one attempted cohort matures; recent silence is not a failed conversion."]
+  const isCurrentWeek = weekStart === latestNetworkingWeek(state, now);
+  const adjustments = candidates.length === 0
+    ? [isCurrentWeek ? "No one is planned this week. Add 10 people to start." : "No one is planned for the selected week."]
+    : mature.length === 0
+    ? ["No contact attempt is ready to judge yet. Keep this week's plan for now."]
     : conversion !== null && conversion >= conversionTarget
-      ? [`Continue the strongest observed category${bestCategory ? ` (${bestCategory.name})` : ""} and pathway${bestPathway ? ` (${bestPathway.name.replaceAll("_", " ")})` : ""}; both recommendations come from recorded responses.`]
-      : bestCategory || bestPathway
-        ? [`Increase next week's share of ${bestCategory?.name ?? "the best recorded category"} through ${bestPathway?.name.replaceAll("_", " ") ?? "the best recorded pathway"}; it produced the clearest recorded response signal.`, "Keep other categories in the queue as comparison cohorts rather than declaring them ineffective from recent silence."]
-        : ["No attempted category or pathway has produced a recorded response yet. Improve documented affinity and contribution angles, then wait for cohorts to mature before changing the mix."];
+      ? [`The meeting rate meets the ${Math.round(conversionTarget * 100)}% goal. Review the recorded outcomes before choosing next week's plan.`]
+      : categories.some((item) => item.responses > 0)
+        ? ["Review the recorded contact and meeting outcomes before changing next week's plan."]
+        : ["No response or meeting follows a recorded contact attempt yet. Check the contact records before changing next week's plan."];
   return {
     weekOf: weekOf ?? null,
+    weeklyCounts,
+    activityWeeks,
+    undatedReplyPeople,
     target,
     conversionTarget,
     queued: candidates.length,
     queueRemaining: Math.max(0, target - candidates.length),
+    // Lifetime results for the selected planned cohort, not occurrence-week activity.
     attemptsMade: firstAttempt.size,
     conversationsGenerated: conversations.length,
     matureCohortSize: mature.length,
@@ -187,8 +296,8 @@ export function networkingStrategy(state: PilotState, weekOf = latestNetworkingW
   };
 }
 
-export function weeklyReview(state: PilotState, since: string) {
-  return { questions: ["What did I learn about the work and environment I want?", "Which hypotheses strengthened or weakened, and which conversations changed my thinking?", "Which opportunities were strongest, and why did I decline others?", "Where did relationships deepen; who needs follow-through?", "What did application and interview feedback reveal about evidence or skills?", "What should I start, stop, or change next week?"], ...prepareCoaching(state, since), networking: networkingStrategy(state, latestNetworkingWeek(state)), declined: state.opportunities.filter((item) => item.status === "decline"), applicationOutcomes: state.applications.filter((item) => item.outcome && item.outcome.at >= since), interviewLearning: state.interviews.filter((item) => item.recordedAt >= since), priorReviews: state.weeklyReviews.slice(-3) };
+export function weeklyReview(state: PilotState, since: string, now = new Date().toISOString()) {
+  return { questions: ["What did I learn about the work and environment I want?", "Which hypotheses strengthened or weakened, and which conversations changed my thinking?", "Which opportunities were strongest, and why did I decline others?", "Where did relationships deepen; who needs follow-through?", "What did application and interview feedback reveal about evidence or skills?", "What should I start, stop, or change next week?"], ...prepareCoaching(state, since), networking: networkingStrategy(state, latestNetworkingWeek(state, now), now), declined: state.opportunities.filter((item) => item.status === "decline"), applicationOutcomes: state.applications.filter((item) => item.outcome && item.outcome.at >= since), interviewLearning: state.interviews.filter((item) => item.recordedAt >= since), priorReviews: state.weeklyReviews.slice(-3) };
 }
 
 /** Preparation uses supplied round/context and real prior feedback; it invents no interviewer facts. */

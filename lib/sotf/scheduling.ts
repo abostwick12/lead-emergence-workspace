@@ -49,5 +49,58 @@ export function invitationDraft(state: PilotState, meetingId: string): Command {
 export interface CalendarReadAdapter {
   readBusy(window: TimeWindow): Promise<{ status: 'available'; busy: TimeWindow[]; checkedAt: string; source: string } | { status: 'unavailable'; reason: string }>;
 }
+/** Require current conflict checks from both owner calendars before exposing combined busy time. */
+export function requireBothCalendarReads(personal: CalendarReadAdapter, business: CalendarReadAdapter): CalendarReadAdapter {
+  return {
+    async readBusy(window) {
+      const requested = windowSchema.safeParse(window);
+      if (!requested.success) return { status: 'unavailable', reason: 'Calendar availability could not be checked.' };
+
+      const unavailable = { status: 'unavailable' as const, reason: 'Calendar availability could not be checked.' };
+      const read = async (adapter: CalendarReadAdapter) => {
+        const result = await adapter.readBusy(window);
+        if (!result || result.status !== 'available') throw new Error('Calendar unavailable');
+        return result;
+      };
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      let personalRead: Awaited<ReturnType<typeof read>>;
+      let businessRead: Awaited<ReturnType<typeof read>>;
+      try {
+        [personalRead, businessRead] = await Promise.race([
+          Promise.all([Promise.resolve().then(() => read(personal)), Promise.resolve().then(() => read(business))]),
+          new Promise<never>((_resolve, reject) => {
+            deadline = setTimeout(() => reject(new Error('Calendar read deadline exceeded')), 5000);
+          }),
+        ]);
+      } catch {
+        return unavailable;
+      } finally {
+        if (deadline) clearTimeout(deadline);
+      }
+      if (!personalRead || !businessRead || personalRead.status !== 'available' || businessRead.status !== 'available' ||
+        !Array.isArray(personalRead.busy) || !Array.isArray(businessRead.busy) ||
+        personalRead.busy.length > 200 || businessRead.busy.length > 200 ||
+        !instant.safeParse(personalRead.checkedAt).success || !instant.safeParse(businessRead.checkedAt).success) {
+        return { status: 'unavailable', reason: 'Calendar availability could not be checked.' };
+      }
+
+      const completedAt = Date.now();
+      const personalCheckedAt = Date.parse(personalRead.checkedAt);
+      const businessCheckedAt = Date.parse(businessRead.checkedAt);
+      if ([personalCheckedAt, businessCheckedAt].some(checked => checked < completedAt - 60000 || checked > completedAt + 60000)) {
+        return unavailable;
+      }
+      const checkedAt = Math.min(personalCheckedAt, businessCheckedAt);
+      const start = Date.parse(requested.data.start);
+      const end = Date.parse(requested.data.end);
+      const busy = [...personalRead.busy, ...businessRead.busy];
+      if (busy.length > 200 || busy.some(item =>
+        !windowSchema.safeParse(item).success || Date.parse(item.start) < start || Date.parse(item.end) > end)) {
+        return { status: 'unavailable', reason: 'Calendar availability could not be checked.' };
+      }
+      return { status: 'available', busy, checkedAt: new Date(checkedAt).toISOString(), source: 'Both calendars checked' };
+    },
+  };
+}
 export const manualCalendarAdapter: CalendarReadAdapter = { async readBusy() { return { status: 'unavailable', reason: 'Calendar reading is not connected in this pilot. Check availability in your calendar and enter it explicitly.' }; } };
 export type ProviderExecutionReceipt = { status: 'completed'; providerRecordId: string; idempotencyKey: string } | { status: 'not_executed'; reason: string } | { status: 'uncertain'; reconciliationReference: string };

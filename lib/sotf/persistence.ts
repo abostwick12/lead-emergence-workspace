@@ -28,7 +28,7 @@ export function replayEvents(input: unknown): { workspaceId: string; state: Pilo
 
 export interface SotfTransport {
   read(): Promise<unknown>;
-  append(envelope: CommandEnvelope): Promise<unknown>;
+  append(envelope: WorkflowEvent["envelope"]): Promise<unknown>;
 }
 
 /** No append was attempted, or the database explicitly rejected the transaction. */
@@ -42,23 +42,34 @@ export class SotfStore {
   async read() { return replayEvents(await this.transport.read()); }
   async execute(input: unknown, prepare?: (envelope: CommandEnvelope, state: PilotState) => CommandEnvelope) {
     let envelope = commandEnvelopeSchema.parse(input);
+    let persistedEnvelope: WorkflowEvent["envelope"];
     let before: Awaited<ReturnType<SotfStore["read"]>>;
     let proposed: PilotState;
     try {
       before = await this.read();
       if (prepare) envelope = commandEnvelopeSchema.parse(prepare(envelope, before.state));
+      persistedEnvelope = ["prepare_outreach", "prepare_scheduling_reply", "debrief_meeting"].includes(envelope.command.type)
+        ? persistedCommandEnvelopeSchema.parse({ ...envelope, command: { ...envelope.command, draftTemplateVersion: "preparation_v2" } })
+        : envelope;
+      const receipt = before.state.receipts.find((item) => item.requestId === envelope.requestId);
+      if (receipt) {
+        if (receipt.command !== JSON.stringify(envelope.command) && receipt.command !== JSON.stringify(persistedEnvelope.command)) {
+          throw new Error("This request ID belongs to a different operation. Review the intended change and use a new request ID.");
+        }
+        return { ...before, replayed: true };
+      }
       proposed = applyCommand(before.state, envelope, this.clock());
     } catch (error) {
       if (error instanceof RevisionConflict) throw error;
       throw new OperationNotApplied(error instanceof Error ? error.message : "The step could not be checked. Nothing was saved.");
     }
     if (proposed === before.state) return { ...before, replayed: true };
-    await this.transport.append(envelope);
+    await this.transport.append(persistedEnvelope);
     let after: Awaited<ReturnType<SotfStore["read"]>>;
     try { after = await this.read(); }
     catch { throw new Error("The change may have been saved, but its result could not be read back. Verify the same operation before retrying."); }
-    const receipt = after.state.receipts.find((item) => item.requestId === envelope.requestId);
-    if (!receipt || receipt.command !== JSON.stringify(envelope.command)) throw new Error("The save result is uncertain. Refresh with the same request ID before retrying; do not create a duplicate operation.");
+    const receipt = after.state.receipts.find((item) => item.requestId === persistedEnvelope.requestId);
+    if (!receipt || receipt.command !== JSON.stringify(persistedEnvelope.command)) throw new Error("The save result is uncertain. Refresh with the same request ID before retrying; do not create a duplicate operation.");
     return { ...after, replayed: false };
   }
 }
