@@ -1,0 +1,86 @@
+# F03 Command Center ChatGPT handoff — 2026-10-31
+
+IN SCOPE: local candidate for existing PR #41, branch
+`codex/workshop-owner-experience`. Current main
+`6a136eddf084be63cc2705273c2ec1082e84d5cf` was merged without conflicts in
+`05e16d0f273f8a4122e9987c52e3ece9814ad6bd`; existing PR changes were retained.
+
+## Observable and implementation
+
+The production acceptance gate remains NOT TESTED for this candidate: no push,
+deployment, hosted mutation, or production acceptance run was performed by this
+worker. The supervisor owns the separate current-production observation.
+
+The Command Center reads the existing `listMcpAuthorizations(workspace.id)`
+contract. Only a current-workspace `chatgpt` record with `status=connected`
+offers usage instructions, and usable handoff also requires the existing
+`workspace_mcp` capability. Loading, unavailable lookup, inactive authorization,
+and denied capability receive separate copy. Effect cleanup and workspace-id
+matching prevent a stale connection result from another workspace being shown.
+
+Connected usage is a native disclosure containing a ChatGPT link, selection of
+the existing Workspace app, and the read-only example “Show my Workspace tasks.”
+`lib/workspace/mcp-server.ts` registers `list_tasks` as read-only. This is
+authorization recognition, not proof of live tool health or external-account
+access. Secondary connection links use the read-only integrations overview;
+they do not mount the assistant-setup route, which prepares a connection.
+
+## Supporting validation
+
+- `npm run check:boundaries` — PASS: 107 runtime files and 5 environment tests.
+- `npm run test:schema` — PASS: 32/32.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS.
+- `npm run test:unit` — PASS: 390/390 tests in 43 files, including all 11
+  `tests/workspace-chatgpt-handoff.test.ts` cases.
+- `git diff --check` — PASS.
+- Build readability/format checkpoint — PASS: reviewed the bounded dashboard
+  status load, disclosure, link destinations, and focused test.
+- A temporary render test produced `.task-temp/workspace.html` from the actual
+  connected component with synthetic records and the real `app/globals.css`.
+  The temporary test passed and was removed; fixture files and the local server
+  are untracked and excluded from the commit. The supervisor's in-app browser
+  check at `http://127.0.0.1:3118` observed the summary initially collapsed,
+  Enter expanding readable instructions without clipping, the ChatGPT and
+  overview destinations, and Enter collapsing again with summary focus retained.
+  That is synthetic static-render evidence, not hydrated runtime or production
+  acceptance; this worker did not independently repeat the browser check.
+
+## Build gate: BLOCKED before application compilation
+
+Two `npm run build` attempts failed with the same environment error:
+
+```text
+Turbopack build failed with 1 error:
+./app
+Error: Could not find the Next.js package (next/package.json)
+Filesystem root used for resolution:
+C:\Users\awbostwick\Documents\ChatGPT\architecture check\.f03-command-center-20261031
+```
+
+The isolated worktree did not have installed package dependencies. Other checks
+could resolve the parent checkout's existing dependencies; Turbopack restricted
+resolution to its detected worktree root. Before attempt two,
+`New-Item -ItemType Junction -Path node_modules -Target <parent>/node_modules`
+failed because Vitest had created nonempty local `node_modules/.vite` and
+`.vite-temp` directories. The subsequent build therefore encountered the same
+unchanged resolution condition. No dependencies or build configuration were
+changed. No third build or repair variation was attempted, under the two-strike
+stop. The required build gate is unavailable; this candidate is not claimed
+ready or mergeable. This is an observed validation-environment failure, not an
+application compilation failure; a baseline application build was not run.
+
+## Attempt history and boundaries
+
+One bounded application implementation. The first focused test run had six
+test-table fixture-shape failures because Vitest expanded array rows into
+arguments; wrapping rows in named records corrected the test, after which the
+focused tests passed. No application-fix retry resulted from that fixture issue.
+Build validation had the two environment failures above and stopped.
+
+Only dashboard UI, the focused regression test, and this evidence note are
+changed beyond the pre-existing PR. No API, auth, schema, capability contract,
+provider count, shared stylesheet, production data, or external setting changed.
+No push, review request, merge into main, or deployment was performed. Exact-head
+CodeRabbit review for the new local candidate remains unavailable until a
+separately authorized publication and review.
