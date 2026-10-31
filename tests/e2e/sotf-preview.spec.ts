@@ -33,21 +33,205 @@ test("a confirmed criterion changes the decision and keeps the evidence visible"
   expect(errors).toEqual([]);
 });
 
+test("People page labels the new-person action accurately", async ({ page }) => {
+  await page.getByRole("button", { name: "People", exact: true }).click();
+  const addPerson = page.getByRole("button", { name: "Add a person", exact: true });
+  await expect(addPerson).toBeVisible();
+  await addPerson.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Add a person", exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("Name", { exact: true })).toBeVisible();
+});
+
+test("networking shows saved people and a linked source-backed prep", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const savedContext = page.getByRole("group", { name: "Saved networking context" });
+  await expect(savedContext.locator("div strong")).toHaveText("25");
+  await expect(savedContext.locator("div span")).toHaveText("people saved across weeks");
+  await page.screenshot({ path: `test-results/networking-saved-context-${test.info().project.name}.png`, fullPage: false });
+  await savedContext.getByRole("link", { name: /1 recorded meeting/ }).click();
+  const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
+  await expect(prep).toBeInViewport();
+  await expect(prep).toContainText("Conversation prep · Understand the work with Morgan");
+  await page.getByRole("region", { name: "This week's people", exact: true }).getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) }).getByRole("button", { name: "Prepare conversation" }).click();
+  await expect(savedContext.getByRole("link", { name: /Fictional candidate 6/ })).toContainText("1 reviewed note · 0 saved questions");
+  await expect(savedContext.getByRole("link", { name: /Fictional candidate 6/ })).toHaveAttribute("href", "#networking-conversation-prep");
+  await savedContext.getByRole("link", { name: /Fictional candidate 6/ }).click();
+  await expect(prep.getByRole("heading", { name: "Conversation prep · Fictional candidate 6" })).toBeVisible();
+  await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("max", "10");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
+test("networking places saved prep and the weekly plan ahead of the action queue", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const featured = page.getByRole("region", { name: "Selected conversation prep" });
+  await expect(featured.getByRole("group", { name: "Saved networking context" })).toBeVisible();
+  for (const width of [1265, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    const layout = await page.evaluate(() => {
+      const position = (name: string) => {
+        const element = document.querySelector(`[aria-label="${name}"]`);
+        const rect = element?.getBoundingClientRect();
+        return rect ? { top: rect.top + window.scrollY, bottom: rect.bottom + window.scrollY } : { top: -1, bottom: -1 };
+      };
+      const featured = position("Selected conversation prep");
+      const plan = position("Weekly plan");
+      const queue = position("This week's people");
+      return {
+        featured: featured.top,
+        plan: plan.top,
+        queue: queue.top,
+        queueGap: queue.top - Math.max(featured.bottom, plan.bottom),
+        rate: position("Meeting rate").top,
+        overflow: document.documentElement.scrollWidth - window.innerWidth
+      };
+    });
+    expect(layout.featured).toBeGreaterThanOrEqual(0);
+    expect(layout.plan).toBeGreaterThanOrEqual(layout.featured);
+    expect(layout.queue).toBeGreaterThan(layout.plan);
+    expect(layout.queueGap).toBeGreaterThanOrEqual(12);
+    expect(layout.queueGap).toBeLessThanOrEqual(20);
+    expect(layout.rate).toBeGreaterThan(layout.queue);
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+  }
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
+test("networking review uses the displayed week and shows the saved answers", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const plan = page.getByRole("region", { name: "Weekly plan", exact: true });
+  await expect(plan).toContainText("Attempts 5");
+  await expect(plan).toContainText("Replies 0");
+  await expect(plan).toContainText("Meetings 0");
+  await expect(page.getByRole("region", { name: "Weekly results" }).getByRole("row", { name: /2026-08-31/ }).getByRole("cell")).toHaveText(["10", "5", "0", "0"]);
+  await page.getByRole("button", { name: "Complete weekly review" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Review week of 2026-08-31" })).toBeVisible();
+  await expect(dialog).toContainText("Planned 10 · Attempts 5 · Replies 0 · Meetings 0");
+  await expect(dialog).toContainText("2 people have undated reply outcomes that remain unassigned");
+  await dialog.getByLabel("What happened?").fill("Ten fictional people were planned. This review records only what the preview shows.");
+  await dialog.getByLabel("What will you change next week?").fill("Check each recorded outcome before planning another week.");
+  await dialog.getByRole("button", { name: "Save this week's review" }).click();
+  await expect(dialog).not.toBeVisible();
+  const results = page.getByRole("region", { name: "Weekly results" });
+  await expect(results.getByText("Ten fictional people were planned. This review records only what the preview shows.")).toBeVisible();
+  await expect(results.getByText("No conversation learning recorded.")).toBeVisible();
+  await expect(results.getByText("Check each recorded outcome before planning another week.")).toBeVisible();
+  await page.getByRole("button", { name: "Complete weekly review" }).click();
+  await expect(dialog.getByLabel("What happened?")).toHaveValue("Ten fictional people were planned. This review records only what the preview shows.");
+  await dialog.getByLabel("What happened?").fill("The fictional week was reviewed again after checking the recorded outcomes.");
+  await dialog.getByLabel("What will you change next week?").fill("Use the revised outcome notes before making the next plan.");
+  await dialog.getByRole("button", { name: "Save this week's review" }).click();
+  await expect(dialog).not.toBeVisible();
+  const savedReviews = results.getByRole("heading", { name: "Saved weekly reviews" }).locator("..");
+  await expect(savedReviews.getByRole("article").filter({ hasText: "Week of 2026-08-31" })).toHaveCount(1);
+  await expect(savedReviews).toContainText("Planned 10 · Attempts 5 · Replies 0 · Meetings 0");
+  await expect(savedReviews.getByText("Ten fictional people were planned. This review records only what the preview shows.")).toHaveCount(0);
+  await expect(savedReviews.getByText("The fictional week was reviewed again after checking the recorded outcomes.")).toBeVisible();
+  await page.getByRole("button", { name: "Today", exact: true }).click();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await expect(savedReviews.getByText("The fictional week was reviewed again after checking the recorded outcomes.")).toBeVisible();
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
+test("a completed conversation appears in its scheduled week without a plan", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const results = page.getByRole("region", { name: "Weekly results" });
+  await expect(results.getByRole("row", { name: /2026-09-07/ })).toHaveCount(0);
+  await page.getByRole("region", { name: "Conversation prep", exact: true }).getByRole("button", { name: "Debrief this conversation" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("What was actually said?").fill("Fictional Morgan described the team's decision process.");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(results.getByRole("row", { name: /2026-09-07/ }).getByRole("cell")).toHaveText(["0", "0", "0", "1"]);
+  await expect(results.getByRole("row", { name: /2026-08-31/ }).getByRole("cell")).toHaveText(["10", "5", "0", "0"]);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
+test("networking outcomes save only an entered actual reply date and reopen blank", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const results = page.getByRole("region", { name: "Weekly results", exact: true });
+  const row = results.getByRole("row", { name: /2026-08-31/ });
+  await expect(row.getByRole("cell").nth(2)).toHaveText("0");
+  const candidate = page.getByRole("region", { name: "This week's people", exact: true }).getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) });
+  await candidate.getByRole("button", { name: "Record outcome", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Actual reply date, if known")).toHaveValue("");
+  await dialog.getByLabel("Observed outcome").selectOption("replied");
+  await dialog.getByLabel("Actual reply date, if known").fill("2026-09-02");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await expect(row.getByRole("cell").nth(2)).toHaveText("1");
+  await candidate.getByRole("button", { name: "Record outcome", exact: true }).click();
+  await expect(dialog.getByLabel("Actual reply date, if known")).toHaveValue("");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await expect(row.getByRole("cell").nth(2)).toHaveText("1");
+  const undatedBefore = Number((await results.innerText()).match(/(\d+) people have undated reply outcomes/)?.[1]);
+  const unknown = page.getByRole("region", { name: "This week's people", exact: true }).getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 7", exact: true }) });
+  await unknown.getByRole("button", { name: "Record outcome", exact: true }).click();
+  await expect(dialog.getByLabel("Actual reply date, if known")).toHaveValue("");
+  await dialog.getByLabel("Observed outcome").selectOption("replied");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await expect(row.getByRole("cell").nth(2)).toHaveText("1");
+  await expect(results).toContainText(`${undatedBefore + 1} people have undated reply outcomes that remain unassigned.`);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
+test("contact history records a prior-week reply without replanning the person", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const currentPlan = page.getByRole("region", { name: "This week's people", exact: true });
+  await expect(currentPlan.getByRole("heading", { name: "Fictional candidate 11", exact: true })).toHaveCount(0);
+  const results = page.getByRole("region", { name: "Weekly results", exact: true });
+  const priorWeek = results.getByRole("row", { name: /2026-08-24/ });
+  await expect(priorWeek.getByRole("cell").nth(2)).toHaveText("0");
+
+  const historyCard = page.getByRole("region", { name: "Contact history", exact: true }).getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 11", exact: true }) });
+  await historyCard.getByRole("button", { name: "Record outcome", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Observed outcome").selectOption("replied");
+  await dialog.getByLabel("Actual reply date, if known").fill("2026-08-26");
+  await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+
+  await expect(historyCard).toContainText("Reply recorded");
+  await expect(priorWeek.getByRole("cell").nth(2)).toHaveText("1");
+  await expect(currentPlan.getByRole("heading", { name: "Fictional candidate 11", exact: true })).toHaveCount(0);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("networking strategy shows the 10-person goal and selectable conversation prep", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Plan 10 people to engage this week." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plan 10 people this week." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Networking Assistant", exact: true })).toBeVisible();
-  for (const name of ["Action queue", "Waiting for a response", "Conversation prep", "Scheduling", "Contact history"]) await expect(page.getByRole("region", { name, exact: true })).toBeVisible();
+  for (const name of ["This week's people", "Waiting for a response", "Conversation prep", "Scheduling", "Contact history"]) await expect(page.getByRole("region", { name, exact: true })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("max", "10");
   await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("value", "10");
-  await expect(page.getByText("25 / 10", { exact: true })).toBeVisible();
+  await expect(page.getByText("10 / 10", { exact: true })).toBeVisible();
+  await expect(page.locator('[aria-label="People planned this week"] article')).toHaveCount(10);
+  const weeklyResults = page.getByRole("region", { name: "Weekly results", exact: true });
+  await expect(weeklyResults.getByRole("row", { name: /2026-08-31/ }).getByRole("cell").first()).toHaveText("10");
+  await expect(weeklyResults.getByRole("row", { name: /2026-08-24/ }).getByRole("cell").first()).toHaveText("10");
+  await expect(weeklyResults.getByRole("row", { name: /2026-08-17/ }).getByRole("cell").first()).toHaveText("5");
   await expect(page.getByText("5", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("region", { name: "Mature conversion", exact: true }).getByText("20%", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Meeting rate", exact: true }).getByText("20%", { exact: true })).toBeVisible();
   const morgan = page.locator("article").filter({ has: page.getByRole("heading", { name: "Morgan — fictional contact", exact: true }) });
-  await morgan.getByText("Research and rationale", { exact: true }).click();
+  await morgan.getByText("Source and notes", { exact: true }).click();
   await expect(morgan.getByText("Why this person?", { exact: true })).toBeVisible();
   await expect(morgan.getByText("LAMP — List", { exact: true })).toBeVisible();
-  await expect(morgan.getByText("Contribution angle", { exact: true })).toBeVisible();
+  await expect(morgan.getByText("What I could offer", { exact: true })).toBeVisible();
   const candidate = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) });
   await candidate.getByRole("button", { name: "Prepare conversation", exact: true }).click();
   const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
@@ -59,7 +243,7 @@ test("networking strategy shows the 10-person goal and selectable conversation p
   await expect(prep.locator("ol li").first()).toHaveText("What does a typical week in your work at Fictional organization 6 look like?");
   await expect(prep.locator("ol li").nth(1)).toContainText("veteran-friendly operations");
   await page.screenshot({ path: `test-results/sotf-networking-prep-${test.info().project.name}.png`, fullPage: false });
-  await morgan.getByRole("button", { name: "Progress to conversation", exact: true }).click();
+  await morgan.getByRole("button", { name: "Record a meeting", exact: true }).click();
   const meetingDialog = page.getByRole("dialog");
   const followUpStart = new Date(Date.now() + 30 * 86400000);
   const followUpEnd = new Date(followUpStart.valueOf() + 3600000);
@@ -73,13 +257,15 @@ test("networking strategy shows the 10-person goal and selectable conversation p
   await expect(morganBriefs).toHaveCount(2);
   await expect(morganBriefs.first()).toContainText("Conversation prep · Follow-up with Morgan");
   await expect(morganBriefs.last()).toContainText("Conversation prep · Understand the work with Morgan");
-  await expect(page.getByText(/both recommendations come from recorded responses/i)).toBeVisible();
+  await expect(page.getByText(/meeting rate meets the 20% goal/i)).toBeVisible();
   const history = page.getByRole("region", { name: "Contact history", exact: true });
   await expect(history.getByText("25 people", { exact: true })).toBeVisible();
-  for (const heading of ["Why they matter", "Last touch", "Status", "Outcome", "Context / notes"]) await expect(history.getByRole("columnheader", { name: heading })).toBeVisible();
-  await expect(history.getByRole("row")).toHaveCount(26);
-  await expect(history.getByRole("row", { name: /Fictional candidate 25/ }).getByText("No touch recorded", { exact: true })).toBeVisible();
-  await page.getByText("Networking drafts and verified actions", { exact: true }).click();
+  await expect(history.getByRole("article")).toHaveCount(25);
+  const lastContact = history.getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 25", exact: true }) });
+  await expect(lastContact.getByText("No touch recorded", { exact: true })).toBeVisible();
+  await expect(lastContact.getByText("Outcome", { exact: true })).toBeVisible();
+  await expect(lastContact.getByText("Context / notes", { exact: true })).toBeVisible();
+  await page.getByText("Drafts and recorded contact", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Thoughtful public comment", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Follow up after public conversation", exact: true }).first()).toBeVisible();
   await page.getByRole("heading", { name: "Networking Assistant", exact: true }).scrollIntoViewIfNeeded();
@@ -90,12 +276,57 @@ test("networking strategy shows the 10-person goal and selectable conversation p
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
 
+test("a prior-week contact opens conversation prep without joining this week's plan", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const savedContext = page.getByRole("group", { name: "Saved networking context" });
+  const history = page.getByRole("region", { name: "Contact history", exact: true });
+  const priorWeekContact = history.getByRole("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 11", exact: true }) });
+  await priorWeekContact.getByRole("button", { name: "Prepare conversation", exact: true }).click();
+
+  const prep = page.getByRole("region", { name: "Conversation prep", exact: true });
+  await expect(prep.getByRole("heading", { name: "Conversation prep · Fictional candidate 11" })).toBeVisible();
+  await expect(savedContext.getByRole("link", { name: /Fictional candidate 11/ })).toHaveAttribute("href", "#networking-conversation-prep");
+  await expect(prep.getByText("This person has direct public evidence of doing the work being explored")).toBeVisible();
+  await expect(prep.getByRole("link", { name: "Review supplied source" })).toHaveAttribute("href", "https://example.com/networking/candidate-11");
+  await expect(page.getByRole("progressbar", { name: "Weekly plan progress" })).toHaveAttribute("value", "10");
+  await expect(page.locator('[aria-label="People planned this week"] article')).toHaveCount(10);
+  await expect(page.locator('[aria-label="People planned this week"]').getByRole("heading", { name: "Fictional candidate 11" })).toHaveCount(0);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
+test("contact history cards stay readable at desktop and mobile widths", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const history = page.getByRole("region", { name: "Contact history", exact: true });
+  await expect(history.getByRole("article")).toHaveCount(25);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    const layout = await history.evaluate((section) => {
+      const cards = [...section.querySelectorAll("article")];
+      const lastTouch = cards[0]?.querySelector("dl dd");
+      return {
+        overflow: section.scrollWidth - section.clientWidth,
+        firstTop: cards[0]?.getBoundingClientRect().top,
+        secondTop: cards[1]?.getBoundingClientRect().top,
+        lastTouchWidth: lastTouch?.getBoundingClientRect().width
+      };
+    });
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+    expect(layout.lastTouchWidth).toBeGreaterThan(100);
+    if (width === 1280) expect(layout.secondTop).toBe(layout.firstTop);
+    else expect(layout.secondTop).toBeGreaterThan(layout.firstTop ?? 0);
+  }
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("networking view supports the full manual action lifecycle", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   const candidate = page.locator("article").filter({ has: page.getByRole("heading", { name: "Fictional candidate 6", exact: true }) });
   await candidate.getByRole("button", { name: "Prepare outreach", exact: true }).click();
 
   const reviewQueue = page.locator("section").filter({ has: page.getByRole("heading", { name: "Follow-through to review", exact: true }) });
+  await expect(reviewQueue.getByRole("heading", { name: "[SYNTHETIC GATE TEST: DO NOT SEND]", exact: true })).toHaveCount(0);
   const action = reviewQueue.locator("article").filter({ hasText: "To: Fictional candidate 6" });
   const approve = action.getByRole("button", { name: "Approve this exact draft for manual use", exact: true });
   await expect(approve).toBeDisabled();
@@ -116,12 +347,12 @@ test("networking view supports the full manual action lifecycle", async ({ page 
   await dialog.getByRole("button", { name: "Confirm and save", exact: true }).click();
   await expect(dialog).not.toBeVisible();
 
-  await page.getByText("Networking drafts and verified actions", { exact: true }).click();
-  const verified = page.locator("details").filter({ hasText: "Networking drafts and verified actions" }).locator("article").filter({ hasText: "Synthetic user verified the manual outreach outside Workspace." });
+  await page.getByText("Drafts and recorded contact", { exact: true }).click();
+  const verified = page.locator("details").filter({ hasText: "Drafts and recorded contact" }).locator("article").filter({ hasText: "Synthetic user verified the manual outreach outside Workspace." });
   await expect(verified.getByText("direct message · manually completed", { exact: true })).toBeVisible();
   await expect(verified.getByText("Synthetic user verified the manual outreach outside Workspace.", { exact: true })).toBeVisible();
   await expect(candidate.getByText("attempted", { exact: true })).toBeVisible();
-  await candidate.getByText("Research and rationale", { exact: true }).click();
+  await candidate.getByText("Source and notes", { exact: true }).click();
   await expect(candidate.getByText("direct outreach", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Waiting for a response", exact: true }).getByText("Fictional candidate 6", { exact: true })).toBeVisible();
 });
@@ -147,18 +378,34 @@ test("networking scheduling uses the branded page only after a positive response
   expect(browserErrors).toEqual([]);
 });
 
-test("public Lead Emergence scheduling page hands booking to Google without sign-in", async ({ page }) => {
+const bookingOffTest = process.env.E2E_BOOKING === "true" ? test.skip : test;
+bookingOffTest("public Lead Emergence calendar keeps the current Google booking link when booking is off", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
   await page.goto("/meet/andrew");
   await expect(page).toHaveURL(/\/meet\/andrew$/);
-  await expect(page.getByRole("heading", { name: "Conversation with Andrew Bostwick", exact: true })).toBeVisible();
-  await expect(page.getByText(/Google will show available times in your local timezone/i)).toBeVisible();
-  const handoff = page.getByRole("link", { name: /View available times in Google Calendar/i });
+  await expect(page.getByRole("heading", { name: "Book time with Andrew", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Meeting type" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Time zone" })).toBeVisible();
+  await expect(page.getByText("This page doesn’t book meetings yet.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+  const handoff = page.getByRole("link", { name: /Use the current Google booking page/i });
   await expect(handoff).toBeVisible();
   await expect(handoff).toHaveAttribute("href", "https://calendar.app.google/syntheticE2EBookingPage");
   await expect(handoff).toHaveAttribute("target", "_blank");
+  const chicagoParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date()).map(part => [part.type, part.value]));
+  const today = new Date(Date.UTC(Number(chicagoParts.year), Number(chicagoParts.month) - 1, Number(chicagoParts.day)));
+  const saturday = Array.from({ length: 35 }, (_, index) => new Date(today.getTime() + (index + 1) * 86_400_000))
+    .find(date => date.getUTCDay() === 6 && new Date(date.getTime() + 2 * 86_400_000).getUTCMonth() === date.getUTCMonth());
+  if (!saturday) throw new Error("No Saturday with an adjacent Monday in the booking range");
+  if (saturday.getUTCMonth() !== today.getUTCMonth()) await page.getByRole("button", { name: "Next month" }).click();
+  const dayLabel = (date: Date) => new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(date);
+  await expect(page.getByRole("button", { name: dayLabel(saturday) })).toBeDisabled();
+  await expect(page.getByRole("button", { name: dayLabel(new Date(saturday.getTime() + 86_400_000)) })).toBeDisabled();
+  await expect(page.getByRole("button", { name: dayLabel(new Date(saturday.getTime() + 2 * 86_400_000)) })).toBeEnabled();
   await page.screenshot({ path: `test-results/sotf-scheduling-handoff-${test.info().project.name}.png`, fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   expect(browserErrors).toEqual([]);
