@@ -16,7 +16,8 @@ function constantEnvironmentReads(content, file) {
 
   function stringValue(node, seen = new Set()) {
     if (!node) return null;
-    if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node)) return stringValue(node.expression, seen);
+    if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node)
+      || ts.isTypeAssertionExpression(node)) return stringValue(node.expression, seen);
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
     if (ts.isTemplateExpression(node)) {
       let value = node.head.text;
