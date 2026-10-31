@@ -144,3 +144,25 @@ unsandboxed build was run. No route code was changed or additional build
 attempted. Total build attempts: two initial failures and two separately
 approved single retries. Production acceptance remains NOT TESTED; no push,
 merge, deployment, or production mutation occurred.
+
+## Approved unsandboxed comparison: build PASS
+
+The PM explicitly approved one identical build outside the sandbox. At application
+source `7f2ac35ecea9930168cc8f0bb0947c901f39a403` (evidence-only HEAD
+`2de2ada8d17b1a9a491507bb521fad2c2192d88f`), `npm run build` ran with elevated
+execution and the same process-local TEMP/TMP directory, `.task-temp/npm-tmp`.
+No application code, dependency manifest, or build configuration changed.
+
+The command exited 0: compilation, TypeScript, collection of page data, all
+30/30 static pages, and final page optimization completed. Both `/privacy`
+and `/workspace` appear in the successful route output. Full local output is
+retained in `.task-temp/build-unsandboxed-20261031.log`. This comparison clears
+the local build gate; it does not establish the precise underlying filesystem
+mechanism of the previous EPERM or production behavior.
+
+Total build attempts: five, comprising two initial failures and three separately
+approved single retries. The earlier failures are retained above as history;
+the latest build result is PASS. Required local checks are now supported by the
+recorded passing boundaries, schema, typecheck, lint, unit, and build results.
+Exact-head CodeRabbit review and deployed acceptance remain outstanding. No
+push, merge, deployment, or production mutation was performed.
