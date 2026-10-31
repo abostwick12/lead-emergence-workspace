@@ -44,3 +44,12 @@ test("rejects a computed key after a TypeScript angle-bracket assertion", () => 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /computed service-role environment access/);
 });
+
+test("rejects escaped string and no-substitution template literals", () => {
+  for (const quote of ['"', String.fromCharCode(96)]) {
+    const source = 'const key = ' + quote + 'SUPABASE_\\u0053ERVICE_ROLE_KEY' + quote + '; required(key);';
+    const result = scan(source);
+    assert.notEqual(result.status, 0, source);
+    assert.match(result.stderr, /computed service-role environment access/);
+  }
+});
