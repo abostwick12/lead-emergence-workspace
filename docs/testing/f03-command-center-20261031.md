@@ -84,3 +84,30 @@ provider count, shared stylesheet, production data, or external setting changed.
 No push, review request, merge into main, or deployment was performed. Exact-head
 CodeRabbit review for the new local candidate remains unavailable until a
 separately authorized publication and review.
+
+## Approved dependency repair and single build retry
+
+On October 31 the PM approved moving the owned cache-only `node_modules`
+directory aside, linking the existing parent dependencies, and running one build.
+The source and destination were resolved inside this worktree before the move.
+The source contained only `.vite` and `.vite-temp`; it was moved to
+`.task-temp/node_modules-cache`. The local `node_modules` junction was then
+created and verified against the existing parent dependency directory. An initial
+permission error during junction creation was resolved with elevated execution;
+the parent dependencies were not edited or deleted.
+
+The single authorized `npm run build`, with process-local `TEMP` and `TMP`
+pointing at this worktree's `.task-temp`, exited 1 before application compilation:
+
+```text
+Symlink [project]/node_modules is invalid, it points out of the filesystem root
+```
+
+This is a different dependency-resolution failure: Next.js 16.3.2/Turbopack
+found the junction but rejected its target outside the worktree root. Full local
+output is retained in `.task-temp/build.log`. The junction and moved cache remain
+local; neither is committed. No build configuration or application code changed.
+No further build was attempted. Total build attempts: two before the stop, then
+one explicitly approved retry. The build gate remains BLOCKED, and production
+acceptance remains NOT TESTED. A real dependency installation inside the worktree
+would address this observed prerequisite; it has not been attempted or validated.
