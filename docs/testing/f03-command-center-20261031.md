@@ -111,3 +111,36 @@ No further build was attempted. Total build attempts: two before the stop, then
 one explicitly approved retry. The build gate remains BLOCKED, and production
 acceptance remains NOT TESTED. A real dependency installation inside the worktree
 would address this observed prerequisite; it has not been attempted or validated.
+
+## Approved in-worktree install and single build retry
+
+The PM next approved replacing only the local junction with a lockfile-based
+dependency installation and one build retry. After verifying the junction's
+exact path and target, nonrecursive directory-link deletion removed only the
+junction. The shared parent dependencies were not removed or changed.
+
+An initially silent sandboxed `npm ci` was stopped before retrying the same
+installation with network access. That install exited 0: 467 packages added,
+468 audited. `npm ls --depth=0` passed; installed versions include Next.js
+16.3.2, React 18.3.1, TypeScript 5.9.3, and Vitest 4.1.11. The worktree now has
+a real dependency directory, not a junction. `git diff --exit-code --
+package.json package-lock.json` passed with no changes. npm reported 33 audit
+findings (23 moderate, 8 high, 2 critical); no audit repair was attempted.
+
+Exactly one `npm run build` followed, using the default sandbox and owned
+process-local TEMP/TMP. It compiled successfully in 7.1 seconds and completed
+TypeScript checking. Static generation then failed for `/privacy`:
+
+```text
+EPERM: operation not permitted, mkdir
+.next/server/app/privacy.segments/privacy
+```
+
+The build exited 1; full output is retained locally at
+`.task-temp/build-retry-20261031.log`. This resolves the missing-package and
+external-junction prerequisites but does not pass the build gate. A sandbox
+filesystem restriction is a possible explanation, not a verified cause; no
+unsandboxed build was run. No route code was changed or additional build
+attempted. Total build attempts: two initial failures and two separately
+approved single retries. Production acceptance remains NOT TESTED; no push,
+merge, deployment, or production mutation occurred.
