@@ -62,7 +62,8 @@ function constantEnvironmentReads(content, file) {
   function inspect(node) {
     // The existing literal ban applies anywhere in runtime source. Preserve that
     // boundary when the same key is assembled before a named environment helper.
-    if ((ts.isBinaryExpression(node) || ts.isTemplateExpression(node))
+    if ((ts.isBinaryExpression(node) || ts.isTemplateExpression(node)
+      || ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node))
       && stringValue(node) === forbiddenEnvironmentKey) {
       lines.push(source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1);
     }
