@@ -100,6 +100,17 @@ describe("Command Center ChatGPT handoff", () => {
     expect(html).not.toContain("/workspace/integrations/assistant");
   });
 
+  it("does not offer connection setup when the plan denies assistant access", async () => {
+    fixture.mcpEnabled = false;
+    fixture.list.mockResolvedValue([]);
+    const html = await load();
+    expect(html).toContain("ChatGPT setup unavailable");
+    expect(html).toContain("Assistant access unavailable for this plan");
+    expect(html).not.toContain("authorization recorded");
+    expect(html).not.toContain("No active ChatGPT authorization found");
+    expect(html).not.toContain("/workspace/integrations/assistant");
+  });
+
   it("does not carry a connected claim into a different workspace", async () => {
     fixture.list.mockResolvedValue([connection]);
     await load();

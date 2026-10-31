@@ -71,7 +71,21 @@ export default function WorkspaceOverviewPage() {
         <p>Authorization does not confirm which tools or external accounts ChatGPT can use. Gmail, Slack, and Calendar are managed separately in ChatGPT.</p>
         <a className="button secondary" href="https://chatgpt.com" target="_blank" rel="noreferrer">Open ChatGPT <ArrowRight size={15} /></a>
         <Link href="/workspace/integrations">View connections</Link>
-      </details> : chatgptStatus === "connected" ? <div className="hero-lewis-deferred">ChatGPT authorization recorded<span>Assistant access unavailable for this plan</span><Link href="/workspace/integrations">View connections</Link></div> : chatgptStatus === "not_connected" ? <Link className="hero-lewis-deferred" href="/workspace/integrations/assistant?provider=chatgpt">Connect ChatGPT <span>No active ChatGPT authorization found</span></Link> : <div className="hero-lewis-deferred" role="status">{chatgptStatus === "loading" ? "Checking ChatGPT connection…" : "ChatGPT connection status unavailable"}<Link href="/workspace/integrations">View connections</Link></div>}</div></article>
+      </details> : chatgptStatus === "connected" ? <div className="hero-lewis-deferred">ChatGPT authorization recorded<span>Assistant access unavailable for this plan</span><Link href="/workspace/integrations">View connections</Link></div> : chatgptStatus === "not_connected"
+        ? (capabilityEnabled(capabilities, "workspace_mcp", plan?.status) ? (
+            <Link className="hero-lewis-deferred" href="/workspace/integrations/assistant?provider=chatgpt">
+              Connect ChatGPT <span>No active ChatGPT authorization found</span>
+            </Link>
+          ) : (
+            <div className="hero-lewis-deferred">
+              ChatGPT setup unavailable<span>Assistant access unavailable for this plan</span>
+              <Link href="/workspace/integrations">View connections</Link>
+            </div>
+          ))
+        : <div className="hero-lewis-deferred" role="status">
+            {chatgptStatus === "loading" ? "Checking ChatGPT connection…" : "ChatGPT connection status unavailable"}
+            <Link href="/workspace/integrations">View connections</Link>
+          </div>}</div></article>
       <article className="planner-card command-card"><CardHeading icon={<CalendarDays size={16} />} label="Daily Planner" detail={planned.length ? `${planned.length} due task${planned.length === 1 ? "" : "s"}` : "No scheduled items"} /><div className="planner-list">{planned.length ? planned.map((task, index) => <div className="planner-item" key={task.id}><time>{task.due_date}</time><span className={index === 0 ? "planner-dot active" : "planner-dot"} /><div><strong>{task.title}</strong><p>{task.domain.replaceAll("_", " ")} · {task.status.replaceAll("_", " ")}</p></div></div>) : <EmptyCopy>Tasks with a due date will appear here. Use your Google Calendar connection in ChatGPT to review availability.</EmptyCopy>}</div></article>
       <article className="integration-context-card command-card"><CardHeading icon={<Inbox size={17} />} label="Inbox" detail="Use in ChatGPT" /><p className="integration-state-copy">Use your Gmail connection in ChatGPT to prepare conversations. Carry forward only the context you approve for Workspace.</p><Link href="/workspace/integrations" className="card-link">View connections <ArrowRight size={15} /></Link></article>
       <article className="integration-context-card command-card"><CardHeading icon={<MessageSquare size={17} />} label="Slack" detail="Use in ChatGPT" /><p className="integration-state-copy">Use your Slack connection in ChatGPT to review relevant conversations. Keep confirmed learning and next actions in Workspace.</p><Link href="/workspace/integrations" className="card-link">View connections <ArrowRight size={15} /></Link></article>

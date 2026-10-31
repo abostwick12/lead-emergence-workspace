@@ -166,3 +166,34 @@ the latest build result is PASS. Required local checks are now supported by the
 recorded passing boundaries, schema, typecheck, lint, unit, and build results.
 Exact-head CodeRabbit review and deployed acceptance remain outstanding. No
 push, merge, deployment, or production mutation was performed.
+
+## Exact-head CodeRabbit correction — PR #41
+
+CodeRabbit finding `4431902795` (`PRRT_kwDOT-rAss6yRQZ2`) identified that the
+`not_connected` state offered the ChatGPT setup route even when the existing
+`workspace_mcp` capability denied assistant access. The review disposition was
+VALID FIX. The dashboard now offers setup only when that capability is enabled;
+otherwise it reports setup unavailable and links to the integrations overview.
+It does not claim authorization was recorded when the lookup found no active
+authorization. The connected-and-denied state, connected usage guide, loading,
+and lookup-error copy remain unchanged. Regression coverage verifies the
+core-workspace-enabled, capability-disabled, no-authorization case. This is a
+local candidate correction; no hosted acceptance, push, or new exact-head
+review was performed.
+
+Candidate validation was run against starting HEAD `e9ee56dc9da77dd6de97670da443ecee488badf1` plus the local changes above:
+
+- `npm test -- --run tests/workspace-chatgpt-handoff.test.ts` — PASS, 12/12.
+- `npm run check:boundaries` — PASS, 107 runtime files and 5 environment tests.
+- `npm run test:schema` — PASS, 32/32.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS.
+- `npm run test:unit` — PASS, 391/391 across 43 files.
+- `npm run build` — PASS, unsandboxed with TEMP/TMP set to `.task-temp/npm-tmp`; compilation, TypeScript, and all 30/30 static pages completed.
+- `git diff --check` — PASS.
+
+The first focused-test invocation used the Windows sandbox temp directory and
+failed before collecting tests with `EPERM` during Vitest's temporary-file
+rename. Rerunning the same command with process-local TEMP/TMP set to the owned
+worktree's `.task-temp/npm-tmp` passed; no source retry was needed. No production
+behavior was observed by this worker.
