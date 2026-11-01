@@ -71,13 +71,13 @@ export default function WorkspaceOverviewPage() {
         <p>Authorization does not confirm which tools or external accounts ChatGPT can use. Gmail, Slack, and Calendar are managed separately in ChatGPT.</p>
         <a className="button secondary" href="https://chatgpt.com" target="_blank" rel="noreferrer">Open ChatGPT <ArrowRight size={15} /></a>
         <Link href="/workspace/integrations">View connections</Link>
-      </details> : chatgptStatus === "connected" ? <div className="hero-lewis-deferred">ChatGPT authorization recorded<span>Assistant access unavailable for this plan</span><Link href="/workspace/integrations">View connections</Link></div> : chatgptStatus === "not_connected"
+      </details> : chatgptStatus === "connected" ? <div className="hero-lewis-deferred" role="status">ChatGPT authorization recorded<span>Assistant access unavailable for this plan</span><Link href="/workspace/integrations">View connections</Link></div> : chatgptStatus === "not_connected"
         ? (capabilityEnabled(capabilities, "workspace_mcp", plan?.status) ? (
             <Link className="hero-lewis-deferred" href="/workspace/integrations/assistant?provider=chatgpt">
               Connect ChatGPT <span>No active ChatGPT authorization found</span>
             </Link>
           ) : (
-            <div className="hero-lewis-deferred">
+            <div className="hero-lewis-deferred" role="status">
               ChatGPT setup unavailable<span>Assistant access unavailable for this plan</span>
               <Link href="/workspace/integrations">View connections</Link>
             </div>

@@ -82,10 +82,13 @@ describe("Command Center ChatGPT handoff", () => {
   });
 
   it("keeps loading and lookup failure distinct from disconnection", async () => {
-    expect(render()).toContain("Checking ChatGPT connection");
+    const loadingHtml = render();
+    expect(loadingHtml).toContain("Checking ChatGPT connection");
+    expect(loadingHtml.match(/role="status"/g)).toHaveLength(1);
     fixture.list.mockRejectedValue(new Error("Unavailable"));
     const html = await load();
     expect(html).toContain("ChatGPT connection status unavailable");
+    expect(html.match(/role="status"/g)).toHaveLength(1);
     expect(html).not.toContain("No active ChatGPT authorization found");
     expect(html).not.toContain("/workspace/integrations/assistant");
   });
@@ -95,6 +98,7 @@ describe("Command Center ChatGPT handoff", () => {
     fixture.list.mockResolvedValue([connection]);
     const html = await load();
     expect(html).toContain("ChatGPT authorization recorded");
+    expect(html.match(/role="status"/g)).toHaveLength(1);
     expect(html).toContain("Assistant access unavailable for this plan");
     expect(html).not.toContain('href="https://chatgpt.com"');
     expect(html).not.toContain("/workspace/integrations/assistant");
@@ -105,6 +109,7 @@ describe("Command Center ChatGPT handoff", () => {
     fixture.list.mockResolvedValue([]);
     const html = await load();
     expect(html).toContain("ChatGPT setup unavailable");
+    expect(html.match(/role="status"/g)).toHaveLength(1);
     expect(html).toContain("Assistant access unavailable for this plan");
     expect(html).not.toContain("authorization recorded");
     expect(html).not.toContain("No active ChatGPT authorization found");

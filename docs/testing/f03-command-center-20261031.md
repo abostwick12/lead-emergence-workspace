@@ -197,3 +197,39 @@ failed before collecting tests with `EPERM` during Vitest's temporary-file
 rename. Rerunning the same command with process-local TEMP/TMP set to the owned
 worktree's `.task-temp/npm-tmp` passed; no source retry was needed. No production
 behavior was observed by this worker.
+
+## Live-region review correction — 2026-11-01
+
+CodeRabbit finding `4435495938` (`PRRT_kwDOT-rAss6yZ7-5`) is VALID FIX:
+the connected-and-denied and not-connected-and-denied branches omitted the
+`role="status"` semantics present during loading. The correction adds that
+attribute to those two existing divs. No wrapper, state logic, copy, capability
+predicate, or link destination changes. The branches already use the same
+unkeyed div type at the same React position; the missing role is the gap, not
+evidence that React necessarily replaces the DOM node.
+
+The focused test now asserts exactly one status role in the rendered loading,
+lookup-failure, connected-and-denied, and not-connected-and-denied states. The
+existing connected-and-enabled test still checks the usage guide and absence
+of setup/reconnect routing. Validation against starting HEAD
+`9a93414a94480bf2a3f68ba5a74ddc9b504999f7` plus this correction:
+
+- `npm test -- --run tests/workspace-chatgpt-handoff.test.ts` — PASS, 12/12.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS.
+- `git diff --check` — PASS.
+- Build readability/format checkpoint — PASS: two role attributes and focused
+  semantic assertions only.
+
+The npm commands used process-local TEMP/TMP at `.task-temp/npm-tmp`. No broad
+suite or build was rerun for these two attribute additions. The existing
+browser fixture is static HTML, so it cannot establish React DOM identity.
+Neither DOM identity through hydrated updates nor actual screen-reader
+announcements were tested. Production acceptance remains NOT TESTED; this
+worker performed no push, external review reply, merge, deployment, or hosted
+mutation. A new code commit requires renewed exact-head CodeRabbit review.
+
+This is the first live-region correction for this symptom. The preceding
+`7f2ac35` authorization-recognition change and `9a93414` capability-gating
+correction addressed different predicates; they are not failed live-region
+repair attempts.
