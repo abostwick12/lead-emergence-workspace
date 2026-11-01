@@ -233,3 +233,149 @@ This is the first live-region correction for this symptom. The preceding
 `7f2ac35` authorization-recognition change and `9a93414` capability-gating
 correction addressed different predicates; they are not failed live-region
 repair attempts.
+
+## Approved Connections unavailable-state candidate — 2026-11-01
+
+Local branch `codex/f03-chatgpt-status-unavailable` starts at main
+`90b2ff5e6ede529c544361ad5dd54b6338832673`. The owner approved a truthful
+unavailable state because the existing supported Workspace records do not
+establish connection health in the client's ChatGPT account. The supervisor
+owns that read-only source and production assessment; this implementation
+worker did not query production. Production acceptance of this candidate is
+NOT TESTED. No commit, push, review request, merge, deployment, or production
+mutation was performed by this worker.
+
+The Connections header no longer counts Workspace authorizations or native
+connection metadata as healthy ChatGPT-account connections. It states
+“Status unavailable in Workspace.” Every existing provider card has a neutral
+“Status unavailable” badge and a `https://chatgpt.com/` handoff, with guidance
+to review the relevant app under ChatGPT Settings, Apps or Plugins, if
+available. This guidance does not assert that every catalogued provider is
+available in ChatGPT. No per-provider recovery URL or health source was added.
+
+Native controls remain under explicitly labelled Workspace settings. Saved
+assistant authorizations are identified as Workspace authorization evidence,
+with unavailable evidence during loading or lookup failure. Provider setup
+copy distinguishes Workspace metadata from ChatGPT-account health. Existing
+native lifecycle methods and Calendar account operations are unchanged;
+Calendar settings are explicitly labelled Workspace. Command Center source,
+APIs, authorization contracts, schema, dependencies, and styles are unchanged.
+
+Supporting validation:
+
+- `npm run check:boundaries` — PASS: 107 runtime files, 5/5 environment tests.
+- `npm run test:schema` — PASS: 32/32.
+- `npm run typecheck` — PASS.
+- `npm run lint` — PASS.
+- `npm run test:unit` — PASS: 396/396 in 44 files, including the five rendered
+  Connections tests. Coverage includes duplicate authorizations, multiple
+  providers, mixed active/inactive authorizations for the same assistant,
+  native errors and planned metadata, loading, lookup failure, Workspace
+  evidence labels, and ChatGPT handoff destinations.
+- Independent review found a readability issue: the existing
+  footer uses no-wrap styling. The footer was shortened to “Review in ChatGPT”
+  and the card badge to “Status unavailable”; header wording retains the full
+  Workspace qualification. No CSS changed. Independent final source/test review
+  and supervisor diff inspection found no remaining actionable findings.
+- After those two text changes,
+  `npm test -- --run tests/connections-chatgpt-status.test.ts` — PASS: 5/5.
+- Final `npm run build` — PASS outside the sandbox: compilation, TypeScript,
+  all 30/30 static pages, and final optimization completed. Both initial and
+  final local builds passed; the final build follows the readability change.
+- `git diff --check` — PASS.
+- `git diff --exit-code -- package.json package-lock.json app/workspace/page.tsx`
+  — PASS: the dependency manifests and accepted Command Center are unchanged.
+
+Dependencies were installed with `npm ci` inside this isolated worktree;
+the directory is not a junction. Installation exited 0 with 467 packages
+added and 468 audited. npm reported the inherited 33 audit findings
+(23 moderate, 8 high, 2 critical); no dependency repair was attempted.
+Vitest and builds used process-local TEMP/TMP at `.task-temp/npm-tmp`.
+Raw final focused, unit, and build output is retained locally at
+`.task-temp/focused-final-20261101.log`, `.task-temp/unit-20261101.log`,
+and `.task-temp/build-final-20261101.log`. Earlier check results are summarized
+in `.task-temp/validation-results.txt`. These temporary files are excluded
+from the requested change set.
+
+One application implementation; no failed application-fix attempts. No
+hydrated browser interaction or hosted acceptance was run. The stop point
+for the worker was local changes and checks; the supervisor's authorized stop
+point is a local commit with no external publication. Only
+`app/workspace/integrations/page.tsx`,
+`tests/connections-chatgpt-status.test.ts`, and this evidence record are in
+scope. The older worktree's uncommitted release evidence was preserved.
+
+Supervisor preflight: remote main was checked with `git ls-remote` at
+`90b2ff5e6ede529c544361ad5dd54b6338832673`; active PR file lists did not overlap
+the three scoped paths. Vercel Project Overview identified production as
+`dpl_EwWFQPE76SoCAvXKPUkiNC7fWnJ2` at that SHA. The signed-in production
+Connections page still showed `2 of 14 connections active` and only ChatGPT
+Connected when refreshed on November 1 at approximately 08:25 America/Chicago.
+This is baseline evidence, not acceptance of the local candidate. The
+read-only contract check established Workspace metadata, not a ChatGPT-account
+health source. Therefore arithmetic-only correction was superseded by the
+owner-approved unavailable-state and handoff scope. No external review was
+requested; an independent local review is not the future CodeRabbit merge gate.
+
+## Approved PR #116 authorization-display follow-up — 2026-11-01
+
+Andrew approved fixing CodeRabbit comment `4436076483` after the review of
+`78d52e2d821391ecd9598c74e2af4ddcfa8cf387`. Disposition: VALID — FIX.
+The catalogue and selected Workspace setup used the first provider record,
+while the assistant summary already preferred any connected record. This
+inconsistency also exists in the base source; the explicit follow-up approval
+extends the earlier preservation constraint only for these display lookups.
+
+Preflight: `git fetch origin`, `git worktree list`, `git branch -vv`,
+`git status -sb`, remote SHA and open-PR file checks found only this task's
+PR #116 owning the scoped files. Main is now
+`7dea61e30463a57e34d56e7c6fd45c21f797fecc`, a documentation-only change from
+`90b2ff5e6ede529c544361ad5dd54b6338832673`; no affected runtime file changed.
+The existing isolated branch/worktree remains the task owner. The current
+roadmap slice is Phase 2.5.2, accurate Workspace authorization evidence.
+This is a local review correction, so production refresh was not applicable;
+the earlier deployed-SHA observation is historical, not a fresh live claim.
+
+The two display lookups now prefer a connected authorization for the same
+provider, falling back to the first provider record when none is connected.
+No authorization records, enforcement, lifecycle, API, or schema changed.
+The header and cards still report ChatGPT-account health as unavailable.
+The accepted Command Center source remains unchanged. No new helper,
+dependency, or service was introduced.
+
+The cheapest falsifier was a rendered open catalogue and setup with an inactive
+record before a connected record. Before the fix, the new ChatGPT and Claude
+cases both failed because their own catalogue row showed Workspace: Review;
+the other ten cases passed. After the fix all twelve focused cases passed.
+Tests also preserve first-record fallback with no active authorization and
+unknown evidence in the open catalogue/setup during loading or lookup failure.
+
+Validation evidence in local `.task-temp/` logs:
+
+- `npm test -- --run tests/connections-chatgpt-status.test.ts`: 12/12 passed
+  (`followup-focused-green.log`); the deliberate pre-fix failure is in
+  `followup-focused-red.log`.
+- `npm run check:boundaries`: 107 runtime files and 5/5 tests passed
+  (`followup-check-boundaries.log`).
+- `npm run test:schema`: 32/32 passed (`followup-test-schema.log`).
+- Final `npm run typecheck` and `npm run lint`: passed
+  (`followup-final-typecheck.log`, `followup-final-lint.log`).
+- Final `npm run test:unit`: 403/403 in 44 files passed
+  (`followup-final-test-unit.log`).
+- Sandboxed `npm run build`: failed with Windows EPERM creating a generated
+  `/workspace` prerender directory, after compilation and TypeScript passed
+  (`followup-final-build.log`). One unsandboxed retry of unchanged source passed,
+  including 30/30 static pages (`followup-final-build-unsandboxed.log`).
+- `git diff --check`: passed. Dependency manifests and Command Center have no
+  follow-up diff. Readability checkpoint: PASS; selected authorization lookup
+  is a local value outside JSX. Independent final source/test review and
+  supervisor diff/log inspection found no remaining actionable findings.
+
+This is the first attempt to correct this display-selection inconsistency.
+No production mutation or acceptance test occurred. Implementation is PARTIAL;
+production acceptance is NOT TESTED and F03 remains open. After an authorized
+release, observe both settings sections with mixed authorization records while
+preserving the records and the unavailable ChatGPT-health display. The local
+follow-up stops at a commit: no push, external review request, merge, or deploy.
+CodeRabbit must review the new head before the review gate can pass; its review
+of the preceding commit does not cover this correction.

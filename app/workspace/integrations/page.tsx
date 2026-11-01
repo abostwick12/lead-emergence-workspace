@@ -16,7 +16,6 @@ import {
   MessageSquare,
   Palette,
   Plus,
-  RefreshCw,
   Search,
   X,
   type LucideIcon
@@ -114,20 +113,13 @@ const STATUS_META: Record<McpDisplayStatus, { label: string; action: string }> =
   catalog_only: { label: "Planned", action: "Details" }
 };
 
-function formatLastSuccess(value: string | null): string {
-  if (!value) return "No sync yet";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) return "Sync recorded";
-  return `Last sync ${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(parsed)}`;
-}
-
 function selectedMessage(entry: McpCatalogEntry, connection: IntegrationConnection | undefined, assistantConnection?: McpAuthorizationRecord): string {
   if (entry.id === "chatgpt" || entry.id === "claude") {
-    if (assistantConnection?.status === "connected") return `${entry.name} is connected through Workspace OAuth and controlled tool authorization. You can disconnect it from Settings.`;
-    return `${entry.name} can connect to the Workspace-native assistant interface with explicit OAuth consent. Workspace remains the system of record.`;
+    if (assistantConnection?.status === "connected") return `Workspace has a saved ${entry.name} authorization. This does not confirm connection health in your ChatGPT account. You can manage this Workspace authorization in Settings.`;
+    return `This setup manages ${entry.name} authorization to Workspace tools. It does not check or repair connections in your ChatGPT account.`;
   }
   if (connection?.status === "connected") {
-    return `${entry.name} is connected. Connection metadata is visible here; its encrypted credential is isolated in the private Workspace vault.`;
+    return `Workspace has saved ${entry.name} connection metadata; its encrypted credential is isolated in the private Workspace vault. This does not confirm connection health in your ChatGPT account.`;
   }
   if (connection) {
     return `${entry.name} already has Workspace metadata, but provider authorization still needs attention. ${entry.boundary}`;
@@ -232,12 +224,12 @@ export default function IntegrationsPage() {
     [selectedId]
   );
   const selectedConnection = selectedEntry ? findConnectionForEntry(selectedEntry, connections) : undefined;
+  const selectedAssistantConnection = selectedEntry
+    ? assistantConnections.find((item) => item.assistant_provider === selectedEntry.id && item.status === "connected")
+      ?? assistantConnections.find((item) => item.assistant_provider === selectedEntry.id)
+    : undefined;
   const selectedProvider = selectedEntry ? getIntegrationProvider(selectedEntry.id) : undefined;
   const externalConnectionsEnabled = capabilities.external_connectors && capabilities.integration_limit > 0;
-  const activeCount = connections.filter((connection) => connection.status === "connected").length + assistantConnections.filter((connection) => connection.status === "connected").length;
-  const attentionCount = connections.filter(
-    (connection) => connection.status === "reconnect_required" || connection.status === "error"
-  ).length;
 
   const closePopover = () => {
     setOpen(false);
@@ -342,17 +334,14 @@ export default function IntegrationsPage() {
           <p className="eyebrow workflow-kicker">Operational / Integrations</p>
           <h1 className="page-title">Connections</h1>
           <p className="page-lede">
-            Choose the assistant interfaces and external systems that serve your leadership work. Nothing is connected automatically.
+            Connection health in your ChatGPT account is not available here. In ChatGPT, open Settings and review the relevant app under Apps or Plugins, if available.
           </p>
         </div>
 
         <div className={styles.headerActions} ref={popoverRootRef}>
-          <div className={styles.summary} aria-label={`${activeCount} of ${MCP_CATALOG.length} connections active`}>
-            <strong>
-              {String(activeCount).padStart(2, "0")}
-              <span>/{MCP_CATALOG.length}</span>
-            </strong>
-            <small>{loading ? "Loading states" : `${attentionCount} need review`}</small>
+          <div className={styles.summary} role="status">
+            <p className={styles.providerSetupNote}>Status unavailable in Workspace</p>
+            <a href="https://chatgpt.com/">Check in ChatGPT</a>
           </div>
           <button
             ref={triggerRef}
@@ -364,7 +353,7 @@ export default function IntegrationsPage() {
             onClick={() => setOpen((current) => !current)}
           >
             <Plus size={16} aria-hidden="true" />
-            Browse connections
+            Workspace settings
           </button>
 
           {open ? (
@@ -377,8 +366,8 @@ export default function IntegrationsPage() {
             >
               <div className={styles.popoverHeader}>
                 <div>
-                  <h2 id="mcp-catalog-title">Add a connection</h2>
-                  <p>Choose an explicit, Workspace-scoped connection.</p>
+                  <h2 id="mcp-catalog-title">Workspace connection settings</h2>
+                  <p>These settings manage Workspace authorizations, not connection health in your ChatGPT account.</p>
                 </div>
                 <button type="button" className={styles.closeButton} aria-label="Close MCP catalog" onClick={closePopover}>
                   <X size={17} aria-hidden="true" />
@@ -436,8 +425,8 @@ export default function IntegrationsPage() {
                           <strong>{entry.name}</strong>
                           <span>{entry.detail}</span>
                         </span>
-                        <span className={styles.catalogAction} data-status={status}>
-                          {meta.action}
+                        <span className={styles.catalogAction} data-status={loading || error ? undefined : status}>
+                          Workspace: {loading || error ? "Status unavailable" : meta.action}
                         </span>
                       </button>
                     );
@@ -453,10 +442,10 @@ export default function IntegrationsPage() {
                     <ProviderBrandMark providerId={selectedEntry.id} />
                   </span>
                   <div>
-                    <strong>{selectedEntry.name} setup</strong>
-                    <p>{selectedMessage(selectedEntry, selectedConnection, assistantConnections.find((item) => item.assistant_provider === selectedEntry.id))}</p>
+                    <strong>{selectedEntry.name} Workspace setup</strong>
+                    <p>{loading || error ? "Workspace authorization status is unavailable. Review the relevant app in ChatGPT to check your ChatGPT-account connection." : selectedMessage(selectedEntry, selectedConnection, selectedAssistantConnection)}</p>
                     {selectedEntry.id === "chatgpt" || selectedEntry.id === "claude" ? (
-                      <Link className={styles.connectButton} href={`/workspace/integrations/assistant?provider=${selectedEntry.id}`}>Connect assistant</Link>
+                      <Link className={styles.connectButton} href={`/workspace/integrations/assistant?provider=${selectedEntry.id}`}>Manage Workspace authorization</Link>
                     ) : selectedConnection && selectedConnection.status !== "disconnected" && getIntegrationProvider(selectedEntry.id)?.supportsDisconnect ? (
                       <div>
                         <button type="button" className={styles.connectButton} disabled={connectingId === selectedEntry.id} onClick={() => void disconnectExternalConnection(selectedEntry)}>
@@ -493,18 +482,21 @@ export default function IntegrationsPage() {
         </div>
       </section>
 
-      {error ? <p className="error" role="alert">{error}</p> : null}
+      {error ? <p className="error" role="alert">Workspace settings could not be loaded. ChatGPT-account connection status remains unavailable here.</p> : null}
 
-      <section id="assistants" className="assistant-connection-feature" aria-label="AI assistant connections">
-        <div><p className="eyebrow">Recommended interface</p><h2>Connect your AI assistant</h2><p>ChatGPT and Claude use the same controlled Workspace tools. Connect either one, both, or neither.</p></div>
-        <div>{(["chatgpt", "claude"] as const).map((provider) => { const record = assistantConnections.find((item) => item.assistant_provider === provider && item.status === "connected"); return <article key={provider}><ProviderBrandMark providerId={provider} /><div><strong>{provider === "chatgpt" ? "ChatGPT" : "Claude"}</strong><span>{record ? "Connected" : "Not connected"}</span></div><Link className="button secondary" href={`/workspace/integrations/assistant?provider=${provider}`}>{record ? "Review" : "Connect"}</Link></article>; })}</div>
+      <section id="assistants" className="assistant-connection-feature" aria-label="Workspace assistant authorizations">
+        <div><p className="eyebrow">Workspace settings</p><h2>Workspace assistant authorizations</h2><p>These records authorize access to Workspace tools. They do not establish connection health in your ChatGPT account.</p></div>
+        <div>{(["chatgpt", "claude"] as const).map((provider) => {
+          const record = assistantConnections.find((item) => item.assistant_provider === provider && item.status === "connected");
+          return <article key={provider}><ProviderBrandMark providerId={provider} /><div><strong>{provider === "chatgpt" ? "ChatGPT" : "Claude"}</strong><span>{loading || error ? "Workspace authorization status unavailable" : record ? "Workspace authorization saved" : "No active Workspace authorization recorded"}</span></div><Link className="button secondary" href={`/workspace/integrations/assistant?provider=${provider}`}>Workspace settings</Link></article>;
+        })}</div>
       </section>
 
       {workspace && user?.id === workspace.owner_user_id ? (
-        <section className={styles.calendarAccounts} aria-label="Calendar accounts">
+        <section className={styles.calendarAccounts} aria-label="Workspace Calendar accounts">
           <div>
-            <p className="eyebrow">Owner settings</p>
-            <h2>Calendar accounts</h2>
+            <p className="eyebrow">Workspace owner settings</p>
+            <h2>Workspace Calendar accounts</h2>
             <p>Connect both accounts so scheduling can check each calendar. You choose which account organizes each meeting type.</p>
           </div>
           <div className={styles.calendarAccountGrid}>
@@ -524,12 +516,8 @@ export default function IntegrationsPage() {
         </section>
       ) : null}
 
-      <section className={styles.connectionsGrid} aria-label="Workspace connections">
+      <section className={styles.connectionsGrid} aria-label="ChatGPT-account connection status">
         {MCP_CATALOG.map((entry) => {
-          const connection = findConnectionForEntry(entry, connections);
-          const provider = getIntegrationProvider(entry.id);
-          const status = displayStatus(entry, connections, assistantConnections);
-          const meta = STATUS_META[status];
           return (
             <article className={styles.connectionCard} key={entry.id}>
               <div className={styles.cardHeader}>
@@ -542,20 +530,17 @@ export default function IntegrationsPage() {
                     <p>{entry.category}</p>
                   </div>
                 </div>
-                <span className={styles.statusBadge} data-status={status}>
-                  {meta.label}
+                <span className={styles.statusBadge}>
+                  Status unavailable
                 </span>
               </div>
-              <p className={styles.cardDetail}>{entry.detail}</p>
+              <p className={styles.cardDetail}>Review the relevant app in ChatGPT Settings under Apps or Plugins, if available.</p>
               <footer className={styles.cardFooter}>
-                <span>{entry.id === "chatgpt" || entry.id === "claude" ? "Workspace OAuth" : connection ? "Workspace metadata" : provider?.consumerConnectionReady ? "Connection setup" : "Planned connector"}</span>
-                <span>
-                  <RefreshCw size={11} aria-hidden="true" />
-                  {formatLastSuccess(connection?.last_success_at ?? null)}
-                </span>
+                <span>Review in ChatGPT</span>
               </footer>
+              <a className={styles.cardConnectButton} href="https://chatgpt.com/">Check in ChatGPT</a>
               <button type="button" className={styles.cardConnectButton} onClick={() => { setOpen(true); selectEntry(entry); }}>
-                {status === "connected" ? "Manage connection" : getMcpSetupLabel(entry)}
+                Workspace settings
               </button>
             </article>
           );
@@ -567,7 +552,8 @@ export default function IntegrationsPage() {
 
 function displayStatus(entry: McpCatalogEntry, connections: IntegrationConnection[], assistants: McpAuthorizationRecord[]): McpDisplayStatus {
   if (entry.id === "chatgpt" || entry.id === "claude") {
-    const record = assistants.find((item) => item.assistant_provider === entry.id);
+    const record = assistants.find((item) => item.assistant_provider === entry.id && item.status === "connected")
+      ?? assistants.find((item) => item.assistant_provider === entry.id);
     if (!record) return "available";
     if (record.status === "connected") return "connected";
     if (record.status === "error") return "error";
