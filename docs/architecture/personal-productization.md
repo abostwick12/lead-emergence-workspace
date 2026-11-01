@@ -1,6 +1,6 @@
 # Personal productization architecture
 
-This document defines the production contract for Lead Emergence Workspace / Personal. It supplements the extraction history; it does not authorize a hosted migration, a production merge, billing, or real-user activation.
+This document records the Workspace / Personal productization contract and implementation baseline; it does not authorize a hosted migration, a production merge, billing, or real-user activation. For current connection ownership and the separation between authorization, entitlement, discovery, and execution, follow the [canonical connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md). Third-party Gmail, Slack, Calendar, and other service connections are managed by the client in their ChatGPT account. The Workspace Entry sign-in and separate Workspace OAuth/MCP authorization remain first-party flows.
 
 ## Product lifecycle
 
@@ -14,7 +14,7 @@ Lead Emergence identity
   -> ongoing Workspace use
 ```
 
-Entry determines whether a canonical identity may enter Personal. Workspace independently owns the Personal plan, capabilities, membership, private data, setup, MCP authorization, and connector authorization. Neither an Entry entitlement nor a plan assignment grants access to a record.
+Entry determines whether a canonical identity may enter Personal. Workspace owns its plan, capabilities, membership, private data, setup, and Workspace MCP authorization. Neither an Entry entitlement nor a plan assignment grants access to a record. Legacy Workspace-managed third-party provider rows and credential routes are historical technical references, not the default way a client connects Gmail, Slack, Calendar, or another service.
 
 The canonical production application origin is `https://workspace.leademergence.com`. `https://lead-emergence-workspace.vercel.app` remains a rollback and diagnostic address and must not be removed. Local, Preview, Production, test, and rollback origins remain separate configuration values.
 
@@ -55,11 +55,11 @@ Entry PERSONAL entitlement
   -> Workspace membership and RLS
 ```
 
-The initial `Personal` plan is intentionally `unpriced`. Included capabilities are Core Workspace, Daily Focus, Quick Capture, Personal Memory, Career Pipeline, Daily Brief, and the Workspace MCP. Leader Mode, external connectors, advanced MCP, agentic workflows, and advanced automation are defined but not included. The external-connection limit is zero.
+The initial `Personal` plan is intentionally `unpriced`. Included capabilities are Core Workspace, Daily Focus, Quick Capture, Personal Memory, Career Pipeline, Daily Brief, and the Workspace MCP. Leader Mode, legacy Workspace-managed external connectors, advanced MCP, agentic workflows, and advanced automation are defined but not included in this baseline. The legacy external-connection limit is zero. This plan display is not the source of truth for entitlement to proprietary skills and hosted workflows; apply the canonical connection model and the approved offer.
 
 The browser resolves display state from `workspace.plan_capabilities`. Server-side use is enforced by `workspace_private.has_personal_capability(...)` together with active membership and owner checks. MCP tools use the same resolver through private RPC guards. There is no plan-name authorization path.
 
-Suspending a plan or removing a capability disables privileged use while retaining data and safe configuration. Plan assignment never reassigns ownership. Trial columns are schema preparation only; no trial terms are active. Billing, pricing, subscriptions, checkout, and payment links are not active.
+Suspending a plan or removing a capability disables privileged use while retaining data and safe configuration. Plan assignment never reassigns ownership. Historical note: the trial columns in this Workspace plan baseline were schema preparation, and Workspace checkout was not active when this section was authored. That statement does not define current subscription state or supersede implemented trial, sponsored, internal-operator, or other access exceptions. These remain under their existing Entry, Workspace, or bundle-entitlement authority; OAuth authorization never creates commercial entitlement.
 
 Development or approved operations may assign a plan through `workspace_private.assign_personal_plan(workspace_id, plan_key, reason)`. It is granted only to `service_role`, records an audit row, and is not used by application runtime. Operators must execute it only through the migration authority's approved admin process.
 
@@ -108,25 +108,32 @@ Workspace remains the system of record. ChatGPT and Claude are user-selected int
 | Consulting MCP | Cross-product, not appropriate by default | N/A | Consulting authorization must stay in Consulting | Not connected or exposed. |
 | Ministry MCP | Cross-product, not appropriate | N/A | Ministry data and credentials are outside this product | Not connected or exposed. |
 
-## Connector inventory
+## Third-party service connections
 
-The connection catalog describes potential value and boundaries; it is not evidence of a working connector. Existing migrated connection rows are metadata only and default to `reconnect_required`. No legacy token is copied, and no durable credential is stored in browser state.
+The client manages Gmail, Slack, Google Calendar, and other supported services
+in their own ChatGPT account, including service consent, credentials,
+permissions, reconnection, and revocation. A Workspace authorization or a
+catalog entry does not report the health of those host connections. Unknown
+host status remains unknown; see the canonical connection model for the
+supported evidence and setup boundaries.
 
-| Connector | Classification | Plan | Intended least privilege | Current result |
-| --- | --- | --- | --- | --- |
-| Google Calendar | Optional | `external_connectors` plus limit | Calendar context and user-triggered actions | Catalog/metadata only; not production-ready. |
-| Gmail | Optional | `external_connectors` plus limit | Personal inbox triage and draft-only use | Catalog/metadata only; Ministry Gmail excluded. |
-| Google Drive | Optional | `external_connectors` plus limit | Explicitly permitted Personal files | Catalog/metadata only; not production-ready. |
-| Slack | Optional | `external_connectors` plus limit | Explicit workspace/channel delivery | Catalog/metadata only; not production-ready. |
-| Monday.com | Optional | `external_connectors` plus limit | One-way import | Catalog/metadata only; not production-ready. |
-| GitHub | Optional placeholder | Future external capability | Separately approved read scope | Catalog only; not production-ready. |
-| LinkedIn | Optional | `external_connectors` plus limit | Drafting only; never automatic posting | Catalog/metadata only; not production-ready. |
-| Firecrawl | Optional | `external_connectors` plus limit | User-triggered curated refresh | Catalog/metadata only; not production-ready. |
-| Canva | Optional placeholder | Future external capability | Separately approved design adapter | Catalog only; not production-ready. |
-| PowerPoint | Optional placeholder | Future external capability | Separately approved Microsoft adapter | Catalog only; not production-ready. |
-| YouVersion | Optional placeholder | Future external capability | Read-only references | Catalog only; not production-ready. |
+### Historical Workspace-managed provider implementation
 
-With no external connectors, Workspace remains useful through native setup, confirmed configuration, Tasks, Quick Capture, Memory, Career, Daily Brief preferences, and the optional Workspace MCP. No provider account is auto-connected.
+The superseded provider catalog and dispositions at [base SHA `90b2ff5e6ede529c544361ad5dd54b6338832673`](https://github.com/abostwick12/lead-emergence-workspace/blob/90b2ff5e6ede529c544361ad5dd54b6338832673/docs/architecture/personal-productization.md)
+are preserved for historical reference only, not as current ownership or setup
+guidance.
+
+The provider catalog, `external_connectors` capability, connection rows, and
+provider OAuth/credential routes are retained as **historical/legacy technical
+references**. They are not the default client connection path and must not be
+used to collect, store, reconnect, revoke, or report the state of a client's
+ChatGPT service connections. Their presence in source does not establish that
+they are deployed, enabled, or operational. Do not enable or extend them without
+a separately reviewed direct-integration exception and explicit scope approval.
+
+Workspace remains useful through native setup, confirmed configuration, Tasks,
+Quick Capture, Memory, Career, Daily Brief preferences, and the separately
+authorized Workspace MCP. No external provider is connected automatically.
 
 ## Identity and callback contract
 
@@ -147,9 +154,9 @@ Localhost and Preview callbacks remain separately allow-listed. Broad Production
 
 Workspace collects only setup content a user enters or explicitly confirms. Product events use a fixed name list and small non-content context; private answers, tokens, authorization codes, and connector payloads must never be placed in event context or logs.
 
-Safe user-facing states cover missing entitlement, session expiry, unavailable plan capability, MCP connection failure, reconnect, disconnection, and provider denial. MCP failure always offers native setup. External connections never imply success unless an authorization is valid and usable.
+Safe user-facing states cover missing entitlement, session expiry, unavailable plan capability, Workspace MCP connection failure, Workspace authorization revocation, and Entry identity/provider denial. MCP failure always offers native setup. For third-party services connected in ChatGPT, show a supported, attributed host observation only; otherwise report the service state as unknown. Legacy Workspace provider rows must not imply host connection success or failure.
 
-Operational visibility should combine privacy-safe `workspace.product_events`, Vercel request/runtime logs, and Supabase Auth/database logs. Alert categories include onboarding load/save/complete failure, Entry callback validation, MCP OAuth/registration/authorization failure, capability denial, connector refresh failure, Storage denial, and HTTP 5xx. Never log secrets or Personal setup content.
+Operational visibility should combine privacy-safe `workspace.product_events`, Vercel request/runtime logs, and Supabase Auth/database logs. Alert categories include onboarding load/save/complete failure, Entry callback validation, MCP OAuth/registration/authorization failure, capability denial, Storage denial, and HTTP 5xx. Any legacy provider-adapter telemetry is limited to that implementation and is not evidence of ChatGPT service health. Never log secrets or Personal setup content.
 
 ## UI scope audit
 

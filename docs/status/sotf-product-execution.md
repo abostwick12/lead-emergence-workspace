@@ -122,7 +122,15 @@ Landing worktree: C:/Users/awbostwick/Documents/ChatGPT/Lead Emergence Entry Pro
 
 Five removal-pain experiences now have a concrete source implementation: catching costly bad-fit pursuits; remembering why a person matters and what was promised; recovering older truthful examples; arriving at coaching/conversations with prior work connected; and making later opportunity/interview decisions better through reviewed evidence.
 
-Next: approve and validate the ordinary operational rollout, verify one invited fellow's shared-entry/chooser/Workspace/ChatGPT journey, run a facilitated 14-day pilot, then implement one Google Calendar/Gmail consumer with provider reconciliation through the existing connection owner. Tune retrieval and pacing from actual repeated use.
+Next: approve and validate the ordinary operational rollout, verify one invited fellow's shared-entry/chooser/Workspace/ChatGPT journey, and run a facilitated 14-day pilot. Validate the required Google Calendar/Gmail workflow through supported connections in the fellow's own ChatGPT account. Use a supported, account-bound observation or bounded operation; if Workspace cannot observe host connection health, keep that state unknown and direct the owner to ChatGPT connection settings. Do not implement Workspace provider credential ownership on this basis. Tune retrieval and pacing from actual repeated use.
+
+**Superseded recommendation — November 1, 2026:** The earlier next-step text
+proposed implementing one Google Calendar/Gmail consumer with provider
+reconciliation through a Workspace connection owner. The current product model
+places those third-party connections in the client's ChatGPT account; this dated
+recommendation is retained as history, not current implementation direction.
+See the [canonical connection
+model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).
 
 Deliberately defer bulk outreach, automatic applications, a proprietary resume editor, broad monitoring, a second provider ecosystem, two-way Notion synchronization, and parallel transcript integrations. Keep the pilot centered on closed learning and follow-through loops.
 

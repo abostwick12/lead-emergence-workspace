@@ -1,39 +1,33 @@
-# Integration reconnection
+# Legacy Workspace-managed provider connection reference
 
-Do not copy legacy Google, Slack, Firecrawl, Monday, LinkedIn, or AI secrets.
-After cutover, each approved provider is reconnected through its Workspace
-connection card. OAuth providers open provider consent with PKCE; GitHub opens
-its repository-scoped App installation; API-key providers use one password
-field and immediately encrypt the submitted value.
+> **Historical / legacy technical reference only.** This is not the default
+> connection setup or recovery procedure for Individual Workspace/SOTF clients.
+> The superseded original at [base SHA `90b2ff5e6ede529c544361ad5dd54b6338832673`](https://github.com/abostwick12/lead-emergence-workspace/blob/90b2ff5e6ede529c544361ad5dd54b6338832673/docs/runbooks/integration-reconnection.md)
+> is preserved for historical reference and is not setup guidance.
 
-The application stores only connection metadata in `workspace.integration_connections`.
-The encrypted credential ciphertext is private, not exposed through the Data API,
-and is written only by the owner-scoped `workspace.save_integration_connection`
-bridge. Never add tokens, raw OAuth responses, API keys, or client secrets to
-the Workspace schema, browser storage, logs, or issue attachments.
+The intended client flow is for the client to connect and manage Gmail, Slack,
+Google Calendar, and other supported third-party services in their own ChatGPT
+account. This Workspace repository still contains provider catalog, OAuth,
+credential-storage, and connection-card code; that source presence does not
+establish deployment, activation, or customer use. Do not follow this document
+to configure, collect, store, reconnect, or revoke a client's ChatGPT service
+credentials.
 
-Before enabling a provider in a hosted environment, register its redirect URI
-`/api/integrations/<provider>/callback`, set the required server-only OAuth
-client credentials plus the Workspace encryption/state secrets, and complete
-the approved hosted migration gate. Revoke the old token only after the new
-connection succeeds. Keep Slack channel selection explicit and do not use
-ministry defaults.
+Connecting ChatGPT to Lead Emergence Workspace is separate. Use the supported
+Workspace MCP connection in ChatGPT, the existing Entry sign-in/identity flow,
+and the explicit Lead Emergence Workspace OAuth consent. Workspace MCP
+authorization does not connect Gmail/Slack/Calendar or establish their health.
+See the [canonical connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md)
+and the scoped [real-client MCP acceptance procedure](real-client-mcp-acceptance.md).
 
-## Gmail and Google Calendar
+The prior Workspace provider implementation used provider callbacks under
+`/api/integrations/<provider>/callback`, owner-scoped credential persistence,
+and (for Gmail/Google Calendar) one shared Google OAuth client. Those details
+are retained only to identify the legacy source path. Any future Lead
+Emergence-owned provider connection requires a separately reviewed exception,
+its own authorization, and a task-specific operating procedure.
 
-Gmail and Google Calendar intentionally share one Google OAuth client and one
-Google credential family. Starting either card opens one Google consent screen,
-requests Gmail message read/draft and Calendar event read access, and marks both
-cards connected after a successful approval. Register both exact production
-redirect URIs on the Google OAuth web client:
-
-- `https://workspace.leademergence.com/api/integrations/gmail/callback`
-- `https://workspace.leademergence.com/api/integrations/google_calendar/callback`
-
-Enable the Gmail API and Google Calendar API for that Cloud project. Store only
-the client ID and client secret as `WORKSPACE_GOOGLE_OAUTH_CLIENT_ID` and
-`WORKSPACE_GOOGLE_OAUTH_CLIENT_SECRET` in the Workspace server environment.
-`WORKSPACE_INTEGRATION_ENCRYPTION_KEY` and
-`WORKSPACE_INTEGRATION_STATE_SECRET` must also be unique high-entropy
-server-only values. Do not place any of these values in source control, the
-browser, or a `NEXT_PUBLIC_` variable.
+Security hygiene remains required for all code: never place tokens, raw OAuth
+responses, API keys, or client secrets in the Workspace schema, browser
+storage, logs, or issue attachments. Normal Workspace runtime must not use a
+service-role key.

@@ -1,5 +1,9 @@
 # Orchestration runtime contracts
 
+For the current third-party connection, Workspace authorization, and
+subscription-entitlement explanation, follow the [canonical connection
+model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).
+
 ## Bundle contract
 
 A bundle is primarily an **installation, bootstrap, and configuration package for the customer's AI environment**, not a monolithic server-side application and not a permanent installation of every complete operational workflow.
@@ -309,6 +313,15 @@ If used, Lead Emergence policy and capability checks remain authoritative. A bro
 ---
 
 ## Existing provider code and launch scope
+
+This section describes retained implementation infrastructure, not the default
+client setup or a released customer capability. The source catalog, Workspace
+provider OAuth, credential storage, and related UI are **historical/legacy
+technical references**. Clients manage supported third-party connections in
+their own ChatGPT account. Do not present Workspace provider rows as ChatGPT
+connection health or enable the legacy path as a shortcut. A direct-integration
+exception requires a separate reviewed decision and explicit implementation
+authorization.
 
 Existing provider catalog, release gates, schemas, and UI work are not to be deleted merely because the default architecture changed.
 

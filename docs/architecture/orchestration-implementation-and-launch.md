@@ -2,6 +2,8 @@
 
 ## Implementation rule for Codex and future agents
 
+Apply the [canonical connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md): a client's ChatGPT manages third-party service connections; Lead Emergence separately manages its own authorization and applicable proprietary-skill/workflow entitlement. Identity, authorization, entitlement, installation/discovery, and successful execution are separate checks.
+
 Before implementing any new integration, workflow, connector, or automation, first classify the proposed capability as one of:
 
 1. part of the customer's host/tool environment;

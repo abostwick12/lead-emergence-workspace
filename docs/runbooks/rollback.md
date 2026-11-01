@@ -33,9 +33,14 @@ login. Do not alter Consulting routing.
 
 If MCP authorization fails or is compromised, disconnect/revoke the affected
 OAuth grant, disable the `workspace_mcp` capability if wider containment is
-required, and verify old bearers are denied. If an external connector later
-fails, disable that adapter, revoke the provider token, and retain non-secret
-metadata for a safe reconnect. Never copy a legacy integration credential.
+required, and verify old bearers are denied. For a third-party service connected
+in the client's ChatGPT account, direct the client to that account's connection
+settings and supported provider recovery flow; Workspace rollback does not
+repair or revoke that service connection. Treat any separately approved
+Lead-Emergence-owned adapter incident under its own authorized procedure; do not
+enable a legacy adapter or use Workspace provider records as ChatGPT health
+evidence. See the [canonical connection
+model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).
 
 The productization migration is additive. Application rollback may retain its
 plan, onboarding, configuration, authorization-metadata, and event tables; the

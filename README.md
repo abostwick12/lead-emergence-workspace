@@ -19,6 +19,7 @@ runtime imports and never uses a Supabase service-role key.
 ## Documentation
 
 - [Agent-owned orchestration architecture](docs/architecture/agent-owned-orchestration.md)
+- [Connection ownership, authorization, and entitlement model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md)
 - [Test evidence index](docs/testing/test-evidence.md)
 - [August 2026 test evidence](docs/testing/test-evidence-history-2026-august.md)
 
