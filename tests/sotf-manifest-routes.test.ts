@@ -45,8 +45,12 @@ describe("SOTF UI manifest routes", () => {
 
   it("preserves the base route's Today view", async () => {
     const page = await SotfBundlePage();
-    expect(page.type).toBe(SotfExperience);
-    expect(page.props.initialSection).toBeUndefined();
+    const savedWork = page.props.children[1];
+    expect(savedWork.props.id).toBe("sotf-saved-work");
+    const experience = savedWork.props.children;
+    expect(experience.type).toBe(SotfExperience);
+    expect(experience.props.mode).toBe("connected");
+    expect(experience.props.initialSection).toBeUndefined();
     expect(access.rpc).toHaveBeenCalledExactlyOnceWith("sotf_has_access");
   });
 
