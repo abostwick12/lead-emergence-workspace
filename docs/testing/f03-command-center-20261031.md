@@ -316,3 +316,66 @@ read-only contract check established Workspace metadata, not a ChatGPT-account
 health source. Therefore arithmetic-only correction was superseded by the
 owner-approved unavailable-state and handoff scope. No external review was
 requested; an independent local review is not the future CodeRabbit merge gate.
+
+## Approved PR #116 authorization-display follow-up — 2026-11-01
+
+Andrew approved fixing CodeRabbit comment `4436076483` after the review of
+`78d52e2d821391ecd9598c74e2af4ddcfa8cf387`. Disposition: VALID — FIX.
+The catalogue and selected Workspace setup used the first provider record,
+while the assistant summary already preferred any connected record. This
+inconsistency also exists in the base source; the explicit follow-up approval
+extends the earlier preservation constraint only for these display lookups.
+
+Preflight: `git fetch origin`, `git worktree list`, `git branch -vv`,
+`git status -sb`, remote SHA and open-PR file checks found only this task's
+PR #116 owning the scoped files. Main is now
+`7dea61e30463a57e34d56e7c6fd45c21f797fecc`, a documentation-only change from
+`90b2ff5e6ede529c544361ad5dd54b6338832673`; no affected runtime file changed.
+The existing isolated branch/worktree remains the task owner. The current
+roadmap slice is Phase 2.5.2, accurate Workspace authorization evidence.
+This is a local review correction, so production refresh was not applicable;
+the earlier deployed-SHA observation is historical, not a fresh live claim.
+
+The two display lookups now prefer a connected authorization for the same
+provider, falling back to the first provider record when none is connected.
+No authorization records, enforcement, lifecycle, API, or schema changed.
+The header and cards still report ChatGPT-account health as unavailable.
+The accepted Command Center source remains unchanged. No new helper,
+dependency, or service was introduced.
+
+The cheapest falsifier was a rendered open catalogue and setup with an inactive
+record before a connected record. Before the fix, the new ChatGPT and Claude
+cases both failed because their own catalogue row showed Workspace: Review;
+the other ten cases passed. After the fix all twelve focused cases passed.
+Tests also preserve first-record fallback with no active authorization and
+unknown evidence in the open catalogue/setup during loading or lookup failure.
+
+Validation evidence in local `.task-temp/` logs:
+
+- `npm test -- --run tests/connections-chatgpt-status.test.ts`: 12/12 passed
+  (`followup-focused-green.log`); the deliberate pre-fix failure is in
+  `followup-focused-red.log`.
+- `npm run check:boundaries`: 107 runtime files and 5/5 tests passed
+  (`followup-check-boundaries.log`).
+- `npm run test:schema`: 32/32 passed (`followup-test-schema.log`).
+- Final `npm run typecheck` and `npm run lint`: passed
+  (`followup-final-typecheck.log`, `followup-final-lint.log`).
+- Final `npm run test:unit`: 403/403 in 44 files passed
+  (`followup-final-test-unit.log`).
+- Sandboxed `npm run build`: failed with Windows EPERM creating a generated
+  `/workspace` prerender directory, after compilation and TypeScript passed
+  (`followup-final-build.log`). One unsandboxed retry of unchanged source passed,
+  including 30/30 static pages (`followup-final-build-unsandboxed.log`).
+- `git diff --check`: passed. Dependency manifests and Command Center have no
+  follow-up diff. Readability checkpoint: PASS; selected authorization lookup
+  is a local value outside JSX. Independent final source/test review and
+  supervisor diff/log inspection found no remaining actionable findings.
+
+This is the first attempt to correct this display-selection inconsistency.
+No production mutation or acceptance test occurred. Implementation is PARTIAL;
+production acceptance is NOT TESTED and F03 remains open. After an authorized
+release, observe both settings sections with mixed authorization records while
+preserving the records and the unavailable ChatGPT-health display. The local
+follow-up stops at a commit: no push, external review request, merge, or deploy.
+CodeRabbit must review the new head before the review gate can pass; its review
+of the preceding commit does not cover this correction.

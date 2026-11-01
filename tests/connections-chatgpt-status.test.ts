@@ -102,16 +102,66 @@ describe("Connections reports ChatGPT-account health truthfully", () => {
     expect(html).toContain("No active Workspace authorization recorded");
   });
 
+  it.each(["chatgpt", "claude"] as const)("uses the active %s authorization in the open catalogue and selected setup", async (provider) => {
+    const name = provider === "chatgpt" ? "ChatGPT" : "Claude";
+    fixture.listAuthorizations.mockResolvedValue([
+      { ...authorization, assistant_provider: provider, status: "disconnected" },
+      { ...authorization, id: "active-authorization", assistant_provider: provider }
+    ]);
+    await load();
+    fixture.states[4] = true;
+    fixture.states[7] = provider;
+    const html = render();
+    const catalogRow = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find((row) => row.includes(`<strong>${name}</strong>`));
+    expect(catalogRow).toContain('data-status="connected"');
+    expect(catalogRow).toContain("Workspace: Connected");
+    expect(html).toContain(`Workspace has a saved ${name} authorization.`);
+    expect(html).toContain("Workspace authorization saved");
+    expectUnknownHealth(html);
+  });
+
+  it.each([
+    ["disconnected", "disconnected", "Review"],
+    ["error", "error", "Review"],
+    ["reconnect_required", "reconnect_required", "Review"],
+    ["connecting", "reconnect_required", "Review"],
+    [null, "available", "View setup"]
+  ] as const)("preserves first-provider fallback with no active authorization (%s)", async (status, displayStatus, action) => {
+    fixture.listAuthorizations.mockResolvedValue(status ? [
+      { ...authorization, status },
+      { ...authorization, id: "later-inactive", status: status === "error" ? "disconnected" : "error" }
+    ] : []);
+    await load();
+    fixture.states[4] = true;
+    fixture.states[7] = "chatgpt";
+    const html = render();
+    const catalogRow = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g)?.find((row) => row.includes("<strong>ChatGPT</strong>"));
+    expect(catalogRow).toContain(`data-status="${displayStatus}"`);
+    expect(catalogRow).toContain(`Workspace: ${action}`);
+    expect(html).toContain("This setup manages ChatGPT authorization to Workspace tools.");
+    expect(html).toContain("No active Workspace authorization recorded");
+    expectUnknownHealth(html);
+  });
+
   it("preserves unknown health and authorization evidence while loading or when metadata lookup fails", async () => {
+    render();
+    fixture.states[4] = true;
+    fixture.states[7] = "chatgpt";
     const loading = render();
     expectUnknownHealth(loading);
     expect(loading).toContain("Workspace authorization status unavailable");
+    expect(loading).toContain("Workspace: Status unavailable");
+    expect(loading).toContain("Workspace authorization status is unavailable.");
+    expect(loading).not.toContain('data-status="');
     expect(loading).not.toContain("No active Workspace authorization recorded");
     fixture.listConnections.mockRejectedValue(new Error("Synthetic lookup failure"));
     const failed = await load();
     expectUnknownHealth(failed);
     expect(failed).toContain("Workspace settings could not be loaded");
     expect(failed).toContain("Workspace authorization status unavailable");
+    expect(failed).toContain("Workspace: Status unavailable");
+    expect(failed).toContain("Workspace authorization status is unavailable.");
+    expect(failed).not.toContain('data-status="');
     expect(failed).not.toContain("No active Workspace authorization recorded");
   });
 

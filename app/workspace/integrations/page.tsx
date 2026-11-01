@@ -224,6 +224,10 @@ export default function IntegrationsPage() {
     [selectedId]
   );
   const selectedConnection = selectedEntry ? findConnectionForEntry(selectedEntry, connections) : undefined;
+  const selectedAssistantConnection = selectedEntry
+    ? assistantConnections.find((item) => item.assistant_provider === selectedEntry.id && item.status === "connected")
+      ?? assistantConnections.find((item) => item.assistant_provider === selectedEntry.id)
+    : undefined;
   const selectedProvider = selectedEntry ? getIntegrationProvider(selectedEntry.id) : undefined;
   const externalConnectionsEnabled = capabilities.external_connectors && capabilities.integration_limit > 0;
 
@@ -439,7 +443,7 @@ export default function IntegrationsPage() {
                   </span>
                   <div>
                     <strong>{selectedEntry.name} Workspace setup</strong>
-                    <p>{loading || error ? "Workspace authorization status is unavailable. Review the relevant app in ChatGPT to check your ChatGPT-account connection." : selectedMessage(selectedEntry, selectedConnection, assistantConnections.find((item) => item.assistant_provider === selectedEntry.id))}</p>
+                    <p>{loading || error ? "Workspace authorization status is unavailable. Review the relevant app in ChatGPT to check your ChatGPT-account connection." : selectedMessage(selectedEntry, selectedConnection, selectedAssistantConnection)}</p>
                     {selectedEntry.id === "chatgpt" || selectedEntry.id === "claude" ? (
                       <Link className={styles.connectButton} href={`/workspace/integrations/assistant?provider=${selectedEntry.id}`}>Manage Workspace authorization</Link>
                     ) : selectedConnection && selectedConnection.status !== "disconnected" && getIntegrationProvider(selectedEntry.id)?.supportsDisconnect ? (
@@ -548,7 +552,8 @@ export default function IntegrationsPage() {
 
 function displayStatus(entry: McpCatalogEntry, connections: IntegrationConnection[], assistants: McpAuthorizationRecord[]): McpDisplayStatus {
   if (entry.id === "chatgpt" || entry.id === "claude") {
-    const record = assistants.find((item) => item.assistant_provider === entry.id);
+    const record = assistants.find((item) => item.assistant_provider === entry.id && item.status === "connected")
+      ?? assistants.find((item) => item.assistant_provider === entry.id);
     if (!record) return "available";
     if (record.status === "connected") return "connected";
     if (record.status === "error") return "error";
