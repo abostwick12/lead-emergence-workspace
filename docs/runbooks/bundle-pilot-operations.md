@@ -4,6 +4,13 @@ This runbook covers the generic Pilot V1 bundle entitlement path. `SOTF Bundle`
 is catalog data with internal key `sotf_transition`; it is not a cohort,
 membership type, account type, or authorization special case.
 
+Bundle/skill/workflow entitlement is separate from the client's ChatGPT
+connection to third-party services and from the Lead Emergence Workspace OAuth
+authorization. See the [canonical connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).
+This operator and invite procedure preserves the existing entitlement sources
+and authority checks; it does not make installation, discovery, or a connection
+record proof of entitlement or successful execution.
+
 ## Operator authorization
 
 An approved operator has `workspace_bundle_operator: true` in immutable Supabase

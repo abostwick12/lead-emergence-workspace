@@ -8,6 +8,13 @@ MCP. It does not authorize Production configuration, a real-user grant, a paid
 plan change, or retention of a synthetic identity. Use `PASS` only for a client
 whose complete lifecycle was actually executed.
 
+This procedure tests ChatGPT/Claude authorization to the Lead Emergence
+Workspace MCP only. It does not connect, inspect, repair, or revoke Gmail,
+Slack, Calendar, or other third-party services in the client's ChatGPT account.
+The existing Entry sign-in and Workspace OAuth consent remain separate
+first-party steps. Follow the [canonical connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md)
+for connection ownership and health-observation limits.
+
 ## Fixed Preview authorities
 
 - Workspace application and MCP resource:
@@ -82,8 +89,10 @@ and Add custom connector. In each client:
 7. Reconnect the same assistant through a fresh authorization and consent. The
    newly issued token must be later than the disconnect boundary, the row must
    return to `connected`, and `get_onboarding_state` must work again.
-8. Remove/revoke the connector from the assistant client, then disconnect it in
-   Workspace if still present. Verify the consent is revoked, no usable client
+8. Remove/revoke the Lead Emergence Workspace connector from the assistant
+   client, then disconnect that same Workspace authorization in Workspace if
+   still present. This step does not affect any third-party app connections.
+   Verify the consent is revoked, no usable client
    session remains, the local row is not connected, and a further tool call
    requires authorization.
 

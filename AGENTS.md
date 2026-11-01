@@ -10,6 +10,13 @@ Before any diagnosis, implementation, branch/worktree creation, or code change i
 - Backlog: `docs/BACKLOG.md`
 - Protocols: `agent-skills/`
 
+For connection ownership, Workspace authorization, subscription entitlement,
+skills/workflows, and connection-health claims, follow the [canonical
+connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).
+That model states product intent; it does not certify runtime or deployment
+behavior. Keep Entry sign-in and the separate Workspace OAuth/MCP flow distinct
+from third-party service connections managed in the client's ChatGPT account.
+
 The control-plane `AGENTS.md` and Software Factory V1 workflow govern shared development behavior. This repository's rules below remain in force unless they directly conflict with that shared workflow; otherwise preserve the stricter rule.
 
 Do **not** create an independent editable copy of `ROADMAP.md` or `PRODUCTION_STATE.md` in this repository. If you cannot access the private control-plane repository, stop and report that access failure to Andrew rather than working from a stale copy or prior handoff.

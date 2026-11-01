@@ -1,5 +1,9 @@
 # Lewis consumer MCP readiness
 
+For current connection ownership, authorization, entitlement, and health
+evidence, follow the [canonical connection
+model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).
+
 ## Product promise
 
 Lewis should give a user the same **policy-controlled Workspace control**
@@ -25,52 +29,42 @@ The source candidate currently supports these Workspace-scoped Lewis actions:
 | Career pipeline | List opportunities | Create opportunities and change status |
 | Display clocks | Read the three display-clock zones | Replace three valid, distinct IANA display-clock zones |
 | Assistant access | List connection state with opaque connection handles, never client identifiers | Disconnect the current assistant or a separately listed assistant after confirmation |
-| Integration state | Read connection metadata and scopes only | Native Workspace can connect or disconnect an approved provider; Lewis cannot activate or operate external providers |
+| Integration state | Read only explicitly recorded Workspace-owned legacy metadata | Lewis does not manage, reconnect, revoke, or report the health of third-party services connected in the client's ChatGPT account |
 
 Every write requires an explicit tool-level confirmation. Create and replace
 operations use a private idempotency receipt. Delete, discard, replacement,
 and assistant-access revocation are marked destructive so clients can require an extra
 approval step.
 
-## Current connector boundary
+## Connection ownership
 
-External connectors are deliberately **off by default**. A new external
-connection requires all of the following:
-
-1. The user is in a direct, owner-authenticated Workspace session.
-2. `external_connectors` is enabled for the active Personal plan.
-3. The plan has a positive `integration_limit`.
-4. The provider and credential family match the reviewed allowlist.
-5. The slot is available after accounting for active credentials and OAuth
-   attempts.
-
-The private credential and OAuth-attempt tables use RLS as defense in depth
-and have no direct client-table access. Disconnecting removes the private
-Workspace credential, clears every linked connection record, and invalidates
-an in-flight OAuth completion before it can recreate the credential. A provider
-grant may still need revocation at the provider until a provider-specific
-remote-revocation adapter is approved.
+The client's ChatGPT account manages third-party Gmail, Slack, Calendar, and
+other supported service connections. Lewis and the Workspace UI must not
+collect those credentials or claim to know their live health from a Workspace
+record. Lead Emergence separately authenticates the client to its own Workspace
+resource through the Entry sign-in and Workspace OAuth/MCP flow. That grant
+does not authorize a third-party service and is not subscription evidence.
 
 ChatGPT and Claude are Workspace OAuth interfaces, not API-key integrations.
 Their catalog entries use `mcp_oauth`; the generic provider credential endpoint
 rejects them.
 
-### Provider-release control
+### Historical Workspace provider-release controls
 
-An external provider catalog card is not an entitlement to collect its
-credential. Every external provider begins in a private `catalog_only` release
-state, and the application has a matching `consumerConnectionReady: false`
-gate. Both the UI/API route and the database RPC must be explicitly enabled in
-a reviewed provider release before OAuth can begin or a credential can be
-saved. A valid Personal plan by itself is deliberately insufficient.
+The superseded provider catalog and readiness details at [base SHA `90b2ff5e6ede529c544361ad5dd54b6338832673`](https://github.com/abostwick12/lead-emergence-workspace/blob/90b2ff5e6ede529c544361ad5dd54b6338832673/docs/architecture/lewis-consumer-mcp-readiness.md)
+are preserved for historical reference only, not as current ownership or setup
+guidance.
 
-The current catalog is therefore honest about what works: it can describe
-planned providers, but it cannot ask a consumer for Gmail, Slack, Calendar,
-Drive, GitHub, Microsoft 365, Canva, LinkedIn, YouVersion, Monday, or
-Firecrawl credentials yet. This avoids collecting broad third-party access
-that has no tested user value. The retained scope definitions are read-only
-where a future read path is envisioned; send, event-write, and file-write
-scopes are absent until their individual action release.
+The source contains a provider catalog, private credential/OAuth-attempt
+storage, and `consumerConnectionReady` release gates. These are **historical /
+legacy technical references**, not the default connection path for Individual
+Workspace/SOTF clients. Keep unreleased native provider adapters disabled; do
+not treat a `catalog_only` item, provider readiness flag, or Personal plan as
+proof of a host connection or its health. A future direct-integration exception
+requires its own reviewed architecture and implementation authorization.
+
+The source's provider scopes and consumer-readiness flags describe this legacy
+implementation only; they do not alter client-owned ChatGPT connection setup.
 
 ## Consumer-production risks and release gates
 
@@ -81,7 +75,7 @@ scopes are absent until their individual action release.
 | Workspace runtime ownership | A production MCP endpoint can only be secure if the Workspace-owned deployment has the matching environment and public metadata. | Workspace-owned Vercel project access, production environment review, protected-resource metadata check, headers/CORS check, and rollback deployment. |
 | ChatGPT and Claude acceptance | OAuth metadata passing a protocol check does not prove the client can connect, refresh, reauthorize, and enforce revocation. | Real interactive acceptance for both clients: connect, read, confirmed write, natural refresh, disconnect, old-token denial, reconnect, and client-side revocation. |
 | Client-market fit | ChatGPT does not currently offer the same custom-MCP write path to every consumer tier, and client features can change independently of Workspace. | Publish a truthful availability matrix by client and plan; retain native Workspace as the universal write path. Do not claim ChatGPT write parity where the client itself cannot invoke custom write tools. |
-| Provider connectors | OAuth consent alone does not make an external integration safe to use. Current source has no approved provider action adapters, refresh workers, remote revocation, or side-effect audit trail. | Per-provider scope review, action allowlist, user-confirmation UX, idempotency model, outbound audit log, retries, token refresh/revocation, incident playbook, and provider acceptance test. |
+| Host-owned provider connections | A workflow may depend on a service connected in the client's ChatGPT account; Workspace may not have an authoritative health API for it. | Verify only a supported, account-bound host observation or bounded authorized operation; otherwise show the service state as unknown and direct the client to ChatGPT connection settings. A future transfer of credential ownership requires a separate approved exception. |
 | Calendar, mail, and messaging writes | A broad scope or automatic action could create appointments, send mail, or post messages without a sufficiently clear human decision. | Separate, narrowly scoped action tools. For example, Google Calendar event creation needs a write scope and an explicit create-event confirmation; it must not be inferred from the current read-only calendar connection. |
 | Abuse and operability | A public MCP endpoint is exposed to retries, malformed client behavior, token churn, and future client capability changes. | Per-user/client rate limits, tool/action audit events, anomaly alerts, cost limits, durable logs without private content, tested incident response, backups, and a kill switch. |
 
@@ -91,6 +85,9 @@ scopes are absent until their individual action release.
   ChatGPT tier and mode can invoke write tools. Keep a clear native Workspace
   path for everyone else; do not weaken confirmation or OAuth controls to work
   around a client limitation.
+- Third-party apps such as Gmail, Slack, and Calendar: the client connects and
+  manages them in their own ChatGPT account. This is separate from connecting
+  that ChatGPT account to Lead Emergence Workspace.
 - Claude: use a remote custom connector with explicit user or organization
   approval. Write tools must remain confirmation-gated and should be excluded
   from research-style flows that may invoke connectors automatically.
@@ -109,9 +106,10 @@ scopes are absent until their individual action release.
 4. Run the real-client lifecycle matrix for ChatGPT and Claude.
 5. Release the internal Workspace action contract behind monitoring and a kill
    switch.
-6. Add external providers one at a time, starting with read-only or draft-only
-   actions. Treat each provider write action as a separate product and security
-   release.
+6. Validate the host-owned third-party service connections required by each
+   workflow through the supported client experience. A Lead Emergence-owned
+   provider integration is outside the default release and requires a separate
+   reviewed exception.
 
 ## Current status
 

@@ -6,6 +6,11 @@
 
 **Amended:** 2026-09-11 — portable skills and subscription-backed hosted workflows
 
+For the current product explanation of client-owned third-party connections,
+separate Workspace authorization, applicable subscription entitlement, and
+connection-health evidence, see the [canonical connection
+model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).
+
 ## Purpose
 
 Lead Emergence is not intended to replace the user's primary AI environment or duplicate every external integration available there. The default consumer architecture is **agent-owned orchestration**:

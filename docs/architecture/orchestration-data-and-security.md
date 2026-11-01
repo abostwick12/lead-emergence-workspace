@@ -4,6 +4,15 @@
 
 The architecture should intentionally distinguish between **portable skills and customer-owned host assets** and **subscription-backed Lead Emergence hosted workflows, services, and durable intelligence**.
 
+For the current entitlement and connection model, see the [canonical
+explanation](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).
+An applicable paid Workspace subscription entitles the proprietary skills and
+hosted workflows defined by the offer. It is distinct from Entry identity,
+Workspace OAuth authorization, package installation, tool discovery, or
+successful execution. Existing trial, sponsored, internal-operator, and other
+implemented access exceptions remain governed by their owning authority; this
+architecture does not remove or broaden them.
+
 ### Customer-owned after installation
 
 Subject to the host platform's own rules and availability, a customer may retain installed/configured assets that were placed in their AI environment, including:

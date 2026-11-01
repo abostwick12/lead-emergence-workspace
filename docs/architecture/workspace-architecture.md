@@ -6,7 +6,10 @@ The verified Entry sign-in callback calls `workspace.ensure_personal_workspace()
 
 `workspace.user_profiles.timezone` remains the user's primary Workspace timezone. The separate `clock_timezones` preference stores exactly three IANA identifiers for header display only. The browser derives clock values and daylight-saving abbreviations with `Intl.DateTimeFormat`; no external time service is used and no stored timestamp is transformed.
 
-The private `workspace-private` Storage bucket requires a leading Workspace ID in every object path. Integration records retain metadata and an opaque secret reference only; token fields are prohibited.
+The private `workspace-private` Storage bucket requires a leading Workspace ID in every object path. Legacy integration records retain metadata and an opaque secret reference only; token fields remain prohibited. These Workspace-managed provider records and secret references are implementation artifacts, not the client's ChatGPT connection state; do not use them as the default provider setup or health source. The Entry identity and Workspace MCP authorization remain separate first-party records.
 
-Personal product lifecycle, onboarding, plan/capability, MCP, connector, callback,
+Personal product lifecycle, onboarding, plan/capability, Workspace MCP, identity,
 privacy, and UI-scope contracts are defined in `personal-productization.md`.
+Connection ownership, third-party service setup, subscription entitlement, and
+the limits of Workspace connection-health observations follow the [canonical
+connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).

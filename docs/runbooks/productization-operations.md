@@ -24,20 +24,40 @@ Before a hosted change, record written gate approval in `docs/status/extraction-
 
 ## Interactive provider steps
 
-ChatGPT and Claude require the user to paste the Workspace MCP address into their product's connector settings and explicitly approve Lead Emergence authorization. If consent is denied or connection fails, use Try again or Continue setup without AI. Never mark the connection `connected` until an authorized MCP request successfully registers the client.
+For current connection ownership and recovery boundaries, follow the [canonical
+connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md).
+
+The client connects supported third-party services such as Gmail, Slack, and
+Calendar in their own ChatGPT account. The client manages provider consent,
+credentials, permissions, reconnection, and revocation there. Under the
+intended product model, Workspace must not manage or store those service
+credentials. Workspace metadata does not establish their ChatGPT connection
+health. The legacy source implementation is documented separately below.
+
+Connecting ChatGPT to Lead Emergence Workspace is a separate flow: the client
+adds the Workspace MCP address in ChatGPT, completes the existing Entry
+sign-in/identity flow, and explicitly approves the Lead Emergence Workspace
+OAuth consent. If this Workspace authorization is denied or fails, use Try
+again or Continue setup without AI. Never mark it `connected` until an
+authorized MCP request successfully registers the client.
 
 Run `real-client-mcp-acceptance.md` for the complete connect, use, natural token
 refresh, disconnect, old-bearer denial, reconnect, client-side revoke, and
 fixture-cleanup matrix. A client UI refresh is not evidence of a refresh-token
 exchange.
 
-External connectors in the catalog do not yet have approved runtime adapters. Do not solicit OAuth consent for them or reuse legacy tokens. Implement each later with connect, callback, encrypted server-side persistence, use, refresh, disconnect, revoke, reconnect, error handling, least-privilege scopes, capability enforcement, and cross-user tests.
+The Workspace provider catalog, provider OAuth/credential routes, and private
+credential vault are retained **historical/legacy implementation references**;
+they are not the default client connection path and must not be used to collect
+or manage the client's ChatGPT service credentials. Do not enable or extend
+them without a separately reviewed direct-integration exception and explicit
+implementation authorization.
 
 ## Plan administration
 
 Normal users cannot mutate plans. An approved admin may call the private `assign_personal_plan` command through the migration authority's audited service/admin channel. Record the reason, verify the affected Workspace/user, and test the resolved capabilities. Do not place a service-role key in Workspace runtime.
 
-For a downgrade, verify privileged behavior is denied and retained data remains present. For an upgrade, verify only the newly included capability becomes available; membership and record ownership must be unchanged. Billing remains inactive.
+For a downgrade, verify privileged behavior is denied and retained data remains present. For an upgrade, verify only the newly included capability becomes available; membership and record ownership must be unchanged. This Workspace Personal plan baseline is separate from the subscription/entitlement authority for proprietary skills and workflows and does not replace applicable trial, sponsored, internal-operator, or other implemented access exceptions.
 
 ## New-user and support procedure
 
@@ -53,12 +73,12 @@ For a downgrade, verify privileged behavior is denied and retained data remains 
 
 - Entry SSO failure: retain the explicit Workspace password login as rollback, disable only the faulty custom provider/client, and preserve sessions/evidence.
 - MCP incident: disconnect the client in Settings, revoke its OAuth grant, and if necessary disable the `workspace_mcp` capability. Confirm old bearers receive denial.
-- Connector incident: disable the individual adapter/capability, revoke the provider token, retain safe metadata, and provide reconnect guidance.
+- Third-party service connection issue: direct the client to their own ChatGPT connection settings and supported provider consent/recovery flow. Do not attempt Workspace credential repair or provider revocation. If a separately approved Lead Emergence-owned integration exists, use only its specific authorized incident procedure.
 - Plan incident: suspend or restore the affected assignment through the audited admin command; never change membership to simulate a plan change.
 - Onboarding incident: retain confirmed configuration, repair the state through a reviewed forward migration or approved admin path, and resume at the first incomplete area.
 - Schema incident: stop traffic-changing work and use reviewed forward repair. Do not rewrite hosted migration history or delete Personal data.
 
-See `rollback.md` for release rollback and `integration-reconnection.md` for the external-credential boundary.
+See `rollback.md` for release rollback, `integration-reconnection.md` for the legacy Workspace provider implementation record, and the [canonical connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md) for current setup and support routing.
 
 ## Production acceptance record
 

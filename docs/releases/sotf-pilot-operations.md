@@ -1,5 +1,11 @@
 # SOTF invited-pilot release and acceptance plan
 
+The client's third-party service connections are managed in their ChatGPT
+account. This pilot's Entry sign-in, separate Workspace OAuth/MCP
+authorization, and SOTF entitlement remain distinct checks. Follow the
+[canonical connection model](https://github.com/abostwick12/lead-emergence-control-plane/blob/main/docs/CONNECTION_AUTHORIZATION_ENTITLEMENT_MODEL.md)
+for setup and evidence boundaries.
+
 ## Configuration inventory
 
 No secret values are recorded here. “Existing” means present in source contracts or prior status evidence; production values still require owner verification immediately before release.
@@ -22,7 +28,7 @@ No secret values are recorded here. “Existing” means present in source contr
 | Entry handoff private/public key, key ID, redemption secret | Required Entry handoff | Prior status records environment-specific values in Vercel; current live behavior is not verified. | Confirm keypair agreement, server-only private material, redemption secret, and known rollback deployment. |
 | `ENTRY_PERSONAL_OAUTH_CLIENT_ID` and `ENTRY_PERSONAL_OAUTH_REDIRECT_ORIGIN` | Required Entry-to-Workspace OAuth | Source contract exists; prior status says production client ID/backend configuration is missing. | Configure the exact production Personal client and exact Workspace Supabase Auth callback origin. |
 | Consulting/Ministry product and OAuth settings | Optional for this SOTF pilot; required only if shown as active destinations | Existing platform contracts. | Validate any destination left enabled; otherwise keep its entitlement absent. Do not make SOTF the platform identity. |
-| External connector credentials and provider-release flags | Optional and out of pilot scope | Default-off existing contracts. | Leave off unless separately approved. No live message or calendar send is required. |
+| Legacy Workspace-owned provider credential adapters and release flags | Not the default client connection path; out of pilot scope | Retained technical implementation; deployment/use is not established here. | Keep legacy adapters off. The client manages Gmail, Slack, Calendar, and other supported services in their own ChatGPT account. No live message or calendar send is required. |
 | Protected Professional Context | Out of scope/off | No implementation or grant exists in RC. | Keep unavailable until its separately approved security boundary is released. |
 | General P2 | Out of scope/off | No RC runtime or migration. | Keep disabled. |
 
