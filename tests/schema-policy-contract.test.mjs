@@ -414,7 +414,10 @@ test("gates native and MCP SOTF presentation with the same fail-closed entitleme
   assert.match(sotfOperationsSql, /entitlement\.starts_at <= now\(\)/i);
   assert.match(sotfOperationsSql, /entitlement\.revoked_at is null/i);
   assert.match(sotfWorkspacePage, /import \{ connectedSotfExperience \} from "\.\/connected-experience"/);
-  assert.match(sotfWorkspacePage, /return connectedSotfExperience\(\)/);
+  assert.match(
+    sotfWorkspacePage,
+    /const experience = await connectedSotfExperience\(\);\s*return <><WorkflowDescriptions \/><div id="sotf-saved-work" tabIndex=\{-1\}>\{experience\}<\/div><\/>;/,
+  );
   assert.match(sotfConnectedExperience, /SOTF_PILOT_ENABLED/);
   assert.match(sotfConnectedExperience, /auth\.getUser\(\)/);
   assert.match(sotfConnectedExperience, /rpc\("sotf_has_access"\)/);
