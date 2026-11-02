@@ -152,3 +152,11 @@ Screenshots (local, untracked): `test-results/f02-dashboard-shortcut-{desktop,mo
 Prior committed boundary, 391-unit-test and schema 31/32 evidence above remains supporting evidence for unchanged paths; broad suites were not rerun. The pre-existing schema direct-return assertion remains outside scope. The default Turbopack dependency-junction limitation remains unchanged.
 
 Production/data impact: **None**. Production acceptance for the dashboard shortcut remains **NOT TESTED**. After a separately authorized release, an authorized pilot user must reach a description from the real mobile dashboard in two interactions with the shortcut visible before opening navigation; pilot-off, denied/unknown and non-dashboard visibility must retain their existing boundaries. No push, PR, external review request, merge or deployment is authorized by this slice. Full F02 and broader customer acceptance remain open.
+
+## Schema policy contract assertion correction — November 2, 2026
+
+IN SCOPE: correct the stale source assertion in `tests/schema-policy-contract.test.mjs` for the current SOTF page shape. The page awaits `connectedSotfExperience()` before returning `WorkflowDescriptions` and the `sotf-saved-work` wrapper containing the resolved experience. The assertion retains this gate-before-render order and rendered experience check. Existing fail-closed helper assertions are unchanged; `tests/sotf-manifest-routes.test.ts` already checks the saved-work wrapper and is unchanged.
+
+Claim: one schema policy contract test fails because its direct-return source assertion no longer matches the page. Falsifier: inspect the page at the assigned branch head. Result: the page uses `const experience = await connectedSotfExperience();` before returning the descriptions and saved-work wrapper; the old assertion expected `return connectedSotfExperience()`. This is a test expectation correction; no product code changes.
+
+Local validation: `node --test tests/schema-policy-contract.test.mjs` passed **32/32**; `npm run test:schema` passed **32/32**; `git diff --check` passed. These results supersede the earlier **31/32** report for this assertion. No production query, access, or mutation was performed; production acceptance remains **NOT TESTED**. No other worktree files were changed; the existing untracked `.task-temp/` was preserved.
