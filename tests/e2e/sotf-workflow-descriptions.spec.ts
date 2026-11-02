@@ -36,6 +36,26 @@ const { WorkflowDescriptions } = loadSource<{ WorkflowDescriptions: () => ReactE
   { "next/link": ({ children, ...props }: { children: React.ReactNode; href: string }) => createElement("a", props, children) }
 );
 const css = readFileSync("components/sotf/sotf.module.css", "utf8");
+const additionalModes = [
+  ["coaching", "Prepare a coaching session", "#sotf-saved-work", "Prepare my SOTF session"],
+  ["networking", "Plan a networking week", "/workspace/sotf/networking", "actual outcomes"],
+  ["stories", "Find a relevant accomplishment", "#sotf-saved-work", "Find an example"],
+  ["interview", "Prepare for an interview", "/sotf/connect", "select my saved opportunity"],
+  ["offers", "Compare saved offers", "/sotf/connect", "compare my saved offers"],
+  ["professional_work", "Prepare the next professional chapter", "/sotf/connect", "recorded actual acceptance"],
+  ["scheduling", "Propose conversation times", "#sotf-saved-work", "choose People, then Find a time"],
+  ["invitation", "Prepare an invitation draft", "#sotf-saved-work", "choose People"]
+] as const;
+
+test("description coverage follows the existing preparation contract without inventing released workflows", () => {
+  const contract = readFileSync("lib/sotf/mcp.ts", "utf8");
+  const enumMatch = contract.match(/workflow: z\.enum\((\[[^\]]+\])/);
+  expect(enumMatch).not.toBeNull();
+  const modes = JSON.parse(enumMatch![1]) as string[];
+  const releasedOverlaps = ["opportunity", "meeting", "direction", "weekly", "daily"];
+  expect([...releasedOverlaps, ...additionalModes.map(([mode]) => mode)].sort()).toEqual([...modes].sort());
+  expect(bundle.workflows).toHaveLength(releasedOverlaps.length);
+});
 
 test("pilot descriptions cover the released definitions, ownership, limits, and supported links", async ({ page }) => {
   const requests: string[] = [];
@@ -44,7 +64,7 @@ test("pilot descriptions cover the released definitions, ownership, limits, and 
   const surface = page.getByRole("region", { name: "Choose the transition work you need." });
   await expect(surface).toHaveClass("experience");
   expect(await page.evaluate(() => innerWidth)).toBe(page.viewportSize()?.width);
-  await expect(surface.getByRole("article")).toHaveCount(1 + bundle.workflows.length);
+  await expect(surface.getByRole("article")).toHaveCount(1 + bundle.workflows.length + additionalModes.length);
   await expect(surface).toContainText("not approved for the customer release");
   await expect(surface).toContainText("ChatGPT connection health is unknown");
   await expect(surface).toContainText("manage Gmail, Slack, Calendar");
@@ -63,7 +83,31 @@ test("pilot descriptions cover the released definitions, ownership, limits, and 
     cardNumber += 1;
   }
   const paths = await surface.getByRole("link").evaluateAll((links) => links.map((link) => link.getAttribute("href")));
-  expect(paths).toEqual(["/sotf/connect", "#sotf-saved-work", "/workspace/sotf/opportunities", "/workspace/sotf/networking", "/workspace/sotf/briefs", "/workspace/sotf/learning"]);
+  expect(paths).toEqual(["/sotf/connect", "#sotf-saved-work", "/workspace/sotf/opportunities", "/workspace/sotf/networking", "/workspace/sotf/briefs", "/workspace/sotf/learning", ...additionalModes.map(([, , href]) => href)]);
+  await expect(surface).toContainText("not separate released workflow definitions");
+  for (const [mode, name, href, nextStep] of additionalModes) {
+    const card = surface.getByRole("article", { name, exact: true });
+    await expect(card.getByRole("link")).toHaveAttribute("href", href);
+    await card.locator("summary").click();
+    for (const heading of ["Your input", "Access and connections", "Output and retention", "Effects", "Limits and next step"]) {
+      await expect(card.locator("dt").filter({ hasText: heading })).toBeVisible();
+    }
+    await expect(card).toContainText("Pilot · Preparation mode · Setup not checked");
+    await expect(card).toContainText("sotf_prepare_next_move · Mode: " + mode);
+    await expect(card).toContainText("no independent workflow version");
+    await expect(card).toContainText("Protected Professional Context is unavailable");
+    await expect(card).toContainText(nextStep);
+    if (test.info().project.name === "mobile") {
+      await card.screenshot({ path: `test-results/f02-mode-${mode}-mobile.png` });
+    }
+  }
+  const scheduling = surface.getByRole("article", { name: "Propose conversation times", exact: true });
+  await expect(scheduling).toContainText("does not read your calendars automatically");
+  await expect(scheduling).toContainText("Save the draft for review separately retains an email draft");
+  const invitation = surface.getByRole("article", { name: "Prepare an invitation draft", exact: true });
+  await expect(invitation).toContainText("ChatGPT preparation is read-only");
+  await expect(invitation).toContainText("separate web action saves the draft");
+  await expect(invitation).toContainText("no saved debrief");
   const brief = surface.getByRole("article", { name: "Prepare a daily transition brief", exact: true });
   await expect(brief).toContainText("does not retain a separate daily-brief artifact");
   await expect(brief).toContainText("separate hosted daily-brief contract");
