@@ -189,6 +189,66 @@ test("networking outcomes save only an entered actual reply date and reopen blan
   expect(browserErrors).toEqual([]);
 });
 
+test("weekly results retain each week's planned people after a repeat plan", async ({ page }) => {
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  const results = page.getByRole("region", { name: "Weekly results", exact: true });
+  const plannedWeeks = results.getByRole("group", { name: "People planned by week" });
+  const firstWeek = plannedWeeks.locator("details").filter({ hasText: "Week of 2026-08-31" });
+  const secondWeek = plannedWeeks.locator("details").filter({ hasText: "Week of 2026-08-24" });
+  const thirdWeek = plannedWeeks.locator("details").filter({ hasText: "Week of 2026-08-17" });
+
+  await firstWeek.locator("summary").click();
+  await secondWeek.locator("summary").click();
+  await thirdWeek.locator("summary").click();
+  await expect(firstWeek.getByRole("listitem")).toHaveCount(10);
+  await expect(firstWeek.getByRole("listitem").filter({ hasText: "Morgan — fictional contact" })).toBeVisible();
+  await expect(secondWeek.getByRole("listitem")).toHaveCount(10);
+  await expect(secondWeek.getByRole("listitem").filter({ hasText: "Fictional candidate 11" })).toBeVisible();
+  await expect(secondWeek.getByRole("listitem").filter({ hasText: "Morgan — fictional contact" })).toHaveCount(0);
+  await expect(thirdWeek.getByRole("listitem")).toHaveCount(5);
+  await expect(thirdWeek.getByRole("listitem").filter({ hasText: "Fictional candidate 21" })).toBeVisible();
+
+  const firstSummary = firstWeek.locator("summary");
+  await firstSummary.focus();
+  await page.keyboard.press("Enter");
+  await expect(firstWeek).not.toHaveAttribute("open", "");
+  await page.keyboard.press("Enter");
+  await expect(firstWeek).toHaveAttribute("open", "");
+
+  await page.getByRole("button", { name: "Add person", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Networking week").fill("2026-09-07");
+  await dialog.getByLabel("Saved person").selectOption("morgan");
+  await dialog.getByRole("button", { name: "Add to this week's plan" }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+
+  const repeatWeek = plannedWeeks.locator("details").filter({ hasText: "Week of 2026-09-07" });
+  await repeatWeek.locator("summary").click();
+  await firstWeek.locator("summary").click();
+  await expect(repeatWeek.getByRole("listitem").filter({ hasText: "Morgan — fictional contact" })).toBeVisible();
+  await expect(firstWeek.getByRole("listitem").filter({ hasText: "Morgan — fictional contact" })).toBeVisible();
+  await expect(results.getByRole("row", { name: /2026-09-07/ }).getByRole("cell")).toHaveText(["1", "0", "0", "0"]);
+
+  await page.getByRole("button", { name: "People", exact: true }).click();
+  const morgan = page.locator("article").filter({ has: page.getByRole("heading", { name: "Morgan — fictional contact", exact: true }) });
+  await morgan.getByRole("button", { name: "Review relationship" }).click();
+  await dialog.getByLabel("Use of this record").selectOption("true");
+  await dialog.getByRole("button", { name: "Confirm and save" }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Networking", exact: true }).click();
+  await firstWeek.locator("summary").click();
+  await expect(firstWeek.getByRole("listitem").filter({ hasText: "Morgan — fictional contact" })).toHaveCount(0);
+  await expect(repeatWeek).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 800 });
+  await firstWeek.scrollIntoViewIfNeeded();
+  await expect(firstWeek.locator("summary")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(accountRequests).toEqual([]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("networking strategy shows the 10-person goal and selectable conversation prep", async ({ page }) => {
   await page.getByRole("button", { name: "Networking", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Plan 10 people this week." })).toBeVisible();
