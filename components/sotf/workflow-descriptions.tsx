@@ -133,7 +133,7 @@ export function WorkflowDescriptions() {
             case "networking":
               name = "Plan a networking week";
               outcome = "Review the people in your weekly plan, the reason to contact each, and the next relationship step.";
-              input = "Saved people, reasons to connect, relationship history, and a networking week. ChatGPT can use the latest saved week when you do not select one.";
+              input = "Saved people, reasons to connect, relationship history, and a networking week. When you do not select a week, preparation uses the current week in Chicago.";
               output = "The plan and progress appear in Networking or the ChatGPT response. Confirmed people, weekly plans, and actual outcomes are retained in Workspace; preparation itself does not save a new plan.";
               effects = "Opening preparation reads saved work. Adding a person or confirming a weekly review saves records through separate controls. A planned contact is not a sent message or completed conversation.";
               next = "Open Networking and add or select a person for the week. Review their next step and record only actual outcomes. Empty plans and missing context remain visible; no outreach is sent automatically.";
