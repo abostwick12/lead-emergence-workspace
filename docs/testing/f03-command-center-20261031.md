@@ -379,3 +379,68 @@ preserving the records and the unavailable ChatGPT-health display. The local
 follow-up stops at a commit: no push, external review request, merge, or deploy.
 CodeRabbit must review the new head before the review gate can pass; its review
 of the preceding commit does not cover this correction.
+
+## F03 resumed pre-release validation — 2026-11-07
+
+Remote task head remained `7093fbf08b91f68c01e568d12bab68ee2c3114d7`.
+Main is `e387eee36cc184a50a00d455164c62890fd8c623`, including the accepted F02
+networking-description correction. Fetch, branch/worktree status and open-PR
+file checks found no competing owner for the scoped changes. The existing task
+worktree was reused; no duplicate implementation or rebase was created.
+
+At approximately 13:03–13:05 UTC (07:03–07:05 America/Chicago), the scoped
+Vercel CLI GET `/v13/deployments/workspace.leademergence.com?withGitRepoInfo=true`
+returned READY production `dpl_5dJnDzRv3VFUQpoPU6wc4QCPYyrj` at main's SHA.
+The connector returned 404; authenticated CLI supplied the binding. The existing
+signed-in browser at `/workspace/integrations` still showed `2 of 14 connections
+active`. At `/workspace`, the ChatGPT connected disclosure expanded to the
+existing authorization/no-reconnect explanation, three usage steps and Open
+ChatGPT link. This is baseline evidence, not acceptance of PR #116. No account,
+grant, setup, connection or business-data change was performed.
+
+The meaningful observable retained by this candidate is whether a connected
+Workspace authorization is recorded for an assistant provider. It is labelled
+as saved authorization, not current token usability, entitlement or successful
+execution. No numeric provider metric remains. The original 1-of-14 arithmetic
+acceptance is superseded by the owner-approved removal of unsupported health
+counts: the catalogue cannot measure the client's ChatGPT service population or
+health. Duplicates cannot inflate a removed total. All service-health cards and
+the header must instead remain unavailable with ChatGPT-side guidance.
+
+Focused Connections tests passed 12/12 again. A temporary local Vite fixture
+mounted the exact candidate component and styles with synthetic authorization
+records and stubbed repository/provider access; no signed-in user or backend
+was used, and CSP blocked API calls. At 1440x900 and 390x844, the header and
+authorization distinction were readable and document width did not exceed the
+viewport. Keyboard Enter opened settings and focused search; filtering ChatGPT
+and selecting it showed Workspace: Connected and the saved-authorization setup
+message for a disconnected-first/connected-second fixture. Escape closed the
+panel and returned focus to its trigger. At 390px the settings panel fit within
+the viewport; category filters used their intentional internal horizontal scroll.
+These checks are synthetic UI evidence, not authentication or production tests.
+Sanitized local screenshots: `.task-temp/f03-desktop-synthetic-20261107.png` and
+`.task-temp/f03-narrow-synthetic-20261107.png`.
+
+The existing authenticated E2E test still asserted the superseded introductory
+copy and Not connected status. Only its Connections assertions were corrected
+to require the unavailable header, ChatGPT-side guidance and ChatGPT link.
+Playwright test discovery found desktop and mobile cases; no authenticated
+suite was executed and no test account was modified. Targeted ESLint and
+`git diff --check` passed. Broad unchanged suites were not rerun; the preceding
+403-test/unit and full build evidence remains scoped to unchanged product code.
+
+Release plan: after exact-final-head review and owner approval, merge this PR
+into current main, verify that the merged tree preserves F02, and build/release
+that merged source through the existing Vercel Git pipeline. Do not deploy this
+older branch directly over current main. Current rollback reference is
+`dpl_5dJnDzRv3VFUQpoPU6wc4QCPYyrj` / `e387eee36cc184a50a00d455164c62890fd8c623`;
+recheck the live alias before release. No merge or deployment occurred here.
+
+Post-release acceptance must record URL, time, deployment ID/SHA and sanitized
+screenshots: distinguish Workspace authorizations from unavailable ChatGPT
+service health; verify useful ChatGPT guidance; verify no duplicate-driven
+health total; verify connected-first presentation using existing state if
+available; preserve the accepted Command Center disclosure. Do not manufacture
+inactive states. Synthetic-only or unavailable live cases remain explicitly
+untested. Implementation remains PARTIAL, production acceptance NOT TESTED,
+and broader F03 remains open until the applicable deployed checks pass.
