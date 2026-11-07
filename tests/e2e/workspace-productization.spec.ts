@@ -150,8 +150,11 @@ test.describe("authenticated product lifecycle", () => {
     await expect(page.getByRole("heading", { name: "Clarify this quarter's focus" })).toBeVisible();
     await page.goto("/workspace/integrations");
     await expect(page.getByRole("heading", { name: "Connections" })).toBeVisible();
-    await expect(page.getByText("Nothing is connected automatically.")).toBeVisible();
-    await expect(page.getByText("Not connected").first()).toBeVisible();
+    await expect(page.getByText("Connection health in your ChatGPT account is not available here. In ChatGPT, open Settings and review the relevant app under Apps or Plugins, if available.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("status")
+      .filter({ has: page.getByText("Status unavailable in Workspace", { exact: true }) })
+      .getByRole("link", { name: "Check in ChatGPT", exact: true }))
+      .toHaveAttribute("href", "https://chatgpt.com/");
     await page.goto("/workspace/memory");
     await expect(page.getByText("Memory is empty until you choose what should carry forward.")).toBeVisible();
 
