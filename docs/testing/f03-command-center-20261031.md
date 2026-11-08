@@ -444,3 +444,74 @@ available; preserve the accepted Command Center disclosure. Do not manufacture
 inactive states. Synthetic-only or unavailable live cases remain explicitly
 untested. Implementation remains PARTIAL, production acceptance NOT TESTED,
 and broader F03 remains open until the applicable deployed checks pass.
+
+## F03 setup viewing requires no preparation — local candidate, 2026-11-08
+
+Scope: owner-approved frontend-only correction to the assistant setup page,
+focused regression tests, and this evidence record. Stop at local validation,
+independent review and commit; no push, external review, merge or deployment.
+Phase: 2.5.2, accurate Workspace authorization evidence.
+
+Preflight PASS: remote Workspace main and the most recently verified deployed
+source are `5e6ae364d675ca72a968e94f4fb0688fb27f3556`; canonical control-plane
+main is `bf93f99fead29d97ba317f793d73a659c4b4bb9d`. Open-PR file inspection
+found no owner of the assistant setup page or this focused test. Existing F03
+worktrees were preserved. New owned worktree `.f03-setup-explicit-action-20261108`,
+branch `codex/f03-setup-explicit-action-20261108`, starts at Workspace main.
+
+Diagnostic evidence from the immediately preceding read-only inspection:
+at `2026-11-08T09:55:24.403352Z`, project `cirqqhuvzekbvysiyedg` returned the live
+`workspace.prepare_personal_assistant_connection(target_assistant text)` body
+from pg_catalog with `transaction_read_only=on`, followed by ROLLBACK. After
+session/owner/capability guards, it updates selected_assistant and onboarding
+timestamps; incomplete onboarding also moves to ai/mcp_connection_required.
+The function was not invoked. Deployed page source called it on mount. This
+settled the proposed falsifier: viewing the eligible setup page was not solely
+a metadata read. This inspection did not establish any particular row mutation.
+
+Candidate behavior: mount and Refresh authorization read existing records only.
+The provider must resolve before Start setup is enabled. Explicit Start prepares
+that provider once, then exposes connection instructions and the host link.
+Preparation failure retains the gate; only another explicit Start retries.
+Existing connected records expose guidance/Open without preparation. The existing
+RPC, guards, registration, schema, entitlement and lifecycle semantics are unchanged.
+No new dependency or service was added. Command Center and Connections are unchanged.
+
+Validation and review:
+- Focused baseline: 9 failed / 1 passed before implementation; final 11/11 pass.
+- Independent review found one P2: Refresh before Start still said Complete consent.
+  VALID - FIX: before preparation, Refresh now says Start setup; after successful
+  preparation it retains consent guidance. Added assertions failed 3/11 before
+  correction and all 11 passed after it. Final independent review: no open findings.
+- Boundaries PASS (108 runtime files, 5 tests); schema PASS (32 tests).
+- Typecheck and lint PASS. Final unit suite PASS (414 tests in 45 files).
+- Final build initially hit Windows EPERM creating a generated login prerender
+  directory. One unchanged-source unsandboxed retry with synthetic public config
+  passed compilation, TypeScript, all 30 static pages and final route generation.
+- Readability checkpoint and git diff --check PASS.
+
+Real React browser checks used an isolated synthetic fixture with repository/provider
+stubs and connect-src 'none'; no authenticated client or remote backend was present.
+Claude arrival and Refresh left prepare=0; keyboard Start produced prepare=1 for
+Claude; subsequent Refresh left prepare=1. ChatGPT preparation failure left consent
+instructions/host link hidden; Refresh did not retry; explicit retry succeeded.
+Connected ChatGPT and Claude each retained Open and refresh with prepare=0.
+The fixture enabled React StrictMode but used a production bundle; it does not
+establish development-only double-effect behavior. Temporary fixture server stopped.
+Local screenshot: artifacts/f03-local-validation/claude-before-start.png.
+
+Logs remain uncommitted in artifacts/f03-local-validation: assistant-setup-green.txt,
+assistant-setup-guidance-red.txt, check-boundaries.log, test-schema.log, typecheck.log,
+final-lint.log, final-test-unit.log, final-build.log, final-build-unsandboxed.log.
+Initial Vitest temp rename EPERM was resolved using process-local TEMP/TMP. The
+local browser harness required one server restart and React dependency deduplication;
+these were fixture issues, not product changes. The original pre-fix 9/10 failure
+is retained in the tool transcript, not an on-disk red log.
+
+Implementation PARTIAL; production acceptance NOT TESTED. No production mutation
+or hosted review was performed for this candidate. One implementation with one
+bounded review correction; not repeated production repair attempts. After a separately
+authorized release, observe both provider URLs and Refresh without a preparation RPC
+or onboarding change; validate deliberate new setup separately under appropriate
+consent/data authorization. Local mocks do not prove production-wide absence of
+background writes or successful new consent. Broader F03 remains OPEN.
