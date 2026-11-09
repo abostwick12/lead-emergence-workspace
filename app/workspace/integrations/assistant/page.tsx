@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Clipboard, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { CapabilityLockedState } from "@/components/capability-locked-state";
 import { useWorkspace } from "@/components/workspace-provider";
@@ -11,11 +11,13 @@ import type { AssistantProvider, McpAuthorizationRecord } from "@/lib/workspace/
 
 export default function AssistantConnectionPage() {
   const { user, workspace, plan, capabilities, refreshProductState } = useWorkspace();
-  const [assistant, setAssistant] = useState<AssistantProvider>("chatgpt");
+  const [assistant, setAssistant] = useState<AssistantProvider | null>(null);
   const [connections, setConnections] = useState<McpAuthorizationRecord[]>([]);
   const [mcpUrl, setMcpUrl] = useState("https://workspace.leademergence.com/api/mcp");
   const [copied, setCopied] = useState(false);
   const [pending, setPending] = useState(false);
+  const [setupStarted, setSetupStarted] = useState(false);
+  const preparing = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const enabled = capabilityEnabled(capabilities, "workspace_mcp", plan?.status);
 
@@ -27,11 +29,27 @@ export default function AssistantConnectionPage() {
 
   useEffect(() => {
     if (!workspace || !user || !enabled) return;
-    void prepareAssistantConnection({ workspaceId: workspace.id, userId: user.id, assistant })
-      .then(() => Promise.all([listMcpAuthorizations(workspace.id), refreshProductState()]))
-      .then(([records]) => setConnections(records))
-      .catch(() => setError("Workspace could not prepare this assistant connection."));
-  }, [workspace, user, assistant, enabled, refreshProductState]);
+    void listMcpAuthorizations(workspace.id)
+      .then((records) => setConnections(records))
+      .catch(() => setError("Connection status is temporarily unavailable."));
+  }, [workspace, user, enabled]);
+
+  async function startSetup() {
+    if (!workspace || !user || !enabled || !assistant || pending || preparing.current || setupStarted) return;
+    preparing.current = true;
+    setPending(true);
+    setError(null);
+    try {
+      await prepareAssistantConnection({ workspaceId: workspace.id, userId: user.id, assistant });
+      setSetupStarted(true);
+      await refreshProductState().catch(() => setError("Setup started, but Workspace status could not be refreshed."));
+    } catch {
+      setError("Workspace could not prepare this assistant connection.");
+    } finally {
+      preparing.current = false;
+      setPending(false);
+    }
+  }
 
   async function refresh() {
     if (!workspace) return;
@@ -39,14 +57,19 @@ export default function AssistantConnectionPage() {
     try {
       const records = await listMcpAuthorizations(workspace.id);
       setConnections(records);
-      if (!records.some((record) => record.assistant_provider === assistant && record.status === "connected")) setError("No active authorization was found yet. Complete consent in your assistant, then try again.");
+      if (!records.some((record) => record.assistant_provider === assistant && record.status === "connected")) {
+        setError(setupStarted
+          ? "No active authorization was found yet. Complete consent in your assistant, then try again."
+          : "No active authorization was found yet. Start setup to continue.");
+      }
     } catch { setError("Connection status is temporarily unavailable."); }
     finally { setPending(false); }
   }
 
   const authorization = connections.find((record) => record.assistant_provider === assistant && record.status === "connected");
   const authorized = Boolean(authorization);
-  const name = assistant === "chatgpt" ? "ChatGPT" : "Claude";
+  const canContinue = authorized || setupStarted;
+  const name = assistant === "claude" ? "Claude" : "ChatGPT";
   if (!enabled) return <CapabilityLockedState title="AI assistant connection" benefit="An AI assistant connection lets you use controlled Workspace tools from ChatGPT or Claude." suspended={plan?.status === "suspended"} />;
 
   return <section className="workflow-page">
@@ -57,12 +80,15 @@ export default function AssistantConnectionPage() {
       <article className="card">
         <div className="connection-status" data-connected={authorized}><span />{authorized ? "Authorization active" : "Authorization required"}</div>
         <p className="muted">Authorization confirms consent and account access. After a Lewis update, refresh this connection and start a new chat so your assistant discovers the current tool list.</p>
-        <ol className="connection-steps">
+        {canContinue ? <ol className="connection-steps">
           <li><strong>Copy the Workspace connection address.</strong><div className="copy-field"><code>{mcpUrl}</code><button className="icon-button" aria-label="Copy Workspace connection address" onClick={() => { void navigator.clipboard.writeText(mcpUrl); setCopied(true); }}><Clipboard size={16} /></button></div>{copied ? <small className="success-copy"><Check size={13} /> Copied</small> : null}</li>
           {assistant === "chatgpt" ? <li><strong>In ChatGPT, open Apps &amp; Connectors.</strong> Enable developer mode, create a connection, and paste the address.</li> : <li><strong>In Claude, open Connectors.</strong> Choose Add custom connector and paste the address.</li>}
           <li><strong>Approve the Lewis consent screen.</strong> The connection becomes usable only after explicit authorization.</li>
-        </ol>
-        <div className="setup-inline-actions"><a className="button" href={assistant === "chatgpt" ? "https://chatgpt.com" : "https://claude.ai/new"} target="_blank" rel="noreferrer">Open {name} <ExternalLink size={15} /></a><button className="button secondary" disabled={pending} onClick={() => void refresh()}><RefreshCw size={15} />Refresh authorization</button></div>
+        </ol> : <p className="muted">Start setup to save your assistant choice and continue to the connection instructions.</p>}
+        <div className="setup-inline-actions">
+          {canContinue ? <a className="button" href={assistant === "chatgpt" ? "https://chatgpt.com" : "https://claude.ai/new"} target="_blank" rel="noreferrer">Open {name} <ExternalLink size={15} /></a> : <button className="button" disabled={!assistant || !workspace || !user || pending} onClick={() => void startSetup()}>Start {name} setup</button>}
+          <button className="button secondary" disabled={pending} onClick={() => void refresh()}><RefreshCw size={15} />Refresh authorization</button>
+        </div>
       </article>
       <aside className="card"><ShieldCheck size={22} color="var(--success)" /><h2>Controlled access</h2><p className="page-lede">Lewis can read and manage approved Workspace records, including tasks, captures, personal memory, career opportunities, and confirmed setup. Destructive changes require explicit confirmation. External accounts are not yet available to Lewis.</p><p className="muted">The assistant sees only what authorized tools return. Disconnecting in Settings disables privileged calls even if an old access token has not yet expired.</p><Link className="button secondary" href="/workspace/settings#assistant">Manage assistant access</Link></aside>
     </div>
