@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   page.on("request", (request) => { if (/\/api\/sotf|supabase\.co/.test(request.url())) accountRequests.push(request.url()); });
   page.on("pageerror", (error) => browserErrors.push(error.message));
   await page.goto("/sotf/preview");
-  await expect(page.getByRole("heading", { name: "For today" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Is this worth more of your time?" })).toBeVisible();
 });
 
 test("a confirmed criterion changes the decision and keeps the evidence visible", async ({ page }) => {
