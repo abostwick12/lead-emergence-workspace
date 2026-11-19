@@ -1,0 +1,82 @@
+F09 bounded local characterization — 2026-11-19
+
+Scope: tests/f09-investigation.test.ts and this evidence file only. No product fix.
+Source baseline: 896ba4f0b28f0ece7dddd38fea092967f91498af.
+Production acceptance: NOT TESTED. Actual PostgreSQL/PostgREST/RLS boundary: NOT TESTED.
+
+CLAIM: The unchanged native resolveCapture application path can create multiple tasks
+for one capture when the first call partially succeeds or two calls overlap.
+FALSIFIER: Run the unchanged function through a stateful synthetic client and inspect
+persisted task/capture state after controlled link failures and repeated invocations;
+one task with a stable link would falsify the relevant application-path claim.
+RESULT: The file-backed synthetic transport retained two tasks in each retry and
+concurrency case; the final capture link referenced the second task. This establishes
+application control flow under modeled responses, not actual database behavior.
+
+Command (worktree root):
+../node_modules/.bin/vitest.cmd run tests/f09-investigation.test.ts --config vitest.config.mts --reporter verbose
+
+Final run observed 2026-11-19 at tool-reported local 05:33:43:
+RUN v4.1.11
+Test Files 1 passed (1)
+Tests 6 passed (6)
+Duration 302ms
+
+Readback assertions:
+1. Healthy control: one task, capture processed, link task-1.
+2. Link failure before write: first call rejects, one task persists and capture stays
+   unprocessed/unlinked. Retry succeeds, two tasks persist, capture links task-2.
+3. Task acknowledgement lost after modeled insert: first call rejects, one task
+   persists and capture stays unlinked. Retry creates task-2 and links it.
+4. Link acknowledgement lost after modeled update: first call rejects despite capture
+   already processed/link task-1. Retry creates task-2 and replaces the link.
+5. Two overlapping calls: both succeed; two tasks persist; one final link to task-2.
+6. Zero-row link response with no error: function resolves successfully, one task
+   persists, capture remains unprocessed/unlinked. This is a modeled filtered update,
+   not proof that a specific hosted RLS policy causes it.
+
+Harness boundary:
+- Imports original lib/workspace/repository.ts unchanged through existing alias.
+- Replaces only getWorkspaceClient with a synthetic Supabase-shaped transport.
+- Writes synthetic task/capture state to an OS temporary JSON file; assertions reopen
+  the file. Cleanup verifies the resolved absolute directory remains under OS temp
+  and its basename starts f09-synthetic- before recursive removal after each test.
+  This is file persistence, not DB
+  transactional durability or a database emulator.
+- Acknowledgement loss and zero rows are deliberately injected response semantics.
+- Concurrency uses Promise.all to overlap application invocations; it does not model
+  PostgreSQL locking, isolation, triggers, constraints, network timing or RLS.
+- No hosted data, credentials, network, dependencies, services or Docker startup used.
+- No product source, migrations, production state or production data changed.
+
+Limits:
+No running local PostgreSQL was available in the parent preflight; the assigned scope
+prohibited starting Docker or adding dependencies/services. Therefore local real DB
+commit/readback, rollback, uniqueness, RLS and concurrency outcomes remain NOT TESTED.
+Passing characterization tests intentionally assert current problematic behavior.
+They do not prove a repair, production acceptance, or the frequency of live failures.
+
+Supporting final checks:
+../node_modules/.bin/eslint.cmd tests/f09-investigation.test.ts
+Result: exit 0, no findings.
+git diff --exit-code HEAD -- lib/workspace/repository.ts app/workspace/capture/page.tsx
+Result: exit 0, no product-source changes.
+
+Attempt history: zero fix attempts; one characterization harness, two passing runs;
+second run corrected synthetic status to unprocessed and guarded fixture cleanup.
+Build readability checkpoint: PASS, focused synthetic names, explicit fake boundary,
+no shared configuration or product changes.
+
+Supervisor independent validation:
+Repeated the exact targeted Vitest command after reading the harness and confirming
+the real initial status and bounded temporary-directory cleanup. At 05:35:43,
+6/6 passed in 313ms. The product-source diff check again returned exit 0.
+This does not change the actual PostgreSQL/production NOT TESTED boundary.
+
+
+Implementation checkpoint note, 2026-11-19: This is the preserved pre-fix transcript.
+The harness is now tests/f09-investigation.characterization.ts and explicitly loads
+base SHA 896ba4f0b28f0ece7dddd38fea092967f91498af. It is excluded from default
+Vitest discovery. Current implementation and real database proof are recorded in
+docs/testing/f09-implementation.md; the historical failures above are not assertions
+about the fixed caller.

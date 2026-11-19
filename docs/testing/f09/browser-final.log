@@ -1,0 +1,25 @@
+
+Running 16 tests using 1 worker
+
+(node:48832) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [desktop] › tests\e2e\capture-to-task.spec.ts:151:5 › double activation retains one pending capture and one conversion request (766ms)
+  ok  2 [desktop] › tests\e2e\capture-to-task.spec.ts:188:5 › confirmation retains the task and original content when inbox refresh fails (488ms)
+  ok  3 [desktop] › tests\e2e\capture-to-task.spec.ts:198:5 › lost acknowledgement retains only scoped capture ID and reload reads the committed link without a write (670ms)
+  ok  4 [desktop] › tests\e2e\capture-to-task.spec.ts:215:5 › reload of an uncommitted capture is read-only until explicit same-capture retry (675ms)
+  ok  5 [desktop] › tests\e2e\capture-to-task.spec.ts:228:5 › changed-domain retry returns first task and a rejected retry preserves earlier uncertainty (590ms)
+  ok  6 [desktop] › tests\e2e\capture-to-task.spec.ts:242:5 › acknowledged validation failure leaves content and permits a clean retry (581ms)
+  ok  7 [desktop] › tests\e2e\capture-to-task.spec.ts:254:5 › two browser sessions converge on one task and stale changed input is not applied (773ms)
+  ok  8 [desktop] › tests\e2e\capture-to-task.spec.ts:269:5 › unavailable storage still offers same-capture recovery without fallback writes (532ms)
+(node:20948) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  9 [mobile] › tests\e2e\capture-to-task.spec.ts:151:5 › double activation retains one pending capture and one conversion request (788ms)
+  ok 10 [mobile] › tests\e2e\capture-to-task.spec.ts:188:5 › confirmation retains the task and original content when inbox refresh fails (547ms)
+  ok 11 [mobile] › tests\e2e\capture-to-task.spec.ts:198:5 › lost acknowledgement retains only scoped capture ID and reload reads the committed link without a write (650ms)
+  ok 12 [mobile] › tests\e2e\capture-to-task.spec.ts:215:5 › reload of an uncommitted capture is read-only until explicit same-capture retry (673ms)
+  ok 13 [mobile] › tests\e2e\capture-to-task.spec.ts:228:5 › changed-domain retry returns first task and a rejected retry preserves earlier uncertainty (647ms)
+  ok 14 [mobile] › tests\e2e\capture-to-task.spec.ts:242:5 › acknowledged validation failure leaves content and permits a clean retry (518ms)
+  ok 15 [mobile] › tests\e2e\capture-to-task.spec.ts:254:5 › two browser sessions converge on one task and stale changed input is not applied (793ms)
+  ok 16 [mobile] › tests\e2e\capture-to-task.spec.ts:269:5 › unavailable storage still offers same-capture recovery without fallback writes (630ms)
+
+  16 passed (13.2s)

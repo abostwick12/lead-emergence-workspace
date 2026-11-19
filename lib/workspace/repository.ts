@@ -105,24 +105,48 @@ export async function createCapture(workspaceId: string, userId: string, rawText
   return required(data as CaptureRecord | null, error);
 }
 
+export type CaptureResolution =
+  | { status: "confirmed"; task: TaskRecord; alreadyProcessed: boolean }
+  | { status: "rejected"; message: string }
+  | { status: "uncertain"; message: string };
+
 export async function resolveCapture(input: {
   captureId: string;
   workspaceId: string;
-  userId: string;
-  rawText: string;
   domain: WorkspaceDomain;
-}): Promise<void> {
-  const task = await createTask({
-    workspaceId: input.workspaceId,
-    userId: input.userId,
-    title: input.rawText,
-    domain: input.domain
-  });
-  const { error } = await getWorkspaceClient()
-    .from("capture_inbox")
-    .update({ status: "processed", routed_task_id: task.id })
-    .eq("id", input.captureId);
-  if (error) throw new Error(error.message);
+}): Promise<CaptureResolution> {
+  const uncertain: CaptureResolution = {
+    status: "uncertain",
+    message: "We couldn't confirm whether this became a task. Check its status or retry this capture."
+  };
+  try {
+    const { data, error } = await getWorkspaceClient().rpc("resolve_capture_to_task", {
+      target_workspace_id: input.workspaceId,
+      target_capture_id: input.captureId,
+      task_domain: input.domain
+    });
+    // These database errors acknowledge an aborted transaction. A network error
+    // or unreadable acknowledgement cannot tell us whether the commit happened.
+    if (error) {
+      if (error.code === "22023") return { status: "rejected", message: "Conversion was not applied. Choose a valid domain and check that the task title is between 1 and 240 characters. Your capture is unchanged." };
+      if (error.code === "42501") return { status: "rejected", message: "Conversion was not applied. This capture is unavailable or access is not permitted. Restore normal access and check its status." };
+      if (error.code === "P0001") return { status: "rejected", message: "Conversion was not applied. The capture or its linked task is unavailable. Check its status before trying again." };
+      return uncertain;
+    }
+    const task = data?.task;
+    const nullableString = (value: unknown) => value === null || typeof value === "string";
+    if (typeof data?.already_processed !== "boolean" || !task || typeof task.id !== "string" || !task.id ||
+      task.workspace_id !== input.workspaceId || typeof task.title !== "string" ||
+      !["general", "military_transition", "sotf_fellowship", "job_search", "life", "leadership"].includes(task.domain) ||
+      !["todo", "in_progress", "blocked", "done"].includes(task.status) ||
+      !["critical", "high", "medium", "low"].includes(task.priority) ||
+      !nullableString(task.description) || !nullableString(task.due_date) ||
+      !Array.isArray(task.tags) || !task.tags.every((tag: unknown) => typeof tag === "string") ||
+      typeof task.created_at !== "string" || typeof task.updated_at !== "string") return uncertain;
+    return { status: "confirmed", task: task as TaskRecord, alreadyProcessed: data.already_processed };
+  } catch {
+    return uncertain;
+  }
 }
 
 export async function dismissCapture(captureId: string): Promise<void> {

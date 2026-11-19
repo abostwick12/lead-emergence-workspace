@@ -1,0 +1,37 @@
+{
+  "boundary": "real local PostgreSQL 15.8 + PostgREST v16.1; authenticated role; independent HTTP requests",
+  "results": [
+    {
+      "case": "normal, sequential retry, processed retry, changed input",
+      "taskCount": 1,
+      "taskId": "503c4003-7134-48cc-92c0-9c2193184f7a",
+      "status": "processed"
+    },
+    {
+      "case": "six concurrent HTTP sessions / double activation",
+      "newTasks": 1,
+      "taskCount": 2,
+      "taskId": "5441cc09-1f28-436a-ae66-097229ed6eaa",
+      "status": "processed"
+    },
+    {
+      "case": "ignored committed acknowledgement then retry",
+      "newTasks": 1,
+      "taskCount": 3,
+      "taskId": "66ce5116-4e99-4b0a-a001-74b2161513ad",
+      "status": "processed"
+    },
+    {
+      "case": "fresh HTTP session preserves capture identity",
+      "newTasks": 1,
+      "taskCount": 4,
+      "taskId": "bc3148ab-d4bb-4951-8224-b7a039d02d05"
+    },
+    {
+      "case": "missing, both cross-tenant directions, discarded, missing linked task; legitimate B control",
+      "tenantATasks": 4,
+      "tenantBTasks": 1
+    }
+  ],
+  "limits": "Ignored acknowledgement is caller discard, not a network fault. Browser reload/UI recovery is separate. Fixture DB is disposable; no hosted data."
+}

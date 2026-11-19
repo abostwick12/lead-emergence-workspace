@@ -1,0 +1,393 @@
+SET
+BEGIN
+ no_plan
+---------
+(0 rows)
+
+INSERT 0 2
+INSERT 0 2
+INSERT 0 2
+INSERT 0 2
+INSERT 0 2
+INSERT 0 1
+INSERT 0 2
+INSERT 0 2
+INSERT 0 10
+             ok
+----------------------------
+ ok 1 - anon cannot execute
+(1 row)
+
+                 ok
+------------------------------------
+ ok 2 - service_role cannot execute
+(1 row)
+
+                ok
+----------------------------------
+ ok 3 - authenticated can execute
+(1 row)
+
+                           ok
+---------------------------------------------------------
+ ok 4 - conversion does not require private-schema usage
+(1 row)
+
+                  ok
+--------------------------------------
+ ok 5 - PUBLIC has no execution grant
+(1 row)
+
+                          ok
+-------------------------------------------------------
+ ok 6 - RPC is volatile invoker with empty search path
+(1 row)
+
+SET
+                              set_config
+-----------------------------------------------------------------------
+ {"sub":"f0911111-1111-4111-8111-111111111111","role":"authenticated"}
+(1 row)
+
+                                                                                                                                                                                         set_config
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"task": {"id": "c2883b5b-146c-4039-aa20-36dd1dd5b0a7", "tags": [], "title": "F09 original content", "domain": "life", "status": "todo", "due_date": null, "priority": "medium", "created_at": "2026-11-19T13:55:03.5751+00:00", "updated_at": "2026-11-19T13:55:03.5751+00:00", "description": null, "workspace_id": "f09aaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}, "already_processed": false}
+(1 row)
+
+                    is
+------------------------------------------
+ ok 7 - first call reports new conversion
+(1 row)
+
+                            is
+-----------------------------------------------------------
+ ok 8 - normal conversion creates exactly one visible task
+(1 row)
+
+                 is
+------------------------------------
+ ok 9 - normal capture is processed
+(1 row)
+
+                         is
+----------------------------------------------------
+ ok 10 - normal capture links exactly returned task
+(1 row)
+
+                  is
+---------------------------------------
+ ok 11 - raw capture content preserved
+(1 row)
+
+                          is
+-------------------------------------------------------
+ ok 12 - task preserves trim and native field defaults
+(1 row)
+
+                         is
+----------------------------------------------------
+ ok 13 - same-capture retry reports existing result
+(1 row)
+
+                                   is
+------------------------------------------------------------------------
+ ok 14 - changed retry selection returns first committed task unchanged
+(1 row)
+
+                           is
+--------------------------------------------------------
+ ok 15 - processed lookup precedes new-input validation
+(1 row)
+
+                                 is
+--------------------------------------------------------------------
+ ok 16 - repeated and changed-input calls create no additional task
+(1 row)
+
+RESET
+CREATE FUNCTION
+CREATE TRIGGER
+SET
+ set_config
+------------
+ 11
+(1 row)
+
+ set_config
+------------
+ raise
+(1 row)
+
+                throws_ok
+-----------------------------------------
+ ok 17 - failure after INSERT propagates
+(1 row)
+
+                      is
+-----------------------------------------------
+ ok 18 - failed linkage rolls back task INSERT
+(1 row)
+
+                       is
+-------------------------------------------------
+ ok 19 - failed linkage rolls back audit effects
+(1 row)
+
+                    is
+------------------------------------------
+ ok 20 - failed linkage preserves capture
+(1 row)
+
+ set_config
+------------
+ off
+(1 row)
+
+                  lives_ok
+---------------------------------------------
+ ok 21 - clean retry after rollback succeeds
+(1 row)
+
+                    is
+-------------------------------------------
+ ok 22 - clean retry adds exactly one task
+(1 row)
+
+ set_config
+------------
+ 13
+(1 row)
+
+ set_config
+------------
+ skip
+(1 row)
+
+              throws_ok
+--------------------------------------
+ ok 23 - zero-row UPDATE fails closed
+(1 row)
+
+                   is
+----------------------------------------
+ ok 24 - zero-row UPDATE leaves no task
+(1 row)
+
+                        is
+--------------------------------------------------
+ ok 25 - zero-row UPDATE rolls back audit effects
+(1 row)
+
+                     is
+--------------------------------------------
+ ok 26 - zero-row capture remains unchanged
+(1 row)
+
+ set_config
+------------
+ off
+(1 row)
+
+                     throws_ok
+----------------------------------------------------
+ ok 27 - processed without link is explicit failure
+(1 row)
+
+            throws_ok
+---------------------------------
+ ok 28 - discarded capture fails
+(1 row)
+
+                     throws_ok
+---------------------------------------------------
+ ok 29 - overlength title fails without truncation
+(1 row)
+
+                    is
+-------------------------------------------
+ ok 30 - overlength capture content intact
+(1 row)
+
+            throws_ok
+---------------------------------
+ ok 31 - null workspace rejected
+(1 row)
+
+           throws_ok
+-------------------------------
+ ok 32 - null capture rejected
+(1 row)
+
+              throws_ok
+-------------------------------------
+ ok 33 - invalid new domain rejected
+(1 row)
+
+           throws_ok
+--------------------------------
+ ok 34 - missing capture denied
+(1 row)
+
+            throws_ok
+----------------------------------
+ ok 35 - foreign workspace denied
+(1 row)
+
+                      throws_ok
+------------------------------------------------------
+ ok 36 - foreign capture under owned workspace denied
+(1 row)
+
+                    throws_ok
+-------------------------------------------------
+ ok 37 - same-workspace different creator denied
+(1 row)
+
+                          is
+-------------------------------------------------------
+ ok 38 - validation and denied requests create no task
+(1 row)
+
+                                                        set_config
+--------------------------------------------------------------------------------------------------------------------------
+ {"sub":"f0911111-1111-4111-8111-111111111111","role":"authenticated","client_id":"f09ccccC-cccc-4ccc-8ccc-cccccccccccc"}
+(1 row)
+
+              throws_ok
+-------------------------------------
+ ok 39 - OAuth client claim rejected
+(1 row)
+
+                      throws_ok
+-----------------------------------------------------
+ ok 40 - OAuth client cannot replay a processed task
+(1 row)
+
+                                         set_config
+--------------------------------------------------------------------------------------------
+ {"sub":"f0911111-1111-4111-8111-111111111111","role":"authenticated","workspace_mcp":true}
+(1 row)
+
+         throws_ok
+----------------------------
+ ok 41 - MCP claim rejected
+(1 row)
+
+                     throws_ok
+---------------------------------------------------
+ ok 42 - MCP client cannot replay a processed task
+(1 row)
+
+        set_config
+--------------------------
+ {"role":"authenticated"}
+(1 row)
+
+           throws_ok
+-------------------------------
+ ok 43 - missing user rejected
+(1 row)
+
+                              set_config
+-----------------------------------------------------------------------
+ {"sub":"f0911111-1111-4111-8111-111111111111","role":"authenticated"}
+(1 row)
+
+RESET
+UPDATE 1
+SET
+                                  throws_ok
+------------------------------------------------------------------------------
+ ok 44 - revoked tasks capability denies new conversion through INSERT policy
+(1 row)
+
+                           throws_ok
+---------------------------------------------------------------
+ ok 45 - revoked tasks capability also denies processed replay
+(1 row)
+
+RESET
+UPDATE 1
+UPDATE 1
+SET
+                    throws_ok
+-------------------------------------------------
+ ok 46 - revoked quick_capture capability denied
+(1 row)
+
+                               throws_ok
+-----------------------------------------------------------------------
+ ok 47 - revoked quick_capture capability also denies processed replay
+(1 row)
+
+RESET
+UPDATE 1
+SET
+                          is
+------------------------------------------------------
+ ok 48 - authority denials leave task count unchanged
+(1 row)
+
+                     is
+--------------------------------------------
+ ok 49 - authority denials preserve capture
+(1 row)
+
+              set_config
+--------------------------------------
+ 30f7aa93-c769-495c-bfb7-191c90a62f7b
+(1 row)
+
+DELETE 1
+                   throws_ok
+-----------------------------------------------
+ ok 50 - deleted linked task is never replaced
+(1 row)
+
+                        is
+---------------------------------------------------
+ ok 51 - deleted-link retry creates no replacement
+(1 row)
+
+                              set_config
+-----------------------------------------------------------------------
+ {"sub":"f0922222-2222-4222-8222-222222222222","role":"authenticated"}
+(1 row)
+
+                   is
+----------------------------------------
+ ok 52 - foreign task count stayed zero
+(1 row)
+
+                    is
+------------------------------------------
+ ok 53 - foreign capture stayed unchanged
+(1 row)
+
+                           throws_ok
+----------------------------------------------------------------
+ ok 54 - reverse tenant denial does not disclose processed task
+(1 row)
+
+                        lives_ok
+---------------------------------------------------------
+ ok 55 - second tenant legitimate owner positive control
+(1 row)
+
+                       is
+-------------------------------------------------
+ ok 56 - second tenant creates only its one task
+(1 row)
+
+RESET
+                                    is
+---------------------------------------------------------------------------
+ ok 57 - global fixture task count matches the three surviving conversions
+(1 row)
+
+ finish
+--------
+ 1..57
+(1 row)
+
+ROLLBACK
