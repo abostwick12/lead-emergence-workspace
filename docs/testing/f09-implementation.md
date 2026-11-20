@@ -1,5 +1,7 @@
 # F09 local implementation checkpoint — 2026-11-19
 
+The later [approved eight-finding repair checkpoint](f09-review-repairs.md) supersedes the original recovery/Discard limitations addressed there and records current local validation. This file preserves the earlier investigation and implementation evidence.
+
 ## Publication approval — supersedes the earlier stop point
 
 Andrew subsequently authorized committing, pushing, opening the F09 PR, completing exact-head CodeRabbit review, and required checks. Merge, deployment, production migration, and production changes remain prohibited. The local checkpoint below is preserved as historical evidence; its base HEAD and earlier publication prohibition describe that earlier checkpoint, not the current authorization.

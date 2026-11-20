@@ -15,7 +15,7 @@ function docker(args, input) {
     let out = '', err = '';
     child.stdout.on('data', x => out += x); child.stderr.on('data', x => err += x);
     child.on('error', reject);
-    child.on('exit', code => code === 0 ? resolve(out) : reject(new Error(`Docker exit ${code}: ${err}`)));
+    child.on('close', code => code === 0 ? resolve(out) : reject(new Error(`Docker exit ${code}: ${err}`)));
     child.stdin.end(input);
   });
 }

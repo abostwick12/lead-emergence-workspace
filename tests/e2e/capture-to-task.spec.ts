@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import ts from "typescript";
 import { execFile } from "node:child_process";
-import { createHmac } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import type { CaptureRecord, TaskRecord } from "@/lib/workspace/types";
 
@@ -33,15 +33,15 @@ type Fault = "none" | "lost-after-commit" | "lost-before-commit" | "rollback" | 
 
 const localUser = "f0911111-1111-4111-8111-111111111111";
 const localWorkspace = "f09aaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const localCaptureIds = ["f0900000-0000-4000-8000-000000000011", "f0900000-0000-4000-8000-000000000012"];
 const exec = promisify(execFile);
 // Opt-in local integration only: fixed task-owned containers, no hosted URL input.
-async function localApi(resource: string, body?: unknown) {
+async function localApi(resource: string, body?: unknown, method?: "PATCH") {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   const claims = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: localUser, role: "authenticated", aud: "authenticated", exp: Math.floor(Date.now() / 1000) + 3600 })}`;
   const token = `${claims}.${createHmac("sha256", "f09-local-only-synthetic-jwt-secret-at-least-32").update(claims).digest("base64url")}`;
   const args = ["exec", "f09-db-20261119", "curl", "-sS", "--max-time", "20", "-w", "\n%{http_code}", "-H", `Authorization: Bearer ${token}`, "-H", "Content-Profile: workspace", "-H", "Accept-Profile: workspace"];
   if (body !== undefined) args.push("-H", "Content-Type: application/json", "-H", "Prefer: return=representation", "--data-binary", JSON.stringify(body));
+  if (method) args.push("-X", method);
   args.push(`http://f09-rest-20261119:3000/${resource}`);
   const { stdout } = await exec("docker", args, { windowsHide: true });
   const split = stdout.lastIndexOf("\n");
@@ -51,12 +51,14 @@ async function localApi(resource: string, body?: unknown) {
 }
 
 async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?: boolean; realDatabase?: boolean } = {}) {
-  const state = { captures: structuredClone(captures), tasks: [] as TaskRecord[], calls: [] as { target_capture_id: string; task_domain: string }[], fault: options.fault ?? "none" as Fault, readsFail: false, unexpected: [] as string[] };
+  const state = { captures: structuredClone(captures), tasks: [] as TaskRecord[], calls: [] as { target_capture_id: string; task_domain: string }[], fault: options.fault ?? "none" as Fault, readsFail: false, listCap: Infinity, staleInbox: false, rpcGate: null as Promise<void> | null, unexpected: [] as string[] };
+  const localCaptureIds = [randomUUID(), randomUUID()];
+  const runMarker = `f09-browser-${randomUUID()}`;
   const workspaceId = options.realDatabase ? localWorkspace : "synthetic-workspace";
   const userId = options.realDatabase ? localUser : "synthetic-user";
   if (options.realDatabase) {
     expect((await exec("docker", ["inspect", "f09-db-20261119", "--format", '{{index .Config.Labels "task"}}'], { windowsHide: true })).stdout.trim()).toBe("f09-20261119");
-    const result = await localApi("capture_inbox", captures.map((capture, index) => ({ id: localCaptureIds[index], workspace_id: workspaceId, created_by: userId, raw_text: capture.raw_text })));
+    const result = await localApi("capture_inbox", captures.map((capture, index) => ({ id: localCaptureIds[index], workspace_id: workspaceId, created_by: userId, raw_text: `${capture.raw_text} ${runMarker}` })));
     expect(result.error).toBeNull();
     state.captures = result.data;
   }
@@ -68,16 +70,27 @@ async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?
         const response = await fetch('/f09-fixture/rpc', {method: 'POST', body: JSON.stringify({name, args})});
         return response.json();
       },
-      from: (table) => ({select: () => ({eq: () => ({order: async () => {
-        const response = await fetch('/f09-fixture/read?table=' + table);
-        return response.json();
-      }})})})
+      from: (table) => {
+        const filters = []; let patch;
+        const execute = async () => {
+          const response = patch
+            ? await fetch('/f09-fixture/discard', {method: 'POST', body: JSON.stringify({table, filters, patch})})
+            : await fetch('/f09-fixture/read?table=' + table + '&filters=' + encodeURIComponent(JSON.stringify(filters)));
+          return response.json();
+        };
+        const query = {select: () => query, update: value => {patch = value; return query;}, eq: (key, value) => {filters.push([key, value]); return query;}, order: execute, then: (resolve, reject) => execute().then(resolve, reject)};
+        return query;
+      }
     };
     const modules = {
       react: React,
       "react/jsx-runtime": {Fragment: React.Fragment, jsx: (type, props, key) => React.createElement(type, {...props, key}), jsxs: (type, props, key) => React.createElement(type, {...props, key})},
       "next/link": {__esModule: true, default: ({children, ...props}) => React.createElement("a", props, children)},
-      "@/components/workspace-provider": {useWorkspace: () => ({workspace: {id: ${JSON.stringify(workspaceId)}}, user: {id: ${JSON.stringify(userId)}}, plan: {status: "active"}, capabilities: {quick_capture: true, tasks: true}})},
+      "@/components/workspace-provider": {useWorkspace: () => {
+        const [id, setId] = React.useState(${JSON.stringify(workspaceId)});
+        React.useEffect(() => { window.f09SwitchWorkspace = setId; }, []);
+        return {workspace: {id}, user: {id: ${JSON.stringify(userId)}}, plan: {status: "active"}, capabilities: {quick_capture: true, tasks: true}};
+      }},
       "@/components/capability-locked-state": {CapabilityLockedState: () => null},
       "@/lib/supabase/client": {getWorkspaceClient: () => client}
     };
@@ -100,12 +113,28 @@ async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?
       if (url.pathname === "/f09-fixture/read") {
         if (state.readsFail) return route.fulfill({ json: { data: null, error: { message: "Synthetic unavailable read" } } });
         const table = url.searchParams.get("table");
+        const filters: [string, string][] = JSON.parse(url.searchParams.get("filters") ?? "[]");
         if (!["tasks", "capture_inbox"].includes(table ?? "")) throw Error("Unexpected table " + table);
         if (options.realDatabase) {
-          const query = table === "capture_inbox" ? `capture_inbox?id=in.(${localCaptureIds.join(",")})&select=*` : `tasks?workspace_id=eq.${localWorkspace}&select=*`;
+          const query = `${table}?${filters.map(([key, value]) => `${key}=eq.${encodeURIComponent(value)}`).join("&")}&select=*${table === "capture_inbox" ? `&id=in.(${localCaptureIds.join(",")})` : ""}`;
           return route.fulfill({ json: await localApi(query) });
         }
-        return route.fulfill({ json: { data: table === "tasks" ? state.tasks : state.captures, error: null } });
+        const records = table === "tasks" ? state.tasks : state.staleInbox && !filters.some(([key]) => key === "id") ? captures : state.captures;
+        const filtered = records.filter((record) => filters.every(([key, value]) => record[key as keyof typeof record] === value));
+        return route.fulfill({ json: { data: filtered.slice(0, filters.some(([key]) => key === "id") ? undefined : state.listCap), error: null } });
+      }
+      if (url.pathname === "/f09-fixture/discard") {
+        const { table, filters, patch }: { table: string; filters: [string, string][]; patch: { status: string } } = route.request().postDataJSON();
+        expect(table).toBe("capture_inbox");
+        expect(filters.map(([key]) => key).sort()).toEqual(["id", "status", "workspace_id"]);
+        expect(patch).toEqual({ status: "discarded" });
+        if (options.realDatabase) {
+          const query = `capture_inbox?${filters.map(([key, value]) => `${key}=eq.${encodeURIComponent(value)}`).join("&")}&select=*`;
+          return route.fulfill({ json: await localApi(query, patch, "PATCH") });
+        }
+        const matching = state.captures.filter((capture) => filters.every(([key, value]) => capture[key as keyof CaptureRecord] === value));
+        matching.forEach((capture) => { capture.status = "discarded"; });
+        return route.fulfill({ json: { data: matching, error: null } });
       }
       if (url.pathname === "/f09-fixture/rpc") {
         const { name, args } = route.request().postDataJSON();
@@ -113,6 +142,7 @@ async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?
         expect(Object.keys(args).sort()).toEqual(["target_capture_id", "target_workspace_id", "task_domain"]);
         expect(args.target_workspace_id).toBe(workspaceId);
         state.calls.push(args);
+        if (state.rpcGate) await state.rpcGate;
         const fault = state.fault; state.fault = "none";
         if (options.realDatabase) {
           const result = await localApi("rpc/resolve_capture_to_task", args);
@@ -143,7 +173,7 @@ async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?
   };
   await install(page);
   await expect(page.getByRole("button", { name: "Make task", exact: true })).toHaveCount(2);
-  return { state, install };
+  return { state, install, localCaptureIds, runMarker };
 }
 
 function firstCapture(page: Page) { return page.locator("article.item").filter({ hasText: "Original thought one" }); }
@@ -154,21 +184,21 @@ test("double activation retains one pending capture and one conversion request",
     button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
-  await expect(page.getByRole("link", { name: "View task: Original thought one" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open task board" })).toBeVisible();
   expect(state.calls).toHaveLength(1);
   expect(state.tasks).toHaveLength(1);
 });
 
 test("real local committed conversion survives dropped browser acknowledgement, retry and reload", async ({ page }) => {
   test.skip(process.env.F09_LOCAL_DATABASE !== "1", "Requires the task-owned isolated PostgreSQL/PostgREST fixtures.");
-  const { state } = await fixture(page, { realDatabase: true, fault: "lost-after-commit" });
+  const { state, localCaptureIds, runMarker } = await fixture(page, { realDatabase: true, fault: "lost-after-commit" });
   await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("couldn't confirm");
   const committed = await localApi(`capture_inbox?id=eq.${localCaptureIds[0]}&select=status,routed_task_id`);
   expect(committed.error).toBeNull();
   expect(committed.data[0].status).toBe("processed");
   await page.getByRole("button", { name: "Retry this capture", exact: true }).click();
-  await expect(page.getByRole("link", { name: "View task: Original thought one" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open task board" })).toBeVisible();
   const replay = await localApi(`capture_inbox?id=eq.${localCaptureIds[0]}&select=routed_task_id`);
   expect(replay.data[0].routed_task_id).toBe(committed.data[0].routed_task_id);
   state.fault = "lost-after-commit";
@@ -176,9 +206,9 @@ test("real local committed conversion survives dropped browser acknowledgement, 
   await expect(page.getByRole("status")).toContainText("couldn't confirm");
   const callsBeforeReload = state.calls.length;
   await page.reload();
-  await expect(page.getByRole("link", { name: "View task: Original thought two" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open task board" })).toBeVisible();
   expect(state.calls).toHaveLength(callsBeforeReload);
-  const persisted = await localApi(`tasks?workspace_id=eq.${localWorkspace}&title=in.(Original%20thought%20one,Original%20thought%20two)&select=id,title`);
+  const persisted = await localApi(`tasks?workspace_id=eq.${localWorkspace}&title=like.*${runMarker}*&select=id,title`);
   expect(persisted.error).toBeNull();
   expect(persisted.data).toHaveLength(2);
   await test.info().attach("real-database-readback", { body: JSON.stringify({ tasks: persisted.data, firstLink: committed.data[0].routed_task_id, writesOnReload: 0 }), contentType: "application/json" });
@@ -188,7 +218,7 @@ test("real local committed conversion survives dropped browser acknowledgement, 
 test("confirmation retains the task and original content when inbox refresh fails", async ({ page }) => {
   const { state } = await fixture(page, { fault: "refresh-failed" });
   await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
-  await expect(page.getByRole("link", { name: "View task: Original thought one" })).toHaveAttribute("href", "/workspace/tasks");
+  await expect(page.getByRole("link", { name: "Open task board" })).toHaveAttribute("href", "/workspace/tasks");
   await expect(page.getByRole("alert")).toContainText("The task is confirmed");
   expect(state.tasks).toHaveLength(1);
   expect(state.captures[0]).toMatchObject({ raw_text: "Original thought one", status: "processed", routed_task_id: state.tasks[0].id });
@@ -205,7 +235,7 @@ test("lost acknowledgement retains only scoped capture ID and reload reads the c
   expect(state.tasks).toHaveLength(1);
   const taskId = state.tasks[0].id;
   await page.reload();
-  await expect(page.getByRole("link", { name: "View task: Original thought one" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open task board" })).toBeVisible();
   expect(state.calls).toHaveLength(1);
   expect(state.tasks.map((task) => task.id)).toEqual([taskId]);
   expect(await page.evaluate(() => Object.entries(sessionStorage))).toEqual([]);
@@ -220,7 +250,7 @@ test("reload of an uncommitted capture is read-only until explicit same-capture 
   await expect(page.getByRole("status")).toContainText("still in your inbox");
   expect(state.tasks).toHaveLength(0); expect(state.calls).toHaveLength(1);
   await page.getByRole("button", { name: "Retry this capture", exact: true }).click();
-  await expect(page.getByRole("link", { name: "View task: Original thought one" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open task board" })).toBeVisible();
   expect(state.tasks).toHaveLength(1);
   expect(state.calls.map((call) => call.target_capture_id)).toEqual(["capture-one", "capture-one"]);
 });
@@ -247,7 +277,7 @@ test("acknowledged validation failure leaves content and permits a clean retry",
   expect(state.captures[0]).toMatchObject({ raw_text: "Original thought one", status: "unprocessed", routed_task_id: null });
   await expect(firstCapture(page).getByRole("button", { name: "Make task", exact: true })).toBeEnabled();
   await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
-  await expect(page.getByRole("link", { name: "View task: Original thought one" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open task board" })).toBeVisible();
   expect(state.tasks).toHaveLength(1);
 });
 
@@ -257,7 +287,7 @@ test("two browser tabs converge on one task and stale changed input is not appli
   await expect(second.getByRole("button", { name: "Make task", exact: true })).toHaveCount(2);
   await second.getByLabel("New tasks from this inbox").selectOption("life");
   await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
-  await expect(page.getByRole("link", { name: "View task: Original thought one" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open task board" })).toBeVisible();
   await firstCapture(second).getByRole("button", { name: "Make task", exact: true }).click();
   await expect(second.getByRole("status")).toContainText("Your current selection was not applied");
   expect(state.tasks).toHaveLength(1); expect(state.calls).toHaveLength(2);
@@ -271,6 +301,104 @@ test("unavailable storage still offers same-capture recovery without fallback wr
   await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("couldn't confirm whether this became a task");
   await page.getByRole("button", { name: "Check status", exact: true }).click();
-  await expect(page.getByRole("link", { name: "View task: Original thought one" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open task board" })).toBeVisible();
   expect(state.calls).toHaveLength(1); expect(state.tasks).toHaveLength(1);
 });
+
+test("confirmed A stays absent when refresh fails, B starts, and a stale inbox read returns", async ({ page }) => {
+  const { state } = await fixture(page, { fault: "refresh-failed" });
+  await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("The task is confirmed");
+  await expect(firstCapture(page)).toHaveCount(0);
+  state.readsFail = false; state.staleInbox = true;
+  await page.locator("article.item").filter({ hasText: "Original thought two" }).getByRole("button", { name: "Make task", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Confirmed task: Original thought two");
+  await expect(page.locator("article.item")).toHaveCount(0);
+  expect(state.tasks).toHaveLength(2);
+});
+
+test("recovery finds the exact older capture and linked task beyond capped lists", async ({ page }) => {
+  const { state } = await fixture(page, { fault: "lost-after-commit" });
+  await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("couldn't confirm");
+  state.listCap = 0;
+  await page.reload();
+  await expect(page.getByRole("status")).toContainText("Confirmed task: Original thought one");
+  await expect(page.getByRole("link", { name: "Open task board", exact: true })).toHaveAttribute("href", "/workspace/tasks");
+  expect(state.calls).toHaveLength(1);
+});
+
+test("acknowledged validation plus unprocessed readback offers explicit read-only return to inbox", async ({ page }) => {
+  const { state } = await fixture(page, { fault: "lost-before-commit" });
+  state.captures[0].raw_text = "x".repeat(241);
+  await page.getByRole("button", { name: "Make task", exact: true }).first().click();
+  await expect(page.getByRole("status")).toContainText("couldn't confirm");
+  state.fault = "rollback";
+  await page.getByRole("button", { name: "Retry this capture", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Return to inbox", exact: true })).toBeVisible();
+  expect(state.tasks).toHaveLength(0);
+  const calls = state.calls.length;
+  await page.getByRole("button", { name: "Return to inbox", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Make task", exact: true }).last()).toBeEnabled();
+  expect(state.calls).toHaveLength(calls);
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBeNull();
+  expect(state.captures[0]).toMatchObject({ status: "unprocessed", raw_text: "x".repeat(241) });
+});
+
+test("validation without a reliable unprocessed readback keeps pending and offers no return", async ({ page }) => {
+  const { state } = await fixture(page, { fault: "lost-before-commit" });
+  await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("couldn't confirm");
+  state.fault = "rollback"; state.readsFail = true;
+  await page.getByRole("button", { name: "Retry this capture", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("earlier attempt is still unconfirmed");
+  await expect(page.getByRole("button", { name: "Return to inbox", exact: true })).toHaveCount(0);
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBe("capture-one");
+  state.readsFail = false;
+  await page.getByRole("button", { name: "Check status", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Return to inbox", exact: true })).toBeVisible();
+});
+
+test("switching workspace ignores the old acknowledgement and releases the old busy state", async ({ page }) => {
+  const { state } = await fixture(page);
+  state.captures.push({ ...captures[0], id: "other-capture", workspace_id: "other-workspace", raw_text: "Other workspace thought" });
+  let release!: () => void;
+  state.rpcGate = new Promise<void>((resolve) => { release = resolve; });
+  await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Making this capture a task");
+  await page.evaluate(() => (window as unknown as { f09SwitchWorkspace: (id: string) => void }).f09SwitchWorkspace("other-workspace"));
+  const other = page.locator("article.item").filter({ hasText: "Other workspace thought" });
+  await expect(other.getByRole("button", { name: "Make task", exact: true })).toBeEnabled();
+  release();
+  await expect.poll(() => state.tasks.length).toBe(1);
+  await expect(page.getByRole("link", { name: "Open task board", exact: true })).toHaveCount(0);
+  await expect(other.getByRole("button", { name: "Make task", exact: true })).toBeEnabled();
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBe("capture-one");
+  expect(await page.evaluate(() => sessionStorage.getItem("workspace:capture-to-task:synthetic-user:other-workspace"))).toBeNull();
+});
+
+for (const realDatabase of [false, true]) {
+  test(`${realDatabase ? "real local" : "synthetic"} stale-tab discard preserves an already converted capture and its task`, async ({ page, context }) => {
+    test.skip(realDatabase && process.env.F09_LOCAL_DATABASE !== "1", "Requires the task-owned isolated database.");
+    const { state, install, localCaptureIds, runMarker } = await fixture(page, { realDatabase });
+    const second = await context.newPage(); await install(second);
+    await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
+    await expect(page.getByRole("link", { name: "Open task board", exact: true })).toBeVisible();
+    await firstCapture(second).getByRole("button", { name: "Discard", exact: true }).click();
+    await expect(second.getByRole("status")).toContainText("already became a task and was not discarded");
+    await expect(firstCapture(second)).toHaveCount(0);
+    if (realDatabase) {
+      const rows = await localApi(`capture_inbox?workspace_id=eq.${localWorkspace}&id=eq.${localCaptureIds[0]}&select=status,routed_task_id`);
+      const tasks = await localApi(`tasks?workspace_id=eq.${localWorkspace}&title=like.*${runMarker}*&select=id`);
+      expect(rows.error).toBeNull(); expect(tasks.error).toBeNull();
+      expect(tasks.data).toHaveLength(1);
+      expect(rows.data[0]).toEqual({ status: "processed", routed_task_id: tasks.data[0].id });
+      await test.info().attach("stale-discard-real-readback", { body: JSON.stringify({ captureId: localCaptureIds[0], ...rows.data[0], taskCount: tasks.data.length, runMarker }), contentType: "application/json" });
+    } else {
+      expect(state.captures[0]).toMatchObject({ status: "processed", routed_task_id: state.tasks[0].id });
+      expect(state.tasks).toHaveLength(1);
+    }
+    expect(state.unexpected).toEqual([]);
+    await second.close();
+  });
+}
