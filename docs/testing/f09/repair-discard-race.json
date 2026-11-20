@@ -1,0 +1,35 @@
+{
+  "boundary": "real isolated PostgreSQL/PostgREST, authenticated role, conditional native PATCH filters; no production",
+  "results": [
+    {
+      "mode": "conversion-first",
+      "captureId": "b99d791a-4a3f-4586-aee0-53dc4a5810c9",
+      "status": "processed",
+      "linkedTask": "4fb96d14-660a-4691-95e1-0ad0c51dad1f",
+      "taskCount": 1,
+      "discardRows": 0,
+      "repeatedDiscardRows": 0,
+      "retryStatus": 200
+    },
+    {
+      "mode": "discard-first",
+      "captureId": "5fd57257-3dee-48f0-9f9a-165b0d956d8b",
+      "status": "discarded",
+      "linkedTask": null,
+      "taskCount": 0,
+      "discardRows": 1,
+      "repeatedDiscardRows": 0,
+      "retryStatus": 400
+    },
+    {
+      "mode": "concurrent",
+      "captureId": "5ebaf60c-948a-4292-b47a-cd43f37acbee",
+      "status": "processed",
+      "linkedTask": "7ebf172b-dcea-45b0-b497-82f8b0dbaee6",
+      "taskCount": 1,
+      "discardRows": 0,
+      "repeatedDiscardRows": 0,
+      "retryStatus": 200
+    }
+  ]
+}
