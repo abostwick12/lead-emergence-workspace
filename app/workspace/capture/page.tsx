@@ -23,7 +23,7 @@ export default function CapturePage() {
   const pending = useRef<string | null>(null);
   const inFlight = useRef(false);
   const validationRejected = useRef<string | null>(null);
-  const confirmedIds = useRef(new Map<string, Set<string>>());
+  const settledIds = useRef(new Map<string, Set<string>>());
   const workspaceId = workspace?.id;
   const storageKey = workspaceId && user ? `workspace:capture-to-task:${user.id}:${workspaceId}` : null;
   const scope = useMemo(() => ({ key: storageKey }), [storageKey]);
@@ -32,7 +32,7 @@ export default function CapturePage() {
     if (!workspaceId || !storageKey) return;
     const captures = await listCaptures(workspaceId);
     if (activeScope.current === scope) {
-      setEntries(captures.filter((entry) => !confirmedIds.current.get(storageKey)?.has(entry.id)));
+      setEntries(captures.filter((entry) => !settledIds.current.get(storageKey)?.has(entry.id)));
     }
   }, [workspaceId, storageKey, scope]);
 
@@ -56,14 +56,14 @@ export default function CapturePage() {
     try {
       const [capture] = await listCaptures(workspaceId, captureId);
       if (activeScope.current !== scope) return;
-      if (capture) setEntries((current) => [...current.filter((entry) => entry.id !== captureId), capture].filter((entry) => !confirmedIds.current.get(storageKey!)?.has(entry.id)));
+      if (capture) setEntries((current) => [...current.filter((entry) => entry.id !== captureId), capture].filter((entry) => !settledIds.current.get(storageKey!)?.has(entry.id)));
       if (capture?.status === "processed" && capture.routed_task_id) {
         const [task] = await listTasks(workspaceId, capture.routed_task_id);
         if (activeScope.current !== scope) return;
         if (task) {
-          const ids = confirmedIds.current.get(storageKey!) ?? new Set<string>();
+          const ids = settledIds.current.get(storageKey!) ?? new Set<string>();
           ids.add(captureId);
-          confirmedIds.current.set(storageKey!, ids);
+          settledIds.current.set(storageKey!, ids);
           setEntries((current) => current.filter((entry) => entry.id !== captureId));
           setConfirmed({ captureId, task, alreadyProcessed: true });
           setRecoveryMessage(null);
@@ -132,9 +132,9 @@ export default function CapturePage() {
       if (activeScope.current !== scope) return;
       if (result.status === "confirmed") {
         // Confirmation survives a subsequent inbox refresh failure.
-        const ids = confirmedIds.current.get(storageKey!) ?? new Set<string>();
+        const ids = settledIds.current.get(storageKey!) ?? new Set<string>();
         ids.add(captureId);
-        confirmedIds.current.set(storageKey!, ids);
+        settledIds.current.set(storageKey!, ids);
         setEntries((current) => current.filter((entry) => entry.id !== captureId));
         setConfirmed({ captureId, task: result.task, alreadyProcessed: result.alreadyProcessed });
         setRecoveryMessage(null);
@@ -172,10 +172,13 @@ export default function CapturePage() {
     try {
       const current = await dismissCapture(workspaceId, captureId);
       if (activeScope.current !== scope) return;
-      setEntries((entries) => entries.filter((entry) => entry.id !== captureId));
-      if (current?.status === "discarded") setDiscardMessage("This capture is discarded.");
-      else if (current?.status === "processed") {
-        setDiscardMessage("This capture already became a task and was not discarded.");
+      if (current?.status === "discarded" || current?.status === "processed") {
+        // A late inbox response cannot restore a capture whose terminal state is known.
+        const ids = settledIds.current.get(storageKey!) ?? new Set<string>();
+        ids.add(captureId);
+        settledIds.current.set(storageKey!, ids);
+        setEntries((entries) => entries.filter((entry) => entry.id !== captureId));
+        setDiscardMessage(current.status === "discarded" ? "This capture is discarded." : "This capture already became a task and was not discarded.");
       } else setError("This capture could not be discarded. Its current state is unavailable; refresh the inbox and check again.");
     } catch (caught) {
       if (activeScope.current === scope) setError(caught instanceof Error ? caught.message : "Could not discard capture.");

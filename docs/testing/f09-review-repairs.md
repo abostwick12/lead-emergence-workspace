@@ -1,5 +1,17 @@
 # F09 review repairs — 2026-11-20 UTC
 
+## Follow-up exact-head review: discarded-state stale read
+
+CodeRabbit review `5985590633` completed on repair head `75e28057842d5fab307a224adac226aa2018732e` and posted one additional finding, `4636916055`. The original eight fixes remained in place. This finding was adjudicated VALID — FIX within the approved conditional-native-discard scope: an older list response started by Save could restore a capture after Discard established its terminal state.
+
+The focused actual-page test reproduced the problem before correction: after releasing the older Save-triggered inbox response, the discarded capture count was 1 instead of the expected 0. The page now uses the same scoped reconciliation set for readable processed/discarded states. It neither removes nor marks entries for failed, unavailable, or still-unprocessed discard results. No repository query, transaction function, schema, grant, or policy changed.
+
+Five controlled outcomes on both layouts passed (10 cases): discarded, processed, failed, unavailable, and still unprocessed. The supervisor then ran all affected synthetic browser cases: [38 passed](f09/final-browser.log) using `E2E_BASE_URL=http://127.0.0.1:61800 npx playwright test tests/e2e/capture-to-task.spec.ts --grep-invert 'real local'`. The six mandatory repository commands again exited 0, including 436 unit tests, 32 schema tests, typecheck, lint, boundaries and build. `git diff --check` passed. The prior real persistence and repeat-fixture evidence remains applicable to the unchanged repository/database boundary; no database service was restarted for this UI-only correction.
+
+Independent gpt-6-astra/high review inspected the released two-file source/test diff and found no blocker; readability and scope PASS. This is the first correction for the specific discarded-state stale-read issue, with a failing-before/passing-after regression. Source changes are limited to `app/workspace/capture/page.tsx` and `tests/e2e/capture-to-task.spec.ts`; evidence changes are this section and `docs/testing/f09/final-browser.log`. Fresh exact-head CodeRabbit review remains required after publication. Production acceptance remains NOT TESTED.
+
+## Original eight-finding repair checkpoint
+
 IN SCOPE: Andrew approved all eight findings from CodeRabbit review `5976926901` on PR #124, including conditional native Discard and the one-line `package.json` overlap with PR #74. No merge, deployment, hosted migration, or production changes are authorized. This record supersedes the pending repair/scope stop in the earlier checkpoint; historical observations remain historical.
 
 ## Ownership and contract

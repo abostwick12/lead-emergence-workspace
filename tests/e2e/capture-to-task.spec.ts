@@ -51,7 +51,7 @@ async function localApi(resource: string, body?: unknown, method?: "PATCH") {
 }
 
 async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?: boolean; realDatabase?: boolean } = {}) {
-  const state = { captures: structuredClone(captures), tasks: [] as TaskRecord[], calls: [] as { target_capture_id: string; task_domain: string }[], fault: options.fault ?? "none" as Fault, readsFail: false, listCap: Infinity, staleInbox: false, rpcGate: null as Promise<void> | null, unexpected: [] as string[] };
+  const state = { captures: structuredClone(captures), tasks: [] as TaskRecord[], calls: [] as { target_capture_id: string; task_domain: string }[], fault: options.fault ?? "none" as Fault, readsFail: false, listCap: Infinity, staleInbox: false, rpcGate: null as Promise<void> | null, inboxReadGate: null as Promise<void> | null, inboxReads: 0, discardOutcome: "normal" as "normal" | "failed" | "unavailable" | "unprocessed", unexpected: [] as string[] };
   const localCaptureIds = [randomUUID(), randomUUID()];
   const runMarker = `f09-browser-${randomUUID()}`;
   const workspaceId = options.realDatabase ? localWorkspace : "synthetic-workspace";
@@ -71,14 +71,16 @@ async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?
         return response.json();
       },
       from: (table) => {
-        const filters = []; let patch;
+        const filters = []; let patch, insert;
         const execute = async () => {
-          const response = patch
+          const response = insert
+            ? await fetch('/f09-fixture/insert', {method: 'POST', body: JSON.stringify({table, insert})})
+            : patch
             ? await fetch('/f09-fixture/discard', {method: 'POST', body: JSON.stringify({table, filters, patch})})
             : await fetch('/f09-fixture/read?table=' + table + '&filters=' + encodeURIComponent(JSON.stringify(filters)));
           return response.json();
         };
-        const query = {select: () => query, update: value => {patch = value; return query;}, eq: (key, value) => {filters.push([key, value]); return query;}, order: execute, then: (resolve, reject) => execute().then(resolve, reject)};
+        const query = {select: () => query, insert: value => {insert = value; return query;}, single: execute, update: value => {patch = value; return query;}, eq: (key, value) => {filters.push([key, value]); return query;}, order: execute, then: (resolve, reject) => execute().then(resolve, reject)};
         return query;
       }
     };
@@ -119,9 +121,25 @@ async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?
           const query = `${table}?${filters.map(([key, value]) => `${key}=eq.${encodeURIComponent(value)}`).join("&")}&select=*${table === "capture_inbox" ? `&id=in.(${localCaptureIds.join(",")})` : ""}`;
           return route.fulfill({ json: await localApi(query) });
         }
-        const records = table === "tasks" ? state.tasks : state.staleInbox && !filters.some(([key]) => key === "id") ? captures : state.captures;
+        const exactRead = filters.some(([key]) => key === "id");
+        if (table === "capture_inbox" && exactRead && state.discardOutcome === "unavailable") return route.fulfill({ json: { data: [], error: null } });
+        const records = table === "tasks" ? state.tasks : state.staleInbox && !exactRead ? captures : state.captures;
         const filtered = records.filter((record) => filters.every(([key, value]) => record[key as keyof typeof record] === value));
-        return route.fulfill({ json: { data: filtered.slice(0, filters.some(([key]) => key === "id") ? undefined : state.listCap), error: null } });
+        const snapshot = structuredClone(filtered.slice(0, exactRead ? undefined : state.listCap));
+        if (table === "capture_inbox" && !exactRead) {
+          state.inboxReads += 1;
+          if (state.inboxReadGate) await state.inboxReadGate;
+        }
+        return route.fulfill({ json: { data: snapshot, error: null } });
+      }
+      if (url.pathname === "/f09-fixture/insert") {
+        const { table, insert } = route.request().postDataJSON();
+        expect(options.realDatabase).not.toBe(true);
+        expect(table).toBe("capture_inbox");
+        expect(insert).toEqual({ workspace_id: workspaceId, created_by: userId, raw_text: "Saved while discarding" });
+        const capture: CaptureRecord = { id: `capture-saved-${state.captures.length}`, workspace_id: workspaceId, raw_text: insert.raw_text, status: "unprocessed", routed_task_id: null, created_at: "2026-11-19T12:01:00Z" };
+        state.captures.push(capture);
+        return route.fulfill({ json: { data: capture, error: null } });
       }
       if (url.pathname === "/f09-fixture/discard") {
         const { table, filters, patch }: { table: string; filters: [string, string][]; patch: { status: string } } = route.request().postDataJSON();
@@ -132,6 +150,8 @@ async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?
           const query = `capture_inbox?${filters.map(([key, value]) => `${key}=eq.${encodeURIComponent(value)}`).join("&")}&select=*`;
           return route.fulfill({ json: await localApi(query, patch, "PATCH") });
         }
+        if (state.discardOutcome === "failed") return route.fulfill({ json: { data: null, error: { message: "Synthetic discard failed" } } });
+        if (state.discardOutcome !== "normal") return route.fulfill({ json: { data: [], error: null } });
         const matching = state.captures.filter((capture) => filters.every(([key, value]) => capture[key as keyof CaptureRecord] === value));
         matching.forEach((capture) => { capture.status = "discarded"; });
         return route.fulfill({ json: { data: matching, error: null } });
@@ -177,6 +197,41 @@ async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?
 }
 
 function firstCapture(page: Page) { return page.locator("article.item").filter({ hasText: "Original thought one" }); }
+
+for (const outcome of ["discarded", "processed", "failed", "unavailable", "unprocessed"] as const) {
+  test(`discard ${outcome} reconciles an older inbox response started by Save`, async ({ page }) => {
+    const { state } = await fixture(page);
+    let release!: () => void;
+    state.inboxReadGate = new Promise<void>((resolve) => { release = resolve; });
+    await page.getByLabel("What needs your attention?").fill("Saved while discarding");
+    await page.getByRole("button", { name: "Save to inbox", exact: true }).click();
+    await expect.poll(() => state.inboxReads).toBe(2);
+    // The list snapshot is now held; only a readable terminal discard result may settle it.
+    if (outcome === "processed") state.captures[0].status = "processed";
+    else if (outcome !== "discarded") state.discardOutcome = outcome;
+    await firstCapture(page).getByRole("button", { name: "Discard", exact: true }).click();
+    const terminal = outcome === "discarded" || outcome === "processed";
+    if (terminal) {
+      await expect(page.getByRole("status")).toContainText(outcome === "discarded" ? "This capture is discarded" : "already became a task and was not discarded");
+      await expect(firstCapture(page)).toHaveCount(0);
+    } else {
+      await expect(page.getByRole("alert")).toContainText(outcome === "failed" ? "Synthetic discard failed" : "current state is unavailable");
+      await expect(firstCapture(page)).toBeVisible();
+    }
+    release();
+    const saved = page.locator("article.item").filter({ hasText: "Saved while discarding" });
+    await expect(saved).toBeVisible();
+    await expect(firstCapture(page)).toHaveCount(terminal ? 0 : 1);
+    for (const item of [saved, page.locator("article.item").filter({ hasText: "Original thought two" })]) {
+      await expect(item.getByRole("button", { name: "Make task", exact: true })).toBeEnabled();
+      await expect(item.getByRole("button", { name: "Discard", exact: true })).toBeEnabled();
+    }
+    expect(state.captures[0].status).toBe(terminal ? outcome : "unprocessed");
+    expect(state.tasks).toHaveLength(0);
+    expect(state.calls).toHaveLength(0);
+    expect(state.unexpected).toEqual([]);
+  });
+}
 
 test("double activation retains one pending capture and one conversion request", async ({ page }) => {
   const { state } = await fixture(page);
