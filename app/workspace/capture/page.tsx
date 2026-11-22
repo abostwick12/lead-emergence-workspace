@@ -72,6 +72,17 @@ export default function CapturePage() {
           return;
         }
       }
+      if (capture?.status === "discarded") {
+        const ids = settledIds.current.get(storageKey!) ?? new Set<string>();
+        ids.add(captureId);
+        settledIds.current.set(storageKey!, ids);
+        setEntries((current) => current.filter((entry) => entry.id !== captureId));
+        setDiscardMessage("This capture was discarded.");
+        setRecoveryMessage(null);
+        rememberPending(null);
+        try { await reload(); } catch { /* The exact discarded status remains authoritative. */ }
+        return;
+      }
       setCanDefer(capture?.status === "unprocessed" && validationRejected.current === captureId);
       setRecoveryMessage(capture?.status === "unprocessed"
         ? "This capture is still in your inbox. Retry this capture when you are ready; its content is unchanged."

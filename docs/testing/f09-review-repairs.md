@@ -79,3 +79,15 @@ Both containers were inspected for label `task=f09-20261119` and empty mounts, t
 - `docs/testing/f09/repair-discard-race.json`
 
 Outside-scope changes: none. BACKLOG — NOT PART OF CURRENT TASK: permanently inaccessible pending records still require restored access; historical duplicates/orphans, legacy direct writers, and existing scanner findings remain unmodified. Production acceptance is NOT TESTED, and F09 remains open. Final exact-head review/check evidence belongs in PR #124 and the handoff, avoiding an evidence-only commit after review.
+
+## Discarded pending recovery — November 21, 2026
+
+IN SCOPE: the owner approved the new CodeRabbit CLI finding as VALID — FIX. A lost-before-commit response could leave a pending capture ID after another tab discarded that capture. Exact status readback fell through to the generic unknown-outcome branch, so subsequent conversions remained disabled across reloads. The new browser regression reproduced that failure before the repair.
+
+The existing `checkStatus` now treats a readable discarded capture as terminal: record its ID in the existing user/workspace settlement set, remove the entry, clear pending session storage and recovery feedback, and show discard confirmation. Unknown, unavailable, and unprocessed outcomes retain their existing behavior. No repository API, SQL, policy, grant, or transaction changed.
+
+Validation: the focused regression passed after the fix; the affected browser spec passed 40 cases across desktop and mobile, with four real-local-database cases skipped. The regression exercises a separate tab's conditional Discard, first-tab status recovery, cleared pending storage, no task creation, and an unblocked reload. All six required commands passed: `npm run check:boundaries`, `npm run test:schema`, `npm run typecheck`, `npm run lint`, `npm run test:unit`, and `npm run build`. The first build encountered a local EPERM creating generated output; a rerun with normal filesystem access passed without source changes. `git diff --check` and independent readability/scope review passed.
+
+Preflight: Workspace main remains `896ba4f0b28f0ece7dddd38fea092967f91498af`; repair base is `207deee81cfd6bc1102ba08261c3292ef9a4cc1f`. Control-plane main remains `e126705fae6191fcab94f915e8cdafdca01935fc`. Only PR #124 owns the two source/test files among open PRs. This is the first repair for discarded pending-status recovery. Production refresh is not applicable to this local-only repair; production acceptance remains NOT TESTED.
+
+Changed files in this iteration: `app/workspace/capture/page.tsx`, `tests/e2e/capture-to-task.spec.ts`, and this evidence record. Outside-scope changes: none. The free CLI trial on the preceding head completed all 24 changed files and produced this finding, but lacked three required canonical context documents. The next exact-head review must include the mandate, roadmap, production-state record, decisions, backlog, and all three protocol instructions. Its result belongs in the PR after the final commit; no review pass is claimed here.

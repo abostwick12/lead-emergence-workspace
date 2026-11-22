@@ -310,6 +310,31 @@ test("reload of an uncommitted capture is read-only until explicit same-capture 
   expect(state.calls.map((call) => call.target_capture_id)).toEqual(["capture-one", "capture-one"]);
 });
 
+test("discard in another tab releases recovery after a lost before-commit response", async ({ page, context }) => {
+  const { state, install } = await fixture(page, { fault: "lost-before-commit" });
+  await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("couldn't confirm whether this became a task");
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBe("capture-one");
+
+  const second = await context.newPage();
+  await install(second);
+  await firstCapture(second).getByRole("button", { name: "Discard", exact: true }).click();
+  await expect(second.getByRole("status")).toContainText("This capture is discarded.");
+
+  await page.getByRole("button", { name: "Check status", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("This capture was discarded.");
+  await expect(firstCapture(page)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Make task", exact: true })).toBeEnabled();
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBeNull();
+  expect(state.tasks).toHaveLength(0);
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Make task", exact: true })).toBeEnabled();
+  await expect(firstCapture(page)).toHaveCount(0);
+  expect(state.calls).toHaveLength(1);
+  expect(state.unexpected).toEqual([]);
+  await second.close();
+});
 test("changed-domain retry returns first task and a rejected retry preserves earlier uncertainty", async ({ page }) => {
   const { state } = await fixture(page, { fault: "lost-after-commit" });
   await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
