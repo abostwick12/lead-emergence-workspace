@@ -1,0 +1,71 @@
+
+> lead-emergence-workspace@0.1.0 build
+> next build
+
+▲ Next.js 16.3.2 (Turbopack)
+✓ Running next.config.mjs took 16ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 4.4s
+  Running TypeScript ...
+  Finished TypeScript in 7.1s ...
+  Collecting page data using 19 workers ...
+  Generating static pages using 19 workers (0/30) ...
+  Generating static pages using 19 workers (7/30)
+  Generating static pages using 19 workers (14/30)
+  Generating static pages using 19 workers (22/30)
+✓ Generating static pages using 19 workers (30/30) in 544ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /.well-known/oauth-protected-resource
+├ ƒ /.well-known/oauth-protected-resource/api/mcp
+├ ƒ /api/bundles/invites/claim
+├ ƒ /api/calendar/accounts/[slot]
+├ ƒ /api/calendar/accounts/[slot]/callback
+├ ƒ /api/integrations/[provider]/callback
+├ ƒ /api/integrations/[provider]/credential
+├ ƒ /api/integrations/[provider]/disconnect
+├ ƒ /api/integrations/[provider]/start
+├ ƒ /api/integrations/github/setup
+├ ƒ /api/mcp
+├ ƒ /api/meet/andrew/availability
+├ ƒ /api/meet/andrew/book
+├ ƒ /api/oauth/consent
+├ ƒ /api/operator/bundles/assign
+├ ƒ /api/operator/bundles/entitlements/revoke
+├ ƒ /api/operator/bundles/invites
+├ ƒ /api/operator/bundles/invites/revoke
+├ ƒ /api/sotf
+├ ƒ /api/workspaces/[workspaceId]/bundles/[bundleKey]
+├ ƒ /auth/callback/sign-in
+├ ƒ /auth/entry
+├ ○ /login
+├ ƒ /meet/andrew
+├ ○ /oauth/consent
+├ ○ /privacy
+├ ○ /robots.txt
+├ ○ /sotf/connect
+├ ○ /sotf/preview
+├ ○ /workspace
+├ ƒ /workspace/bundles/invite
+├ ○ /workspace/capture
+├ ○ /workspace/career
+├ ○ /workspace/integrations
+├ ○ /workspace/integrations/assistant
+├ ○ /workspace/memory
+├ ƒ /workspace/operator/bundles
+├ ○ /workspace/settings
+├ ○ /workspace/setup
+├ ○ /workspace/sotf
+├ ƒ /workspace/sotf/[section]
+├ ○ /workspace/store
+└ ○ /workspace/tasks
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
