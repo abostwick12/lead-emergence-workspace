@@ -18,6 +18,8 @@ export default function CapturePage() {
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [canDefer, setCanDefer] = useState(false);
+  const [canClearRecovery, setCanClearRecovery] = useState(false);
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [discardMessage, setDiscardMessage] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<{ captureId: string; task: TaskRecord; alreadyProcessed: boolean } | null>(null);
   const pending = useRef<string | null>(null);
@@ -53,6 +55,7 @@ export default function CapturePage() {
     inFlight.current = true;
     setBusy(true);
     setCanDefer(false);
+    setCanClearRecovery(false);
     try {
       const [capture] = await listCaptures(workspaceId, captureId);
       if (activeScope.current !== scope) return;
@@ -83,6 +86,16 @@ export default function CapturePage() {
         try { await reload(); } catch { /* The exact discarded status remains authoritative. */ }
         return;
       }
+      if (capture?.status === "processed" && capture.routed_task_id === null) {
+        const ids = settledIds.current.get(storageKey!) ?? new Set<string>();
+        ids.add(captureId);
+        settledIds.current.set(storageKey!, ids);
+        setEntries((current) => current.filter((entry) => entry.id !== captureId));
+        setCanClearRecovery(true);
+        setRecoveryMessage("This capture is marked processed, but it has no linked task. Clear this recovery notice to continue; no replacement task will be created.");
+        try { await reload(); } catch { if (activeScope.current === scope) setError("The capture is processed, but the inbox could not refresh. Refresh the page to update the inbox."); }
+        return;
+      }
       setCanDefer(capture?.status === "unprocessed" && validationRejected.current === captureId);
       setRecoveryMessage(capture?.status === "unprocessed"
         ? "This capture is still in your inbox. Retry this capture when you are ready; its content is unchanged."
@@ -108,6 +121,8 @@ export default function CapturePage() {
     setError(null);
     setDiscardMessage(null);
     setCanDefer(false);
+    setCanClearRecovery(false);
+    setRecoveryNotice(null);
     validationRejected.current = null;
     if (captureId) {
       setRecoveryMessage("Checking your pending capture. No new task will be created while checking.");
@@ -134,6 +149,8 @@ export default function CapturePage() {
     setError(null);
     setDiscardMessage(null);
     setCanDefer(false);
+    setCanClearRecovery(false);
+    setRecoveryNotice(null);
     validationRejected.current = null;
     setConfirmed(null);
     rememberPending(captureId);
@@ -206,7 +223,8 @@ export default function CapturePage() {
       {error ? <p className="error" role="alert">{error}</p> : null}
       {discardMessage ? <p role="status">{discardMessage}</p> : null}
       {confirmed ? <div role="status"><p>{confirmed.alreadyProcessed ? "This capture already became a task. Your current selection was not applied; the existing task is unchanged." : "Your capture became a task."}</p><p>Confirmed task: {confirmed.task.title}</p><p><Link href="/workspace/tasks">Open task board</Link></p></div> : null}
-      {pendingId ? <div role="status"><p>{recoveryMessage}</p><div className="row"><button className="button secondary" disabled={busy} onClick={() => void checkStatus(pendingId)}>Check status</button><button className="button" disabled={busy} onClick={() => void resolve(pendingId)}>Retry this capture</button>{canDefer ? <button className="button secondary" disabled={busy} onClick={() => { rememberPending(null); setCanDefer(false); setRecoveryMessage(null); void reload().catch(() => { if (activeScope.current === scope) setError("Could not load captures."); }); }}>Return to inbox</button> : null}</div></div> : null}
+      {recoveryNotice ? <p role="status">{recoveryNotice}</p> : null}
+      {pendingId ? <div role="status"><p>{recoveryMessage}</p><div className="row"><button className="button secondary" disabled={busy} onClick={() => void checkStatus(pendingId)}>Check status</button>{!canClearRecovery ? <button className="button" disabled={busy} onClick={() => void resolve(pendingId)}>Retry this capture</button> : null}{canDefer ? <button className="button secondary" disabled={busy} onClick={() => { rememberPending(null); setCanDefer(false); setRecoveryMessage(null); void reload().catch(() => { if (activeScope.current === scope) setError("Could not load captures."); }); }}>Return to inbox</button> : null}{canClearRecovery ? <button className="button secondary" disabled={busy} onClick={() => { rememberPending(null); setCanClearRecovery(false); setRecoveryMessage(null); setRecoveryNotice("Recovery was cleared. No replacement task was created."); void reload().catch(() => { if (activeScope.current === scope) setError("Could not load captures."); }); }}>Clear recovery</button> : null}</div></div> : null}
       {inbox.length ? inbox.map((entry) => <article className="item" key={entry.id}><p>{entry.raw_text}</p><div className="row"><span className="muted">Captured {new Date(entry.created_at).toLocaleDateString()}</span><div className="row"><button className="button" disabled={busy || Boolean(pendingId)} onClick={() => void resolve(entry.id)}>Make task</button><button className="button secondary" disabled={busy || pendingId === entry.id} onClick={() => void discard(entry.id)}>Discard</button></div></div></article>) : <p className="empty">Capture a signal before deciding what it means. Write the thought above; you can turn it into a task or discard it when you review the inbox.</p>}
     </section>
   </>;

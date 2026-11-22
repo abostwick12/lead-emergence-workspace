@@ -51,7 +51,7 @@ async function localApi(resource: string, body?: unknown, method?: "PATCH") {
 }
 
 async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?: boolean; realDatabase?: boolean } = {}) {
-  const state = { captures: structuredClone(captures), tasks: [] as TaskRecord[], calls: [] as { target_capture_id: string; task_domain: string }[], fault: options.fault ?? "none" as Fault, readsFail: false, listCap: Infinity, staleInbox: false, rpcGate: null as Promise<void> | null, inboxReadGate: null as Promise<void> | null, inboxReads: 0, discardOutcome: "normal" as "normal" | "failed" | "unavailable" | "unprocessed", unexpected: [] as string[] };
+  const state = { captures: structuredClone(captures), tasks: [] as TaskRecord[], calls: [] as { target_capture_id: string; task_domain: string }[], fault: options.fault ?? "none" as Fault, readsFail: false, taskReadsFail: false, taskReadsEmpty: false, listCap: Infinity, staleInbox: false, rpcGate: null as Promise<void> | null, inboxReadGate: null as Promise<void> | null, inboxReads: 0, discardOutcome: "normal" as "normal" | "failed" | "unavailable" | "unprocessed", unexpected: [] as string[] };
   const localCaptureIds = [randomUUID(), randomUUID()];
   const runMarker = `f09-browser-${randomUUID()}`;
   const workspaceId = options.realDatabase ? localWorkspace : "synthetic-workspace";
@@ -117,6 +117,8 @@ async function fixture(page: Page, options: { fault?: Fault; storageUnavailable?
         const table = url.searchParams.get("table");
         const filters: [string, string][] = JSON.parse(url.searchParams.get("filters") ?? "[]");
         if (!["tasks", "capture_inbox"].includes(table ?? "")) throw Error("Unexpected table " + table);
+        if (table === "tasks" && state.taskReadsFail) return route.fulfill({ json: { data: null, error: { message: "Synthetic unavailable task read" } } });
+        if (table === "tasks" && state.taskReadsEmpty) return route.fulfill({ json: { data: [], error: null } });
         if (options.realDatabase) {
           const query = `${table}?${filters.map(([key, value]) => `${key}=eq.${encodeURIComponent(value)}`).join("&")}&select=*${table === "capture_inbox" ? `&id=in.(${localCaptureIds.join(",")})` : ""}`;
           return route.fulfill({ json: await localApi(query) });
@@ -334,6 +336,76 @@ test("discard in another tab releases recovery after a lost before-commit respon
   expect(state.calls).toHaveLength(1);
   expect(state.unexpected).toEqual([]);
   await second.close();
+});
+
+test("processed capture with a confirmed null task link offers a read-only exit", async ({ page }) => {
+  const { state } = await fixture(page, { fault: "lost-after-commit" });
+  await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("couldn't confirm whether this became a task");
+  expect(state.captures[0].status).toBe("processed");
+  expect(state.captures[0].routed_task_id).toBe(state.tasks[0].id);
+  state.captures[0].routed_task_id = null;
+  state.tasks = [];
+
+  await page.getByRole("button", { name: "Check status", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("marked processed, but it has no linked task");
+  await expect(page.getByRole("button", { name: "Retry this capture", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Clear recovery", exact: true })).toBeVisible();
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBe("capture-one");
+  expect(state.tasks).toHaveLength(0);
+
+  await page.reload();
+  const otherCapture = page.locator("article.item").filter({ hasText: "Original thought two" });
+  await expect(page.getByRole("button", { name: "Clear recovery", exact: true })).toBeVisible();
+  await expect(otherCapture.getByRole("button", { name: "Make task", exact: true })).toBeDisabled();
+
+  await page.getByRole("button", { name: "Clear recovery", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Recovery was cleared. No replacement task was created.");
+  await expect(otherCapture.getByRole("button", { name: "Make task", exact: true })).toBeEnabled();
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBeNull();
+  expect(state.tasks).toHaveLength(0);
+  expect(state.calls).toHaveLength(1);
+  await page.reload();
+  await expect(page.locator("article.item").filter({ hasText: "Original thought two" }).getByRole("button", { name: "Make task", exact: true })).toBeEnabled();
+  await expect(page.getByRole("status")).toHaveCount(0);
+  expect(state.calls).toHaveLength(1);
+  expect(state.unexpected).toEqual([]);
+});
+
+test("unreadable linked task preserves pending recovery until access returns", async ({ page }) => {
+  const { state } = await fixture(page, { fault: "lost-after-commit" });
+  await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("couldn't confirm whether this became a task");
+  state.taskReadsFail = true;
+
+  await page.getByRole("button", { name: "Check status", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("We couldn't check this capture's status");
+  await expect(page.getByRole("button", { name: "Return to inbox", exact: true })).toHaveCount(0);
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBe("capture-one");
+  await expect(page.getByRole("button", { name: "Make task", exact: true }).last()).toBeDisabled();
+  expect(state.tasks).toHaveLength(1);
+
+  state.taskReadsFail = false;
+  await page.getByRole("button", { name: "Check status", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Open task board", exact: true })).toBeVisible();
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBeNull();
+  expect(state.tasks).toHaveLength(1);
+  expect(state.calls).toHaveLength(1);
+});
+
+test("filtered linked task read preserves pending recovery", async ({ page }) => {
+  const { state } = await fixture(page, { fault: "lost-after-commit" });
+  await firstCapture(page).getByRole("button", { name: "Make task", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("couldn't confirm whether this became a task");
+  state.taskReadsEmpty = true;
+
+  await page.getByRole("button", { name: "Check status", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("We couldn't confirm the linked task");
+  await expect(page.getByRole("button", { name: "Clear recovery", exact: true })).toHaveCount(0);
+  expect(await page.evaluate((key) => sessionStorage.getItem(key), storageKey)).toBe("capture-one");
+  await expect(page.getByRole("button", { name: "Make task", exact: true }).last()).toBeDisabled();
+  expect(state.tasks).toHaveLength(1);
+  expect(state.calls).toHaveLength(1);
 });
 test("changed-domain retry returns first task and a rejected retry preserves earlier uncertainty", async ({ page }) => {
   const { state } = await fixture(page, { fault: "lost-after-commit" });
